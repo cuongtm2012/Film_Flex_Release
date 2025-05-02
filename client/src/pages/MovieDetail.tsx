@@ -30,11 +30,13 @@ import { apiRequest } from "@/lib/queryClient";
 import { MovieDetailResponse, Comment } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 
-export default function MovieDetail() {
-  const [, params] = useRoute("/movie/:slug");
+interface MovieDetailProps {
+  slug: string;
+}
+
+export default function MovieDetail({ slug }: MovieDetailProps) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const slug = params?.slug || "";
   
   // State for selected server and episode
   const [selectedServer, setSelectedServer] = useState("");
@@ -47,20 +49,21 @@ export default function MovieDetail() {
     isError: isMovieError
   } = useQuery<MovieDetailResponse>({
     queryKey: [`/api/movies/${slug}`],
-    enabled: !!slug,
-    onSuccess: (data) => {
-      // Initialize selected server and episode when data loads
-      if (data.episodes && data.episodes.length > 0) {
-        const firstServer = data.episodes[0].server_name;
-        setSelectedServer(firstServer);
-        
-        const firstEpisode = data.episodes[0].server_data[0]?.slug;
-        if (firstEpisode) {
-          setSelectedEpisode(firstEpisode);
-        }
+    enabled: !!slug
+  });
+
+  // Handle initial server and episode selection when data loads
+  React.useEffect(() => {
+    if (movieDetail?.episodes && movieDetail.episodes.length > 0) {
+      const firstServer = movieDetail.episodes[0].server_name;
+      setSelectedServer(firstServer);
+      
+      const firstEpisode = movieDetail.episodes[0].server_data[0]?.slug;
+      if (firstEpisode) {
+        setSelectedEpisode(firstEpisode);
       }
     }
-  });
+  }, [movieDetail]);
   
   // Fetch comments
   const {
