@@ -95,10 +95,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const movieModel = convertToMovieModel(movieDetailData);
         const episodeModels = convertToEpisodeModels(movieDetailData);
         
-        await storage.saveMovie(movieModel);
-        
-        for (const episode of episodeModels) {
-          await storage.saveEpisode(episode);
+        // Check if movie already exists before saving
+        const existingMovie = await storage.getMovieByMovieId(movieModel.movieId);
+        if (!existingMovie) {
+          await storage.saveMovie(movieModel);
+          
+          // Save episodes only if the movie is new
+          for (const episode of episodeModels) {
+            await storage.saveEpisode(episode);
+          }
         }
       }
       

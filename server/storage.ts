@@ -58,6 +58,7 @@ export interface IStorage {
   // Movie methods
   getMovies(page: number, limit: number): Promise<{ data: Movie[], total: number }>;
   getMovieBySlug(slug: string): Promise<Movie | undefined>;
+  getMovieByMovieId(movieId: string): Promise<Movie | undefined>;
   saveMovie(movie: InsertMovie): Promise<Movie>;
   searchMovies(query: string, page: number, limit: number): Promise<{ data: Movie[], total: number }>;
   getMoviesByCategory(categorySlug: string, page: number, limit: number): Promise<{ data: Movie[], total: number }>;
@@ -244,6 +245,10 @@ export class MemStorage implements IStorage {
   
   async getMovieBySlug(slug: string): Promise<Movie | undefined> {
     return this.movies.get(slug);
+  }
+  
+  async getMovieByMovieId(movieId: string): Promise<Movie | undefined> {
+    return Array.from(this.movies.values()).find(movie => movie.movieId === movieId);
   }
   
   async saveMovie(movie: InsertMovie): Promise<Movie> {
@@ -766,6 +771,11 @@ export class DatabaseStorage implements IStorage {
   
   async getMovieBySlug(slug: string): Promise<Movie | undefined> {
     const [movie] = await db.select().from(movies).where(eq(movies.slug, slug));
+    return movie;
+  }
+  
+  async getMovieByMovieId(movieId: string): Promise<Movie | undefined> {
+    const [movie] = await db.select().from(movies).where(eq(movies.movieId, movieId));
     return movie;
   }
   
