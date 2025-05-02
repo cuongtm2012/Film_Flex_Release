@@ -13,8 +13,8 @@ export default function Footer() {
       <div className="container mx-auto px-4">
         <div className="flex flex-col md:flex-row justify-between items-center mb-8">
           <div className="mb-6 md:mb-0">
-            <Link href="/">
-              <a className="text-primary font-bold text-2xl">FilmFlex</a>
+            <Link to="/" className="text-primary font-bold text-2xl">
+              FilmFlex
             </Link>
             <p className="text-muted-foreground text-sm mt-2">
               Discover and stream thousands of movies and TV shows.
@@ -42,28 +42,28 @@ export default function Footer() {
             <h4 className="text-white font-bold mb-4">Browse</h4>
             <ul className="space-y-2 text-muted-foreground">
               <li>
-                <Link href="/search?type=movie">
-                  <a className="hover:text-white transition">Movies</a>
+                <Link to="/search?type=movie" className="hover:text-white transition">
+                  Movies
                 </Link>
               </li>
               <li>
-                <Link href="/search?type=tv">
-                  <a className="hover:text-white transition">TV Shows</a>
+                <Link to="/search?type=tv" className="hover:text-white transition">
+                  TV Shows
                 </Link>
               </li>
               <li>
-                <Link href="/search?sort=new">
-                  <a className="hover:text-white transition">New Releases</a>
+                <Link to="/search?sort=new" className="hover:text-white transition">
+                  New Releases
                 </Link>
               </li>
               <li>
-                <Link href="/search?sort=popularity">
-                  <a className="hover:text-white transition">Top Rated</a>
+                <Link to="/search?sort=popularity" className="hover:text-white transition">
+                  Top Rated
                 </Link>
               </li>
               <li>
-                <Link href="/genres">
-                  <a className="hover:text-white transition">Genres</a>
+                <Link to="/genres" className="hover:text-white transition">
+                  Genres
                 </Link>
               </li>
             </ul>
