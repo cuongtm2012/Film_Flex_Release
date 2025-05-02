@@ -31,6 +31,32 @@ export const users = pgTable("users", {
   lastLogin: timestamp("last_login"),
 });
 
+// Roles model
+export const roles = pgTable("roles", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Permissions model
+export const permissions = pgTable("permissions", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  description: text("description"),
+  module: text("module").notNull(), // e.g., 'user_management', 'content_management'
+  action: text("action").notNull(), // e.g., 'create', 'read', 'update', 'delete'
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Role-Permission mapping
+export const rolePermissions = pgTable("role_permissions", {
+  id: serial("id").primaryKey(),
+  roleId: integer("role_id").notNull().references(() => roles.id, { onDelete: "cascade" }),
+  permissionId: integer("permission_id").notNull().references(() => permissions.id, { onDelete: "cascade" }),
+});
+
 // Movie model for caching movie data
 export const movies = pgTable("movies", {
   id: serial("id").primaryKey(),
@@ -219,6 +245,9 @@ export const insertApiKeySchema = createInsertSchema(apiKeys).omit({
 export const insertApiRequestSchema = createInsertSchema(apiRequests).omit({ id: true, timestamp: true });
 export const insertAnalyticsEventSchema = createInsertSchema(analyticsEvents).omit({ id: true, timestamp: true });
 export const insertContentPerformanceSchema = createInsertSchema(contentPerformance).omit({ id: true, date: true });
+export const insertRoleSchema = createInsertSchema(roles).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertPermissionSchema = createInsertSchema(permissions).omit({ id: true, createdAt: true });
+export const insertRolePermissionSchema = createInsertSchema(rolePermissions).omit({ id: true });
 
 // Type definitions
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -232,6 +261,9 @@ export type InsertApiKey = z.infer<typeof insertApiKeySchema>;
 export type InsertApiRequest = z.infer<typeof insertApiRequestSchema>;
 export type InsertAnalyticsEvent = z.infer<typeof insertAnalyticsEventSchema>;
 export type InsertContentPerformance = z.infer<typeof insertContentPerformanceSchema>;
+export type InsertRole = z.infer<typeof insertRoleSchema>;
+export type InsertPermission = z.infer<typeof insertPermissionSchema>;
+export type InsertRolePermission = z.infer<typeof insertRolePermissionSchema>;
 
 export type User = typeof users.$inferSelect;
 export type Movie = typeof movies.$inferSelect;
@@ -244,6 +276,9 @@ export type ApiKey = typeof apiKeys.$inferSelect;
 export type ApiRequest = typeof apiRequests.$inferSelect;
 export type AnalyticsEvent = typeof analyticsEvents.$inferSelect;
 export type ContentPerformance = typeof contentPerformance.$inferSelect;
+export type Role = typeof roles.$inferSelect;
+export type Permission = typeof permissions.$inferSelect;
+export type RolePermission = typeof rolePermissions.$inferSelect;
 
 // Define relations between tables
 export const usersRelations = relations(users, ({ many }) => ({
@@ -343,6 +378,25 @@ export const contentPerformanceRelations = relations(contentPerformance, ({ one 
   movie: one(movies, {
     fields: [contentPerformance.movieId],
     references: [movies.id],
+  }),
+}));
+
+export const rolesRelations = relations(roles, ({ many }) => ({
+  rolePermissions: many(rolePermissions),
+}));
+
+export const permissionsRelations = relations(permissions, ({ many }) => ({
+  rolePermissions: many(rolePermissions),
+}));
+
+export const rolePermissionsRelations = relations(rolePermissions, ({ one }) => ({
+  role: one(roles, {
+    fields: [rolePermissions.roleId],
+    references: [roles.id],
+  }),
+  permission: one(permissions, {
+    fields: [rolePermissions.permissionId],
+    references: [permissions.id],
   }),
 }));
 
