@@ -132,6 +132,30 @@ export default function AdminPage() {
                   Security
                 </Button>
                 <Button 
+                  variant={activeTab === "api-management" ? "default" : "ghost"} 
+                  className="w-full justify-start"
+                  onClick={() => setActiveTab("api-management")}
+                >
+                  <svg 
+                    className="mr-2 h-4 w-4"
+                    width="15" 
+                    height="15" 
+                    viewBox="0 0 15 15" 
+                    fill="none" 
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path 
+                      d="M13.9 5.3L7.7 0.3C7.5 0.1 7.3 0 7 0C6.7 0 6.5 0.1 6.3 0.3L0.1 5.3C0 5.5 0 5.6 0 5.8C0 5.9 0 6.1 0.1 6.2L6.3 11.2C6.5 11.4 6.7 11.5 7 11.5C7.3 11.5 7.5 11.4 7.7 11.2L13.9 6.2C14 6.1 14 5.9 14 5.8C14 5.6 14 5.5 13.9 5.3ZM7 9.5L2.7 6L7 2.5L11.3 6L7 9.5Z" 
+                      fill="currentColor"
+                    />
+                    <path 
+                      d="M7 12.5L4.7 10.7L3.6 11.5L7 14.2L10.4 11.5L9.3 10.7L7 12.5Z" 
+                      fill="currentColor"
+                    />
+                  </svg>
+                  API Management
+                </Button>
+                <Button 
                   variant={activeTab === "audit-logs" ? "default" : "ghost"} 
                   className="w-full justify-start"
                   onClick={() => setActiveTab("audit-logs")}
@@ -1263,6 +1287,226 @@ export default function AdminPage() {
           )}
 
           {/* Audit Logs */}
+          {activeTab === "api-management" && (
+            <>
+              <Card>
+                <CardHeader>
+                  <CardTitle>API Keys Management</CardTitle>
+                  <CardDescription>Manage API access keys for external integrations</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-col sm:flex-row gap-4 mb-6">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input placeholder="Search API keys..." className="pl-10" />
+                    </div>
+                    <div className="flex gap-2">
+                      <Select defaultValue="all">
+                        <SelectTrigger className="w-[120px]">
+                          <SelectValue placeholder="Status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Status</SelectItem>
+                          <SelectItem value="active">Active</SelectItem>
+                          <SelectItem value="inactive">Inactive</SelectItem>
+                          <SelectItem value="revoked">Revoked</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Button>
+                        <Filter className="mr-2 h-4 w-4" />
+                        Filter
+                      </Button>
+                    </div>
+                    <Button>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Generate New Key
+                    </Button>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse">
+                      <thead>
+                        <tr className="border-b">
+                          <th className="py-3 px-2 text-left font-medium">ID</th>
+                          <th className="py-3 px-2 text-left font-medium">Name</th>
+                          <th className="py-3 px-2 text-left font-medium">Key</th>
+                          <th className="py-3 px-2 text-left font-medium">Owner</th>
+                          <th className="py-3 px-2 text-left font-medium">Status</th>
+                          <th className="py-3 px-2 text-left font-medium">Rate Limit</th>
+                          <th className="py-3 px-2 text-left font-medium">Created</th>
+                          <th className="py-3 px-2 text-left font-medium">Expires</th>
+                          <th className="py-3 px-2 text-left font-medium">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr className="border-b">
+                          <td className="py-4 px-2">1</td>
+                          <td className="py-4 px-2 font-medium">Mobile App Key</td>
+                          <td className="py-4 px-2">••••••••••••aBcD</td>
+                          <td className="py-4 px-2">admin</td>
+                          <td className="py-4 px-2">
+                            <Badge variant="success">Active</Badge>
+                          </td>
+                          <td className="py-4 px-2">1,000/day</td>
+                          <td className="py-4 px-2">2023-12-10</td>
+                          <td className="py-4 px-2">2024-12-10</td>
+                          <td className="py-4 px-2">
+                            <div className="flex gap-2">
+                              <Button variant="outline" size="sm">Edit</Button>
+                              <Button variant="destructive" size="sm">Revoke</Button>
+                            </div>
+                          </td>
+                        </tr>
+                        <tr className="border-b">
+                          <td className="py-4 px-2">2</td>
+                          <td className="py-4 px-2 font-medium">Partner Integration</td>
+                          <td className="py-4 px-2">••••••••••••xYzW</td>
+                          <td className="py-4 px-2">admin</td>
+                          <td className="py-4 px-2">
+                            <Badge variant="success">Active</Badge>
+                          </td>
+                          <td className="py-4 px-2">5,000/day</td>
+                          <td className="py-4 px-2">2023-11-15</td>
+                          <td className="py-4 px-2">2024-11-15</td>
+                          <td className="py-4 px-2">
+                            <div className="flex gap-2">
+                              <Button variant="outline" size="sm">Edit</Button>
+                              <Button variant="destructive" size="sm">Revoke</Button>
+                            </div>
+                          </td>
+                        </tr>
+                        <tr className="border-b">
+                          <td className="py-4 px-2">3</td>
+                          <td className="py-4 px-2 font-medium">Test Environment</td>
+                          <td className="py-4 px-2">••••••••••••tEsT</td>
+                          <td className="py-4 px-2">moderator1</td>
+                          <td className="py-4 px-2">
+                            <Badge variant="warning">Inactive</Badge>
+                          </td>
+                          <td className="py-4 px-2">500/day</td>
+                          <td className="py-4 px-2">2023-10-20</td>
+                          <td className="py-4 px-2">2024-01-20</td>
+                          <td className="py-4 px-2">
+                            <div className="flex gap-2">
+                              <Button variant="outline" size="sm">Edit</Button>
+                              <Button variant="destructive" size="sm">Revoke</Button>
+                            </div>
+                          </td>
+                        </tr>
+                        <tr className="border-b">
+                          <td className="py-4 px-2">4</td>
+                          <td className="py-4 px-2 font-medium">Analytics Service</td>
+                          <td className="py-4 px-2">••••••••••••aNaL</td>
+                          <td className="py-4 px-2">admin</td>
+                          <td className="py-4 px-2">
+                            <Badge variant="destructive">Revoked</Badge>
+                          </td>
+                          <td className="py-4 px-2">10,000/day</td>
+                          <td className="py-4 px-2">2023-09-05</td>
+                          <td className="py-4 px-2">2023-12-05</td>
+                          <td className="py-4 px-2">
+                            <div className="flex gap-2">
+                              <Button variant="outline" size="sm" disabled>Edit</Button>
+                              <Button variant="outline" size="sm">View</Button>
+                            </div>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="flex justify-between items-center mt-6">
+                    <div className="text-sm text-muted-foreground">
+                      Showing 1-4 of 4 API keys
+                    </div>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" disabled>Previous</Button>
+                      <Button variant="outline" size="sm" disabled>Next</Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>API Usage Statistics</CardTitle>
+                    <CardDescription>Monitor API request volume and performance</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-64 flex items-center justify-center bg-muted/20 rounded">
+                      <p className="text-muted-foreground">API usage chart would be here</p>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
+                      <div className="border rounded-md p-4">
+                        <div className="text-sm text-muted-foreground">Total Requests (24h)</div>
+                        <div className="text-2xl font-bold mt-1">12,458</div>
+                      </div>
+                      <div className="border rounded-md p-4">
+                        <div className="text-sm text-muted-foreground">Avg. Response Time</div>
+                        <div className="text-2xl font-bold mt-1">124ms</div>
+                      </div>
+                      <div className="border rounded-md p-4">
+                        <div className="text-sm text-muted-foreground">Error Rate</div>
+                        <div className="text-2xl font-bold mt-1">0.8%</div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>API Configuration</CardTitle>
+                    <CardDescription>Global API settings and defaults</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center p-3 border rounded-md">
+                        <div>
+                          <div className="font-medium">Rate Limiting</div>
+                          <div className="text-sm text-muted-foreground">Default request limit per API key</div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Input type="number" defaultValue="1000" className="w-24" />
+                          <span className="text-sm text-muted-foreground">/ day</span>
+                        </div>
+                      </div>
+                      
+                      <div className="flex justify-between items-center p-3 border rounded-md">
+                        <div>
+                          <div className="font-medium">Key Expiration</div>
+                          <div className="text-sm text-muted-foreground">Default validity period for new keys</div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Input type="number" defaultValue="365" className="w-24" />
+                          <span className="text-sm text-muted-foreground">days</span>
+                        </div>
+                      </div>
+                      
+                      <div className="flex justify-between items-center p-3 border rounded-md">
+                        <div>
+                          <div className="font-medium">Request Logging</div>
+                          <div className="text-sm text-muted-foreground">Store detailed request logs</div>
+                        </div>
+                        <Switch defaultChecked />
+                      </div>
+                      
+                      <div className="flex justify-between items-center p-3 border rounded-md">
+                        <div>
+                          <div className="font-medium">IP Restriction</div>
+                          <div className="text-sm text-muted-foreground">Enforce IP-based access controls</div>
+                        </div>
+                        <Switch />
+                      </div>
+                      
+                      <Button className="w-full">Save Settings</Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </>
+          )}
+
           {activeTab === "audit-logs" && (
             <>
               <Card>

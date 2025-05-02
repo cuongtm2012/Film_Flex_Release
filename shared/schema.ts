@@ -106,6 +106,13 @@ export const contentApprovals = pgTable("content_approvals", {
   comments: text("comments"),
 });
 
+// API Key status enum
+export const ApiKeyStatus = {
+  ACTIVE: 'active',
+  INACTIVE: 'inactive',
+  REVOKED: 'revoked',
+} as const;
+
 // User Activity Types enum
 export const ActivityType = {
   USER_CREATED: 'user_created',
@@ -117,7 +124,73 @@ export const ActivityType = {
   CONTENT_SUBMITTED: 'content_submitted',
   CONTENT_APPROVED: 'content_approved',
   CONTENT_REJECTED: 'content_rejected',
+  API_KEY_CREATED: 'api_key_created',
+  API_KEY_UPDATED: 'api_key_updated',
+  API_KEY_REVOKED: 'api_key_revoked',
+  API_REQUEST: 'api_request',
 } as const;
+
+// API Keys model for API access management
+export const apiKeys = pgTable("api_keys", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  key: text("key").notNull().unique(),
+  status: text("status").notNull().default(ApiKeyStatus.ACTIVE),
+  permissions: jsonb("permissions").default([]),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  expiresAt: timestamp("expires_at"),
+  lastUsedAt: timestamp("last_used_at"),
+  rateLimit: integer("rate_limit").default(1000), // requests per day
+  requestCount: integer("request_count").default(0),
+  ipRestrictions: jsonb("ip_restrictions").default([]),
+});
+
+// API Requests model for tracking API usage
+export const apiRequests = pgTable("api_requests", {
+  id: serial("id").primaryKey(),
+  apiKeyId: integer("api_key_id").references(() => apiKeys.id, { onDelete: "cascade" }),
+  endpoint: text("endpoint").notNull(),
+  method: text("method").notNull(),
+  status: integer("status").notNull(),
+  responseTime: integer("response_time").notNull(), // in milliseconds
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  timestamp: timestamp("timestamp").defaultNow().notNull(),
+});
+
+// Analytics Events model for tracking user behavior
+export const analyticsEvents = pgTable("analytics_events", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id),
+  eventType: text("event_type").notNull(),
+  properties: jsonb("properties").default({}),
+  sessionId: text("session_id"),
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  referrer: text("referrer"),
+  deviceType: text("device_type"),
+  browser: text("browser"),
+  operatingSystem: text("operating_system"),
+  screenResolution: text("screen_resolution"),
+  timestamp: timestamp("timestamp").defaultNow().notNull(),
+});
+
+// Content Performance model for tracking content metrics
+export const contentPerformance = pgTable("content_performance", {
+  id: serial("id").primaryKey(),
+  movieId: integer("movie_id").notNull().references(() => movies.id, { onDelete: "cascade" }),
+  views: integer("views").default(0),
+  uniqueViewers: integer("unique_viewers").default(0),
+  completionRate: integer("completion_rate").default(0), // percentage
+  averageWatchTime: integer("average_watch_time").default(0), // seconds
+  likes: integer("likes").default(0),
+  dislikes: integer("dislikes").default(0),
+  shares: integer("shares").default(0),
+  clickThroughRate: integer("click_through_rate").default(0), // percentage
+  bounceRate: integer("bounce_rate").default(0), // percentage
+  date: timestamp("date").defaultNow().notNull(),
+});
 
 // Audit Logs model for tracking admin/moderator actions
 export const auditLogs = pgTable("audit_logs", {
@@ -140,6 +213,12 @@ export const insertContentApprovalSchema = createInsertSchema(contentApprovals).
   id: true, submittedAt: true, reviewedAt: true 
 });
 export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({ id: true, timestamp: true });
+export const insertApiKeySchema = createInsertSchema(apiKeys).omit({ 
+  id: true, createdAt: true, lastUsedAt: true, requestCount: true 
+});
+export const insertApiRequestSchema = createInsertSchema(apiRequests).omit({ id: true, timestamp: true });
+export const insertAnalyticsEventSchema = createInsertSchema(analyticsEvents).omit({ id: true, timestamp: true });
+export const insertContentPerformanceSchema = createInsertSchema(contentPerformance).omit({ id: true, date: true });
 
 // Type definitions
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -149,6 +228,10 @@ export type InsertComment = z.infer<typeof insertCommentSchema>;
 export type InsertWatchlist = z.infer<typeof insertWatchlistSchema>;
 export type InsertContentApproval = z.infer<typeof insertContentApprovalSchema>;
 export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
+export type InsertApiKey = z.infer<typeof insertApiKeySchema>;
+export type InsertApiRequest = z.infer<typeof insertApiRequestSchema>;
+export type InsertAnalyticsEvent = z.infer<typeof insertAnalyticsEventSchema>;
+export type InsertContentPerformance = z.infer<typeof insertContentPerformanceSchema>;
 
 export type User = typeof users.$inferSelect;
 export type Movie = typeof movies.$inferSelect;
@@ -157,6 +240,10 @@ export type Comment = typeof comments.$inferSelect;
 export type Watchlist = typeof watchlist.$inferSelect;
 export type ContentApproval = typeof contentApprovals.$inferSelect;
 export type AuditLog = typeof auditLogs.$inferSelect;
+export type ApiKey = typeof apiKeys.$inferSelect;
+export type ApiRequest = typeof apiRequests.$inferSelect;
+export type AnalyticsEvent = typeof analyticsEvents.$inferSelect;
+export type ContentPerformance = typeof contentPerformance.$inferSelect;
 
 // Define relations between tables
 export const usersRelations = relations(users, ({ many }) => ({
@@ -165,6 +252,8 @@ export const usersRelations = relations(users, ({ many }) => ({
   submittedContent: many(contentApprovals, { relationName: "submittedBy" }),
   reviewedContent: many(contentApprovals, { relationName: "reviewedBy" }),
   auditLogs: many(auditLogs),
+  apiKeys: many(apiKeys),
+  analyticsEvents: many(analyticsEvents),
 }));
 
 export const moviesRelations = relations(movies, ({ many }) => ({
@@ -172,6 +261,7 @@ export const moviesRelations = relations(movies, ({ many }) => ({
   comments: many(comments),
   watchlist: many(watchlist),
   contentApprovals: many(contentApprovals),
+  contentPerformance: many(contentPerformance),
 }));
 
 export const commentsRelations = relations(comments, ({ one }) => ({
@@ -224,6 +314,35 @@ export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
   user: one(users, {
     fields: [auditLogs.userId],
     references: [users.id],
+  }),
+}));
+
+export const apiKeysRelations = relations(apiKeys, ({ one, many }) => ({
+  user: one(users, {
+    fields: [apiKeys.userId],
+    references: [users.id],
+  }),
+  apiRequests: many(apiRequests),
+}));
+
+export const apiRequestsRelations = relations(apiRequests, ({ one }) => ({
+  apiKey: one(apiKeys, {
+    fields: [apiRequests.apiKeyId],
+    references: [apiKeys.id],
+  }),
+}));
+
+export const analyticsEventsRelations = relations(analyticsEvents, ({ one }) => ({
+  user: one(users, {
+    fields: [analyticsEvents.userId],
+    references: [users.id],
+  }),
+}));
+
+export const contentPerformanceRelations = relations(contentPerformance, ({ one }) => ({
+  movie: one(movies, {
+    fields: [contentPerformance.movieId],
+    references: [movies.id],
   }),
 }));
 
