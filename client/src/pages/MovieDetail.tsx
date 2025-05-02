@@ -329,7 +329,7 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
             <div className="flex flex-wrap gap-x-8 gap-y-3 mb-6 text-sm">
               <div className="flex gap-1">
                 <span className="text-muted-foreground">Release Year:</span>
-                <span>{movie._id?.substring(0, 4) || 'Unknown'}</span>
+                <span>{movie.year || 'Unknown'}</span>
               </div>
               
               <div className="flex gap-1">
@@ -351,12 +351,12 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
               
               <div className="flex gap-1">
                 <span className="text-muted-foreground">Rating:</span>
-                <span>8.3/10</span>
+                <span>{movie.tmdb?.vote_average || "N/A"}/10</span>
               </div>
             </div>
             
             <div className="mb-6">
-              <h3 className="text-xl font-bold mb-3">Di Ái Vỉ Doanh</h3>
+              <h3 className="text-xl font-bold mb-3">{movie.origin_name || 'Overview'}</h3>
               <p className="text-muted-foreground">
                 {movie.content || 'No description available'}
               </p>
