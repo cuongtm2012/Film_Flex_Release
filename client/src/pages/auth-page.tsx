@@ -169,7 +169,7 @@ export default function AuthPage() {
                         <Input
                           id="password"
                           type="password"
-                          className={loginForm.formState.errors.password ? "border-destructive" : ""}
+                          className={`pl-10 ${loginForm.formState.errors.password ? "border-destructive" : ""}`}
                           placeholder="••••••••"
                           {...loginForm.register("password")}
                         />
@@ -289,7 +289,7 @@ export default function AuthPage() {
                         <Input
                           id="registerUsername"
                           type="text"
-                          className={registerForm.formState.errors.username ? "border-destructive" : ""}
+                          className={`pl-10 ${registerForm.formState.errors.username ? "border-destructive" : ""}`}
                           placeholder="Choose a username"
                           {...registerForm.register("username")}
                         />
@@ -318,7 +318,7 @@ export default function AuthPage() {
                         <Input
                           id="email"
                           type="email"
-                          className={registerForm.formState.errors.email ? "border-destructive" : ""}
+                          className={`pl-10 ${registerForm.formState.errors.email ? "border-destructive" : ""}`}
                           placeholder="you@example.com"
                           {...registerForm.register("email")}
                         />
@@ -347,7 +347,7 @@ export default function AuthPage() {
                         <Input
                           id="registerPassword"
                           type="password"
-                          className={registerForm.formState.errors.password ? "border-destructive" : ""}
+                          className={`pl-10 ${registerForm.formState.errors.password ? "border-destructive" : ""}`}
                           placeholder="••••••••"
                           {...registerForm.register("password")}
                         />
@@ -379,7 +379,7 @@ export default function AuthPage() {
                         <Input
                           id="confirmPassword"
                           type="password"
-                          className={registerForm.formState.errors.confirmPassword ? "border-destructive" : ""}
+                          className={`pl-10 ${registerForm.formState.errors.confirmPassword ? "border-destructive" : ""}`}
                           placeholder="••••••••"
                           {...registerForm.register("confirmPassword")}
                         />
