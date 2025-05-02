@@ -12,6 +12,7 @@ import ProfilePageComponent from "@/pages/ProfilePage";
 import SettingsPage from "@/pages/SettingsPage";
 import WatchlistPageComponent from "@/pages/WatchlistPage";
 import WatchHistoryPage from "@/pages/WatchHistoryPage";
+import AdminPage from "@/pages/AdminPage";
 import Layout from "@/components/Layout";
 import { ThemeProvider } from "@/components/ui/theme-provider";
 import { AuthProvider } from "@/hooks/use-auth";
@@ -70,6 +71,12 @@ function Router() {
       <Route path="/history">
         <MainLayout>
           <ProtectedRoute component={WatchHistoryPage} path="/history" />
+        </MainLayout>
+      </Route>
+      
+      <Route path="/admin">
+        <MainLayout>
+          <ProtectedRoute component={AdminPage} path="/admin" />
         </MainLayout>
       </Route>
       
