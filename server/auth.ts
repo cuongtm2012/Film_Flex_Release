@@ -5,12 +5,16 @@ import session from "express-session";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { storage } from "./storage";
-import { User, UserRole, UserStatus, ActivityType } from "@shared/schema";
-import { log } from "./vite";
+import { User } from "@shared/schema";
 
+// Include this to avoid passport type confusion
 declare global {
   namespace Express {
-    interface User extends User {}
+    interface User extends Omit<User, "password"> { 
+      id: number;
+      role: string;
+      status: string;
+    }
   }
 }
 
@@ -29,40 +33,39 @@ async function comparePasswords(supplied: string, stored: string) {
   return timingSafeEqual(hashedBuf, suppliedBuf);
 }
 
-// Middleware to check if user is authenticated
+// Middleware for checking if user is authenticated
 export function isAuthenticated(req: Request, res: Response, next: NextFunction) {
   if (req.isAuthenticated()) {
     return next();
   }
-  res.status(401).json({ message: "Unauthorized - Please log in" });
+  return res.status(401).json({ message: "Not authenticated" });
 }
 
-// Middleware to check if user has admin role
+// Middleware for checking if user is admin
 export function isAdmin(req: Request, res: Response, next: NextFunction) {
-  if (req.isAuthenticated() && req.user.role === UserRole.ADMIN) {
+  if (req.isAuthenticated() && req.user.role === "admin") {
     return next();
   }
-  res.status(403).json({ message: "Forbidden - Admin access required" });
+  return res.status(403).json({ message: "Unauthorized - Admin access required" });
 }
 
-// Middleware to check if user is admin or moderator
+// Middleware for checking if user is admin or moderator
 export function isAdminOrModerator(req: Request, res: Response, next: NextFunction) {
-  if (req.isAuthenticated() && 
-      (req.user.role === UserRole.ADMIN || req.user.role === UserRole.MODERATOR)) {
+  if (req.isAuthenticated() && (req.user.role === "admin" || req.user.role === "moderator")) {
     return next();
   }
-  res.status(403).json({ message: "Forbidden - Admin or Moderator access required" });
+  return res.status(403).json({ message: "Unauthorized - Moderator or Admin access required" });
 }
 
-// Middleware to check if user account is active
+// Middleware for checking if user is active
 export function isActive(req: Request, res: Response, next: NextFunction) {
-  if (req.isAuthenticated() && req.user.status === UserStatus.ACTIVE) {
+  if (req.isAuthenticated() && req.user.status === "active") {
     return next();
   }
-  res.status(403).json({ message: "Account is inactive or suspended" });
+  return res.status(403).json({ message: "Account is not active" });
 }
 
-// Log user activity
+// Log user activity (for audit logs)
 async function logUserActivity(userId: number, activityType: string, targetId?: number, details?: any, ipAddress?: string) {
   try {
     await storage.addAuditLog({
@@ -70,24 +73,24 @@ async function logUserActivity(userId: number, activityType: string, targetId?: 
       activityType,
       targetId: targetId || null,
       details: details || null,
-      ipAddress: ipAddress || null
+      ipAddress: ipAddress || null,
+      timestamp: new Date(),
     });
   } catch (error) {
-    log(`Error logging user activity: ${error}`, "auth");
+    console.error("Failed to log user activity:", error);
   }
 }
 
 export function setupAuth(app: Express) {
-  // Set up session middleware
   const sessionSettings: session.SessionOptions = {
-    secret: process.env.SESSION_SECRET || "filmflex-secret-key",
+    secret: process.env.SESSION_SECRET || "filmflex-session-secret",
     resave: false,
     saveUninitialized: false,
-    store: storage.sessionStore,
     cookie: {
       secure: process.env.NODE_ENV === "production",
-      maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    }
+      maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    },
+    store: storage.sessionStore,
   };
 
   app.set("trust proxy", 1);
@@ -95,31 +98,30 @@ export function setupAuth(app: Express) {
   app.use(passport.initialize());
   app.use(passport.session());
 
-  // Configure Passport to use local strategy
   passport.use(
     new LocalStrategy(async (username, password, done) => {
       try {
         const user = await storage.getUserByUsername(username);
-        
         if (!user) {
-          return done(null, false, { message: "Incorrect username" });
+          return done(null, false, { message: "Invalid username or password" });
         }
-        
-        if (user.status !== UserStatus.ACTIVE) {
-          return done(null, false, { message: "Account is inactive or suspended" });
+
+        const passwordsMatch = await comparePasswords(password, user.password);
+        if (!passwordsMatch) {
+          return done(null, false, { message: "Invalid username or password" });
         }
-        
-        if (!(await comparePasswords(password, user.password))) {
-          return done(null, false, { message: "Incorrect password" });
-        }
-        
+
         // Update last login time
-        await storage.updateUser(user.id, { lastLogin: new Date() });
-        
-        // Log login activity
-        await logUserActivity(user.id, ActivityType.USER_LOGIN);
-        
-        return done(null, user);
+        await storage.updateUser(user.id, {
+          lastLogin: new Date()
+        });
+
+        // Log the activity
+        await logUserActivity(user.id, "login", undefined, null, undefined);
+
+        // Omit password before passing to done
+        const { password: _, ...userWithoutPassword } = user;
+        return done(null, userWithoutPassword);
       } catch (error) {
         return done(error);
       }
@@ -133,323 +135,265 @@ export function setupAuth(app: Express) {
   passport.deserializeUser(async (id: number, done) => {
     try {
       const user = await storage.getUser(id);
-      done(null, user);
+      if (!user) {
+        return done(null, false);
+      }
+      // Omit password from session
+      const { password, ...userWithoutPassword } = user;
+      done(null, userWithoutPassword);
     } catch (error) {
-      done(error, null);
+      done(error);
     }
   });
 
-  // Authentication routes
-  app.post("/api/register", async (req, res, next) => {
+  // Register route
+  app.post("/api/register", async (req, res) => {
     try {
-      // Check if user already exists
+      // Check if user exists
       const existingUser = await storage.getUserByUsername(req.body.username);
       if (existingUser) {
         return res.status(400).json({ message: "Username already exists" });
       }
 
-      // Hash password and create user
+      // Hash password
       const hashedPassword = await hashPassword(req.body.password);
+
+      // Create user with default role
       const user = await storage.createUser({
         ...req.body,
         password: hashedPassword,
+        role: "user",
+        status: "active",
+        createdAt: new Date(),
       });
 
-      // Log activity
-      await logUserActivity(user.id, ActivityType.USER_CREATED, user.id);
+      // Log the registration
+      await logUserActivity(user.id, "register", undefined, null, req.ip);
 
-      // Log the user in automatically
+      // Log the user in
       req.login(user, (err) => {
-        if (err) return next(err);
+        if (err) {
+          return res.status(500).json({ message: "Login after registration failed" });
+        }
         
-        // Remove password from response
+        // Omit password from response
         const { password, ...userWithoutPassword } = user;
         res.status(201).json(userWithoutPassword);
       });
     } catch (error) {
-      next(error);
+      console.error("Registration error:", error);
+      res.status(500).json({ message: "Registration failed" });
     }
   });
 
+  // Login route
   app.post("/api/login", (req, res, next) => {
     passport.authenticate("local", (err, user, info) => {
-      if (err) return next(err);
-      if (!user) return res.status(401).json({ message: info.message || "Authentication failed" });
-      
+      if (err) {
+        return next(err);
+      }
+      if (!user) {
+        return res.status(401).json({ message: info?.message || "Login failed" });
+      }
       req.login(user, (err) => {
-        if (err) return next(err);
-        
-        // Remove password from response
-        const { password, ...userWithoutPassword } = user;
-        res.status(200).json(userWithoutPassword);
+        if (err) {
+          return next(err);
+        }
+        return res.status(200).json(user);
       });
     })(req, res, next);
   });
 
-  app.post("/api/logout", (req, res, next) => {
-    if (req.isAuthenticated()) {
-      const userId = req.user.id;
-      
-      req.logout((err) => {
-        if (err) return next(err);
-        
-        // Log logout activity
-        logUserActivity(userId, ActivityType.USER_LOGOUT)
-          .then(() => res.sendStatus(200))
-          .catch(next);
-      });
-    } else {
-      res.sendStatus(200);
+  // Logout route
+  app.post("/api/logout", isAuthenticated, (req, res) => {
+    // Log the activity before logging out
+    if (req.user) {
+      logUserActivity(req.user.id, "logout", undefined, null, req.ip);
     }
+    
+    req.logout(() => {
+      res.status(200).json({ message: "Logged out successfully" });
+    });
   });
 
+  // Get current user
   app.get("/api/user", (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ message: "Not authenticated" });
     }
-    
-    // Remove password from response
-    const { password, ...userWithoutPassword } = req.user;
-    res.json(userWithoutPassword);
+    res.json(req.user);
   });
 
-  // User management routes (Admin only)
-  app.get("/api/admin/users", isAdmin, isActive, async (req, res, next) => {
+  // Update user profile (self)
+  app.put("/api/user/profile", isAuthenticated, isActive, async (req, res) => {
+    try {
+      const allowedUpdates = ["email", "displayName", "avatar"];
+      const updates = Object.keys(req.body)
+        .filter(key => allowedUpdates.includes(key))
+        .reduce((obj, key) => {
+          obj[key] = req.body[key];
+          return obj;
+        }, {} as Record<string, any>);
+
+      if (Object.keys(updates).length === 0) {
+        return res.status(400).json({ message: "No valid fields to update" });
+      }
+
+      const updatedUser = await storage.updateUser(req.user.id, updates);
+      if (!updatedUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Log the activity
+      await logUserActivity(req.user.id, "profile_update", req.user.id, updates, req.ip);
+
+      // Omit password
+      const { password, ...userWithoutPassword } = updatedUser;
+      res.json(userWithoutPassword);
+    } catch (error) {
+      console.error("Profile update error:", error);
+      res.status(500).json({ message: "Failed to update profile" });
+    }
+  });
+
+  // Change password (self)
+  app.put("/api/user/password", isAuthenticated, isActive, async (req, res) => {
+    try {
+      const { currentPassword, newPassword } = req.body;
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({ message: "Current password and new password are required" });
+      }
+
+      // Get user with password
+      const user = await storage.getUser(req.user.id);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Verify current password
+      const passwordsMatch = await comparePasswords(currentPassword, user.password);
+      if (!passwordsMatch) {
+        return res.status(400).json({ message: "Current password is incorrect" });
+      }
+
+      // Hash and update new password
+      const hashedPassword = await hashPassword(newPassword);
+      await storage.updateUser(req.user.id, { password: hashedPassword });
+
+      // Log the activity
+      await logUserActivity(req.user.id, "password_change", req.user.id, null, req.ip);
+
+      res.json({ message: "Password updated successfully" });
+    } catch (error) {
+      console.error("Password change error:", error);
+      res.status(500).json({ message: "Failed to change password" });
+    }
+  });
+
+  // Admin routes - manage users
+  app.get("/api/admin/users", isAuthenticated, isAdmin, async (req, res) => {
     try {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 10;
-      
       const filters = {
         role: req.query.role as string,
         status: req.query.status as string,
         search: req.query.search as string
       };
+
+      const users = await storage.getAllUsers(page, limit, filters);
       
-      const { data, total } = await storage.getAllUsers(page, limit, filters);
+      // Log the activity
+      await logUserActivity(req.user.id, "view_users", undefined, { page, limit, filters }, req.ip);
       
-      // Remove passwords from response
-      const usersWithoutPasswords = data.map(user => {
-        const { password, ...userWithoutPassword } = user;
-        return userWithoutPassword;
-      });
-      
-      res.json({
-        data: usersWithoutPasswords,
-        pagination: {
-          total,
-          page,
-          limit
-        }
-      });
+      res.json(users);
     } catch (error) {
-      next(error);
+      console.error("Admin users error:", error);
+      res.status(500).json({ message: "Failed to fetch users" });
     }
   });
 
-  app.put("/api/admin/users/:id", isAdmin, isActive, async (req, res, next) => {
+  // Admin routes - change user role
+  app.put("/api/admin/users/:userId/role", isAuthenticated, isAdmin, async (req, res) => {
     try {
-      const userId = parseInt(req.params.id);
+      const userId = parseInt(req.params.userId);
+      const { role } = req.body;
       
-      // Don't allow password updates through this endpoint
-      const { password, ...updateData } = req.body;
-      
-      const updatedUser = await storage.updateUser(userId, updateData);
-      
+      if (!role || !["admin", "moderator", "user"].includes(role)) {
+        return res.status(400).json({ message: "Invalid role" });
+      }
+
+      const updatedUser = await storage.updateUser(userId, { role });
       if (!updatedUser) {
         return res.status(404).json({ message: "User not found" });
       }
-      
-      // Log activity
+
+      // Log the activity
       await logUserActivity(
-        req.user.id,
-        ActivityType.USER_UPDATED,
-        userId,
-        { updatedFields: Object.keys(updateData) }
+        req.user.id, 
+        "change_user_role", 
+        userId, 
+        { newRole: role }, 
+        req.ip
       );
-      
-      // Remove password from response
-      const { password: userPassword, ...userWithoutPassword } = updatedUser;
-      
+
+      // Omit password
+      const { password, ...userWithoutPassword } = updatedUser;
       res.json(userWithoutPassword);
     } catch (error) {
-      next(error);
+      console.error("Change user role error:", error);
+      res.status(500).json({ message: "Failed to change user role" });
     }
   });
 
-  app.patch("/api/admin/users/:id/status", isAdmin, isActive, async (req, res, next) => {
+  // Admin routes - change user status
+  app.put("/api/admin/users/:userId/status", isAuthenticated, isAdmin, async (req, res) => {
     try {
-      const userId = parseInt(req.params.id);
+      const userId = parseInt(req.params.userId);
       const { status } = req.body;
       
-      if (!status || !Object.values(UserStatus).includes(status)) {
+      if (!status || !["active", "suspended", "banned"].includes(status)) {
         return res.status(400).json({ message: "Invalid status" });
       }
-      
+
       const updatedUser = await storage.changeUserStatus(userId, status);
-      
       if (!updatedUser) {
         return res.status(404).json({ message: "User not found" });
       }
-      
-      // Log activity
+
+      // Log the activity
       await logUserActivity(
-        req.user.id,
-        ActivityType.USER_STATUS_CHANGED,
-        userId,
-        { previousStatus: updatedUser.status, newStatus: status }
+        req.user.id, 
+        "change_user_status", 
+        userId, 
+        { newStatus: status }, 
+        req.ip
       );
-      
-      // Remove password from response
+
+      // Omit password
       const { password, ...userWithoutPassword } = updatedUser;
-      
       res.json(userWithoutPassword);
     } catch (error) {
-      next(error);
+      console.error("Change user status error:", error);
+      res.status(500).json({ message: "Failed to change user status" });
     }
   });
 
-  // Content approval routes
-  app.get("/api/moderator/content/pending", isAdminOrModerator, isActive, async (req, res, next) => {
-    try {
-      const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 10;
-      
-      const { data, total } = await storage.getPendingContent(page, limit);
-      
-      res.json({
-        data,
-        pagination: {
-          total,
-          page,
-          limit
-        }
-      });
-    } catch (error) {
-      next(error);
-    }
-  });
-
-  app.get("/api/moderator/content/user", isAuthenticated, isActive, async (req, res, next) => {
-    try {
-      const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 10;
-      const status = req.query.status as string;
-      
-      const { data, total } = await storage.getContentByUser(req.user.id, page, limit, status);
-      
-      res.json({
-        data,
-        pagination: {
-          total,
-          page,
-          limit
-        }
-      });
-    } catch (error) {
-      next(error);
-    }
-  });
-
-  app.post("/api/moderator/content/submit", isAdminOrModerator, isActive, async (req, res, next) => {
-    try {
-      const contentApproval = await storage.submitContentForApproval({
-        movieId: req.body.movieId,
-        submittedByUserId: req.user.id,
-        status: '',
-        comments: req.body.comments || null
-      });
-      
-      // Log activity
-      await logUserActivity(
-        req.user.id,
-        ActivityType.CONTENT_SUBMITTED,
-        contentApproval.id,
-        { movieId: req.body.movieId }
-      );
-      
-      res.status(201).json(contentApproval);
-    } catch (error) {
-      next(error);
-    }
-  });
-
-  app.post("/api/admin/content/:id/approve", isAdmin, isActive, async (req, res, next) => {
-    try {
-      const contentId = parseInt(req.params.id);
-      const { comments } = req.body;
-      
-      const contentApproval = await storage.approveContent(contentId, req.user.id, comments);
-      
-      if (!contentApproval) {
-        return res.status(404).json({ message: "Content not found" });
-      }
-      
-      // Log activity
-      await logUserActivity(
-        req.user.id,
-        ActivityType.CONTENT_APPROVED,
-        contentId,
-        { movieId: contentApproval.movieId }
-      );
-      
-      res.json(contentApproval);
-    } catch (error) {
-      next(error);
-    }
-  });
-
-  app.post("/api/admin/content/:id/reject", isAdmin, isActive, async (req, res, next) => {
-    try {
-      const contentId = parseInt(req.params.id);
-      const { comments } = req.body;
-      
-      if (!comments) {
-        return res.status(400).json({ message: "Rejection comments are required" });
-      }
-      
-      const contentApproval = await storage.rejectContent(contentId, req.user.id, comments);
-      
-      if (!contentApproval) {
-        return res.status(404).json({ message: "Content not found" });
-      }
-      
-      // Log activity
-      await logUserActivity(
-        req.user.id,
-        ActivityType.CONTENT_REJECTED,
-        contentId,
-        { movieId: contentApproval.movieId, comments }
-      );
-      
-      res.json(contentApproval);
-    } catch (error) {
-      next(error);
-    }
-  });
-
-  // Audit log routes (Admin only)
-  app.get("/api/admin/logs", isAdmin, isActive, async (req, res, next) => {
+  // Admin routes - get audit logs
+  app.get("/api/admin/audit-logs", isAuthenticated, isAdmin, async (req, res) => {
     try {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 20;
-      
       const filters = {
         activityType: req.query.activityType as string,
         userId: req.query.userId ? parseInt(req.query.userId as string) : undefined
       };
-      
-      const { data, total } = await storage.getAuditLogs(page, limit, filters);
-      
-      res.json({
-        data,
-        pagination: {
-          total,
-          page,
-          limit
-        }
-      });
+
+      const logs = await storage.getAuditLogs(page, limit, filters);
+      res.json(logs);
     } catch (error) {
-      next(error);
+      console.error("Audit logs error:", error);
+      res.status(500).json({ message: "Failed to fetch audit logs" });
     }
   });
 }
