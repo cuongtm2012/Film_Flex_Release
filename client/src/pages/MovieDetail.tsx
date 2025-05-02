@@ -159,80 +159,133 @@ export default function MovieDetail() {
   
   return (
     <div className="pt-10">
-      {/* Movie Header */}
-      <div className="relative w-full h-[50vh] overflow-hidden mb-8">
-        <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url('${movie.poster_url}')`, filter: "blur(4px)" }}></div>
-        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent"></div>
-        <div className="container mx-auto px-4">
-          <div className="absolute bottom-0 left-0 right-0 p-6 w-full flex flex-col md:flex-row md:items-end">
-            <div className="hidden md:block md:w-1/4 lg:w-1/5 mr-6">
-              <AspectRatio ratio={2/3} className="rounded-lg shadow-lg overflow-hidden">
-                <img 
-                  src={movie.poster_url} 
-                  alt={movie.name} 
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    e.currentTarget.src = "https://via.placeholder.com/400x600?text=No+Image";
-                  }}
-                />
-              </AspectRatio>
+      {/* Back to Home link */}
+      <div className="container mx-auto px-4 py-4">
+        <Link to="/" className="flex items-center text-sm text-muted-foreground hover:text-white">
+          <span>Back to Home</span> / <span>{movie.name}</span>
+        </Link>
+      </div>
+      
+      {/* Main video player area */}
+      <div className="container mx-auto px-4">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          <div className="lg:col-span-3">
+            {/* Video Player */}
+            <div id="video-player" className="bg-black rounded-md overflow-hidden mb-6">
+              <VideoPlayer 
+                embedUrl={getCurrentEmbedUrl()}
+                isLoading={isMovieLoading || !selectedEpisode}
+                onError={(error) => {
+                  toast({
+                    title: "Error",
+                    description: "Failed to load video player. Please try another server or episode.",
+                    variant: "destructive"
+                  });
+                }}
+              />
             </div>
             
-            <div className="md:w-3/4 lg:w-4/5">
-              <h1 className="text-3xl md:text-5xl font-bold mb-2 font-title">{movie.name}</h1>
-              <div className="flex flex-wrap items-center gap-4 mb-3">
-                {movie.quality && (
-                  <Badge className="bg-primary px-2 py-1 text-xs font-bold rounded">{movie.quality}</Badge>
-                )}
-                {movie.year && <span className="text-muted-foreground">{movie.year}</span>}
-                {movie.time && <span className="text-muted-foreground">{movie.time}</span>}
-                {movie.view !== undefined && (
-                  <div className="flex items-center">
-                    <Star className="text-yellow-500 mr-1 h-4 w-4" />
-                    <span>{(movie.view / 1000).toFixed(1)}k</span>
+            {/* Action Buttons */}
+            <div className="flex flex-wrap gap-4 mb-6">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="rounded-full flex items-center gap-1.5"
+              >
+                <div className="flex items-center gap-1.5">
+                  <Star className="h-4 w-4 text-yellow-500" fill="currentColor" />
+                  <span>8.3</span>
+                </div>
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="rounded-full flex items-center gap-1.5"
+                onClick={() => {
+                  // Handle share function
+                  navigator.clipboard.writeText(window.location.href);
+                  toast({
+                    title: "Link copied",
+                    description: "Movie link copied to clipboard",
+                  });
+                }}
+              >
+                <Share2 className="h-4 w-4" />
+                <span>Share</span>
+              </Button>
+              
+              <Button 
+                variant="outline"
+                size="sm"
+                className="rounded-full flex items-center gap-1.5"
+                onClick={handleAddToWatchlist}
+                disabled={addToWatchlistMutation.isPending}
+              >
+                <Plus className="h-4 w-4" />
+                <span>Add to List</span>
+              </Button>
+              
+              <Button 
+                variant="outline"
+                size="sm"
+                className="rounded-full flex items-center gap-1.5 ml-auto"
+                onClick={() => {
+                  // Handle report function
+                  toast({
+                    title: "Report submitted",
+                    description: "Thank you for your feedback",
+                  });
+                }}
+              >
+                <AlertCircle className="h-4 w-4" />
+                <span>Report</span>
+              </Button>
+            </div>
+          </div>
+          
+          {/* Recommended Movies Sidebar */}
+          <div className="lg:col-span-1">
+            <div className="bg-black/20 rounded-md p-4">
+              <h3 className="text-lg font-bold mb-4 flex items-center justify-between">
+                <span>Recommended For You</span>
+                <div className="flex gap-1">
+                  <Button size="icon" variant="ghost" className="h-6 w-6">
+                    <div className="w-1 h-4 border-r-2 border-white"></div>
+                  </Button>
+                  <Button size="icon" variant="ghost" className="h-6 w-6">
+                    <div className="w-4 h-4 border-2 border-white"></div>
+                  </Button>
+                </div>
+              </h3>
+              
+              <div className="space-y-3">
+                {/* Recommended movies - would come from API */}
+                {Array(4).fill(0).map((_, i) => (
+                  <div key={i} className="flex gap-3">
+                    <div className="w-24 h-16 bg-muted rounded overflow-hidden flex-shrink-0">
+                      <AspectRatio ratio={16/9}>
+                        <div className="w-full h-full bg-muted"></div>
+                      </AspectRatio>
+                    </div>
+                    <div className="flex flex-col justify-between">
+                      <div className="text-sm font-semibold line-clamp-2">
+                        Recommended Movie {i + 1}
+                      </div>
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <div className="h-1.5 w-1.5 bg-primary rounded-full"></div>
+                        <span>95% match</span>
+                      </div>
+                    </div>
                   </div>
-                )}
-              </div>
-              
-              <div className="flex flex-wrap gap-2 mb-4">
-                {movie.category?.map((cat) => (
-                  <Link key={cat.id} href={`/search?category=${cat.slug}`}>
-                    <Badge variant="outline" className="px-3 py-1 rounded-full text-xs">
-                      {cat.name}
-                    </Badge>
-                  </Link>
                 ))}
-              </div>
-              
-              <p className="text-muted-foreground mb-4 max-w-3xl line-clamp-3 md:line-clamp-none">
-                {movie.content}
-              </p>
-              
-              <div className="flex flex-wrap gap-3">
-                <Button 
-                  className="bg-primary hover:bg-primary/90 text-white px-6 py-3 rounded-full"
-                  onClick={() => {
-                    // Scroll to video player section
-                    document.getElementById('video-player')?.scrollIntoView({ behavior: 'smooth' });
-                  }}
-                >
-                  <Play className="mr-2 h-4 w-4" /> Play
-                </Button>
                 
                 <Button 
-                  variant="secondary"
-                  className="bg-gray-700/60 hover:bg-gray-600/60 text-white px-6 py-3 rounded-full"
-                  onClick={handleAddToWatchlist}
-                  disabled={addToWatchlistMutation.isPending}
+                  variant="link" 
+                  size="sm" 
+                  className="text-xs text-muted-foreground mt-2 mx-auto block"
                 >
-                  <Plus className="mr-2 h-4 w-4" /> My List
-                </Button>
-                
-                <Button 
-                  variant="secondary"
-                  className="bg-gray-700/60 hover:bg-gray-600/60 text-white px-10 py-3 rounded-full"
-                >
-                  <Share2 className="h-4 w-4" />
+                  Show more (2 more)
                 </Button>
               </div>
             </div>
