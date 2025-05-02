@@ -14,6 +14,14 @@ import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import ServerTabs from "@/components/ServerTabs";
 import EpisodeList from "@/components/EpisodeList";
 import VideoPlayer from "@/components/VideoPlayer";
@@ -147,7 +155,7 @@ export default function MovieDetail() {
           </AlertDescription>
         </Alert>
         <div className="flex justify-center mt-6">
-          <Link href="/">
+          <Link to="/">
             <Button>Return to Home</Button>
           </Link>
         </div>
