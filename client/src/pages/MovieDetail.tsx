@@ -297,10 +297,46 @@ export default function MovieDetail() {
         {/* Movie Meta */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 mb-8">
           <div className="lg:col-span-3">
+            <div>
+              <h2 className="text-2xl font-bold mb-2">{movie.name}</h2>
+              {movie.origin_name && movie.origin_name !== movie.name && (
+                <h3 className="text-lg font-medium text-muted-foreground mb-4">({movie.origin_name})</h3>
+              )}
+            </div>
+            
+            <div className="flex flex-wrap gap-x-8 gap-y-3 mb-6 text-sm">
+              <div className="flex gap-1">
+                <span className="text-muted-foreground">Release Year:</span>
+                <span>{movie.year || 'Unknown'}</span>
+              </div>
+              
+              <div className="flex gap-1">
+                <span className="text-muted-foreground">Duration:</span>
+                <span>{movie.time || 'Unknown'}</span>
+              </div>
+              
+              <div className="flex gap-1">
+                <span className="text-muted-foreground">Genre:</span>
+                <span>{movie.category?.map(c => c.name).join(", ") || 'Unknown'}</span>
+              </div>
+              
+              {movie.quality && (
+                <div className="flex gap-1">
+                  <span className="text-muted-foreground">Quality:</span>
+                  <span>{movie.quality}</span>
+                </div>
+              )}
+              
+              <div className="flex gap-1">
+                <span className="text-muted-foreground">Rating:</span>
+                <span>8.3/10</span>
+              </div>
+            </div>
+            
             <div className="mb-6">
-              <h3 className="text-xl font-bold mb-3">About "{movie.name}"</h3>
+              <h3 className="text-xl font-bold mb-3">Di Ái Vỉ Doanh</h3>
               <p className="text-muted-foreground">
-                {movie.content}
+                {movie.content || 'No description available'}
               </p>
             </div>
             
@@ -333,6 +369,23 @@ export default function MovieDetail() {
                 </div>
               )}
             </div>
+            
+            <div className="mb-6">
+              <div className="grid grid-cols-3 gap-3 text-center">
+                <div className="border border-muted p-3 rounded">
+                  <h4 className="text-muted-foreground text-xs mb-1">Release Year</h4>
+                  <p className="font-semibold">{movie.year || '2023'}</p>
+                </div>
+                <div className="border border-muted p-3 rounded">
+                  <h4 className="text-muted-foreground text-xs mb-1">Duration</h4>
+                  <p className="font-semibold">{movie.time || '150 min'}</p>
+                </div>
+                <div className="border border-muted p-3 rounded">
+                  <h4 className="text-muted-foreground text-xs mb-1">Score/10</h4>
+                  <p className="font-semibold">8.3</p>
+                </div>
+              </div>
+            </div>
           </div>
           
           <div className="lg:col-span-1">
@@ -355,12 +408,35 @@ export default function MovieDetail() {
         <div id="video-player" className="mb-10 scroll-mt-20">
           <h3 className="text-xl font-bold mb-4">Watch "{movie.name}"</h3>
           
-          {/* Server Selection Tabs */}
-          <ServerTabs 
-            servers={episodes} 
-            onServerSelect={handleServerSelect}
-            isLoading={isMovieLoading}
-          />
+          {/* Episodes Section */}
+          <div className="mb-6">
+            <div className="flex items-center justify-between">
+              <h4 className="font-bold">Episodes</h4>
+              <div className="flex items-center">
+                <Select defaultValue="20">
+                  <SelectTrigger className="w-[110px] h-8 bg-black/30 text-xs">
+                    <SelectValue placeholder="Per page" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background/90 backdrop-blur-sm">
+                    <SelectGroup>
+                      <SelectItem value="10">10 per page</SelectItem>
+                      <SelectItem value="20">20 per page</SelectItem>
+                      <SelectItem value="50">50 per page</SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            
+            {/* Server Selection Tabs */}
+            <div className="mt-4">
+              <ServerTabs 
+                servers={episodes} 
+                onServerSelect={handleServerSelect}
+                isLoading={isMovieLoading}
+              />
+            </div>
+          </div>
           
           {/* Video Player */}
           <VideoPlayer 
@@ -386,12 +462,137 @@ export default function MovieDetail() {
           )}
           
           {/* Comments Section */}
-          <CommentSection 
-            movieSlug={slug}
-            comments={commentsData?.data || []}
-            isLoading={isCommentsLoading}
-            onRefreshComments={refetchComments}
-          />
+          <div className="mt-10">
+            <h3 className="text-xl font-bold mb-4">Comments and Reviews</h3>
+            
+            {/* Comment Form */}
+            <div className="flex gap-3 mb-6">
+              <div className="w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center text-white">
+                U
+              </div>
+              <div className="flex-1">
+                <textarea 
+                  className="w-full bg-black/40 border border-muted/30 rounded-md p-3 text-sm"
+                  placeholder="Add a comment or review..."
+                  rows={3}
+                ></textarea>
+                <div className="flex justify-end mt-2">
+                  <Button variant="default" size="sm" className="bg-primary hover:bg-primary/90 text-white">
+                    Add Comment
+                  </Button>
+                </div>
+              </div>
+            </div>
+            
+            {/* Comment List */}
+            <div className="space-y-6">
+              {commentsData?.data && commentsData.data.length > 0 ? (
+                commentsData.data.map((comment) => (
+                  <div key={comment.id} className="flex gap-3">
+                    <div className="w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center text-white flex-shrink-0">
+                      {'U'}
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="font-semibold">User #{comment.userId}</h4>
+                          <p className="text-xs text-muted-foreground">{new Date(comment.createdAt).toLocaleDateString()}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-white">
+                            Reply
+                          </Button>
+                          <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-white">
+                            Report
+                          </Button>
+                        </div>
+                      </div>
+                      <p className="mt-2 text-sm">{comment.content}</p>
+                      <div className="flex items-center gap-4 mt-2">
+                        <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-white flex items-center gap-1">
+                          <span>👍</span> {comment.likes || 0}
+                        </Button>
+                        <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-white flex items-center gap-1">
+                          <span>👎</span> {comment.dislikes || 0}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-muted-foreground">No comments yet. Be the first to leave a review!</p>
+                </div>
+              )}
+              
+              {/* Sample comments for demonstration */}
+              <div className="flex gap-3">
+                <div className="w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center text-white flex-shrink-0">
+                  J
+                </div>
+                <div className="flex-1">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h4 className="font-semibold">John Doe</h4>
+                      <p className="text-xs text-muted-foreground">3 days ago</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-white">
+                        Reply
+                      </Button>
+                      <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-white">
+                        Report
+                      </Button>
+                    </div>
+                  </div>
+                  <p className="mt-2 text-sm">This is an amazing movie! The cinematography and acting were outstanding. I would definitely recommend it to anyone who enjoys this genre.</p>
+                  <div className="flex items-center gap-4 mt-2">
+                    <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-white flex items-center gap-1">
+                      <span>👍</span> 12
+                    </Button>
+                    <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-white flex items-center gap-1">
+                      <span>👎</span> 2
+                    </Button>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex gap-3">
+                <div className="w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center text-white flex-shrink-0">
+                  M
+                </div>
+                <div className="flex-1">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h4 className="font-semibold">Mike Johnson</h4>
+                      <p className="text-xs text-muted-foreground">1 day ago</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-white">
+                        Reply
+                      </Button>
+                      <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-white">
+                        Report
+                      </Button>
+                    </div>
+                  </div>
+                  <p className="mt-2 text-sm">Agreed! The actors really outdid themselves on this one. The scene where [...]</p>
+                  <div className="flex items-center gap-4 mt-2">
+                    <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-white flex items-center gap-1">
+                      <span>👍</span> 5
+                    </Button>
+                    <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-white flex items-center gap-1">
+                      <span>👎</span> 0
+                    </Button>
+                  </div>
+                </div>
+              </div>
+              
+              <Button variant="outline" size="sm" className="w-full text-muted-foreground mt-4">
+                Load More Comments
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
