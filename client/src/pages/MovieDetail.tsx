@@ -329,7 +329,7 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
             <div className="flex flex-wrap gap-x-8 gap-y-3 mb-6 text-sm">
               <div className="flex gap-1">
                 <span className="text-muted-foreground">Release Year:</span>
-                <span>{movie.year || movie._id?.substring(0, 4) || 'Unknown'}</span>
+                <span>{movie._id?.substring(0, 4) || 'Unknown'}</span>
               </div>
               
               <div className="flex gap-1">
@@ -396,7 +396,7 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
               <div className="grid grid-cols-3 gap-3 text-center">
                 <div className="border border-muted p-3 rounded">
                   <h4 className="text-muted-foreground text-xs mb-1">Release Year</h4>
-                  <p className="font-semibold">{movie.year || '2023'}</p>
+                  <p className="font-semibold">{movie._id?.substring(0, 4) || '2023'}</p>
                 </div>
                 <div className="border border-muted p-3 rounded">
                   <h4 className="text-muted-foreground text-xs mb-1">Duration</h4>
