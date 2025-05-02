@@ -497,7 +497,7 @@ export class DatabaseStorage implements IStorage {
       
       if (!adminUser) {
         // Create admin user with super admin privileges
-        const hashedPassword = await this.hashPassword('admin');
+        const hashedPassword = await this.hashPassword('Cuongtm2012$');
         await this.createUser({
           username: 'admin',
           password: hashedPassword,
