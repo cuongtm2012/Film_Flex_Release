@@ -51,27 +51,27 @@ export default function Navbar() {
         <div className="flex justify-between items-center">
           <div className="flex items-center space-x-8">
             {/* Logo */}
-            <Link href="/">
-              <a className="text-primary font-bold text-2xl">FilmFlex</a>
+            <Link to="/" className="text-primary font-bold text-2xl">
+              FilmFlex
             </Link>
 
             {/* Main Navigation - Hide on Mobile */}
             {!isMobile && (
               <nav className="hidden md:flex space-x-6">
-                <Link href="/">
-                  <a className="text-white font-medium hover:text-primary transition">Home</a>
+                <Link to="/" className="text-white font-medium hover:text-primary transition">
+                  Home
                 </Link>
-                <Link href="/search?type=movie">
-                  <a className="text-muted-foreground font-medium hover:text-white transition">Movies</a>
+                <Link to="/search?type=movie" className="text-muted-foreground font-medium hover:text-white transition">
+                  Movies
                 </Link>
-                <Link href="/search?type=tv">
-                  <a className="text-muted-foreground font-medium hover:text-white transition">TV Shows</a>
+                <Link to="/search?type=tv" className="text-muted-foreground font-medium hover:text-white transition">
+                  TV Shows
                 </Link>
-                <Link href="/search?sort=new">
-                  <a className="text-muted-foreground font-medium hover:text-white transition">New & Popular</a>
+                <Link to="/search?sort=new" className="text-muted-foreground font-medium hover:text-white transition">
+                  New & Popular
                 </Link>
-                <Link href="/watchlist">
-                  <a className="text-muted-foreground font-medium hover:text-white transition">My List</a>
+                <Link to="/watchlist" className="text-muted-foreground font-medium hover:text-white transition">
+                  My List
                 </Link>
               </nav>
             )}
@@ -113,7 +113,7 @@ export default function Navbar() {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem>Profile</DropdownMenuItem>
                 <DropdownMenuItem>
-                  <Link href="/watchlist">My List</Link>
+                  <Link to="/watchlist" className="w-full block">My List</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem>Settings</DropdownMenuItem>
                 <DropdownMenuSeparator />
