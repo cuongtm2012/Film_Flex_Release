@@ -15,6 +15,10 @@ import { eq, like, and, desc, sql } from "drizzle-orm";
 import connectPg from "connect-pg-simple";
 import session from "express-session";
 import { pool } from "./db";
+import { promisify } from "util";
+import { scrypt, randomBytes } from "crypto";
+
+const scryptAsync = promisify(scrypt);
 
 export interface IStorage {
   // User methods
@@ -481,6 +485,37 @@ export class DatabaseStorage implements IStorage {
       pool,
       createTableIfMissing: true,
     });
+    
+    // Initialize admin user if it doesn't exist
+    this.initializeAdminUser();
+  }
+  
+  private async initializeAdminUser() {
+    try {
+      // Check if admin user already exists
+      const adminUser = await this.getUserByUsername('admin');
+      
+      if (!adminUser) {
+        // Create admin user with super admin privileges
+        const hashedPassword = await this.hashPassword('admin');
+        await this.createUser({
+          username: 'admin',
+          password: hashedPassword,
+          email: 'admin@filmflex.com',
+          role: UserRole.ADMIN,
+          status: UserStatus.ACTIVE
+        });
+        console.log('Admin user created successfully');
+      }
+    } catch (error) {
+      console.error('Error initializing admin user:', error);
+    }
+  }
+  
+  private async hashPassword(password: string) {
+    const salt = randomBytes(16).toString("hex");
+    const buf = (await scryptAsync(password, salt, 64)) as Buffer;
+    return `${buf.toString("hex")}.${salt}`;
   }
   
   // User methods
