@@ -436,7 +436,7 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
           </h3>
           
           {/* Video Player - with enhanced styling for better visibility/interaction */}
-          <div className="bg-black rounded-md overflow-hidden mb-6 relative z-10 shadow-xl border border-gray-800">
+          <div className="mb-6 relative z-10 shadow-xl border border-gray-800 bg-black rounded-md overflow-hidden">
             <VideoPlayer 
               embedUrl={getCurrentEmbedUrl()}
               isLoading={isMovieLoading || !selectedEpisode}
