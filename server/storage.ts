@@ -388,6 +388,140 @@ export class MemStorage implements IStorage {
     return this.movieDetailCache.get(slug);
   }
   
+  // Role methods
+  async getRole(id: number): Promise<Role | undefined> {
+    return this.roles.get(id);
+  }
+
+  async getRoleByName(name: string): Promise<Role | undefined> {
+    return Array.from(this.roles.values()).find(role => role.name === name);
+  }
+
+  async getAllRoles(): Promise<Role[]> {
+    return Array.from(this.roles.values());
+  }
+
+  async createRole(role: InsertRole): Promise<Role> {
+    const id = this.currentRoleId++;
+    const now = new Date();
+    
+    const newRole: Role = {
+      ...role,
+      id,
+      createdAt: now,
+      updatedAt: now
+    };
+    
+    this.roles.set(id, newRole);
+    return newRole;
+  }
+
+  async updateRole(id: number, roleData: Partial<InsertRole>): Promise<Role | undefined> {
+    const role = this.roles.get(id);
+    if (!role) return undefined;
+    
+    const updatedRole: Role = {
+      ...role,
+      ...roleData,
+      updatedAt: new Date()
+    };
+    
+    this.roles.set(id, updatedRole);
+    return updatedRole;
+  }
+
+  async deleteRole(id: number): Promise<void> {
+    this.roles.delete(id);
+    
+    // Also delete any role-permission relations
+    for (const key of this.rolePermissions.keys()) {
+      if (key.startsWith(`${id}-`)) {
+        this.rolePermissions.delete(key);
+      }
+    }
+  }
+
+  // Permission methods
+  async getPermission(id: number): Promise<Permission | undefined> {
+    return this.permissions.get(id);
+  }
+
+  async getPermissionByName(name: string): Promise<Permission | undefined> {
+    return Array.from(this.permissions.values()).find(permission => permission.name === name);
+  }
+
+  async getAllPermissions(): Promise<Permission[]> {
+    return Array.from(this.permissions.values());
+  }
+
+  async createPermission(permission: InsertPermission): Promise<Permission> {
+    const id = this.currentPermissionId++;
+    const now = new Date();
+    
+    const newPermission: Permission = {
+      ...permission,
+      id,
+      createdAt: now
+    };
+    
+    this.permissions.set(id, newPermission);
+    return newPermission;
+  }
+
+  async updatePermission(id: number, permissionData: Partial<InsertPermission>): Promise<Permission | undefined> {
+    const permission = this.permissions.get(id);
+    if (!permission) return undefined;
+    
+    const updatedPermission: Permission = {
+      ...permission,
+      ...permissionData
+    };
+    
+    this.permissions.set(id, updatedPermission);
+    return updatedPermission;
+  }
+
+  async deletePermission(id: number): Promise<void> {
+    this.permissions.delete(id);
+    
+    // Also delete any role-permission relations
+    for (const key of this.rolePermissions.keys()) {
+      if (key.endsWith(`-${id}`)) {
+        this.rolePermissions.delete(key);
+      }
+    }
+  }
+
+  // Role-Permission methods
+  async assignPermissionToRole(roleId: number, permissionId: number): Promise<RolePermission> {
+    const key = `${roleId}-${permissionId}`;
+    const rolePermission: RolePermission = { roleId, permissionId, id: key };
+    
+    this.rolePermissions.set(key, rolePermission);
+    return rolePermission;
+  }
+
+  async removePermissionFromRole(roleId: number, permissionId: number): Promise<void> {
+    const key = `${roleId}-${permissionId}`;
+    this.rolePermissions.delete(key);
+  }
+
+  async getPermissionsByRole(roleId: number): Promise<Permission[]> {
+    const permissionIds = Array.from(this.rolePermissions.values())
+      .filter(rp => rp.roleId === roleId)
+      .map(rp => rp.permissionId);
+    
+    return permissionIds.map(id => this.permissions.get(id)).filter(Boolean) as Permission[];
+  }
+
+  async getRolesByPermission(permissionId: number): Promise<Role[]> {
+    const roleIds = Array.from(this.rolePermissions.values())
+      .filter(rp => rp.permissionId === permissionId)
+      .map(rp => rp.roleId);
+    
+    return roleIds.map(id => this.roles.get(id)).filter(Boolean) as Role[];
+  }
+  
   // Content Approval methods
   async submitContentForApproval(approval: InsertContentApproval): Promise<ContentApproval> {
     const id = this.currentApprovalId++;
