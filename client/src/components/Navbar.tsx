@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useAuth } from "@/hooks/use-auth";
+import { useToast } from "@/hooks/use-toast";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,7 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Search, ChevronDown } from "lucide-react";
+import { Search, ChevronDown, LogOut, User, Settings, BookmarkPlus } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 export default function Navbar() {
@@ -19,6 +21,8 @@ export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [, navigate] = useLocation();
   const isMobile = useIsMobile();
+  const { user, logoutMutation } = useAuth();
+  const { toast } = useToast();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -38,6 +42,23 @@ export default function Navbar() {
     e.preventDefault();
     if (search.trim()) {
       navigate(`/search?q=${encodeURIComponent(search.trim())}`);
+    }
+  };
+  
+  const handleLogout = async () => {
+    try {
+      await logoutMutation.mutateAsync();
+      navigate('/auth');
+      toast({
+        title: "Logged out",
+        description: "You have been successfully logged out.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to log out. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -102,22 +123,66 @@ export default function Navbar() {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="flex items-center text-white">
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src="https://github.com/shadcn.png" />
-                    <AvatarFallback>US</AvatarFallback>
+                    <AvatarFallback>
+                      {user ? user.username.substring(0, 2).toUpperCase() : "GU"}
+                    </AvatarFallback>
                   </Avatar>
                   <ChevronDown className="ml-2 h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>Profile</DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Link to="/watchlist" className="w-full block">My List</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem>Settings</DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>Log out</DropdownMenuItem>
+                {user ? (
+                  <>
+                    <DropdownMenuLabel>
+                      {user.username}
+                      {user.role === 'admin' && (
+                        <span className="ml-2 text-xs bg-primary/20 text-primary px-1.5 py-0.5 rounded">Admin</span>
+                      )}
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem>
+                      <Link to="/profile" className="w-full flex items-center">
+                        <User className="mr-2 h-4 w-4" />
+                        Profile
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem>
+                      <Link to="/watchlist" className="w-full flex items-center">
+                        <BookmarkPlus className="mr-2 h-4 w-4" />
+                        My List
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem>
+                      <Link to="/settings" className="w-full flex items-center">
+                        <Settings className="mr-2 h-4 w-4" />
+                        Settings
+                      </Link>
+                    </DropdownMenuItem>
+                    {user.role === 'admin' && (
+                      <DropdownMenuItem>
+                        <Link to="/admin" className="w-full flex items-center">
+                          <span className="mr-2 h-4 w-4 flex items-center justify-center">⚙️</span>
+                          Admin Panel
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleLogout} className="text-red-500 cursor-pointer">
+                      <LogOut className="mr-2 h-4 w-4" />
+                      Log out
+                    </DropdownMenuItem>
+                  </>
+                ) : (
+                  <>
+                    <DropdownMenuLabel>Account</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem>
+                      <Link to="/auth" className="w-full flex items-center">
+                        Sign In / Register
+                      </Link>
+                    </DropdownMenuItem>
+                  </>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
