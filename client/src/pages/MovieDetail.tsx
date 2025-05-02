@@ -204,12 +204,19 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
       <div className="container mx-auto px-4">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           <div className="lg:col-span-3">
-            {/* Video Player placeholder - main player is below */}
-            <div className="bg-black rounded-md overflow-hidden mb-6 aspect-video flex items-center justify-center">
-              <div className="text-center p-4">
-                <h3 className="text-lg font-semibold mb-2">Movie Details</h3>
-                <p className="text-sm text-muted-foreground">Scroll down to the "Watch" section below to play the movie</p>
-              </div>
+            {/* Main Video Player */}
+            <div className="mb-6 relative z-10 shadow-xl border border-gray-800 bg-black rounded-md overflow-hidden">
+              <VideoPlayer 
+                embedUrl={getCurrentEmbedUrl()}
+                isLoading={isMovieLoading || !selectedEpisode}
+                onError={(error) => {
+                  toast({
+                    title: "Error",
+                    description: "Failed to load video player. Please try another server or episode.",
+                    variant: "destructive"
+                  });
+                }}
+              />
             </div>
             
             {/* Action Buttons */}
@@ -441,20 +448,7 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
             )}
           </h3>
           
-          {/* Video Player - with enhanced styling for better visibility/interaction */}
-          <div className="mb-6 relative z-10 shadow-xl border border-gray-800 bg-black rounded-md overflow-hidden">
-            <VideoPlayer 
-              embedUrl={getCurrentEmbedUrl()}
-              isLoading={isMovieLoading || !selectedEpisode}
-              onError={(error) => {
-                toast({
-                  title: "Error",
-                  description: "Failed to load video player. Please try another server or episode.",
-                  variant: "destructive"
-                });
-              }}
-            />
-          </div>
+          {/* No video player here - it's in the main section above */}
           
           {/* Only show server tabs if there are multiple servers */}
           {movieDetail.episodes.length > 1 && (
