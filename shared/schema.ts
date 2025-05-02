@@ -1,6 +1,22 @@
 import { pgTable, text, serial, integer, boolean, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+
+// User roles enum
+export const UserRole = {
+  ADMIN: 'admin',
+  MODERATOR: 'moderator',
+  PREMIUM: 'premium',
+  NORMAL: 'normal',
+} as const;
+
+// User status enum
+export const UserStatus = {
+  ACTIVE: 'active',
+  INACTIVE: 'inactive',
+  SUSPENDED: 'suspended',
+} as const;
 
 // User model for authentication
 export const users = pgTable("users", {
@@ -8,7 +24,11 @@ export const users = pgTable("users", {
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
   email: text("email").notNull().unique(),
+  role: text("role").notNull().default(UserRole.NORMAL),
+  status: text("status").notNull().default(UserStatus.ACTIVE),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  lastLogin: timestamp("last_login"),
 });
 
 // Movie model for caching movie data
@@ -67,12 +87,59 @@ export const watchlist = pgTable("watchlist", {
   addedAt: timestamp("added_at").defaultNow().notNull(),
 });
 
+// Content Status enum
+export const ContentStatus = {
+  PENDING: 'pending',
+  APPROVED: 'approved',
+  REJECTED: 'rejected',
+} as const;
+
+// Content Approvals model for tracking moderation
+export const contentApprovals = pgTable("content_approvals", {
+  id: serial("id").primaryKey(),
+  movieId: integer("movie_id").notNull(),
+  submittedByUserId: integer("submitted_by_user_id").notNull(),
+  reviewedByUserId: integer("reviewed_by_user_id"),
+  status: text("status").notNull().default(ContentStatus.PENDING),
+  submittedAt: timestamp("submitted_at").defaultNow().notNull(),
+  reviewedAt: timestamp("reviewed_at"),
+  comments: text("comments"),
+});
+
+// User Activity Types enum
+export const ActivityType = {
+  USER_CREATED: 'user_created',
+  USER_UPDATED: 'user_updated',
+  USER_STATUS_CHANGED: 'user_status_changed',
+  USER_DELETED: 'user_deleted',
+  USER_LOGIN: 'user_login',
+  USER_LOGOUT: 'user_logout',
+  CONTENT_SUBMITTED: 'content_submitted',
+  CONTENT_APPROVED: 'content_approved',
+  CONTENT_REJECTED: 'content_rejected',
+} as const;
+
+// Audit Logs model for tracking admin/moderator actions
+export const auditLogs = pgTable("audit_logs", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  activityType: text("activity_type").notNull(),
+  targetId: integer("target_id"), // ID of affected resource (user, movie, etc.)
+  details: jsonb("details"), // Additional context
+  ipAddress: text("ip_address"),
+  timestamp: timestamp("timestamp").defaultNow().notNull(),
+});
+
 // Insert schemas
-export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true });
+export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true, updatedAt: true, lastLogin: true });
 export const insertMovieSchema = createInsertSchema(movies).omit({ id: true, modifiedAt: true });
 export const insertEpisodeSchema = createInsertSchema(episodes).omit({ id: true });
 export const insertCommentSchema = createInsertSchema(comments).omit({ id: true, likes: true, dislikes: true, createdAt: true });
 export const insertWatchlistSchema = createInsertSchema(watchlist).omit({ id: true, addedAt: true });
+export const insertContentApprovalSchema = createInsertSchema(contentApprovals).omit({ 
+  id: true, submittedAt: true, reviewedAt: true 
+});
+export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({ id: true, timestamp: true });
 
 // Type definitions
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -80,12 +147,85 @@ export type InsertMovie = z.infer<typeof insertMovieSchema>;
 export type InsertEpisode = z.infer<typeof insertEpisodeSchema>;
 export type InsertComment = z.infer<typeof insertCommentSchema>;
 export type InsertWatchlist = z.infer<typeof insertWatchlistSchema>;
+export type InsertContentApproval = z.infer<typeof insertContentApprovalSchema>;
+export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
 
 export type User = typeof users.$inferSelect;
 export type Movie = typeof movies.$inferSelect;
 export type Episode = typeof episodes.$inferSelect;
 export type Comment = typeof comments.$inferSelect;
 export type Watchlist = typeof watchlist.$inferSelect;
+export type ContentApproval = typeof contentApprovals.$inferSelect;
+export type AuditLog = typeof auditLogs.$inferSelect;
+
+// Define relations between tables
+export const usersRelations = relations(users, ({ many }) => ({
+  comments: many(comments),
+  watchlist: many(watchlist),
+  submittedContent: many(contentApprovals, { relationName: "submittedBy" }),
+  reviewedContent: many(contentApprovals, { relationName: "reviewedBy" }),
+  auditLogs: many(auditLogs),
+}));
+
+export const moviesRelations = relations(movies, ({ many }) => ({
+  episodes: many(episodes),
+  comments: many(comments),
+  watchlist: many(watchlist),
+  contentApprovals: many(contentApprovals),
+}));
+
+export const commentsRelations = relations(comments, ({ one }) => ({
+  user: one(users, {
+    fields: [comments.userId],
+    references: [users.id],
+  }),
+  movie: one(movies, {
+    fields: [comments.movieSlug],
+    references: [movies.slug],
+  }),
+}));
+
+export const watchlistRelations = relations(watchlist, ({ one }) => ({
+  user: one(users, {
+    fields: [watchlist.userId],
+    references: [users.id],
+  }),
+  movie: one(movies, {
+    fields: [watchlist.movieSlug],
+    references: [movies.slug],
+  }),
+}));
+
+export const episodesRelations = relations(episodes, ({ one }) => ({
+  movie: one(movies, {
+    fields: [episodes.movieSlug],
+    references: [movies.slug],
+  }),
+}));
+
+export const contentApprovalsRelations = relations(contentApprovals, ({ one }) => ({
+  movie: one(movies, {
+    fields: [contentApprovals.movieId],
+    references: [movies.id],
+  }),
+  submittedBy: one(users, {
+    fields: [contentApprovals.submittedByUserId],
+    references: [users.id],
+    relationName: "submittedBy",
+  }),
+  reviewedBy: one(users, {
+    fields: [contentApprovals.reviewedByUserId],
+    references: [users.id],
+    relationName: "reviewedBy",
+  }),
+}));
+
+export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
+  user: one(users, {
+    fields: [auditLogs.userId],
+    references: [users.id],
+  }),
+}));
 
 // API Response Types
 export type MovieListItem = {
