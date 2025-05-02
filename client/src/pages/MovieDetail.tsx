@@ -103,12 +103,24 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
     const server = movieDetail?.episodes.find(s => s.server_name === serverName);
     if (server && server.server_data.length > 0) {
       setSelectedEpisode(server.server_data[0].slug);
+      
+      // Scroll to video player section
+      document.getElementById('video-player')?.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'start'
+      });
     }
   };
   
   // Handle episode selection
   const handleEpisodeSelect = (episodeSlug: string) => {
     setSelectedEpisode(episodeSlug);
+    
+    // Scroll to video player section
+    document.getElementById('video-player')?.scrollIntoView({ 
+      behavior: 'smooth', 
+      block: 'start'
+    });
   };
   
   // Find current embed URL
@@ -192,19 +204,12 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
       <div className="container mx-auto px-4">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           <div className="lg:col-span-3">
-            {/* Video Player */}
-            <div id="video-player" className="bg-black rounded-md overflow-hidden mb-6">
-              <VideoPlayer 
-                embedUrl={getCurrentEmbedUrl()}
-                isLoading={isMovieLoading || !selectedEpisode}
-                onError={(error) => {
-                  toast({
-                    title: "Error",
-                    description: "Failed to load video player. Please try another server or episode.",
-                    variant: "destructive"
-                  });
-                }}
-              />
+            {/* Video Player placeholder - main player is below */}
+            <div className="bg-black rounded-md overflow-hidden mb-6 aspect-video flex items-center justify-center">
+              <div className="text-center p-4">
+                <h3 className="text-lg font-semibold mb-2">Movie Details</h3>
+                <p className="text-sm text-muted-foreground">Scroll down to the "Watch" section below to play the movie</p>
+              </div>
             </div>
             
             {/* Action Buttons */}
@@ -427,8 +432,9 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
         <Separator className="my-6" />
         
         {/* Server Selection & Episodes */}
-        <div id="video-player" className="mb-10 scroll-mt-20">
-          <h3 className="text-xl font-bold mb-4">
+        <div id="video-player" className="mb-10 scroll-mt-20 bg-gray-900 rounded-xl p-6 border border-gray-800">
+          <h3 className="text-2xl font-bold mb-4 flex items-center">
+            <Play className="mr-2 h-5 w-5 text-primary" />
             {isSingleEpisode() ? `Watch Full Movie: ${movie.name}` : `Watch "${movie.name}"`}
             {isSingleEpisode() && (
               <Badge variant="outline" className="ml-2 bg-primary/10">Full Movie</Badge>
