@@ -39,7 +39,7 @@ export default function VideoPlayer({ embedUrl, isLoading = false, onError }: Vi
   return (
     <div 
       ref={playerContainerRef}
-      className="relative aspect-video bg-black rounded-lg overflow-hidden mb-6"
+      className="relative aspect-video bg-black rounded-lg overflow-hidden"
     >
       {/* Loading state */}
       {!isPlayerLoaded && (
@@ -49,15 +49,17 @@ export default function VideoPlayer({ embedUrl, isLoading = false, onError }: Vi
       )}
       
       {/* Video iframe with native controls */}
-      <iframe
-        ref={iframeRef}
-        src={embedUrl}
-        className="w-full h-full border-0"
-        allowFullScreen
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-        onLoad={handleIframeLoad}
-        onError={handleIframeError}
-      />
+      {embedUrl && (
+        <iframe
+          ref={iframeRef}
+          src={embedUrl}
+          className="w-full h-full border-0"
+          allowFullScreen
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          onLoad={handleIframeLoad}
+          onError={handleIframeError}
+        />
+      )}
     </div>
   );
 }
