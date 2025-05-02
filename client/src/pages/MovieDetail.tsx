@@ -396,7 +396,7 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
               <div className="grid grid-cols-3 gap-3 text-center">
                 <div className="border border-muted p-3 rounded">
                   <h4 className="text-muted-foreground text-xs mb-1">Release Year</h4>
-                  <p className="font-semibold">{movie._id?.substring(0, 4) || '2023'}</p>
+                  <p className="font-semibold">{movie.year || '2023'}</p>
                 </div>
                 <div className="border border-muted p-3 rounded">
                   <h4 className="text-muted-foreground text-xs mb-1">Duration</h4>
@@ -404,7 +404,7 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
                 </div>
                 <div className="border border-muted p-3 rounded">
                   <h4 className="text-muted-foreground text-xs mb-1">Score/10</h4>
-                  <p className="font-semibold">8.3</p>
+                  <p className="font-semibold">{movie.tmdb?.vote_average || "8.2"}</p>
                 </div>
               </div>
             </div>
