@@ -8,6 +8,10 @@ import Home from "@/pages/Home";
 import MovieDetail from "@/pages/MovieDetail";
 import Search from "@/pages/Search";
 import AuthPage from "@/pages/auth-page";
+import ProfilePageComponent from "@/pages/ProfilePage";
+import SettingsPage from "@/pages/SettingsPage";
+import WatchlistPageComponent from "@/pages/WatchlistPage";
+import WatchHistoryPage from "@/pages/WatchHistoryPage";
 import Layout from "@/components/Layout";
 import { ThemeProvider } from "@/components/ui/theme-provider";
 import { AuthProvider } from "@/hooks/use-auth";
@@ -16,10 +20,6 @@ import { ProtectedRoute } from "@/lib/protected-route";
 function MainLayout({ children }: { children: React.ReactNode }) {
   return <Layout>{children}</Layout>;
 }
-
-// Pages for protected routes
-const ProfilePage = () => <div className="p-8"><h1 className="text-2xl font-bold mb-4">User Profile</h1><p>This is a protected page that requires authentication.</p></div>;
-const WatchlistPage = () => <div className="p-8"><h1 className="text-2xl font-bold mb-4">My Watchlist</h1><p>This is a protected page that shows your saved movies.</p></div>;
 
 function Router() {
   return (
@@ -51,13 +51,25 @@ function Router() {
       {/* Protected routes */}
       <Route path="/profile">
         <MainLayout>
-          <ProtectedRoute component={ProfilePage} path="/profile" />
+          <ProtectedRoute component={ProfilePageComponent} path="/profile" />
+        </MainLayout>
+      </Route>
+      
+      <Route path="/settings">
+        <MainLayout>
+          <ProtectedRoute component={SettingsPage} path="/settings" />
         </MainLayout>
       </Route>
       
       <Route path="/watchlist">
         <MainLayout>
-          <ProtectedRoute component={WatchlistPage} path="/watchlist" />
+          <ProtectedRoute component={WatchlistPageComponent} path="/watchlist" />
+        </MainLayout>
+      </Route>
+      
+      <Route path="/history">
+        <MainLayout>
+          <ProtectedRoute component={WatchHistoryPage} path="/history" />
         </MainLayout>
       </Route>
       

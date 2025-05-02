@@ -13,7 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Search, ChevronDown, LogOut, User, Settings, BookmarkPlus } from "lucide-react";
+import { Search, ChevronDown, LogOut, User, Settings, BookmarkPlus, Clock } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 export default function Navbar() {
@@ -150,6 +150,12 @@ export default function Navbar() {
                       <Link to="/watchlist" className="w-full flex items-center">
                         <BookmarkPlus className="mr-2 h-4 w-4" />
                         My List
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem>
+                      <Link to="/history" className="w-full flex items-center">
+                        <Clock className="mr-2 h-4 w-4" />
+                        Watch History
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem>
