@@ -4,14 +4,26 @@ import {
   Episode, InsertEpisode, 
   Comment, InsertComment, 
   Watchlist, InsertWatchlist,
-  MovieListResponse, MovieDetailResponse
+  ContentApproval, InsertContentApproval,
+  AuditLog, InsertAuditLog,
+  MovieListResponse, MovieDetailResponse,
+  users, movies, episodes, comments, watchlist, contentApprovals, auditLogs,
+  UserRole, UserStatus, ContentStatus, ActivityType
 } from "@shared/schema";
+import { db } from "./db";
+import { eq, like, and, desc, sql } from "drizzle-orm";
+import connectPg from "connect-pg-simple";
+import session from "express-session";
+import { pool } from "./db";
 
 export interface IStorage {
   // User methods
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  updateUser(id: number, userData: Partial<InsertUser>): Promise<User | undefined>;
+  changeUserStatus(id: number, status: string): Promise<User | undefined>;
+  getAllUsers(page: number, limit: number, filters?: {role?: string, status?: string, search?: string}): Promise<{ data: User[], total: number }>;
   
   // Movie methods
   getMovies(page: number, limit: number): Promise<{ data: Movie[], total: number }>;
@@ -36,11 +48,25 @@ export interface IStorage {
   addToWatchlist(watchlistItem: InsertWatchlist): Promise<void>;
   removeFromWatchlist(userId: number, movieSlug: string): Promise<void>;
   
+  // Content Approval methods
+  submitContentForApproval(approval: InsertContentApproval): Promise<ContentApproval>;
+  approveContent(contentId: number, reviewerId: number, comments?: string): Promise<ContentApproval | undefined>;
+  rejectContent(contentId: number, reviewerId: number, comments: string): Promise<ContentApproval | undefined>;
+  getPendingContent(page: number, limit: number): Promise<{ data: ContentApproval[], total: number }>;
+  getContentByUser(userId: number, page: number, limit: number, status?: string): Promise<{ data: ContentApproval[], total: number }>;
+  
+  // Audit Log methods
+  addAuditLog(log: InsertAuditLog): Promise<AuditLog>;
+  getAuditLogs(page: number, limit: number, filters?: {activityType?: string, userId?: number}): Promise<{ data: AuditLog[], total: number }>;
+  
   // Cache methods
   cacheMovieList(data: MovieListResponse, page: number): Promise<void>;
   cacheMovieDetail(data: MovieDetailResponse): Promise<void>;
   getMovieListCache(page: number): Promise<MovieListResponse | undefined>;
   getMovieDetailCache(slug: string): Promise<MovieDetailResponse | undefined>;
+  
+  // Session store for authentication
+  sessionStore: session.Store;
 }
 
 export class MemStorage implements IStorage {
@@ -49,14 +75,20 @@ export class MemStorage implements IStorage {
   private episodes: Map<string, Episode>; // Key is slug
   private comments: Map<number, Comment>;
   private watchlists: Watchlist[];
+  private contentApprovals: Map<number, ContentApproval>;
+  private auditLogs: Map<number, AuditLog>;
   private movieListCache: Map<number, MovieListResponse>; // Key is page number
   private movieDetailCache: Map<string, MovieDetailResponse>; // Key is slug
+  
+  sessionStore: session.Store;
   
   private currentUserId: number = 1;
   private currentMovieId: number = 1;
   private currentEpisodeId: number = 1;
   private currentCommentId: number = 1;
   private currentWatchlistId: number = 1;
+  private currentApprovalId: number = 1;
+  private currentAuditLogId: number = 1;
 
   constructor() {
     this.users = new Map();
@@ -64,8 +96,16 @@ export class MemStorage implements IStorage {
     this.episodes = new Map();
     this.comments = new Map();
     this.watchlists = [];
+    this.contentApprovals = new Map();
+    this.auditLogs = new Map();
     this.movieListCache = new Map();
     this.movieDetailCache = new Map();
+    
+    // Create memory store for sessions
+    const MemoryStore = require('memorystore')(session);
+    this.sessionStore = new MemoryStore({
+      checkPeriod: 86400000 // prune expired entries every 24h
+    });
   }
 
   // User methods
@@ -82,9 +122,74 @@ export class MemStorage implements IStorage {
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = this.currentUserId++;
     const now = new Date();
-    const user: User = { ...insertUser, id, createdAt: now };
+    const user: User = { 
+      ...insertUser, 
+      id, 
+      createdAt: now, 
+      updatedAt: now, 
+      lastLogin: null,
+      role: insertUser.role || UserRole.NORMAL,
+      status: insertUser.status || UserStatus.ACTIVE
+    };
     this.users.set(id, user);
     return user;
+  }
+  
+  async updateUser(id: number, userData: Partial<InsertUser>): Promise<User | undefined> {
+    const user = this.users.get(id);
+    if (!user) return undefined;
+    
+    const updatedUser = { 
+      ...user, 
+      ...userData, 
+      updatedAt: new Date() 
+    };
+    
+    this.users.set(id, updatedUser);
+    return updatedUser;
+  }
+  
+  async changeUserStatus(id: number, status: string): Promise<User | undefined> {
+    const user = this.users.get(id);
+    if (!user) return undefined;
+    
+    const updatedUser = { 
+      ...user, 
+      status, 
+      updatedAt: new Date() 
+    };
+    
+    this.users.set(id, updatedUser);
+    return updatedUser;
+  }
+  
+  async getAllUsers(page: number, limit: number, filters?: {role?: string, status?: string, search?: string}): Promise<{ data: User[], total: number }> {
+    let allUsers = Array.from(this.users.values());
+    
+    if (filters) {
+      if (filters.role) {
+        allUsers = allUsers.filter(user => user.role === filters.role);
+      }
+      
+      if (filters.status) {
+        allUsers = allUsers.filter(user => user.status === filters.status);
+      }
+      
+      if (filters.search) {
+        const search = filters.search.toLowerCase();
+        allUsers = allUsers.filter(user => 
+          user.username.toLowerCase().includes(search) || 
+          user.email.toLowerCase().includes(search)
+        );
+      }
+    }
+    
+    const total = allUsers.length;
+    const start = (page - 1) * limit;
+    const end = start + limit;
+    const paginatedUsers = allUsers.slice(start, end);
+    
+    return { data: paginatedUsers, total };
   }
   
   // Movie methods
@@ -244,6 +349,483 @@ export class MemStorage implements IStorage {
   async getMovieDetailCache(slug: string): Promise<MovieDetailResponse | undefined> {
     return this.movieDetailCache.get(slug);
   }
+  
+  // Content Approval methods
+  async submitContentForApproval(approval: InsertContentApproval): Promise<ContentApproval> {
+    const id = this.currentApprovalId++;
+    const now = new Date();
+    
+    const newApproval: ContentApproval = {
+      ...approval,
+      id,
+      status: ContentStatus.PENDING,
+      submittedAt: now,
+      reviewedAt: null,
+      reviewedByUserId: null
+    };
+    
+    this.contentApprovals.set(id, newApproval);
+    return newApproval;
+  }
+  
+  async approveContent(contentId: number, reviewerId: number, comments?: string): Promise<ContentApproval | undefined> {
+    const approval = this.contentApprovals.get(contentId);
+    if (!approval) return undefined;
+    
+    const now = new Date();
+    const updatedApproval: ContentApproval = {
+      ...approval,
+      status: ContentStatus.APPROVED,
+      reviewedByUserId: reviewerId,
+      reviewedAt: now,
+      comments: comments || approval.comments
+    };
+    
+    this.contentApprovals.set(contentId, updatedApproval);
+    return updatedApproval;
+  }
+  
+  async rejectContent(contentId: number, reviewerId: number, comments: string): Promise<ContentApproval | undefined> {
+    const approval = this.contentApprovals.get(contentId);
+    if (!approval) return undefined;
+    
+    const now = new Date();
+    const updatedApproval: ContentApproval = {
+      ...approval,
+      status: ContentStatus.REJECTED,
+      reviewedByUserId: reviewerId,
+      reviewedAt: now,
+      comments
+    };
+    
+    this.contentApprovals.set(contentId, updatedApproval);
+    return updatedApproval;
+  }
+  
+  async getPendingContent(page: number, limit: number): Promise<{ data: ContentApproval[], total: number }> {
+    const pendingApprovals = Array.from(this.contentApprovals.values())
+      .filter(approval => approval.status === ContentStatus.PENDING)
+      .sort((a, b) => b.submittedAt.getTime() - a.submittedAt.getTime());
+    
+    const total = pendingApprovals.length;
+    const start = (page - 1) * limit;
+    const end = start + limit;
+    const paginatedApprovals = pendingApprovals.slice(start, end);
+    
+    return { data: paginatedApprovals, total };
+  }
+  
+  async getContentByUser(userId: number, page: number, limit: number, status?: string): Promise<{ data: ContentApproval[], total: number }> {
+    let userApprovals = Array.from(this.contentApprovals.values())
+      .filter(approval => approval.submittedByUserId === userId);
+    
+    if (status) {
+      userApprovals = userApprovals.filter(approval => approval.status === status);
+    }
+    
+    userApprovals.sort((a, b) => b.submittedAt.getTime() - a.submittedAt.getTime());
+    
+    const total = userApprovals.length;
+    const start = (page - 1) * limit;
+    const end = start + limit;
+    const paginatedApprovals = userApprovals.slice(start, end);
+    
+    return { data: paginatedApprovals, total };
+  }
+  
+  // Audit Log methods
+  async addAuditLog(log: InsertAuditLog): Promise<AuditLog> {
+    const id = this.currentAuditLogId++;
+    const now = new Date();
+    
+    const newLog: AuditLog = {
+      ...log,
+      id,
+      timestamp: now
+    };
+    
+    this.auditLogs.set(id, newLog);
+    return newLog;
+  }
+  
+  async getAuditLogs(page: number, limit: number, filters?: {activityType?: string, userId?: number}): Promise<{ data: AuditLog[], total: number }> {
+    let logs = Array.from(this.auditLogs.values());
+    
+    if (filters) {
+      if (filters.activityType) {
+        logs = logs.filter(log => log.activityType === filters.activityType);
+      }
+      
+      if (filters.userId) {
+        logs = logs.filter(log => log.userId === filters.userId);
+      }
+    }
+    
+    logs.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+    
+    const total = logs.length;
+    const start = (page - 1) * limit;
+    const end = start + limit;
+    const paginatedLogs = logs.slice(start, end);
+    
+    return { data: paginatedLogs, total };
+  }
 }
 
-export const storage = new MemStorage();
+export class DatabaseStorage implements IStorage {
+  sessionStore: session.Store;
+  
+  constructor() {
+    const PostgresStore = connectPg(session);
+    this.sessionStore = new PostgresStore({
+      pool,
+      createTableIfMissing: true,
+    });
+  }
+  
+  // User methods
+  async getUser(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user;
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const [user] = await db.insert(users).values({
+      ...insertUser,
+      role: insertUser.role || UserRole.NORMAL,
+      status: insertUser.status || UserStatus.ACTIVE
+    }).returning();
+    return user;
+  }
+  
+  async updateUser(id: number, userData: Partial<InsertUser>): Promise<User | undefined> {
+    const [updatedUser] = await db.update(users)
+      .set({
+        ...userData,
+        updatedAt: new Date()
+      })
+      .where(eq(users.id, id))
+      .returning();
+    return updatedUser;
+  }
+  
+  async changeUserStatus(id: number, status: string): Promise<User | undefined> {
+    const [updatedUser] = await db.update(users)
+      .set({
+        status,
+        updatedAt: new Date()
+      })
+      .where(eq(users.id, id))
+      .returning();
+    return updatedUser;
+  }
+  
+  async getAllUsers(page: number, limit: number, filters?: {role?: string, status?: string, search?: string}): Promise<{ data: User[], total: number }> {
+    let query = db.select().from(users);
+    
+    if (filters) {
+      if (filters.role) {
+        query = query.where(eq(users.role, filters.role));
+      }
+      
+      if (filters.status) {
+        query = query.where(eq(users.status, filters.status));
+      }
+      
+      if (filters.search) {
+        query = query.where(
+          sql`(${users.username} ILIKE ${`%${filters.search}%`} OR ${users.email} ILIKE ${`%${filters.search}%`})`
+        );
+      }
+    }
+    
+    // Count total before applying pagination
+    const countResult = await db.select({ count: sql<number>`count(*)` }).from(query.as('user_count'));
+    const total = countResult[0]?.count || 0;
+    
+    // Apply pagination and fetch users
+    const data = await query.limit(limit).offset((page - 1) * limit);
+    
+    return { data, total };
+  }
+  
+  // Movie methods
+  async getMovies(page: number, limit: number): Promise<{ data: Movie[], total: number }> {
+    const data = await db.select().from(movies).limit(limit).offset((page - 1) * limit);
+    const [{ count }] = await db.select({ count: sql<number>`count(*)` }).from(movies);
+    return { data, total: count };
+  }
+  
+  async getMovieBySlug(slug: string): Promise<Movie | undefined> {
+    const [movie] = await db.select().from(movies).where(eq(movies.slug, slug));
+    return movie;
+  }
+  
+  async saveMovie(movie: InsertMovie): Promise<Movie> {
+    const [savedMovie] = await db.insert(movies).values(movie).returning();
+    return savedMovie;
+  }
+  
+  async searchMovies(query: string, page: number, limit: number): Promise<{ data: Movie[], total: number }> {
+    const searchPattern = `%${query}%`;
+    
+    const data = await db.select().from(movies)
+      .where(
+        sql`(${movies.name} ILIKE ${searchPattern} OR 
+        ${movies.originName} ILIKE ${searchPattern} OR 
+        ${movies.description} ILIKE ${searchPattern})`
+      )
+      .limit(limit)
+      .offset((page - 1) * limit);
+    
+    const [{ count }] = await db.select({ count: sql<number>`count(*)` }).from(movies)
+      .where(
+        sql`(${movies.name} ILIKE ${searchPattern} OR 
+        ${movies.originName} ILIKE ${searchPattern} OR 
+        ${movies.description} ILIKE ${searchPattern})`
+      );
+    
+    return { data, total: count };
+  }
+  
+  async getMoviesByCategory(categorySlug: string, page: number, limit: number): Promise<{ data: Movie[], total: number }> {
+    // This assumes categories is a JSONB array field with objects that have a slug property
+    const data = await db.select().from(movies)
+      .where(sql`EXISTS (SELECT 1 FROM jsonb_array_elements(${movies.categories}) as category 
+      WHERE category->>'slug' = ${categorySlug})`)
+      .limit(limit)
+      .offset((page - 1) * limit);
+    
+    const [{ count }] = await db.select({ count: sql<number>`count(*)` }).from(movies)
+      .where(sql`EXISTS (SELECT 1 FROM jsonb_array_elements(${movies.categories}) as category 
+      WHERE category->>'slug' = ${categorySlug})`);
+    
+    return { data, total: count };
+  }
+  
+  // Episode methods
+  async getEpisodesByMovieSlug(movieSlug: string): Promise<Episode[]> {
+    return db.select().from(episodes).where(eq(episodes.movieSlug, movieSlug));
+  }
+  
+  async getEpisodeBySlug(slug: string): Promise<Episode | undefined> {
+    const [episode] = await db.select().from(episodes).where(eq(episodes.slug, slug));
+    return episode;
+  }
+  
+  async saveEpisode(episode: InsertEpisode): Promise<Episode> {
+    const [savedEpisode] = await db.insert(episodes).values(episode).returning();
+    return savedEpisode;
+  }
+  
+  // Comment methods
+  async getCommentsByMovieSlug(movieSlug: string, page: number, limit: number): Promise<{ data: Comment[], total: number }> {
+    const data = await db.select().from(comments)
+      .where(eq(comments.movieSlug, movieSlug))
+      .orderBy(desc(comments.createdAt))
+      .limit(limit)
+      .offset((page - 1) * limit);
+    
+    const [{ count }] = await db.select({ count: sql<number>`count(*)` }).from(comments)
+      .where(eq(comments.movieSlug, movieSlug));
+    
+    return { data, total: count };
+  }
+  
+  async addComment(comment: InsertComment): Promise<Comment> {
+    const [savedComment] = await db.insert(comments).values(comment).returning();
+    return savedComment;
+  }
+  
+  async likeComment(commentId: number): Promise<void> {
+    await db.update(comments)
+      .set({ likes: sql`${comments.likes} + 1` })
+      .where(eq(comments.id, commentId));
+  }
+  
+  async dislikeComment(commentId: number): Promise<void> {
+    await db.update(comments)
+      .set({ dislikes: sql`${comments.dislikes} + 1` })
+      .where(eq(comments.id, commentId));
+  }
+  
+  // Watchlist methods
+  async getWatchlist(userId: number): Promise<Movie[]> {
+    const result = await db.select({ movie: movies })
+      .from(watchlist)
+      .innerJoin(movies, eq(watchlist.movieSlug, movies.slug))
+      .where(eq(watchlist.userId, userId));
+    
+    return result.map(item => item.movie);
+  }
+  
+  async addToWatchlist(watchlistItem: InsertWatchlist): Promise<void> {
+    // Check if already exists
+    const [existing] = await db.select().from(watchlist)
+      .where(and(
+        eq(watchlist.userId, watchlistItem.userId),
+        eq(watchlist.movieSlug, watchlistItem.movieSlug)
+      ));
+    
+    if (!existing) {
+      await db.insert(watchlist).values(watchlistItem);
+    }
+  }
+  
+  async removeFromWatchlist(userId: number, movieSlug: string): Promise<void> {
+    await db.delete(watchlist)
+      .where(and(
+        eq(watchlist.userId, userId),
+        eq(watchlist.movieSlug, movieSlug)
+      ));
+  }
+  
+  // Content Approval methods
+  async submitContentForApproval(approval: InsertContentApproval): Promise<ContentApproval> {
+    const [savedApproval] = await db.insert(contentApprovals)
+      .values({
+        ...approval,
+        status: ContentStatus.PENDING
+      })
+      .returning();
+    
+    return savedApproval;
+  }
+  
+  async approveContent(contentId: number, reviewerId: number, comments?: string): Promise<ContentApproval | undefined> {
+    const [approval] = await db.update(contentApprovals)
+      .set({
+        status: ContentStatus.APPROVED,
+        reviewedByUserId: reviewerId,
+        reviewedAt: new Date(),
+        comments: comments || sql`${contentApprovals.comments}`
+      })
+      .where(eq(contentApprovals.id, contentId))
+      .returning();
+    
+    return approval;
+  }
+  
+  async rejectContent(contentId: number, reviewerId: number, comments: string): Promise<ContentApproval | undefined> {
+    const [approval] = await db.update(contentApprovals)
+      .set({
+        status: ContentStatus.REJECTED,
+        reviewedByUserId: reviewerId,
+        reviewedAt: new Date(),
+        comments
+      })
+      .where(eq(contentApprovals.id, contentId))
+      .returning();
+    
+    return approval;
+  }
+  
+  async getPendingContent(page: number, limit: number): Promise<{ data: ContentApproval[], total: number }> {
+    const data = await db.select().from(contentApprovals)
+      .where(eq(contentApprovals.status, ContentStatus.PENDING))
+      .orderBy(desc(contentApprovals.submittedAt))
+      .limit(limit)
+      .offset((page - 1) * limit);
+    
+    const [{ count }] = await db.select({ count: sql<number>`count(*)` }).from(contentApprovals)
+      .where(eq(contentApprovals.status, ContentStatus.PENDING));
+    
+    return { data, total: count };
+  }
+  
+  async getContentByUser(userId: number, page: number, limit: number, status?: string): Promise<{ data: ContentApproval[], total: number }> {
+    let query = db.select().from(contentApprovals)
+      .where(eq(contentApprovals.submittedByUserId, userId));
+    
+    if (status) {
+      query = query.where(eq(contentApprovals.status, status));
+    }
+    
+    const data = await query
+      .orderBy(desc(contentApprovals.submittedAt))
+      .limit(limit)
+      .offset((page - 1) * limit);
+    
+    let countQuery = db.select({ count: sql<number>`count(*)` }).from(contentApprovals)
+      .where(eq(contentApprovals.submittedByUserId, userId));
+    
+    if (status) {
+      countQuery = countQuery.where(eq(contentApprovals.status, status));
+    }
+    
+    const [{ count }] = await countQuery;
+    
+    return { data, total: count };
+  }
+  
+  // Audit Log methods
+  async addAuditLog(log: InsertAuditLog): Promise<AuditLog> {
+    const [savedLog] = await db.insert(auditLogs).values(log).returning();
+    return savedLog;
+  }
+  
+  async getAuditLogs(page: number, limit: number, filters?: {activityType?: string, userId?: number}): Promise<{ data: AuditLog[], total: number }> {
+    let query = db.select().from(auditLogs);
+    
+    if (filters) {
+      if (filters.activityType) {
+        query = query.where(eq(auditLogs.activityType, filters.activityType));
+      }
+      
+      if (filters.userId) {
+        query = query.where(eq(auditLogs.userId, filters.userId));
+      }
+    }
+    
+    const data = await query
+      .orderBy(desc(auditLogs.timestamp))
+      .limit(limit)
+      .offset((page - 1) * limit);
+    
+    let countQuery = db.select({ count: sql<number>`count(*)` }).from(auditLogs);
+    
+    if (filters) {
+      if (filters.activityType) {
+        countQuery = countQuery.where(eq(auditLogs.activityType, filters.activityType));
+      }
+      
+      if (filters.userId) {
+        countQuery = countQuery.where(eq(auditLogs.userId, filters.userId));
+      }
+    }
+    
+    const [{ count }] = await countQuery;
+    
+    return { data, total: count };
+  }
+  
+  // Cache methods
+  // For database implementation, we'll still cache in memory for now
+  // In a production environment, we might want to use Redis or another caching solution
+  private movieListCache = new Map<number, MovieListResponse>();
+  private movieDetailCache = new Map<string, MovieDetailResponse>();
+  
+  async cacheMovieList(data: MovieListResponse, page: number): Promise<void> {
+    this.movieListCache.set(page, data);
+  }
+  
+  async cacheMovieDetail(data: MovieDetailResponse): Promise<void> {
+    this.movieDetailCache.set(data.movie.slug, data);
+  }
+  
+  async getMovieListCache(page: number): Promise<MovieListResponse | undefined> {
+    return this.movieListCache.get(page);
+  }
+  
+  async getMovieDetailCache(slug: string): Promise<MovieDetailResponse | undefined> {
+    return this.movieDetailCache.get(slug);
+  }
+}
+
+// Use database storage instead of memory storage
+export const storage = new DatabaseStorage();

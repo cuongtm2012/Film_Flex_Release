@@ -2,7 +2,12 @@ import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { z } from "zod";
-import { insertCommentSchema, insertUserSchema, insertWatchlistSchema } from "@shared/schema";
+import { 
+  insertCommentSchema, 
+  insertUserSchema, 
+  insertWatchlistSchema,
+  ActivityType
+} from "@shared/schema";
 import { 
   fetchMovieList, 
   fetchMovieDetail, 
@@ -12,10 +17,13 @@ import {
   convertToMovieModel,
   convertToEpisodeModels
 } from "./api";
+import { setupAuth, isAuthenticated, isActive } from "./auth";
 
 const API_CACHE_TTL = 5 * 60 * 1000; // 5 minutes in milliseconds
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Set up authentication
+  setupAuth(app);
   // Get paginated movie list
   app.get("/api/movies", async (req: Request, res: Response) => {
     try {
