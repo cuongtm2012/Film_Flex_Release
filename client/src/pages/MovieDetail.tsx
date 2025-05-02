@@ -130,6 +130,17 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
     return server?.server_data || [];
   };
   
+  // Check if this is a single episode movie
+  const isSingleEpisode = () => {
+    if (!movieDetail || !movieDetail.episodes) return false;
+    
+    // If there's only one server with one episode, it's a single episode movie
+    return (
+      movieDetail.episodes.length === 1 && 
+      movieDetail.episodes[0].server_data.length === 1
+    );
+  };
+  
   // Handle add to watchlist
   const handleAddToWatchlist = () => {
     addToWatchlistMutation.mutate();
@@ -318,7 +329,7 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
             <div className="flex flex-wrap gap-x-8 gap-y-3 mb-6 text-sm">
               <div className="flex gap-1">
                 <span className="text-muted-foreground">Release Year:</span>
-                <span>{movie.year || 'Unknown'}</span>
+                <span>{movie.year || movie._id?.substring(0, 4) || 'Unknown'}</span>
               </div>
               
               <div className="flex gap-1">
@@ -417,59 +428,74 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
         
         {/* Server Selection & Episodes */}
         <div id="video-player" className="mb-10 scroll-mt-20">
-          <h3 className="text-xl font-bold mb-4">Watch "{movie.name}"</h3>
+          <h3 className="text-xl font-bold mb-4">
+            {isSingleEpisode() ? `Watch Full Movie: ${movie.name}` : `Watch "${movie.name}"`}
+            {isSingleEpisode() && (
+              <Badge variant="outline" className="ml-2 bg-primary/10">Full Movie</Badge>
+            )}
+          </h3>
           
-          {/* Episodes Section */}
-          <div className="mb-6">
-            <div className="flex items-center justify-between">
-              <h4 className="font-bold">Episodes</h4>
-              <div className="flex items-center">
-                <Select defaultValue="20">
-                  <SelectTrigger className="w-[110px] h-8 bg-black/30 text-xs">
-                    <SelectValue placeholder="Per page" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-background/90 backdrop-blur-sm">
-                    <SelectGroup>
-                      <SelectItem value="10">10 per page</SelectItem>
-                      <SelectItem value="20">20 per page</SelectItem>
-                      <SelectItem value="50">50 per page</SelectItem>
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            
-            {/* Server Selection Tabs */}
-            <div className="mt-4">
+          {/* Video Player */}
+          <div className="bg-black rounded-md overflow-hidden mb-6">
+            <VideoPlayer 
+              embedUrl={getCurrentEmbedUrl()}
+              isLoading={isMovieLoading || !selectedEpisode}
+              onError={(error) => {
+                toast({
+                  title: "Error",
+                  description: "Failed to load video player. Please try another server or episode.",
+                  variant: "destructive"
+                });
+              }}
+            />
+          </div>
+          
+          {/* Only show server tabs if there are multiple servers */}
+          {movieDetail.episodes.length > 1 && (
+            <div className="mt-4 mb-6">
               <ServerTabs 
                 servers={episodes} 
                 onServerSelect={handleServerSelect}
                 isLoading={isMovieLoading}
               />
             </div>
-          </div>
+          )}
           
-          {/* Video Player */}
-          <VideoPlayer 
-            embedUrl={getCurrentEmbedUrl()}
-            isLoading={isMovieLoading || !selectedEpisode}
-            onError={(error) => {
-              toast({
-                title: "Error",
-                description: "Failed to load video player. Please try another server or episode.",
-                variant: "destructive"
-              });
-            }}
-          />
-          
-          {/* Episodes List (for series) */}
-          {movie.type === "series" && (
-            <EpisodeList 
-              episodes={getCurrentEpisodeList()}
-              activeEpisode={selectedEpisode}
-              onSelectEpisode={handleEpisodeSelect}
-              isLoading={isMovieLoading}
-            />
+          {/* Episodes Section - Only show if not a single episode movie */}
+          {!isSingleEpisode() && (
+            <div className="mb-6">
+              <div className="flex items-center justify-between">
+                <h4 className="font-bold">
+                  {movie.type === "series" ? "Episodes" : "Parts"}
+                </h4>
+                
+                {/* Only show pagination controls if there are many episodes */}
+                {getCurrentEpisodeList().length > 10 && (
+                  <div className="flex items-center">
+                    <Select defaultValue="20">
+                      <SelectTrigger className="w-[110px] h-8 bg-black/30 text-xs">
+                        <SelectValue placeholder="Per page" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-background/90 backdrop-blur-sm">
+                        <SelectGroup>
+                          <SelectItem value="10">10 per page</SelectItem>
+                          <SelectItem value="20">20 per page</SelectItem>
+                          <SelectItem value="50">50 per page</SelectItem>
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+              
+              {/* Episodes List */}
+              <EpisodeList 
+                episodes={getCurrentEpisodeList()}
+                activeEpisode={selectedEpisode}
+                onSelectEpisode={handleEpisodeSelect}
+                isLoading={isMovieLoading}
+              />
+            </div>
           )}
           
           {/* Comments Section */}
