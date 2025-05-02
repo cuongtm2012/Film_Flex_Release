@@ -37,7 +37,7 @@ function Router() {
       <Route path="/movie/:slug">
         {(params) => (
           <MainLayout>
-            <MovieDetail slug={params.slug} />
+            <MovieDetail slug={params.slug || ""} />
           </MainLayout>
         )}
       </Route>
