@@ -1,0 +1,239 @@
+Pages: User Profile, Settings, My List, Watch History, Personalized Recommendations, Notifications & Alerts  
+
+
+---
+
+
+## 1. Introduction
+
+
+After successful login, users can access personal pages to manage their profile information, account settings, favorite movie lists, and more. These pages personalize the user experience and increase engagement on the platform.
+
+
+---
+
+
+## 2. User Profile Page
+
+
+### 2.1 Purpose  
+Display user personal information and allow viewing and editing of basic fields.
+
+
+### 2.2 Features
+
+
+| Feature                   | Description                                                                                   | Priority |
+|---------------------------|-----------------------------------------------------------------------------------------------|----------|
+| Display user information  | Show user name, email, avatar, registration date, number of movies watched, total watch time.| High     |
+| Edit profile             | Allow users to update display name, avatar (upload new image), and personal bio.              | Medium   |
+| View activity summary     | Show recent watched movies, ratings, and comments.                                           | Medium   |
+| Change password link/button | Link to Settings page for password change.                                                  | High     |
+| Logout button            | Allow users to log out of their account.                                                     | High     |
+
+
+### 2.3 User Flow
+
+
+1. User navigates to Profile page after login.  
+2. Personal information is loaded from the API and displayed.  
+3. User clicks “Edit” to modify profile information.  
+4. After editing, user saves changes; system sends API update request.  
+5. User can click “Change Password” to go to Settings page.  
+6. User can log out using the Logout button.
+
+
+---
+
+
+## 3. Settings Page
+
+
+### 3.1 Purpose  
+Allow users to manage account settings, especially password changes.
+
+
+### 3.2 Features
+
+
+| Feature                   | Description                                                                                   | Priority |
+|---------------------------|-----------------------------------------------------------------------------------------------|----------|
+| Change password form      | Form to enter current password, new password, and confirm new password.                       | High     |
+| Validate password fields  | Check new password strength (length, special characters, numbers).                           | High     |
+| Submit password change    | Send password change request to backend, handle success or error responses.                   | High     |
+| Notification feedback     | Show success or error messages after password change attempt.                                | High     |
+| Account preferences (optional) | Other settings like email notifications, display language.                              | Medium   |
+| Navigation back to Profile| Button to return to Profile page.                                                            | Medium   |
+
+
+### 3.3 User Flow
+
+
+1. User accesses Settings page from user menu.  
+2. User enters current and new passwords.  
+3. System validates input before submission.  
+4. If valid, sends change request to server.  
+5. Server responds with success or error; page shows corresponding notification.  
+6. User can adjust other preferences if available.  
+7. User navigates back to Profile or main page.
+
+
+---
+
+
+## 4. My List Page
+
+
+### 4.1 Purpose  
+Display the list of movies the user has saved or marked as favorites for later viewing.
+
+
+### 4.2 Features
+
+
+| Feature                   | Description                                                                                   | Priority |
+|---------------------------|-----------------------------------------------------------------------------------------------|----------|
+| Display saved movies list | Show saved movies with poster, title, and watch status (watched/unwatched).                   | High     |
+| Remove movie from list    | Allow users to remove movies from their list.                                                | High     |
+| Mark movie as watched/unwatched | Allow users to toggle watch status.                                                      | Medium   |
+| Pagination or lazy load   | Load more movies when the list is long to optimize performance.                              | Medium   |
+| Link to movie detail      | Each movie links to its detail page.                                                        | High     |
+| Empty state UI            | Show message and suggestions when the list is empty.                                        | Medium   |
+
+
+### 4.3 User Flow
+
+
+1. User navigates to My List from the user menu.  
+2. Saved movies are loaded from API and displayed.  
+3. User can click a movie to view details.  
+4. User can remove movies or mark them as watched/unwatched.  
+5. For long lists, more movies load automatically on scroll.  
+6. If the list is empty, show an informative message and suggestions.
+
+
+---
+
+
+## 5. Watch History & Resume Playback
+
+
+### 5.1 Purpose  
+Track user viewing history and allow resuming playback from last watched position.
+
+
+### 5.2 Features
+
+
+| Feature                   | Description                                                                                   | Priority |
+|---------------------------|-----------------------------------------------------------------------------------------------|----------|
+| Record watch progress     | Automatically save playback position for each movie/episode watched.                         | High     |
+| Resume playback           | When user returns to a movie, prompt to continue from last position or start over.           | High     |
+| Display progress bars     | Show watch progress indicators on movie thumbnails in My List and Recommendations.          | Medium   |
+| History list view         | Optional page or section listing recently watched movies with timestamps.                    | Medium   |
+
+
+### 5.3 User Flow
+
+
+1. User watches a movie or episode; playback position is saved periodically.  
+2. When user revisits the same movie, system offers to resume or restart.  
+3. Progress bars visually indicate watched portions in lists.  
+4. User can view watch history optionally.
+
+
+---
+
+
+## 6. Personalized Recommendations
+
+
+### 6.1 Purpose  
+Provide tailored movie suggestions based on user preferences and history.
+
+
+### 6.2 Features
+
+
+| Feature                   | Description                                                                                   | Priority |
+|---------------------------|-----------------------------------------------------------------------------------------------|----------|
+| Recommendation engine     | Use watch history, ratings, and preferences to suggest movies.                              | High     |
+| Display recommendations   | Show personalized movie lists on user dashboard or My List page.                            | High     |
+| User ratings input        | Allow users to rate movies to improve recommendation quality.                               | Medium   |
+| Refresh recommendations   | Update recommendations periodically or on user action.                                      | Medium   |
+
+
+### 6.3 User Flow
+
+
+1. User watches and rates movies.  
+2. System analyzes data to create personalized suggestions.  
+3. Recommendations appear in designated sections.  
+4. User can refresh or explore recommended movies.
+
+
+---
+
+
+## 7. Notifications & Alerts
+
+
+### 7.1 Purpose  
+Keep users informed about new content, updates, and account-related events.
+
+
+### 7.2 Features
+
+
+| Feature                   | Description                                                                                   | Priority |
+|---------------------------|-----------------------------------------------------------------------------------------------|----------|
+| New episode alerts        | Notify users when new episodes of their favorite series are available.                       | High     |
+| New movie releases        | Inform users about newly released movies matching their interests.                          | Medium   |
+| Account notifications     | Alerts for password changes, login from new devices, or subscription status.                 | High     |
+| User preferences          | Allow users to configure notification types and delivery methods (email, in-app).          | Medium   |
+
+
+### 7.3 User Flow
+
+
+1. System detects new episodes, movies, or account events.  
+2. Notifications are sent via user’s preferred channels.  
+3. User can view notifications in-app or via email.  
+4. User adjusts notification settings in Settings page.
+
+
+---
+
+
+## 8. Non-Functional Requirements
+
+
+| Requirement               | Description                                                      |
+|---------------------------|------------------------------------------------------------------|
+| Security                  | All API calls require valid tokens; user data must be protected.|
+| Performance               | Fast load times, optimized API calls, lazy loading where needed.|
+| Responsiveness            | UI adapts well to desktop and mobile devices.                   |
+| Accessibility             | Comply with WCAG standards; support keyboard and screen readers.|
+| Error Handling            | Clear error messages for API failures or invalid user actions.  |
+
+
+---
+
+
+## 9. Dependencies
+
+
+- API endpoints:  
+  - GET /user/profile  
+  - PUT /user/profile  
+  - POST /user/change-password  
+  - GET /user/my-list  
+  - POST /user/my-list/remove  
+  - POST /user/my-list/update-status  
+  - POST /user/watch-history/save-position  
+  - GET /user/watch-history  
+  - GET /user/recommendations  
+  - GET /user/notifications  
+  - POST /user/notifications/settings  
+- Authentication token management (JWT or session)  
+- UI framework (React/Vue + Tailwind/CSS)  
