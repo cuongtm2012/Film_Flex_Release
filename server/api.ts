@@ -5,27 +5,57 @@ const API_BASE_URL = "https://phimapi.com";
 
 export async function fetchMovieList(page: number = 1, limit: number = 50): Promise<MovieListResponse> {
   try {
-    // API doesn't support limit parameter, pagination will be handled client-side
-    const response = await fetch(`${API_BASE_URL}/danh-sach/phim-moi-cap-nhat?page=${page}`);
+    // The external API returns 10 items per page, but we want to show 50 items per page
+    // So we need to fetch 5 pages of data for each of our "pages"
+    const pagesNeeded = Math.ceil(limit / 10); // 10 is the number of items per page from external API
+    const startPage = (page - 1) * pagesNeeded + 1;
     
-    if (!response.ok) {
-      throw new Error(`API responded with status: ${response.status}`);
+    // Fetch multiple pages in parallel
+    const fetchPromises = [];
+    for (let i = 0; i < pagesNeeded; i++) {
+      const apiPage = startPage + i;
+      fetchPromises.push(
+        fetch(`${API_BASE_URL}/danh-sach/phim-moi-cap-nhat?page=${apiPage}`)
+          .then(response => {
+            if (!response.ok) {
+              throw new Error(`API responded with status: ${response.status}`);
+            }
+            return response.json() as Promise<MovieListResponse>;
+          })
+          .catch(err => {
+            console.error(`Error fetching page ${apiPage}:`, err);
+            // Return an empty response for this page if it fails
+            return { status: false, items: [] } as MovieListResponse;
+          })
+      );
     }
     
-    const data = await response.json() as MovieListResponse;
+    // Wait for all fetch requests to complete
+    const pagesData = await Promise.all(fetchPromises);
     
-    // Add pagination info if not present
-    if (!data.pagination) {
-      const totalItems = data.items?.length || 0;
-      data.pagination = {
-        totalItems,
-        totalPages: Math.ceil(totalItems / limit),
+    // Combine the items from all pages
+    const allItems = pagesData.flatMap(data => data.items || []);
+    
+    // Calculate total items based on the first page's pagination data (if available)
+    const firstPagePagination = pagesData[0]?.pagination;
+    const totalItems = firstPagePagination?.totalItems || allItems.length;
+    const totalPages = firstPagePagination 
+      ? Math.ceil(totalItems / limit)
+      : Math.ceil(allItems.length / limit);
+    
+    // Create the combined response
+    const combinedResponse: MovieListResponse = {
+      status: true,
+      items: allItems.slice(0, limit), // Only return the requested number of items
+      pagination: {
+        totalItems: totalItems,
+        totalPages: totalPages,
         currentPage: page,
         totalItemsPerPage: limit
-      };
-    }
+      }
+    };
     
-    return data;
+    return combinedResponse;
   } catch (error) {
     console.error("Error fetching movie list:", error);
     throw error;
@@ -47,16 +77,60 @@ export async function fetchMovieDetail(slug: string): Promise<MovieDetailRespons
   }
 }
 
-export async function searchMovies(keyword: string, page: number = 1): Promise<MovieListResponse> {
+export async function searchMovies(keyword: string, page: number = 1, limit: number = 50): Promise<MovieListResponse> {
   try {
     const encodedKeyword = encodeURIComponent(keyword);
-    const response = await fetch(`${API_BASE_URL}/tim-kiem?keyword=${encodedKeyword}&page=${page}`);
     
-    if (!response.ok) {
-      throw new Error(`API responded with status: ${response.status}`);
+    // The external API returns ~10 items per page, but we want to show 50 items per page
+    const pagesNeeded = Math.ceil(limit / 10); // 10 is the number of items per page from external API
+    const startPage = (page - 1) * pagesNeeded + 1;
+    
+    // Fetch multiple pages in parallel
+    const fetchPromises = [];
+    for (let i = 0; i < pagesNeeded; i++) {
+      const apiPage = startPage + i;
+      fetchPromises.push(
+        fetch(`${API_BASE_URL}/tim-kiem?keyword=${encodedKeyword}&page=${apiPage}`)
+          .then(response => {
+            if (!response.ok) {
+              throw new Error(`API responded with status: ${response.status}`);
+            }
+            return response.json() as Promise<MovieListResponse>;
+          })
+          .catch(err => {
+            console.error(`Error fetching search page ${apiPage}:`, err);
+            // Return an empty response for this page if it fails
+            return { status: false, items: [] } as MovieListResponse;
+          })
+      );
     }
     
-    return await response.json() as MovieListResponse;
+    // Wait for all fetch requests to complete
+    const pagesData = await Promise.all(fetchPromises);
+    
+    // Combine the items from all pages
+    const allItems = pagesData.flatMap(data => data.items || []);
+    
+    // Calculate total items based on the first page's pagination data (if available)
+    const firstPagePagination = pagesData[0]?.pagination;
+    const totalItems = firstPagePagination?.totalItems || allItems.length;
+    const totalPages = firstPagePagination 
+      ? Math.ceil(totalItems / limit)
+      : Math.ceil(allItems.length / limit);
+    
+    // Create the combined response
+    const combinedResponse: MovieListResponse = {
+      status: true,
+      items: allItems.slice(0, limit), // Only return the requested number of items
+      pagination: {
+        totalItems: totalItems,
+        totalPages: totalPages,
+        currentPage: page,
+        totalItemsPerPage: limit
+      }
+    };
+    
+    return combinedResponse;
   } catch (error) {
     console.error(`Error searching movies with keyword: ${keyword}`, error);
     throw error;
@@ -65,28 +139,58 @@ export async function searchMovies(keyword: string, page: number = 1): Promise<M
 
 export async function fetchMoviesByCategory(categorySlug: string, page: number = 1, limit: number = 50): Promise<MovieListResponse> {
   try {
-    // For testing, if category API fails, we'll use the main movie list API and filter by category
+    // The external API returns ~10 items per page, but we want to show 50 items per page
+    // So we need to fetch multiple pages of data for each of our "pages"
+    const pagesNeeded = Math.ceil(limit / 10); // 10 is the number of items per page from external API
+    const startPage = (page - 1) * pagesNeeded + 1;
+    
     try {
-      const response = await fetch(`${API_BASE_URL}/the-loai/${categorySlug}?page=${page}`);
-      
-      if (!response.ok) {
-        throw new Error(`API responded with status: ${response.status}`);
+      // Fetch multiple pages in parallel
+      const fetchPromises = [];
+      for (let i = 0; i < pagesNeeded; i++) {
+        const apiPage = startPage + i;
+        fetchPromises.push(
+          fetch(`${API_BASE_URL}/the-loai/${categorySlug}?page=${apiPage}`)
+            .then(response => {
+              if (!response.ok) {
+                throw new Error(`API responded with status: ${response.status}`);
+              }
+              return response.json() as Promise<MovieListResponse>;
+            })
+            .catch(err => {
+              console.error(`Error fetching category page ${apiPage}:`, err);
+              // Return an empty response for this page if it fails
+              return { status: false, items: [] } as MovieListResponse;
+            })
+        );
       }
       
-      const data = await response.json() as MovieListResponse;
+      // Wait for all fetch requests to complete
+      const pagesData = await Promise.all(fetchPromises);
       
-      // Add pagination info if not present
-      if (!data.pagination) {
-        const totalItems = data.items?.length || 0;
-        data.pagination = {
-          totalItems,
-          totalPages: Math.ceil(totalItems / limit),
+      // Combine the items from all pages
+      const allItems = pagesData.flatMap(data => data.items || []);
+      
+      // Calculate total items based on the first page's pagination data (if available)
+      const firstPagePagination = pagesData[0]?.pagination;
+      const totalItems = firstPagePagination?.totalItems || allItems.length;
+      const totalPages = firstPagePagination 
+        ? Math.ceil(totalItems / limit)
+        : Math.ceil(allItems.length / limit);
+      
+      // Create the combined response
+      const combinedResponse: MovieListResponse = {
+        status: true,
+        items: allItems.slice(0, limit), // Only return the requested number of items
+        pagination: {
+          totalItems: totalItems,
+          totalPages: totalPages,
           currentPage: page,
           totalItemsPerPage: limit
-        };
-      }
+        }
+      };
       
-      return data;
+      return combinedResponse;
     } catch (categoryError) {
       console.error(`Error fetching movies for category ${categorySlug}:`, categoryError);
       
