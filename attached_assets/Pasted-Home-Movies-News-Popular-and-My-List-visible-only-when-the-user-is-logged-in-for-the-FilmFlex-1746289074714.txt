@@ -1,0 +1,130 @@
+Home, Movies, News & Popular, and My List (visible only when the user is logged in) for the FilmFlex project.
+
+
+---
+
+
+# Functional Requirements Document (FRD)  
+## Module: Main Menu Navigation  
+### Purpose  
+Provide a main navigation system that allows users to easily access key FilmFlex pages: Home, Movies, News & Popular, and My List.
+
+
+---
+
+
+## 1. Overview of Main Menu
+
+
+| Menu Item       | Description                                                                            | Display Condition              |
+|-----------------|----------------------------------------------------------------------------------------|-------------------------------|
+| Home            | Homepage displaying featured movies, new releases, and promotional banners             | Always visible                 |
+| Movies          | Movie listing page with filtering, sorting, and pagination                            | Always visible                 |
+| News & Popular  | Page for latest movie news, trends, and popular movie lists                           | Always visible                 |
+| My List         | User’s favorite or saved movies list                                                 | Visible only when user is logged in |
+
+
+---
+
+
+## 2. Detailed Page Functionalities
+
+
+### 2.1 Home
+
+
+- **Purpose:**  
+  Display an overview of highlighted content such as featured movie banners, trending movies, movie collections by genre, and recently added movies.
+  
+- **Requirements:**
+  - Large banner showcasing featured movies.
+  - Carousels displaying movies by genre (e.g., Action, Romance, Comedy).
+  - List of newly added movies.
+  - Quick links to Movies and News & Popular pages.
+  - Responsive design for all devices.
+
+
+### 2.2 Movies
+
+
+- **Purpose:**  
+  Provide a comprehensive movie catalog with search, filter, and sorting capabilities.
+  
+- **Requirements:**
+  - Display movies in a grid layout showing poster, title, and release year.
+  - Search bar for movie title lookup.
+  - Filters for genre, release year, country, and rating.
+  - Sorting options (Latest Added, Popularity, Rating).
+  - Pagination or lazy loading to load more movies.
+  - Clicking a movie navigates to the movie detail page.
+
+
+### 2.3 News & Popular
+
+
+- **Purpose:**  
+  Deliver the latest movie news, reviews, trending articles, and display popular movies.
+  
+- **Requirements:**
+  - List of news articles, reviews, and latest updates.
+  - Section for popular movies with poster and title.
+  - Filter articles by type (news, review, trailer).
+  - Links to detailed articles or movie pages.
+
+
+### 2.4 My List
+
+
+- **Purpose:**  
+  Store the list of movies the user has marked as favorites or wants to watch later.
+  
+- **Requirements:**
+  - Visible only after successful user login.
+  - Display saved movies with poster, title, and watch status (watched/unwatched).
+  - Allow users to remove movies from the list.
+  - Allow users to mark movies as watched.
+  - Show message “You have no saved movies” if the list is empty.
+  - Quick links to movie detail pages.
+  - Responsive on all devices.
+
+
+---
+
+
+## 3. General Menu Requirements
+
+
+- The menu is always visible at the top of the page (sticky header).
+- The **My List** menu item is shown only when the user is logged in.
+- When not logged in, **My List** is replaced by a **Login/Sign Up** button.
+- The menu supports responsive design, switching to a hamburger menu on mobile devices.
+- Each menu item highlights when the user is on the corresponding page (active state).
+- The menu may include dropdown submenus (e.g., Movies can expand to show genres if needed).
+
+
+---
+
+
+## 4. Key User Flows
+
+
+| User Flow                      | Description                                                                            |
+|-------------------------------|----------------------------------------------------------------------------------------|
+| Unauthenticated user           | Can access Home, Movies, News & Popular, does not see My List, sees Login/Sign Up button |
+| Authenticated user             | Can access Home, Movies, News & Popular, and My List with saved movies                 |
+| User selects Movies            | Navigates to movie catalog page with filters and search                               |
+| User selects News & Popular    | Navigates to latest news and popular movies page                                      |
+| User selects My List           | Navigates to user’s saved movies list                                                |
+
+
+---
+
+
+## 5. Technical Requirements
+
+
+- Integrate with user authentication system to verify login status.
+- Fetch movie and article data from backend APIs.
+- Use React Router (or equivalent) for SPA navigation.
+- Optimize performance with lazy loading and on-demand data fetching.
+- Design UI to be responsive and user-friendly on desktop and mobile.
