@@ -1,5 +1,5 @@
 import fetch from "node-fetch";
-import { Movie, Episode, MovieListResponse, MovieDetailResponse, InsertMovie, InsertEpisode } from "@shared/schema";
+import { Movie, Episode, MovieListResponse, MovieDetailResponse, InsertMovie, InsertEpisode, Category } from "@shared/schema";
 import { storage } from "./storage";
 
 const API_BASE_URL = "https://phimapi.com";
