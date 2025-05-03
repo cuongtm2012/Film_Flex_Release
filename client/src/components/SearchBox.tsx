@@ -1,9 +1,8 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useDebounce } from '@/hooks/use-debounce';
-import { useOnClickOutside } from '@/hooks/use-click-outside';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'wouter';
 
@@ -33,9 +32,21 @@ export default function SearchBox({
   const searchBoxRef = useRef<HTMLDivElement>(null);
 
   // Close suggestions when clicking outside
-  useOnClickOutside(searchBoxRef, () => {
-    setShowSuggestions(false);
-  });
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      if (searchBoxRef.current && !searchBoxRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [searchBoxRef]);
 
   // Fetch search suggestions
   const { data: suggestions } = useQuery({
