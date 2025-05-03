@@ -158,13 +158,15 @@ export function setupAuth(app: Express) {
       // Hash password
       const hashedPassword = await hashPassword(req.body.password);
 
+      // Remove confirmPassword if it exists (it should have been validated already in routes.ts)
+      const { confirmPassword, ...userData } = req.body;
+
       // Create user with default role
       const user = await storage.createUser({
-        ...req.body,
+        ...userData,
         password: hashedPassword,
-        role: "user",
-        status: "active",
-        createdAt: new Date(),
+        role: req.body.role || "normal", // Use provided role or default to normal
+        status: req.body.status || "active", // Use provided status or default to active
       });
 
       // Log the registration
