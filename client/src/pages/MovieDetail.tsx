@@ -410,7 +410,7 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
                   
                   {/* Episodes Grid with scroll area */}
                   <div className="max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-                    <div className="grid grid-cols-2 sm:grid-cols-2 gap-3">
+                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
                       {getCurrentEpisodeList().map((episode, index) => {
                         // Extract episode number for display
                         const episodeName = episode.name;
@@ -420,29 +420,53 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
                           episodeNumber = parseInt(episodeNumberMatch[0]);
                         }
                         
+                        // Format episode name for tooltip
+                        const displayName = episode.name.replace(/^Tập|Episode\s*/i, '').trim();
+                        
                         return (
-                          <Button
-                            key={episode.slug}
-                            variant={selectedEpisode === episode.slug ? "default" : "outline"}
-                            className={`p-3 rounded text-center transition relative ${
-                              selectedEpisode === episode.slug ? "bg-primary hover:bg-primary/90" : "bg-muted hover:bg-primary/80"
-                            }`}
-                            onClick={() => handleEpisodeSelect(episode.slug)}
-                            disabled={isEpisodeSwitching || (isEpisodeLoading && selectedEpisode !== episode.slug)}
-                          >
-                            {isEpisodeSwitching && selectedEpisode === episode.slug && (
-                              <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded z-10">
-                                <Loader2 className="h-5 w-5 text-white animate-spin" />
-                              </div>
-                            )}
-                            <span className="block font-medium">Ep {episodeNumber}</span>
-                            <span className="text-xs text-muted-foreground truncate">
-                              {episode.filename?.substring(0, 10) || episodeName}
-                            </span>
-                            {currentlyPlaying && currentlyPlaying.includes(episodeNumber.toString()) && (
-                              <div className="absolute -top-1 -right-1 bg-primary h-2 w-2 rounded-full"></div>
-                            )}
-                          </Button>
+                          <TooltipProvider key={episode.slug}>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant={selectedEpisode === episode.slug ? "default" : "outline"}
+                                  className={`px-2 py-1.5 h-auto rounded text-center transition relative ${
+                                    selectedEpisode === episode.slug 
+                                      ? "bg-primary hover:bg-primary/90 border-2 border-primary-foreground shadow-[0_0_10px_rgba(var(--primary-rgb),0.5)]" 
+                                      : "bg-muted hover:bg-primary/20"
+                                  }`}
+                                  onClick={() => handleEpisodeSelect(episode.slug)}
+                                  disabled={isEpisodeSwitching || (isEpisodeLoading && selectedEpisode !== episode.slug)}
+                                >
+                                  {isEpisodeSwitching && selectedEpisode === episode.slug && (
+                                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded z-10">
+                                      <Loader2 className="h-4 w-4 text-white animate-spin" />
+                                    </div>
+                                  )}
+                                  <span className="text-xs font-medium">Ep {episodeNumber}</span>
+                                  
+                                  {/* Playing indicator */}
+                                  {currentlyPlaying && currentlyPlaying.includes(episodeNumber.toString()) && (
+                                    <div className="absolute -top-1 -right-1 bg-primary h-2.5 w-2.5 rounded-full animate-pulse"></div>
+                                  )}
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="max-w-[200px]">
+                                <div className="text-xs">
+                                  <div className="font-semibold">{displayName}</div>
+                                  <div className="flex items-center mt-1 text-muted-foreground gap-2">
+                                    <div className="flex items-center">
+                                      <Clock className="h-3 w-3 mr-1" />
+                                      <span>{episode.linkEmbed?.includes('full') ? '90 min' : '45 min'}</span>
+                                    </div>
+                                    <div className="flex items-center">
+                                      <Info className="h-3 w-3 mr-1" />
+                                      <span>{episode.filename || 'Standard quality'}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                         );
                       })}
                     </div>
@@ -620,7 +644,7 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
               
               {/* See More Button */}
               {recommendationsData?.items && recommendationsData.items.length > 3 && (
-                <Link href={`/recommendations/${slug}`} className="text-primary text-sm hover:underline flex items-center">
+                <Link to={`/recommendations/${slug}`} className="text-primary text-sm hover:underline flex items-center">
                   See More
                   <ChevronRight className="h-4 w-4 ml-1" />
                 </Link>
