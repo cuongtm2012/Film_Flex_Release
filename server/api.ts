@@ -79,18 +79,17 @@ export async function fetchMoviesByCountry(countrySlug: string, page: number = 1
   }
 }
 
-// Convert API response to Movie model
-export function convertToMovieModel(movieDetail: MovieDetailResponse): Movie {
+// Convert API response to Movie model for insertion
+export function convertToMovieModel(movieDetail: MovieDetailResponse): InsertMovie {
   const movie = movieDetail.movie;
   return {
-    id: 0, // Will be set by the database
     movieId: movie._id,
     slug: movie.slug,
     name: movie.name,
     originName: movie.origin_name,
     posterUrl: movie.poster_url,
     thumbUrl: movie.thumb_url,
-    year: parseInt(movie.episode_current) || 0,
+    year: (movie as any).year || 0,
     type: movie.type === "series" ? "tv" : "movie",
     quality: movie.quality,
     lang: movie.lang,
@@ -102,27 +101,26 @@ export function convertToMovieModel(movieDetail: MovieDetailResponse): Movie {
     categories: movie.category,
     countries: movie.country,
     actors: movie.actor.join(", "),
-    directors: movie.director.join(", "),
-    modifiedAt: new Date()
+    directors: movie.director.join(", ")
+    // Note: modifiedAt will be defaulted by the database
   };
 }
 
-// Convert API response to Episode models
-export function convertToEpisodeModels(movieDetail: MovieDetailResponse): Episode[] {
-  const episodes: Episode[] = [];
+// Convert API response to Episode models for insertion
+export function convertToEpisodeModels(movieDetail: MovieDetailResponse): InsertEpisode[] {
+  const episodes: InsertEpisode[] = [];
   const movieSlug = movieDetail.movie.slug;
   
   for (const server of movieDetail.episodes) {
     for (const episode of server.server_data) {
       episodes.push({
-        id: 0, // Will be set by the database
         name: episode.name,
         slug: episode.slug,
         movieSlug,
         serverName: server.server_name,
-        filename: episode.filename,
+        filename: episode.filename || null,
         linkEmbed: episode.link_embed,
-        linkM3u8: episode.link_m3u8
+        linkM3u8: episode.link_m3u8 || null
       });
     }
   }
