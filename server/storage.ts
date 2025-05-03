@@ -855,17 +855,29 @@ export class DatabaseStorage implements IStorage {
   }
   
   // Comment methods
-  async getCommentsByMovieSlug(movieSlug: string, page: number, limit: number): Promise<{ data: Comment[], total: number }> {
-    const data = await db.select().from(comments)
-      .where(eq(comments.movieSlug, movieSlug))
-      .orderBy(desc(comments.createdAt))
-      .limit(limit)
-      .offset((page - 1) * limit);
+  async getCommentsByMovieSlug(movieSlug: string, page: number, limit: number): Promise<{ data: any[], total: number }> {
+    // Join comments with users to get the username
+    const data = await db.select({
+      comment: comments,
+      username: users.username
+    })
+    .from(comments)
+    .leftJoin(users, eq(comments.userId, users.id))
+    .where(eq(comments.movieSlug, movieSlug))
+    .orderBy(desc(comments.createdAt))
+    .limit(limit)
+    .offset((page - 1) * limit);
+    
+    // Format the results
+    const formattedData = data.map(item => ({
+      ...item.comment,
+      username: item.username
+    }));
     
     const [{ count }] = await db.select({ count: sql<number>`count(*)` }).from(comments)
       .where(eq(comments.movieSlug, movieSlug));
     
-    return { data, total: count };
+    return { data: formattedData, total: count };
   }
   
   async addComment(comment: InsertComment): Promise<Comment> {
