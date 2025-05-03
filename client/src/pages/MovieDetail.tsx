@@ -8,7 +8,8 @@ import {
   Star, 
   AlertCircle,
   Loader2,
-  Search
+  Search,
+  ChevronRight
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
@@ -26,9 +27,10 @@ import {
 import ServerTabs from "@/components/ServerTabs";
 import EpisodeList from "@/components/EpisodeList";
 import VideoPlayer from "@/components/VideoPlayer";
-import CommentSection from "@/components/CommentSection";
+import { CommentSection } from "@/components/CommentSection";
+import RecommendedMovieCard from "@/components/RecommendedMovieCard";
 import { apiRequest } from "@/lib/queryClient";
-import { MovieDetailResponse, Comment } from "@shared/schema";
+import { MovieDetailResponse, Comment, MovieListResponse } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 
 interface MovieDetailProps {
@@ -68,6 +70,15 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
       }
     }
   }, [movieDetail]);
+  
+  // Fetch recommendations
+  const {
+    data: recommendationsData,
+    isLoading: isRecommendationsLoading
+  } = useQuery<MovieListResponse>({
+    queryKey: [`/api/movies/${slug}/recommendations`],
+    enabled: !!slug
+  });
   
   // Fetch comments
   const {
@@ -464,40 +475,39 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
       </div>
       
       {/* Recommended Movies Bar */}
-      <div className="container mx-auto px-4 mt-6 lg:mt-8 hidden lg:block">
-        <div className="bg-black/20 rounded-md p-4">
+      <div className="container mx-auto px-4 mt-6 lg:mt-8 block">
+        <div className="bg-black/20 rounded-md p-4 border border-gray-800">
           <h3 className="text-lg font-bold mb-4 flex items-center justify-between">
-            <span>Recommended For You</span>
-            <div className="flex gap-1">
-              <Button size="icon" variant="ghost" className="h-6 w-6">
-                <div className="w-1 h-4 border-r-2 border-white"></div>
-              </Button>
-              <Button size="icon" variant="ghost" className="h-6 w-6">
-                <div className="w-4 h-4 border-2 border-white"></div>
-              </Button>
-            </div>
+            <span className="flex items-center">
+              <Star className="h-5 w-5 mr-2 text-primary" fill="currentColor" />
+              Recommended For You
+            </span>
+            <Link to={`/movies`} className="text-sm text-muted-foreground hover:text-primary flex items-center">
+              View More <ChevronRight className="h-4 w-4" />
+            </Link>
           </h3>
           
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            {/* Recommended movies - would come from API */}
-            {Array(6).fill(0).map((_, i) => (
-              <div key={i} className="group cursor-pointer">
-                <div className="w-full aspect-video bg-muted rounded overflow-hidden flex-shrink-0 mb-2">
-                  <AspectRatio ratio={16/9}>
-                    <div className="w-full h-full bg-muted group-hover:opacity-80 transition-opacity"></div>
-                  </AspectRatio>
+            {isRecommendationsLoading ? (
+              // Loading placeholders
+              Array(6).fill(0).map((_, i) => (
+                <div key={i} className="animate-pulse">
+                  <div className="aspect-video bg-gray-800 rounded mb-2"></div>
+                  <div className="h-4 bg-gray-800 rounded w-3/4 mb-2"></div>
+                  <div className="h-3 bg-gray-800 rounded w-1/2"></div>
                 </div>
-                <div className="flex flex-col">
-                  <div className="text-sm font-semibold line-clamp-1 group-hover:text-primary transition-colors">
-                    Recommended Movie {i + 1}
-                  </div>
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <Star className="h-3 w-3 text-yellow-500" fill="currentColor" />
-                    <span>8.{i+1}</span>
-                  </div>
-                </div>
+              ))
+            ) : recommendationsData?.items && recommendationsData.items.length > 0 ? (
+              // Display recommendations
+              recommendationsData.items.slice(0, 6).map((movie, i) => (
+                <RecommendedMovieCard key={movie.slug} movie={movie} size="small" />
+              ))
+            ) : (
+              // No recommendations found
+              <div className="col-span-full py-4 text-center text-muted-foreground">
+                <p>No recommendations available for this movie.</p>
               </div>
-            ))}
+            )}
           </div>
         </div>
       </div>
@@ -616,86 +626,13 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
         {/* Comments Section */}
         <div className="container mx-auto px-4 mb-10">
           <div className="bg-gray-900 rounded-xl p-6 border border-gray-800">
-            <h3 className="text-xl font-bold mb-4 flex items-center">
-              <span className="text-primary mr-2">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-                </svg>
-              </span>
-              Comments and Reviews
-            </h3>
-            
-            {/* Comment Form */}
-            <div className="flex gap-3 mb-6 bg-black/30 p-4 rounded-md border border-gray-800">
-              <div className="w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center text-white">
-                U
-              </div>
-              <div className="flex-1">
-                <textarea 
-                  className="w-full bg-black/40 border border-muted/30 rounded-md p-3 text-sm"
-                  placeholder="Add a comment or review..."
-                  rows={3}
-                ></textarea>
-                <div className="flex justify-end mt-2">
-                  <Button variant="default" size="sm" className="bg-primary hover:bg-primary/90 text-white relative group">
-                    <span className="mr-1">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="inline">
-                        <line x1="22" y1="2" x2="11" y2="13"></line>
-                        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-                      </svg>
-                    </span>
-                    Add Comment
-                    <span className="absolute -top-8 right-0 bg-black text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">Login required</span>
-                  </Button>
-                </div>
-              </div>
-            </div>
-            
-            {/* Comment List */}
-            {commentsData && commentsData.data.length > 0 ? (
-              <div className="space-y-4">
-                {commentsData.data.map((comment) => (
-                  <div key={comment.id} className="bg-black/20 rounded-md p-4 border border-muted/30">
-                    <div className="flex justify-between mb-2">
-                      <div className="flex items-center">
-                        <div className="w-8 h-8 bg-primary/20 rounded-full flex items-center justify-center text-white mr-2">
-                          {comment.user?.username?.substring(0, 1) || "A"}
-                        </div>
-                        <div>
-                          <h4 className="font-bold text-sm">{comment.user?.username || "Anonymous"}</h4>
-                          <p className="text-xs text-muted-foreground">
-                            {new Date(comment.created_at).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path>
-                          </svg>
-                        </Button>
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"></path>
-                          </svg>
-                        </Button>
-                      </div>
-                    </div>
-                    <p className="text-sm">{comment.content}</p>
-                  </div>
-                ))}
-                
-                {commentsData.total > 5 && (
-                  <Button variant="outline" className="w-full mt-4">
-                    Load More Comments ({commentsData.total - 5} remaining)
-                  </Button>
-                )}
-              </div>
-            ) : (
-              <div className="bg-black/20 rounded-md p-8 text-center border border-muted/30">
-                <p className="text-muted-foreground">No comments yet. Be the first to comment!</p>
-              </div>
-            )}
+            <CommentSection
+              movieSlug={slug}
+              comments={commentsData?.data || []}
+              totalComments={commentsData?.total || 0}
+              isLoading={isCommentsLoading}
+              refetchComments={refetchComments}
+            />
           </div>
         </div>
       </div>
