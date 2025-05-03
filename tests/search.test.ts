@@ -1,6 +1,6 @@
 import request from 'supertest';
 import express from 'express';
-import { registerRoutes } from '../server/routes';
+import { registerRoutes } from '../server/routes.js';
 
 let app: express.Express;
 let server: any;
