@@ -1,118 +1,105 @@
 // API Response Types
 
-export interface Movie {
-  id: number;
-  name: string;
-  originName?: string;
-  slug: string;
-  thumbUrl?: string;
-  posterUrl?: string;
-  year?: number;
-  quality?: string;
-  lang?: string;
-  time?: string;
-  director?: string;
-  actor?: string;
-  country?: {
-    name: string;
-    slug: string;
-  }[];
-  category?: {
-    name: string;
-    slug: string;
-  }[];
-  type?: string;
-  trailerUrl?: string;
-  viewCount?: number;
-  status?: boolean;
-  chieurap?: boolean;
-  hot?: boolean;
-  rate?: string;
-  createdAt?: string;
-  updatedAt?: string;
-  content?: string;
-}
-
-export interface Episode {
-  id: number;
-  name: string;
-  slug: string;
-  filename?: string;
-  link?: string;
-  type?: string;
-  server?: string;
-  episode?: number;
-  movieId: number;
-  status?: boolean;
-  createdAt?: string;
-  updatedAt?: string;
-}
-
-export interface Comment {
-  id: number;
-  content: string;
-  userId: number;
-  movieId: number;
-  parentId?: number;
-  likes: number;
-  dislikes: number;
-  createdAt: string;
-  updatedAt: string;
-  user: {
-    id: number;
-    username: string;
-    role: string;
-  };
-  replies?: Comment[];
-}
-
 export interface Pagination {
   totalItems: number;
   totalPages: number;
   currentPage: number;
-  limit: number;
+  totalItemsPerPage: number;
+}
+
+export interface Movie {
+  _id?: string;
+  movieId: string;
+  name: string;
+  originName?: string;
+  slug: string;
+  type?: string;
+  year?: number;
+  lang?: string;
+  quality?: string;
+  view?: number;
+  category?: {
+    id?: string;
+    name?: string;
+    slug?: string;
+  }[];
+  country?: {
+    id?: string;
+    name?: string;
+    slug?: string;
+  }[];
+  thumbUrl?: string;
+  posterUrl?: string;
+  trailerUrl?: string;
+  time?: string;
+  status?: string;
+  description?: string;
+  actors?: string;
+  directors?: string;
+}
+
+export interface Episode {
+  id?: number;
+  movieId: string;
+  server_name?: string;
+  server_data: {
+    name?: string;
+    slug?: string;
+    filename?: string;
+    link_embed?: string;
+    link_m3u8?: string;
+  }[];
 }
 
 export interface MovieListResponse {
   status: boolean;
   items: Movie[];
   pagination?: Pagination;
-  message?: string;
 }
 
 export interface MovieDetailResponse {
   status: boolean;
+  msg?: string;
   movie: Movie;
-  episodes?: Episode[];
-  message?: string;
+  episodes: Episode[];
 }
 
-export interface CommentListResponse {
-  status: boolean;
-  comments: Comment[];
-  pagination?: Pagination;
-  message?: string;
+export interface CommentItem {
+  id: number;
+  userId: number;
+  movieSlug: string;
+  content: string;
+  likes: number;
+  dislikes: number;
+  createdAt?: string;
+  user?: {
+    username: string;
+    role?: string;
+  };
 }
 
-export interface ApiError {
-  status: boolean;
-  message: string;
-  statusCode?: number;
+export interface CommentsResponse {
+  data: CommentItem[];
+  total: string | number;
+  page?: number;
+  limit?: number;
 }
 
 export interface WatchlistItem {
   id: number;
   userId: number;
-  movieId: number;
-  isWatched: boolean;
-  createdAt: string;
-  updatedAt: string;
-  movie: Movie;
+  movieSlug: string;
+  addedAt?: string;
+  movie?: Movie;
 }
 
 export interface WatchlistResponse {
-  status: boolean;
-  items: WatchlistItem[];
-  pagination?: Pagination;
-  message?: string;
+  data: WatchlistItem[];
+  total: string | number;
+}
+
+export interface ApiError {
+  message: string;
+  error?: string;
+  status?: number;
 }
