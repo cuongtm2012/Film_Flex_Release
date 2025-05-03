@@ -515,44 +515,6 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
         </div>
       </div>
       
-      {/* Recommended Movies Bar */}
-      <div className="container mx-auto px-4 mt-6 lg:mt-8 block">
-        <div className="bg-black/20 rounded-md p-4 border border-gray-800">
-          <h3 className="text-lg font-bold mb-4 flex items-center justify-between">
-            <span className="flex items-center">
-              <Star className="h-5 w-5 mr-2 text-primary" fill="currentColor" />
-              Recommended For You
-            </span>
-            <Link to={`/movies`} className="text-sm text-muted-foreground hover:text-primary flex items-center">
-              View More <ChevronRight className="h-4 w-4" />
-            </Link>
-          </h3>
-          
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            {isRecommendationsLoading ? (
-              // Loading placeholders
-              Array(6).fill(0).map((_, i) => (
-                <div key={i} className="animate-pulse">
-                  <div className="aspect-video bg-gray-800 rounded mb-2"></div>
-                  <div className="h-4 bg-gray-800 rounded w-3/4 mb-2"></div>
-                  <div className="h-3 bg-gray-800 rounded w-1/2"></div>
-                </div>
-              ))
-            ) : recommendationsData?.items && recommendationsData.items.length > 0 ? (
-              // Display recommendations
-              recommendationsData.items.slice(0, 6).map((movie, i) => (
-                <RecommendedMovieCard key={movie.slug} movie={movie} size="small" />
-              ))
-            ) : (
-              // No recommendations found
-              <div className="col-span-full py-4 text-center text-muted-foreground">
-                <p>No recommendations available for this movie.</p>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-      
       <div className="container mx-auto px-4">
         {/* Movie Meta */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 mb-8 mt-8">
@@ -567,7 +529,7 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
             <div className="flex flex-wrap gap-x-8 gap-y-3 mb-6 text-sm">
               <div className="flex gap-1">
                 <span className="text-muted-foreground">Release Year:</span>
-                <span>{movie.year || 'Unknown'}</span>
+                <span>{(movie as any).year || 'Unknown'}</span>
               </div>
               
               <div className="flex gap-1">
@@ -589,7 +551,7 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
               
               <div className="flex gap-1">
                 <span className="text-muted-foreground">Rating:</span>
-                <span>{movie.tmdb?.vote_average || "N/A"}/10</span>
+                <span>{(movie as any).tmdb?.vote_average || "N/A"}/10</span>
               </div>
             </div>
             
@@ -656,7 +618,7 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
               <div className="grid grid-cols-3 gap-3 text-center">
                 <div className="border border-muted p-3 rounded">
                   <h4 className="text-muted-foreground text-xs mb-1">Release Year</h4>
-                  <p className="font-semibold">{movie.year || '2023'}</p>
+                  <p className="font-semibold">{(movie as any).year || '2023'}</p>
                 </div>
                 <div className="border border-muted p-3 rounded">
                   <h4 className="text-muted-foreground text-xs mb-1">Duration</h4>
@@ -664,7 +626,7 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
                 </div>
                 <div className="border border-muted p-3 rounded">
                   <h4 className="text-muted-foreground text-xs mb-1">Score/10</h4>
-                  <p className="font-semibold">{movie.tmdb?.vote_average || "8.2"}</p>
+                  <p className="font-semibold">{(movie as any).tmdb?.vote_average || "8.2"}</p>
                 </div>
               </div>
             </div>
