@@ -22,18 +22,34 @@ export default function CategoryFilter({
   onSelectCategory,
   isLoading = false 
 }: CategoryFilterProps) {
-  // Default categories if none are provided
+  // Default categories if none are provided - based on requirements
   const defaultCategories = [
     { id: "all", name: "All", slug: "all" },
     { id: "action", name: "Action", slug: "action" },
-    { id: "comedy", name: "Comedy", slug: "comedy" },
-    { id: "drama", name: "Drama", slug: "drama" },
-    { id: "thriller", name: "Thriller", slug: "thriller" },
+    { id: "western", name: "Western", slug: "western" },
+    { id: "kids", name: "Kids", slug: "kids" },
+    { id: "history", name: "History", slug: "history" },
+    { id: "costume-drama", name: "Costume Drama", slug: "costume-drama" },
+    { id: "war", name: "War", slug: "war" },
+    { id: "sci-fi", name: "Sci-Fi", slug: "sci-fi" },
     { id: "horror", name: "Horror", slug: "horror" },
+    { id: "documentary", name: "Documentary", slug: "documentary" },
+    { id: "mystery", name: "Mystery", slug: "mystery" },
+    { id: "adult", name: "Adult", slug: "adult" },
     { id: "romance", name: "Romance", slug: "romance" },
-    { id: "sci-fi", name: "Science Fiction", slug: "sci-fi" },
-    { id: "fantasy", name: "Fantasy", slug: "fantasy" },
-    { id: "animation", name: "Animation", slug: "animation" }
+    { id: "psychological", name: "Psychological", slug: "psychological" },
+    { id: "sports", name: "Sports", slug: "sports" },
+    { id: "adventure", name: "Adventure", slug: "adventure" },
+    { id: "music", name: "Music", slug: "music" },
+    { id: "family", name: "Family", slug: "family" },
+    { id: "school", name: "School", slug: "school" },
+    { id: "comedy", name: "Comedy", slug: "comedy" },
+    { id: "crime", name: "Crime", slug: "crime" },
+    { id: "martial-arts", name: "Martial Arts", slug: "martial-arts" },
+    { id: "science", name: "Science", slug: "science" },
+    { id: "mythology", name: "Mythology", slug: "mythology" },
+    { id: "drama", name: "Drama", slug: "drama" },
+    { id: "classic", name: "Classic", slug: "classic" }
   ];
 
   const displayCategories = categories.length > 0 ? categories : defaultCategories;
