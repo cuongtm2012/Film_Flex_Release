@@ -608,15 +608,31 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
           </div>
           
           <div className="lg:col-span-1">
-            <h3 className="text-xl font-bold mb-3">More Like This</h3>
+            <h3 className="text-xl font-bold mb-3 flex items-center">
+              <Star className="h-5 w-5 mr-2 text-primary" fill="currentColor" />
+              More Like This
+            </h3>
             <div className="grid grid-cols-2 lg:grid-cols-1 gap-4">
-              {/* This would be populated with similar movies based on categories */}
-              <div className="movie-card relative rounded overflow-hidden aspect-video lg:aspect-[2/1]">
-                <div className="bg-muted h-full w-full"></div>
-                <div className="card-overlay absolute inset-0 flex flex-col justify-end p-3">
-                  <h3 className="font-bold text-sm">Similar movies will appear here</h3>
+              {isRecommendationsLoading ? (
+                // Loading placeholders for side recommendations
+                Array(3).fill(0).map((_, i) => (
+                  <div key={i} className="animate-pulse">
+                    <div className="aspect-[2/1] bg-gray-800 rounded mb-2"></div>
+                    <div className="h-4 bg-gray-800 rounded w-3/4 mb-2"></div>
+                    <div className="h-3 bg-gray-800 rounded w-1/2"></div>
+                  </div>
+                ))
+              ) : recommendationsData?.items && recommendationsData.items.length > 0 ? (
+                // Display recommendations in sidebar
+                recommendationsData.items.slice(0, 3).map((movie) => (
+                  <RecommendedMovieCard key={movie.slug} movie={movie} size="small" />
+                ))
+              ) : (
+                // No recommendations found
+                <div className="bg-card/20 p-4 rounded-md border border-muted text-muted-foreground text-sm text-center">
+                  <p>No similar movies found.</p>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </div>
