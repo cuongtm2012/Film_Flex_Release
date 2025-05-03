@@ -38,28 +38,24 @@ export default function Home() {
     enabled: !!moviesData?.items?.[0]?.slug,
   });
 
-  // Comprehensive category list based on requirements
+  // Category list based on API compatibility - phimapi.com has specific category slugs
+  // Using "all" plus a smaller set of categories that are likely to work with the API
   const availableCategories: Category[] = [
     { id: "all", name: "All", slug: "all" },
-    { id: "action", name: "Action", slug: "action" },
-    { id: "comedy", name: "Comedy", slug: "comedy" },
-    { id: "drama", name: "Drama", slug: "drama" },
-    { id: "horror", name: "Horror", slug: "horror" },
-    { id: "sci-fi", name: "Sci-Fi", slug: "sci-fi" },
-    { id: "western", name: "Western", slug: "western" },
-    { id: "kids", name: "Kids", slug: "kids" },
-    { id: "history", name: "History", slug: "history" },
-    { id: "war", name: "War", slug: "war" },
-    { id: "documentary", name: "Documentary", slug: "documentary" },
-    { id: "mystery", name: "Mystery", slug: "mystery" },
-    { id: "romance", name: "Romance", slug: "romance" },
-    { id: "family", name: "Family", slug: "family" },
-    { id: "crime", name: "Crime", slug: "crime" },
-    { id: "martial-arts", name: "Martial Arts", slug: "martial-arts" },
-    { id: "adventure", name: "Adventure", slug: "adventure" }
+    { id: "phim-hanh-dong", name: "Action", slug: "phim-hanh-dong" },
+    { id: "phim-hai-huoc", name: "Comedy", slug: "phim-hai-huoc" },
+    { id: "phim-tinh-cam", name: "Romance", slug: "phim-tinh-cam" },
+    { id: "phim-co-trang", name: "Historical", slug: "phim-co-trang" },
+    { id: "phim-tam-ly", name: "Drama", slug: "phim-tam-ly" },
+    { id: "phim-than-thoai", name: "Mythology", slug: "phim-than-thoai" },
+    { id: "phim-chien-tranh", name: "War", slug: "phim-chien-tranh" },
+    { id: "phim-hinh-su", name: "Crime", slug: "phim-hinh-su" },
+    { id: "phim-kinh-di", name: "Horror", slug: "phim-kinh-di" },
+    { id: "phim-vien-tuong", name: "Sci-Fi", slug: "phim-vien-tuong" },
+    { id: "phim-phieu-luu", name: "Adventure", slug: "phim-phieu-luu" }
   ];
   
-  // Default empty categories array if no data
+  // Use our predefined categories list
   const categories = availableCategories;
 
   // Handle page change

@@ -153,16 +153,48 @@ export async function searchMovies(keyword: string, page: number = 1, limit: num
 
 export async function fetchMoviesByCategory(categorySlug: string, page: number = 1, limit: number = 50): Promise<MovieListResponse> {
   try {
+    console.log(`Fetching movies for category ${categorySlug}, page ${page}, limit ${limit}`);
+    
+    // If it's the "all" category, just return all movies
+    if (categorySlug === 'all') {
+      console.log(`Using all movies list for 'all' category`);
+      return await fetchMovieList(page, limit);
+    }
+    
     // The external API returns ~10 items per page, but we want to show 50 items per page
     // So we need to fetch multiple pages of data for each of our "pages"
     const pagesNeeded = Math.ceil(limit / 10); // 10 is the number of items per page from external API
     const startPage = (page - 1) * pagesNeeded + 1;
     
+    console.log(`Need to fetch ${pagesNeeded} pages starting from external API page ${startPage}`);
+    
     try {
-      // Fetch multiple pages in parallel
+      // Fetch one page first to check if the category exists
+      console.log(`Checking if category ${categorySlug} exists by fetching page 1`);
+      const testResponse = await fetch(`${API_BASE_URL}/the-loai/${categorySlug}?page=1`);
+      
+      // If the category doesn't exist, return empty results early
+      if (!testResponse.ok) {
+        console.log(`Category ${categorySlug} returned status ${testResponse.status}, returning empty results`);
+        // Return empty results with proper pagination
+        return {
+          status: true,
+          items: [],
+          pagination: {
+            totalItems: 0,
+            totalPages: 0,
+            currentPage: page,
+            totalItemsPerPage: limit
+          }
+        };
+      }
+      
+      // If we get here, the category exists, so fetch multiple pages in parallel
       const fetchPromises = [];
       for (let i = 0; i < pagesNeeded; i++) {
         const apiPage = startPage + i;
+        console.log(`Fetching category ${categorySlug} page ${apiPage}`);
+        
         fetchPromises.push(
           fetch(`${API_BASE_URL}/the-loai/${categorySlug}?page=${apiPage}`)
             .then(response => {
@@ -171,8 +203,12 @@ export async function fetchMoviesByCategory(categorySlug: string, page: number =
               }
               return response.json() as Promise<MovieListResponse>;
             })
+            .then(data => {
+              console.log(`Successfully fetched category ${categorySlug} page ${apiPage} with ${data.items?.length || 0} items`);
+              return data;
+            })
             .catch(err => {
-              console.error(`Error fetching category page ${apiPage}:`, err);
+              console.error(`Error fetching category ${categorySlug} page ${apiPage}:`, err);
               // Return an empty response for this page if it fails
               return { status: false, items: [] } as MovieListResponse;
             })
@@ -184,6 +220,7 @@ export async function fetchMoviesByCategory(categorySlug: string, page: number =
       
       // Combine the items from all pages
       const allItems = pagesData.flatMap(data => data.items || []);
+      console.log(`Combined ${allItems.length} items from ${pagesData.length} pages for category ${categorySlug}`);
       
       // Calculate total items based on the first page's pagination data (if available)
       const firstPagePagination = pagesData[0]?.pagination;
@@ -191,6 +228,8 @@ export async function fetchMoviesByCategory(categorySlug: string, page: number =
       const totalPages = firstPagePagination 
         ? Math.ceil(totalItems / limit)
         : Math.ceil(allItems.length / limit);
+      
+      console.log(`Pagination for category ${categorySlug}: Total items: ${totalItems}, Total pages: ${totalPages}, Current page: ${page}`);
       
       // Create the combined response
       const combinedResponse: MovieListResponse = {
@@ -204,32 +243,28 @@ export async function fetchMoviesByCategory(categorySlug: string, page: number =
         }
       };
       
+      console.log(`Returning ${combinedResponse.items.length} items for category ${categorySlug} page ${page}`);
       return combinedResponse;
     } catch (categoryError) {
       console.error(`Error fetching movies for category ${categorySlug}:`, categoryError);
       
-      // Fallback to regular movie list and filter by category
+      console.log(`Using fallback to fetch all movies and filter by category`);
+      // Fallback to regular movie list if something goes wrong
       const allMoviesResponse = await fetchMovieList(page, limit);
       
-      // Filter items that contain the category (simplified for demo)
-      const filteredItems = allMoviesResponse.items.filter(item => {
-        // This is a simplified approach - in a real app we'd need to check if the movie has this category
-        return true; // Return all movies for now since we can't filter by category in this demo
-      });
-      
-      // Create a new response with the filtered items
-      const filteredResponse: MovieListResponse = {
-        status: allMoviesResponse.status,
-        items: filteredItems,
+      // Return all movies but with appropriate metadata
+      const fallbackResponse: MovieListResponse = {
+        status: true,
+        items: allMoviesResponse.items,
         pagination: {
-          totalItems: filteredItems.length,
-          totalPages: Math.ceil(filteredItems.length / limit),
+          totalItems: allMoviesResponse.pagination?.totalItems || 0,
+          totalPages: allMoviesResponse.pagination?.totalPages || 1,
           currentPage: page,
           totalItemsPerPage: limit
         }
       };
       
-      return filteredResponse;
+      return fallbackResponse;
     }
   } catch (error) {
     console.error(`Error fetching movies for category ${categorySlug}:`, error);
