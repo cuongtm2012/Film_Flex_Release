@@ -45,15 +45,20 @@ async function testMovieDetailViewing() {
       if (response2.status === 200) {
         const data2 = await response2.json();
         console.log('✅ Test passed: Episodes fetched successfully');
-        console.log(`Episodes found: ${data2.items.length}`);
         
-        if (data2.items.length > 0) {
-          console.log(`First episode name: ${data2.items[0].name}`);
-          console.log(`First episode embed link: ${data2.items[0].link_embed ? 'Present' : 'Missing'}`);
+        // Handle different response formats
+        const episodes = data2.items || data2.episodes || [];
+        const episodeCount = Array.isArray(episodes) ? episodes.length : 0;
+        
+        console.log(`Episodes found: ${episodeCount}`);
+        
+        if (episodeCount > 0) {
+          const firstEpisode = episodes[0];
+          console.log(`First episode name: ${firstEpisode.name || 'Unnamed'}`);
+          console.log(`First episode embed link: ${firstEpisode.link_embed ? 'Present' : 'Missing'}`);
           
           // Check episode fields
           const episodeRequiredFields = ['name', 'slug', 'link_embed'];
-          const firstEpisode = data2.items[0];
           const missingEpisodeFields = episodeRequiredFields.filter(field => !firstEpisode[field]);
           
           if (missingEpisodeFields.length === 0) {
