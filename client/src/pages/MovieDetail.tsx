@@ -55,6 +55,9 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
   const [isEpisodeSwitching, setIsEpisodeSwitching] = useState(false);
   const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
   
+  // State for content expanding (overview section)
+  const [isContentExpanded, setIsContentExpanded] = useState(false);
+  
   // Fetch movie details
   const { 
     data: movieDetail,
@@ -75,6 +78,13 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
       if (firstEpisode) {
         setSelectedEpisode(firstEpisode);
       }
+    }
+    
+    // Set content expanded state when movie content is loaded
+    if (movieDetail?.movie) {
+      const content = movieDetail.movie.content || '';
+      const isLongContent = content.length > 300;
+      setIsContentExpanded(!isLongContent);
     }
   }, [movieDetail]);
   
@@ -588,36 +598,28 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
                 <FileText className="h-5 w-5 mr-2 text-primary" />
                 Overview
               </h3>
-              {(() => {
-                const content = movie.content || 'No description available';
-                const isLongContent = content.length > 300;
-                const [isExpanded, setIsExpanded] = useState(!isLongContent);
+              <div className="relative">
+                <p className={`text-base leading-relaxed tracking-wide text-gray-200 ${!isContentExpanded ? 'line-clamp-3' : ''}`}>
+                  {movie.content || 'No description available'}
+                </p>
                 
-                return (
-                  <div className="relative">
-                    <p className={`text-base leading-relaxed tracking-wide text-gray-200 ${!isExpanded ? 'line-clamp-3' : ''}`}>
-                      {content}
-                    </p>
-                    
-                    {isLongContent && (
-                      <div className={`${!isExpanded ? 'absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-background to-transparent' : ''} flex justify-center`}>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="mt-2 text-primary"
-                          onClick={() => setIsExpanded(!isExpanded)}
-                        >
-                          {isExpanded ? (
-                            <span className="flex items-center">Show less <ChevronUp className="ml-1 h-4 w-4" /></span>
-                          ) : (
-                            <span className="flex items-center">Read more <ChevronDown className="ml-1 h-4 w-4" /></span>
-                          )}
-                        </Button>
-                      </div>
-                    )}
+                {(movie.content?.length || 0) > 300 && (
+                  <div className={`${!isContentExpanded ? 'absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-background to-transparent' : ''} flex justify-center`}>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="mt-2 text-primary"
+                      onClick={() => setIsContentExpanded(!isContentExpanded)}
+                    >
+                      {isContentExpanded ? (
+                        <span className="flex items-center">Show less <ChevronUp className="ml-1 h-4 w-4" /></span>
+                      ) : (
+                        <span className="flex items-center">Read more <ChevronDown className="ml-1 h-4 w-4" /></span>
+                      )}
+                    </Button>
                   </div>
-                );
-              })()}
+                )}
+              </div>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 mb-6">
