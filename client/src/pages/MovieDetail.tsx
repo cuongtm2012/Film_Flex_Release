@@ -200,10 +200,11 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
         </Link>
       </div>
       
-      {/* Main video player area */}
-      <div className="container mx-auto px-4">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          <div className="lg:col-span-3">
+      {/* Video Player and Episodes Section - Two-column layout */}
+      <div className="container mx-auto px-4" id="video-player">
+        <div className="grid grid-cols-1 lg:grid-cols-10 gap-6">
+          {/* Left Column - Video Player (70%) */}
+          <div className="lg:col-span-7">
             {/* Main Video Player */}
             <div className="mb-6 relative z-10 shadow-xl border border-gray-800 bg-black rounded-md overflow-hidden">
               <VideoPlayer 
@@ -219,7 +220,7 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
               />
             </div>
             
-            {/* Action Buttons */}
+            {/* Video Controls and Action Buttons */}
             <div className="flex flex-wrap gap-4 mb-6">
               <Button 
                 variant="outline" 
@@ -276,53 +277,155 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
                 <span>Report</span>
               </Button>
             </div>
+            
+            {/* Server Selection - Only show if there are multiple servers */}
+            {movieDetail.episodes.length > 1 && (
+              <div className="mb-6 bg-black/40 p-3 rounded-md border border-gray-800">
+                <h4 className="text-sm font-medium mb-2 text-muted-foreground">Available Servers</h4>
+                <ServerTabs 
+                  servers={episodes} 
+                  onServerSelect={handleServerSelect}
+                  isLoading={isMovieLoading}
+                />
+              </div>
+            )}
           </div>
           
-          {/* Recommended Movies Sidebar */}
-          <div className="lg:col-span-1">
-            <div className="bg-black/20 rounded-md p-4">
-              <h3 className="text-lg font-bold mb-4 flex items-center justify-between">
-                <span>Recommended For You</span>
-                <div className="flex gap-1">
-                  <Button size="icon" variant="ghost" className="h-6 w-6">
-                    <div className="w-1 h-4 border-r-2 border-white"></div>
-                  </Button>
-                  <Button size="icon" variant="ghost" className="h-6 w-6">
-                    <div className="w-4 h-4 border-2 border-white"></div>
-                  </Button>
-                </div>
-              </h3>
+          {/* Right Column - Episodes List (30%) */}
+          <div className="lg:col-span-3">
+            <div className="bg-black/20 rounded-md border border-gray-800 h-full">
+              {/* Episodes Section Header */}
+              <div className="p-4 border-b border-gray-800">
+                <h3 className="text-lg font-bold flex items-center">
+                  <Play className="mr-2 h-5 w-5 text-primary" />
+                  {isSingleEpisode() ? `Full Movie` : (movie.type === "series" ? "Episodes" : "Parts")}
+                  {isSingleEpisode() && (
+                    <Badge variant="outline" className="ml-2 bg-primary/10">Full Movie</Badge>
+                  )}
+                </h3>
+              </div>
               
-              <div className="space-y-3">
-                {/* Recommended movies - would come from API */}
-                {Array(4).fill(0).map((_, i) => (
-                  <div key={i} className="flex gap-3">
-                    <div className="w-24 h-16 bg-muted rounded overflow-hidden flex-shrink-0">
-                      <AspectRatio ratio={16/9}>
-                        <div className="w-full h-full bg-muted"></div>
-                      </AspectRatio>
+              {/* Episodes List with its own scrollbar */}
+              {!isSingleEpisode() ? (
+                <div className="p-4">
+                  {/* Search/Filter Episodes Input */}
+                  {getCurrentEpisodeList().length > 10 && (
+                    <div className="mb-4">
+                      <div className="relative">
+                        <input 
+                          type="text" 
+                          placeholder="Search episodes..." 
+                          className="w-full bg-black/40 border border-gray-700 rounded-md py-2 px-3 text-sm"
+                        />
+                        <svg 
+                          xmlns="http://www.w3.org/2000/svg" 
+                          className="h-4 w-4 absolute right-3 top-2.5 text-muted-foreground" 
+                          fill="none" 
+                          viewBox="0 0 24 24" 
+                          stroke="currentColor"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                      </div>
                     </div>
-                    <div className="flex flex-col justify-between">
-                      <div className="text-sm font-semibold line-clamp-2">
-                        Recommended Movie {i + 1}
-                      </div>
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <div className="h-1.5 w-1.5 bg-primary rounded-full"></div>
-                        <span>95% match</span>
-                      </div>
+                  )}
+                  
+                  {/* Episodes Grid with scroll area */}
+                  <div className="max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                    <div className="grid grid-cols-2 sm:grid-cols-2 gap-3">
+                      {getCurrentEpisodeList().map((episode, index) => {
+                        // Extract episode number for display
+                        const episodeName = episode.name;
+                        let episodeNumber = index + 1;
+                        const episodeNumberMatch = episodeName.match(/\d+/);
+                        if (episodeNumberMatch) {
+                          episodeNumber = parseInt(episodeNumberMatch[0]);
+                        }
+                        
+                        return (
+                          <Button
+                            key={episode.slug}
+                            variant={selectedEpisode === episode.slug ? "default" : "outline"}
+                            className={`p-3 rounded text-center transition ${
+                              selectedEpisode === episode.slug ? "bg-primary hover:bg-primary/90" : "bg-muted hover:bg-primary/80"
+                            }`}
+                            onClick={() => handleEpisodeSelect(episode.slug)}
+                          >
+                            <span className="block font-medium">Ep {episodeNumber}</span>
+                            <span className="text-xs text-muted-foreground truncate">
+                              {episode.filename?.substring(0, 10) || episodeName}
+                            </span>
+                          </Button>
+                        );
+                      })}
                     </div>
                   </div>
-                ))}
-                
-                <Button 
-                  variant="link" 
-                  size="sm" 
-                  className="text-xs text-muted-foreground mt-2 mx-auto block"
-                >
-                  Show more (2 more)
-                </Button>
-              </div>
+                  
+                  {/* Pagination for Episodes */}
+                  {getCurrentEpisodeList().length > 20 && (
+                    <div className="mt-4 flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">
+                        Showing 1-20 of {getCurrentEpisodeList().length}
+                      </span>
+                      <div className="flex gap-1">
+                        <Button variant="outline" size="sm" className="h-8 w-8 p-0">
+                          <span>1</span>
+                        </Button>
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                          <span>2</span>
+                        </Button>
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                          <span>...</span>
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="p-8 text-center">
+                  <p className="text-muted-foreground">This is a full movie without episodes.</p>
+                </div>
+              )}
             </div>
+          </div>
+        </div>
+      </div>
+      
+      {/* Recommended Movies Bar */}
+      <div className="container mx-auto px-4 mt-6 lg:mt-8 hidden lg:block">
+        <div className="bg-black/20 rounded-md p-4">
+          <h3 className="text-lg font-bold mb-4 flex items-center justify-between">
+            <span>Recommended For You</span>
+            <div className="flex gap-1">
+              <Button size="icon" variant="ghost" className="h-6 w-6">
+                <div className="w-1 h-4 border-r-2 border-white"></div>
+              </Button>
+              <Button size="icon" variant="ghost" className="h-6 w-6">
+                <div className="w-4 h-4 border-2 border-white"></div>
+              </Button>
+            </div>
+          </h3>
+          
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            {/* Recommended movies - would come from API */}
+            {Array(6).fill(0).map((_, i) => (
+              <div key={i} className="group cursor-pointer">
+                <div className="w-full aspect-video bg-muted rounded overflow-hidden flex-shrink-0 mb-2">
+                  <AspectRatio ratio={16/9}>
+                    <div className="w-full h-full bg-muted group-hover:opacity-80 transition-opacity"></div>
+                  </AspectRatio>
+                </div>
+                <div className="flex flex-col">
+                  <div className="text-sm font-semibold line-clamp-1 group-hover:text-primary transition-colors">
+                    Recommended Movie {i + 1}
+                  </div>
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Star className="h-3 w-3 text-yellow-500" fill="currentColor" />
+                    <span>8.{i+1}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
