@@ -28,53 +28,97 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/movies", async (req: Request, res: Response) => {
     try {
       const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 50; // Default to 50 per page per requirements
+      const category = req.query.category as string || 'all';
       
-      // Try to get from cache first
-      let movieListData = await storage.getMovieListCache(page);
+      let movieListData;
       
-      // If not in cache or cache is expired, fetch from API
-      if (!movieListData) {
-        movieListData = await fetchMovieList(page);
+      // If a specific category is requested (not 'all')
+      if (category && category !== 'all') {
+        // Try to get from category cache first
+        movieListData = await storage.getMovieCategoryCache(category, page);
         
-        // Cache the result
-        await storage.cacheMovieList(movieListData, page);
-        
-        // Save movies to storage
-        for (const item of movieListData.items) {
-          const existingMovie = await storage.getMovieBySlug(item.slug);
+        // If not in cache, fetch from API
+        if (!movieListData) {
+          movieListData = await fetchMoviesByCategory(category, page);
           
-          if (!existingMovie) {
-            await storage.saveMovie({
-              movieId: item._id,
-              slug: item.slug,
-              name: item.name,
-              originName: item.origin_name,
-              posterUrl: item.poster_url,
-              thumbUrl: item.thumb_url,
-              year: item.year,
-              type: item.tmdb?.type || "movie",
-              quality: "",
-              lang: "",
-              time: "",
-              view: 0,
-              description: "",
-              status: "",
-              trailerUrl: "",
-              categories: [],
-              countries: [],
-              actors: "",
-              directors: ""
-            });
-          }
+          // Cache the result
+          await storage.cacheMovieCategory(movieListData, category, page);
+          
+          // Process and save movies to storage
+          await processAndSaveMovies(movieListData.items);
         }
+      } else {
+        // For 'all' category, use the regular movie list
+        // Try to get from cache first
+        movieListData = await storage.getMovieListCache(page);
+        
+        // If not in cache, fetch from API
+        if (!movieListData) {
+          movieListData = await fetchMovieList(page, limit);
+          
+          // Cache the result
+          await storage.cacheMovieList(movieListData, page);
+          
+          // Process and save movies to storage
+          await processAndSaveMovies(movieListData.items);
+        }
+      }
+      
+      // Ensure we return the proper pagination data
+      const totalItems = movieListData.total || movieListData.items.length;
+      const totalPages = Math.ceil(totalItems / limit);
+      
+      // Add pagination info if not present
+      if (!movieListData.pagination) {
+        movieListData.pagination = {
+          totalItems,
+          totalPages, 
+          currentPage: page,
+          itemsPerPage: limit
+        };
       }
       
       res.json(movieListData);
     } catch (error) {
       console.error("Error fetching movies:", error);
-      res.status(500).json({ message: "Failed to fetch movies" });
+      res.status(500).json({ 
+        message: "Failed to fetch movies",
+        error: error instanceof Error ? error.message : String(error)
+      });
     }
   });
+  
+  // Helper function to process and save movies
+  async function processAndSaveMovies(items: any[]) {
+    for (const item of items) {
+      const existingMovie = await storage.getMovieBySlug(item.slug);
+      
+      if (!existingMovie) {
+        await storage.saveMovie({
+          movieId: item._id,
+          slug: item.slug,
+          name: item.name,
+          originName: item.origin_name,
+          posterUrl: item.poster_url,
+          thumbUrl: item.thumb_url,
+          year: item.year || 0,
+          type: item.tmdb?.type || "movie",
+          quality: item.quality || "",
+          lang: item.lang || "",
+          time: item.time || "",
+          view: item.view || 0,
+          description: item.content || "",
+          status: item.status || "",
+          trailerUrl: item.trailer_url || "",
+          categories: item.category || [],
+          countries: item.country || [],
+          actors: item.actor ? item.actor.join(", ") : "",
+          directors: item.director ? item.director.join(", ") : ""
+        });
+      }
+    }
+  }
   
   // Get movie detail by slug
   app.get("/api/movies/:slug", async (req: Request, res: Response) => {

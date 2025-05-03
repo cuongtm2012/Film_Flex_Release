@@ -3,7 +3,7 @@ import { Movie, Episode, MovieListResponse, MovieDetailResponse, InsertMovie, In
 
 const API_BASE_URL = "https://phimapi.com";
 
-export async function fetchMovieList(page: number = 1): Promise<MovieListResponse> {
+export async function fetchMovieList(page: number = 1, limit: number = 10): Promise<MovieListResponse> {
   try {
     const response = await fetch(`${API_BASE_URL}/danh-sach/phim-moi-cap-nhat?page=${page}`);
     
