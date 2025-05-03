@@ -159,6 +159,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Quick search suggestions (for autocomplete)
+  app.get("/api/search/suggestions", async (req: Request, res: Response) => {
+    try {
+      const keyword = req.query.q as string;
+      
+      if (!keyword || keyword.trim() === "") {
+        return res.json({ items: [] });
+      }
+      
+      // For suggestions, we always use a small limit (max 8 results)
+      const searchResults = await searchMovies(keyword, 1, 8);
+      
+      // Return a simplified response for suggestions
+      return res.json({ 
+        items: searchResults.items.slice(0, 8),
+        status: true
+      });
+    } catch (error) {
+      console.error("Error fetching search suggestions:", error);
+      return res.status(500).json({ message: "Failed to fetch search suggestions" });
+    }
+  });
+
   // Search movies
   app.get("/api/search", async (req: Request, res: Response) => {
     try {
