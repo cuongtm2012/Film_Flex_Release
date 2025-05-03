@@ -58,9 +58,9 @@ export default function MyListPage() {
     
     // This is a placeholder - in a real app, we would have a "watched" field in the watchlist data
     if (activeTab === "watched") {
-      return watchlistData.items.filter((_, index) => index % 3 === 0); // Every third item for demo
+      return watchlistData.items.filter((_: any, index: number) => index % 3 === 0); // Every third item for demo
     } else {
-      return watchlistData.items.filter((_, index) => index % 3 !== 0);
+      return watchlistData.items.filter((_: any, index: number) => index % 3 !== 0);
     }
   };
 
@@ -128,7 +128,7 @@ export default function MyListPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {filteredMovies.map((movie) => (
+              {filteredMovies.map((movie: any) => (
                 <Card key={movie.slug} className="overflow-hidden flex flex-col">
                   <div className="relative cursor-pointer group h-[220px]">
                     <img

@@ -36,9 +36,9 @@ export default function MainHeader() {
           {/* Logo */}
           <div className="flex items-center">
             <Link href="/">
-              <a className="text-2xl font-bold bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
+              <div className="text-2xl font-bold bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent cursor-pointer">
                 FilmFlex
-              </a>
+              </div>
             </Link>
           </div>
 
@@ -46,9 +46,9 @@ export default function MainHeader() {
           <nav className="hidden md:flex items-center space-x-8">
             {navItems.map((item) => (
               <Link key={item.name} href={item.path}>
-                <a
+                <div
                   className={cn(
-                    "flex items-center text-sm font-medium transition-colors hover:text-primary",
+                    "flex items-center text-sm font-medium transition-colors hover:text-primary cursor-pointer",
                     location === item.path
                       ? "text-primary"
                       : "text-muted-foreground"
@@ -56,7 +56,7 @@ export default function MainHeader() {
                 >
                   {item.icon}
                   {item.name}
-                </a>
+                </div>
               </Link>
             ))}
 
@@ -109,9 +109,9 @@ export default function MainHeader() {
           <div className="space-y-1 px-4 pb-3 pt-2">
             {navItems.map((item) => (
               <Link key={item.name} href={item.path}>
-                <a
+                <div
                   className={cn(
-                    "flex items-center py-2 px-3 text-base font-medium rounded-md",
+                    "flex items-center py-2 px-3 text-base font-medium rounded-md cursor-pointer",
                     location === item.path
                       ? "bg-primary/10 text-primary"
                       : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
@@ -120,32 +120,32 @@ export default function MainHeader() {
                 >
                   {item.icon}
                   {item.name}
-                </a>
+                </div>
               </Link>
             ))}
 
             {/* Show Login/Sign Up button if user is not logged in */}
             {!user && (
               <Link href="/auth">
-                <a
-                  className="flex items-center py-2 px-3 text-base font-medium rounded-md bg-primary text-primary-foreground"
+                <div
+                  className="flex items-center py-2 px-3 text-base font-medium rounded-md bg-primary text-primary-foreground cursor-pointer"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Login / Sign Up
-                </a>
+                </div>
               </Link>
             )}
 
             {/* User profile link if logged in */}
             {user && (
               <Link href="/profile">
-                <a
-                  className="flex items-center py-2 px-3 text-base font-medium rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                <div
+                  className="flex items-center py-2 px-3 text-base font-medium rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground cursor-pointer"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   <User className="h-4 w-4 mr-2" />
                   Profile
-                </a>
+                </div>
               </Link>
             )}
           </div>
