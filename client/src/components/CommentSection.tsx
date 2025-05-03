@@ -232,14 +232,8 @@ export function CommentSection({
       return;
     }
     
-    // Add the parent ID to the form values
-    const dataWithParent = {
-      ...values,
-      parentId: replyingTo
-    };
-    
-    // Submit the reply
-    addReplyMutation.mutate(dataWithParent);
+    // Submit the reply (as a regular comment with @mention)
+    addReplyMutation.mutate(values);
   }
 
   // Start replying to a comment
@@ -300,31 +294,13 @@ export function CommentSection({
     return name.substring(0, 2).toUpperCase();
   };
 
-  // Group comments by parent/child relationship for reply threading
+  // Organize comments (without actual threading since we don't have parentId)
   const organizeComments = (commentList: any[]) => {
-    const parentComments: any[] = [];
-    const childComments: Record<number, any[]> = {};
-    
-    // Separate into parents and children
-    commentList.forEach(comment => {
-      if (comment.parentId === null) {
-        parentComments.push({...comment, replies: []});
-      } else {
-        if (!childComments[comment.parentId]) {
-          childComments[comment.parentId] = [];
-        }
-        childComments[comment.parentId].push(comment);
-      }
-    });
-    
-    // Attach children to their parents
-    parentComments.forEach(parent => {
-      if (childComments[parent.id]) {
-        parent.replies = childComments[parent.id];
-      }
-    });
-    
-    return parentComments;
+    // Simply add an empty replies array to each comment
+    return commentList.map(comment => ({
+      ...comment, 
+      replies: []
+    }));
   };
 
   // Organize the comments with threading
@@ -491,55 +467,9 @@ export function CommentSection({
                     </Button>
                   </CardFooter>
                   
-                  {/* Replies Section */}
-                  {comment.replies && comment.replies.length > 0 && (
-                    <div className="border-t border-gray-800 mt-2 pt-2 mx-4 mb-4">
-                      <div className="pl-4 border-l border-gray-700 space-y-3">
-                        {comment.replies.map((reply: any) => (
-                          <div key={reply.id} className="pt-2">
-                            <div className="flex items-start space-x-2 mb-1">
-                              <Avatar className="h-6 w-6 mt-0.5">
-                                <AvatarFallback className="text-xs">
-                                  {getInitials(reply.username || "User")}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div className="space-y-1 flex-1">
-                                <div className="flex justify-between items-start">
-                                  <div>
-                                    <span className="font-medium text-sm">{reply.username || "Anonymous"}</span>
-                                    <span className="text-xs text-muted-foreground ml-2">
-                                      {formatDate(reply.createdAt)}
-                                    </span>
-                                  </div>
-                                </div>
-                                <p className="text-sm">{reply.content}</p>
-                                <div className="flex items-center space-x-2 mt-1">
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm" 
-                                    className="h-6 px-2 text-xs"
-                                    onClick={() => likeCommentMutation.mutate(reply.id)}
-                                  >
-                                    <ThumbsUp className={`h-3 w-3 mr-1 ${reply.hasLiked ? "fill-current text-primary" : ""}`} />
-                                    <span>{reply.likes || 0}</span>
-                                  </Button>
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm"
-                                    className="h-6 px-2 text-xs"
-                                    onClick={() => dislikeCommentMutation.mutate(reply.id)}
-                                  >
-                                    <ThumbsDown className={`h-3 w-3 mr-1 ${reply.hasDisliked ? "fill-current text-destructive" : ""}`} />
-                                    <span>{reply.dislikes || 0}</span>
-                                  </Button>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                  {/* We don't have actual reply threading in the database schema,
+                      so we're not showing a replies section. Instead, users will use @mentions 
+                      which will be displayed in the main comment list. */}
                   
                   {/* Reply Form */}
                   {replyingTo === comment.id && (
