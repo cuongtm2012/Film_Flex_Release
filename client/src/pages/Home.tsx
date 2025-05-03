@@ -13,6 +13,7 @@ export default function Home() {
   const [limit, setLimit] = useState(50); // Default to 50 items per page per requirements
 
   // Determine the API endpoint based on category selection
+  // When using '/api/categories/all', the server will automatically redirect to '/api/movies'
   const endpoint = selectedCategory === 'all' 
     ? '/api/movies' 
     : `/api/categories/${selectedCategory}`;

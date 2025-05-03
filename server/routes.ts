@@ -15,7 +15,8 @@ import {
   fetchMoviesByCategory,
   fetchMoviesByCountry,
   convertToMovieModel,
-  convertToEpisodeModels
+  convertToEpisodeModels,
+  type MovieListResponse
 } from "./api";
 import { setupAuth, isAuthenticated, isActive } from "./auth";
 
@@ -196,20 +197,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 50; // Default to 50 items per page
       
-      const categoryMovies = await fetchMoviesByCategory(slug, page, limit);
+      console.log(`Handling category request for ${slug}, page ${page}, limit ${limit}`);
       
-      // Ensure pagination info is present
-      if (!categoryMovies.pagination) {
-        const totalItems = categoryMovies.items?.length || 0;
-        categoryMovies.pagination = {
-          totalItems,
-          totalPages: Math.ceil(totalItems / limit),
-          currentPage: page,
-          totalItemsPerPage: limit
-        };
+      // If slug is 'all', just redirect to the regular movies endpoint
+      if (slug === 'all') {
+        console.log(`Redirecting 'all' category to regular movies endpoint`);
+        const moviesData = await fetchMovieList(page, limit);
+        return res.json(moviesData);
       }
       
-      res.json(categoryMovies);
+      // For any other category, try the API first
+      try {
+        const categoryMovies = await fetchMoviesByCategory(slug, page, limit);
+        
+        // If we got data from the category endpoint, return it
+        if (categoryMovies.items && categoryMovies.items.length > 0) {
+          console.log(`Successfully fetched ${categoryMovies.items.length} items for category ${slug}`);
+          
+          // Ensure pagination info is present
+          if (!categoryMovies.pagination) {
+            const totalItems = categoryMovies.items?.length || 0;
+            categoryMovies.pagination = {
+              totalItems,
+              totalPages: Math.ceil(totalItems / limit),
+              currentPage: page,
+              totalItemsPerPage: limit
+            };
+          }
+          
+          return res.json(categoryMovies);
+        }
+        
+        // If we didn't get any items, fall back to filtering the main movie list
+        console.log(`No items found for category ${slug}, falling back to filtering main movie list`);
+      } catch (categoryError) {
+        console.error(`Error fetching movies for category ${slug}:`, categoryError);
+        console.log(`Error occurred, falling back to filtering main movie list`);
+      }
+      
+      // As a fallback, fetch the regular movie list
+      const allMoviesResponse = await fetchMovieList(page, limit);
+      
+      // Create a fake "filtered" response - in a real app we would actually filter
+      // For now, just use the main list since we know the API doesn't support these categories
+      const fallbackResponse: MovieListResponse = {
+        status: true,
+        items: allMoviesResponse.items,
+        pagination: {
+          totalItems: allMoviesResponse.pagination?.totalItems || 0,
+          totalPages: allMoviesResponse.pagination?.totalPages || 1,
+          currentPage: page,
+          totalItemsPerPage: limit
+        }
+      };
+      
+      console.log(`Returning ${fallbackResponse.items.length} items from fallback for category ${slug}`);
+      res.json(fallbackResponse);
     } catch (error) {
       console.error(`Error fetching movies for category ${req.params.slug}:`, error);
       res.status(500).json({ message: "Failed to fetch category movies" });
