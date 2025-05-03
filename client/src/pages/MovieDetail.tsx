@@ -9,13 +9,17 @@ import {
   AlertCircle,
   Loader2,
   Search,
-  ChevronRight
+  ChevronRight,
+  Calendar,
+  Clock,
+  Info
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Select,
   SelectContent,
@@ -608,32 +612,58 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
           </div>
           
           <div className="lg:col-span-1">
-            <h3 className="text-xl font-bold mb-3 flex items-center">
-              <Star className="h-5 w-5 mr-2 text-primary" fill="currentColor" />
-              More Like This
-            </h3>
-            <div className="grid grid-cols-2 lg:grid-cols-1 gap-4">
-              {isRecommendationsLoading ? (
-                // Loading placeholders for side recommendations
-                Array(3).fill(0).map((_, i) => (
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="text-xl font-bold flex items-center">
+                <Star className="h-5 w-5 mr-2 text-primary" fill="currentColor" />
+                Recommended For You
+              </h3>
+              
+              {/* See More Button */}
+              {recommendationsData?.items && recommendationsData.items.length > 3 && (
+                <Link href={`/recommendations/${slug}`} className="text-primary text-sm hover:underline flex items-center">
+                  See More
+                  <ChevronRight className="h-4 w-4 ml-1" />
+                </Link>
+              )}
+            </div>
+            
+            {isRecommendationsLoading ? (
+              // Loading placeholders for side recommendations
+              <div className="grid grid-cols-2 lg:grid-cols-1 gap-4">
+                {Array(3).fill(0).map((_, i) => (
                   <div key={i} className="animate-pulse">
                     <div className="aspect-[2/1] bg-gray-800 rounded mb-2"></div>
                     <div className="h-4 bg-gray-800 rounded w-3/4 mb-2"></div>
                     <div className="h-3 bg-gray-800 rounded w-1/2"></div>
                   </div>
-                ))
-              ) : recommendationsData?.items && recommendationsData.items.length > 0 ? (
-                // Display recommendations in sidebar
-                recommendationsData.items.slice(0, 3).map((movie) => (
-                  <RecommendedMovieCard key={movie.slug} movie={movie} size="small" />
-                ))
-              ) : (
-                // No recommendations found
-                <div className="bg-card/20 p-4 rounded-md border border-muted text-muted-foreground text-sm text-center">
-                  <p>No similar movies found.</p>
+                ))}
+              </div>
+            ) : recommendationsData?.items && recommendationsData.items.length > 0 ? (
+              // Scrollable carousel for mobile, grid for desktop
+              <div className="lg:hidden relative overflow-x-auto pb-4 -mx-4 px-4 scrollbar-hide">
+                <div className="flex space-x-4 w-max">
+                  {recommendationsData.items.map((movie) => (
+                    <div key={movie.slug} className="w-36 flex-shrink-0">
+                      <RecommendedMovieCard movie={movie} size="medium" />
+                    </div>
+                  ))}
                 </div>
-              )}
-            </div>
+              </div>
+            ) : (
+              // No recommendations found
+              <div className="bg-card/20 p-4 rounded-md border border-muted text-muted-foreground text-sm text-center">
+                <p>No similar movies found.</p>
+              </div>
+            )}
+            
+            {/* Desktop layout - vertical list */}
+            {!isRecommendationsLoading && recommendationsData?.items && recommendationsData.items.length > 0 && (
+              <div className="hidden lg:grid lg:grid-cols-1 gap-4">
+                {recommendationsData.items.slice(0, 5).map((movie) => (
+                  <RecommendedMovieCard key={movie.slug} movie={movie} size="small" />
+                ))}
+              </div>
+            )}
           </div>
         </div>
         
