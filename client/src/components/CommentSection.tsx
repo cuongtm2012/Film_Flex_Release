@@ -90,7 +90,6 @@ export function CommentSection({
       userId: user?.id || 1,
       content: "",
       movieSlug: movieSlug,
-      parentId: null,
     },
   });
 
@@ -101,7 +100,6 @@ export function CommentSection({
       userId: user?.id || 1,
       content: "",
       movieSlug: movieSlug,
-      parentId: null,
     },
   });
   
@@ -116,7 +114,6 @@ export function CommentSection({
         content: "", 
         userId: user?.id || 1,
         movieSlug: movieSlug,
-        parentId: null,
       });
       
       // Show success toast
@@ -149,7 +146,6 @@ export function CommentSection({
         content: "", 
         userId: user?.id || 1,
         movieSlug: movieSlug,
-        parentId: null,
       });
       
       // Clear the replying state
@@ -254,8 +250,7 @@ export function CommentSection({
     replyForm.reset({
       content: `@${username} `, 
       userId: user?.id || 1,
-      movieSlug,
-      parentId: commentId
+      movieSlug
     });
     
     // Focus on the reply textarea
@@ -273,8 +268,7 @@ export function CommentSection({
     replyForm.reset({
       content: "",
       userId: user?.id || 1,
-      movieSlug,
-      parentId: null
+      movieSlug
     });
   };
   
