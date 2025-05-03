@@ -83,7 +83,11 @@ export default function Navbar() {
   const handleSubmitSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (search.trim()) {
-      navigate(`/search?q=${encodeURIComponent(search.trim())}`);
+      const trimmedSearch = search.trim();
+      navigate(`/search?q=${encodeURIComponent(trimmedSearch)}`);
+      // Important: Force refresh the page to ensure the search query is properly processed
+      // This works around an issue with the search page not always recognizing URL changes
+      window.location.href = `/search?q=${encodeURIComponent(trimmedSearch)}`;
       setShowSuggestions(false);
     }
   };
@@ -215,7 +219,8 @@ export default function Navbar() {
                           variant="ghost"
                           className="w-full text-xs text-center text-primary hover:text-primary hover:bg-accent/50"
                           onClick={() => {
-                            navigate(`/search?q=${encodeURIComponent(search)}`);
+                            const trimmedSearch = search.trim();
+                            window.location.href = `/search?q=${encodeURIComponent(trimmedSearch)}`;
                             setShowSuggestions(false);
                           }}
                         >
