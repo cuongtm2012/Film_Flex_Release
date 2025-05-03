@@ -21,6 +21,15 @@ export default function SearchPage() {
   const [selectedCategorySlug, setSelectedCategorySlug] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState(initialQuery); // Actual search term to be used for API calls
   
+  // Ensure we refresh the search when URL changes
+  useEffect(() => {
+    const newQuery = (searchParams.get("q") || "").trim();
+    if (newQuery !== query) {
+      setQuery(newQuery);
+      setSearchTerm(newQuery);
+    }
+  }, [location]);
+  
   // Reset to page 1 when query or category changes
   useEffect(() => {
     setCurrentPage(1);
@@ -131,7 +140,7 @@ export default function SearchPage() {
                     `Search results for "${searchTerm}"`
                   )}
                 </h2>
-                <p className="text-muted-foreground">
+                <div className="text-muted-foreground">
                   {isLoading ? (
                     <Skeleton className="h-5 w-32" />
                   ) : searchResults && searchResults.pagination ? (
@@ -139,7 +148,7 @@ export default function SearchPage() {
                   ) : (
                     "Found 0 results"
                   )}
-                </p>
+                </div>
               </div>
               
               {isLoading ? (

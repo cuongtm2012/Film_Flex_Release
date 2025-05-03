@@ -196,11 +196,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Search movies
   app.get("/api/search", async (req: Request, res: Response) => {
     try {
-      const keyword = req.query.q as string;
+      // Ensure no trailing spaces in the search keyword
+      const keyword = (req.query.q as string || "").trim();
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 50; // Default to 50 items per page
       
-      if (!keyword || keyword.trim() === "") {
+      console.log(`Searching for "${keyword}" in page ${page} with limit ${limit}`);
+      
+      if (!keyword) {
+        console.log("Empty search term received, returning empty results");
         return res.json({
           status: true,
           items: [],
@@ -226,18 +230,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
       }
       
+      console.log(`Combined search returned ${searchResults.pagination.totalItems} total results, showing ${searchResults.items.length} items for page ${page}`);
       res.json(searchResults);
     } catch (error) {
       console.error("Error searching movies:", error);
       // Return empty results with proper status instead of error
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 50;
+      
       res.json({
         status: true,
         items: [],
         pagination: {
           totalItems: 0,
           totalPages: 0,
-          currentPage: page || 1,
-          totalItemsPerPage: limit || 50
+          currentPage: page,
+          totalItemsPerPage: limit
         }
       });
     }
