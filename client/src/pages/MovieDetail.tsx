@@ -42,6 +42,9 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
   // State for selected server and episode
   const [selectedServer, setSelectedServer] = useState("");
   const [selectedEpisode, setSelectedEpisode] = useState("");
+  const [isEpisodeLoading, setIsEpisodeLoading] = useState(false);
+  const [isEpisodeSwitching, setIsEpisodeSwitching] = useState(false);
+  const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
   
   // Fetch movie details
   const { 
@@ -113,15 +116,59 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
     }
   };
   
-  // Handle episode selection
+  // Handle episode selection with debounce to prevent rapid clicks
   const handleEpisodeSelect = (episodeSlug: string) => {
-    setSelectedEpisode(episodeSlug);
+    // Prevent repeated rapid clicks
+    if (isEpisodeSwitching || episodeSlug === selectedEpisode) {
+      return;
+    }
+
+    // Set episode switching flags
+    setIsEpisodeSwitching(true);
+    setIsEpisodeLoading(true);
+    
+    // Get episode name/number for notification
+    const currentEpisodeList = getCurrentEpisodeList();
+    const selectedEpisodeObj = currentEpisodeList.find(ep => ep.slug === episodeSlug);
+    let episodeLabel = "episode";
+    
+    if (selectedEpisodeObj) {
+      const episodeName = selectedEpisodeObj.name;
+      const episodeMatch = episodeName.match(/\d+/);
+      if (episodeMatch) {
+        episodeLabel = `Episode ${episodeMatch[0]}`;
+      }
+    }
+    
+    // Show loading notification
+    toast({
+      title: `Loading ${episodeLabel}...`,
+      description: "Please wait while we prepare your video",
+    });
     
     // Scroll to video player section
     document.getElementById('video-player')?.scrollIntoView({ 
       behavior: 'smooth', 
       block: 'start'
     });
+    
+    // Set the selected episode with a slight delay to simulate loading
+    setTimeout(() => {
+      setSelectedEpisode(episodeSlug);
+      
+      // Show now playing notification after a short delay
+      setTimeout(() => {
+        setIsEpisodeSwitching(false);
+        setIsEpisodeLoading(false);
+        setCurrentlyPlaying(episodeLabel);
+        
+        toast({
+          title: `Now playing ${episodeLabel}`,
+          description: "Video loaded successfully",
+          variant: "default"
+        });
+      }, 1000);
+    }, 800);
   };
   
   // Find current embed URL
@@ -208,17 +255,40 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
           <div className="lg:col-span-7">
             {/* Main Video Player */}
             <div className="mb-6 relative z-10 shadow-xl border border-gray-800 bg-black rounded-md overflow-hidden">
-              <VideoPlayer 
-                embedUrl={getCurrentEmbedUrl()}
-                isLoading={isMovieLoading || !selectedEpisode}
-                onError={(error) => {
-                  toast({
-                    title: "Error",
-                    description: "Failed to load video player. Please try another server or episode.",
-                    variant: "destructive"
-                  });
-                }}
-              />
+              {/* Now Playing Indicator */}
+              {currentlyPlaying && (
+                <div className="absolute top-4 right-4 z-10 bg-black/80 px-3 py-1.5 rounded-full text-sm font-medium border border-primary/30 text-primary flex items-center animate-fadeIn">
+                  <Play className="h-3.5 w-3.5 mr-1.5 animate-pulseOpacity" />
+                  {currentlyPlaying}
+                </div>
+              )}
+              
+              {/* Loading Overlay */}
+              {isEpisodeLoading && (
+                <div className="absolute inset-0 bg-black/80 z-20 flex flex-col items-center justify-center animate-fadeIn">
+                  <Loader2 className="h-12 w-12 text-primary animate-spin mb-3" />
+                  <p className="text-white font-medium">Loading video...</p>
+                  <div className="mt-6 w-64 h-1 bg-gray-800 rounded-full overflow-hidden">
+                    <div className="h-full bg-primary rounded-full animate-pulse w-1/2"></div>
+                  </div>
+                </div>
+              )}
+              
+              <div className={`transition-opacity duration-500 ${isEpisodeSwitching ? 'opacity-30' : 'opacity-100'}`}>
+                <VideoPlayer 
+                  embedUrl={getCurrentEmbedUrl()}
+                  isLoading={isMovieLoading || !selectedEpisode}
+                  onError={(error) => {
+                    setIsEpisodeLoading(false);
+                    setIsEpisodeSwitching(false);
+                    toast({
+                      title: "Error",
+                      description: "Failed to load video player. Please try another server or episode.",
+                      variant: "destructive"
+                    });
+                  }}
+                />
+              </div>
             </div>
             
             {/* Action Buttons */}
@@ -339,15 +409,24 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
                           <Button
                             key={episode.slug}
                             variant={selectedEpisode === episode.slug ? "default" : "outline"}
-                            className={`p-3 rounded text-center transition ${
+                            className={`p-3 rounded text-center transition relative ${
                               selectedEpisode === episode.slug ? "bg-primary hover:bg-primary/90" : "bg-muted hover:bg-primary/80"
                             }`}
                             onClick={() => handleEpisodeSelect(episode.slug)}
+                            disabled={isEpisodeSwitching || (isEpisodeLoading && selectedEpisode !== episode.slug)}
                           >
+                            {isEpisodeSwitching && selectedEpisode === episode.slug && (
+                              <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded z-10">
+                                <Loader2 className="h-5 w-5 text-white animate-spin" />
+                              </div>
+                            )}
                             <span className="block font-medium">Ep {episodeNumber}</span>
                             <span className="text-xs text-muted-foreground truncate">
                               {episode.filename?.substring(0, 10) || episodeName}
                             </span>
+                            {currentlyPlaying && currentlyPlaying.includes(episodeNumber.toString()) && (
+                              <div className="absolute -top-1 -right-1 bg-primary h-2 w-2 rounded-full"></div>
+                            )}
                           </Button>
                         );
                       })}
