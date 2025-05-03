@@ -12,6 +12,11 @@ export default function Home() {
   const [sortBy, setSortBy] = useState("latest");
   const [limit, setLimit] = useState(50); // Default to 50 items per page per requirements
 
+  // Determine the API endpoint based on category selection
+  const endpoint = selectedCategory === 'all' 
+    ? '/api/movies' 
+    : `/api/categories/${selectedCategory}`;
+  
   // Fetch movie list with category filtering and pagination
   const {
     data: moviesData,
@@ -19,8 +24,8 @@ export default function Home() {
     isError: isMoviesError,
   } = useQuery<MovieListResponse>({
     queryKey: [
-      `/api/movies`,
-      { page: currentPage, category: selectedCategory, sort: sortBy, limit },
+      endpoint,
+      { page: currentPage, sort: sortBy, limit },
     ],
   });
 
@@ -65,8 +70,11 @@ export default function Home() {
 
   // Handle category selection
   const handleCategorySelect = (categorySlug: string) => {
-    setSelectedCategory(categorySlug);
-    setCurrentPage(1);
+    // Reset to page 1 when changing categories
+    if (selectedCategory !== categorySlug) {
+      setSelectedCategory(categorySlug);
+      setCurrentPage(1);
+    }
   };
 
   // Handle sort change
