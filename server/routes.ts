@@ -14,6 +14,7 @@ import {
   searchMovies, 
   fetchMoviesByCategory,
   fetchMoviesByCountry,
+  fetchRecommendedMovies,
   convertToMovieModel,
   convertToEpisodeModels,
   type MovieListResponse
