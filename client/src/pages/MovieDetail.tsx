@@ -469,7 +469,7 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
                                   <div className="flex items-center mt-1 text-muted-foreground gap-2">
                                     <div className="flex items-center">
                                       <Clock className="h-3 w-3 mr-1" />
-                                      <span>{episode.linkEmbed?.includes('full') ? '90 min' : '45 min'}</span>
+                                      <span>{episode.link_embed?.includes('full') ? '90 min' : '45 min'}</span>
                                     </div>
                                     <div className="flex items-center">
                                       <Info className="h-3 w-3 mr-1" />
