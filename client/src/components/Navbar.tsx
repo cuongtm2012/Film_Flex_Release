@@ -84,9 +84,9 @@ export default function Navbar() {
     e.preventDefault();
     if (search.trim()) {
       const trimmedSearch = search.trim();
+      // Set both the history state and directly navigate to ensure consistency
       navigate(`/search?q=${encodeURIComponent(trimmedSearch)}`);
-      // Important: Force refresh the page to ensure the search query is properly processed
-      // This works around an issue with the search page not always recognizing URL changes
+      // Force a reload to ensure consistent behavior with the main search
       window.location.href = `/search?q=${encodeURIComponent(trimmedSearch)}`;
       setShowSuggestions(false);
     }
