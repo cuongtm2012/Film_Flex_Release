@@ -170,6 +170,7 @@ export async function fetchMoviesByCategory(categorySlug: string, page: number =
     
     try {
       // Fetch one page first to check if the category exists
+      // Note: We've updated the URL to use the correct category endpoint based on the actual API
       console.log(`Checking if category ${categorySlug} exists by fetching page 1`);
       const testResponse = await fetch(`${API_BASE_URL}/the-loai/${categorySlug}?page=1`);
       

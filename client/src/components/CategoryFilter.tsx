@@ -22,20 +22,20 @@ export default function CategoryFilter({
   onSelectCategory,
   isLoading = false 
 }: CategoryFilterProps) {
-  // Default categories based on API compatibility - phimapi.com has specific category slugs
+  // Default categories based on the actual API format according to the data provided
   const defaultCategories = [
     { id: "all", name: "All", slug: "all" },
-    { id: "phim-hanh-dong", name: "Action", slug: "phim-hanh-dong" },
-    { id: "phim-hai-huoc", name: "Comedy", slug: "phim-hai-huoc" },
-    { id: "phim-tinh-cam", name: "Romance", slug: "phim-tinh-cam" },
-    { id: "phim-co-trang", name: "Historical", slug: "phim-co-trang" },
-    { id: "phim-tam-ly", name: "Drama", slug: "phim-tam-ly" },
-    { id: "phim-than-thoai", name: "Mythology", slug: "phim-than-thoai" },
-    { id: "phim-chien-tranh", name: "War", slug: "phim-chien-tranh" },
-    { id: "phim-hinh-su", name: "Crime", slug: "phim-hinh-su" },
-    { id: "phim-kinh-di", name: "Horror", slug: "phim-kinh-di" },
-    { id: "phim-vien-tuong", name: "Sci-Fi", slug: "phim-vien-tuong" },
-    { id: "phim-phieu-luu", name: "Adventure", slug: "phim-phieu-luu" }
+    { id: "hanh-dong", name: "Hành Động", slug: "hanh-dong" },
+    { id: "hai-huoc", name: "Hài Hước", slug: "hai-huoc" },
+    { id: "tinh-cam", name: "Tình Cảm", slug: "tinh-cam" },
+    { id: "co-trang", name: "Cổ Trang", slug: "co-trang" },
+    { id: "tam-ly", name: "Tâm Lý", slug: "tam-ly" },
+    { id: "than-thoai", name: "Thần Thoại", slug: "than-thoai" },
+    { id: "chien-tranh", name: "Chiến Tranh", slug: "chien-tranh" },
+    { id: "hinh-su", name: "Hình Sự", slug: "hinh-su" },
+    { id: "kinh-di", name: "Kinh Dị", slug: "kinh-di" },
+    { id: "vien-tuong", name: "Viễn Tưởng", slug: "vien-tuong" },
+    { id: "phieu-luu", name: "Phiêu Lưu", slug: "phieu-luu" }
   ];
 
   const displayCategories = categories.length > 0 ? categories : defaultCategories;
