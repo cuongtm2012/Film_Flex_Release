@@ -93,8 +93,10 @@ export interface IStorage {
   // Cache methods
   cacheMovieList(data: MovieListResponse, page: number): Promise<void>;
   cacheMovieDetail(data: MovieDetailResponse): Promise<void>;
-  getMovieListCache(page: number): Promise<MovieListResponse | undefined>;
-  getMovieDetailCache(slug: string): Promise<MovieDetailResponse | undefined>;
+  cacheMovieCategory(data: MovieListResponse, categorySlug: string, page: number): Promise<void>;
+  getMovieListCache(page: number): Promise<MovieListResponse | null>;
+  getMovieDetailCache(slug: string): Promise<MovieDetailResponse | null>;
+  getMovieCategoryCache(categorySlug: string, page: number): Promise<MovieListResponse | null>;
   
   // Session store for authentication
   sessionStore: session.Store;
@@ -377,6 +379,9 @@ export class MemStorage implements IStorage {
   }
   
   // Cache methods
+  private movieCategoryCache = new Map<string, MovieListResponse>();
+  private readonly API_CACHE_TTL = 5 * 60 * 1000; // 5 minutes in milliseconds
+  
   async cacheMovieList(data: MovieListResponse, page: number): Promise<void> {
     this.movieListCache.set(page, data);
   }
@@ -385,12 +390,25 @@ export class MemStorage implements IStorage {
     this.movieDetailCache.set(data.movie.slug, data);
   }
   
-  async getMovieListCache(page: number): Promise<MovieListResponse | undefined> {
-    return this.movieListCache.get(page);
+  async cacheMovieCategory(data: MovieListResponse, categorySlug: string, page: number): Promise<void> {
+    const key = `${categorySlug}_${page}`;
+    this.movieCategoryCache.set(key, data);
   }
   
-  async getMovieDetailCache(slug: string): Promise<MovieDetailResponse | undefined> {
-    return this.movieDetailCache.get(slug);
+  async getMovieListCache(page: number): Promise<MovieListResponse | null> {
+    const cached = this.movieListCache.get(page);
+    return cached || null;
+  }
+  
+  async getMovieDetailCache(slug: string): Promise<MovieDetailResponse | null> {
+    const cached = this.movieDetailCache.get(slug);
+    return cached || null;
+  }
+  
+  async getMovieCategoryCache(categorySlug: string, page: number): Promise<MovieListResponse | null> {
+    const key = `${categorySlug}_${page}`;
+    const cached = this.movieCategoryCache.get(key);
+    return cached || null;
   }
   
   // Role methods
@@ -1020,23 +1038,48 @@ export class DatabaseStorage implements IStorage {
   // Cache methods
   // For database implementation, we'll still cache in memory for now
   // In a production environment, we might want to use Redis or another caching solution
-  private movieListCache = new Map<number, MovieListResponse>();
-  private movieDetailCache = new Map<string, MovieDetailResponse>();
+  private movieListCache = new Map<number, {data: MovieListResponse, timestamp: number}>();
+  private movieDetailCache = new Map<string, {data: MovieDetailResponse, timestamp: number}>();
+  private movieCategoryCache = new Map<string, {data: MovieListResponse, timestamp: number}>();
+  
+  private readonly API_CACHE_TTL = 5 * 60 * 1000; // 5 minutes in milliseconds
   
   async cacheMovieList(data: MovieListResponse, page: number): Promise<void> {
-    this.movieListCache.set(page, data);
+    this.movieListCache.set(page, {data, timestamp: Date.now()});
   }
   
   async cacheMovieDetail(data: MovieDetailResponse): Promise<void> {
-    this.movieDetailCache.set(data.movie.slug, data);
+    this.movieDetailCache.set(data.movie.slug, {data, timestamp: Date.now()});
   }
   
-  async getMovieListCache(page: number): Promise<MovieListResponse | undefined> {
-    return this.movieListCache.get(page);
+  async cacheMovieCategory(data: MovieListResponse, categorySlug: string, page: number): Promise<void> {
+    const key = `${categorySlug}_${page}`;
+    this.movieCategoryCache.set(key, {data, timestamp: Date.now()});
   }
   
-  async getMovieDetailCache(slug: string): Promise<MovieDetailResponse | undefined> {
-    return this.movieDetailCache.get(slug);
+  async getMovieListCache(page: number): Promise<MovieListResponse | null> {
+    const cached = this.movieListCache.get(page);
+    if (cached && (Date.now() - cached.timestamp) < this.API_CACHE_TTL) {
+      return cached.data;
+    }
+    return null;
+  }
+  
+  async getMovieDetailCache(slug: string): Promise<MovieDetailResponse | null> {
+    const cached = this.movieDetailCache.get(slug);
+    if (cached && (Date.now() - cached.timestamp) < this.API_CACHE_TTL) {
+      return cached.data;
+    }
+    return null;
+  }
+  
+  async getMovieCategoryCache(categorySlug: string, page: number): Promise<MovieListResponse | null> {
+    const key = `${categorySlug}_${page}`;
+    const cached = this.movieCategoryCache.get(key);
+    if (cached && (Date.now() - cached.timestamp) < this.API_CACHE_TTL) {
+      return cached.data;
+    }
+    return null;
   }
 
   // Role methods

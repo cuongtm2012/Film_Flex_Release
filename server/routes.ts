@@ -66,7 +66,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Ensure we return the proper pagination data
-      const totalItems = movieListData.total || movieListData.items.length;
+      const totalItems = movieListData.items?.length || 0;
       const totalPages = Math.ceil(totalItems / limit);
       
       // Add pagination info if not present
@@ -75,7 +75,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           totalItems,
           totalPages, 
           currentPage: page,
-          itemsPerPage: limit
+          totalItemsPerPage: limit
         };
       }
       

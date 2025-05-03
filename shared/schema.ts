@@ -423,8 +423,10 @@ export type MovieListItem = {
 };
 
 export type MovieListResponse = {
+  status?: boolean;
   items: MovieListItem[];
-  pagination: {
+  total?: number;
+  pagination?: {
     totalItems: number;
     totalPages: number;
     currentPage: number;
