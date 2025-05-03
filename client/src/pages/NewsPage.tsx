@@ -245,7 +245,7 @@ export default function NewsPage() {
             ))
           ) : (
             // Movie cards
-            popularMovies?.items.slice(0, 10).map((movie, idx) => (
+            popularMovies?.items.slice(0, 10).map((movie: any, idx: number) => (
               <div key={idx} className="overflow-hidden rounded-lg">
                 <div className="relative group cursor-pointer">
                   <img 
