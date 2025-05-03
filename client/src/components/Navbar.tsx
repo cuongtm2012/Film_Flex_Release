@@ -174,53 +174,61 @@ export default function Navbar() {
               </form>
 
               {/* Search Suggestions */}
-              {showSuggestions && suggestions && suggestions.items && suggestions.items.length > 0 && (
+              {showSuggestions && debouncedSearch.length >= 2 && (
                 <div className="absolute top-full left-0 w-full mt-1 bg-background border border-border rounded-md shadow-lg z-50 max-h-[300px] overflow-y-auto">
-                  {suggestions.items.map((suggestion: SearchSuggestion) => (
-                    <Link
-                      key={suggestion._id}
-                      to={`/movie/${suggestion.slug}`}
-                      onClick={() => {
-                        setSearch(suggestion.name);
-                        setShowSuggestions(false);
-                      }}
-                      className="flex items-center p-2 hover:bg-accent/50 transition-colors"
-                    >
-                      {suggestion.thumb_url && (
-                        <div className="w-10 h-14 overflow-hidden rounded mr-3 flex-shrink-0">
-                          <img
-                            src={suggestion.thumb_url}
-                            alt={suggestion.name}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).src = '/images/placeholder.jpg';
-                            }}
-                          />
-                        </div>
-                      )}
-                      <div className="flex-1 overflow-hidden">
-                        <div className="font-medium text-sm text-white truncate">{suggestion.name}</div>
-                        <div className="text-xs text-muted-foreground truncate">
-                          {suggestion.origin_name} • {suggestion.type === 'single' ? 'Movie' : 'TV Series'}
-                        </div>
+                  {suggestions && suggestions.items && suggestions.items.length > 0 ? (
+                    <>
+                      {suggestions.items.map((suggestion: SearchSuggestion) => (
+                        <Link
+                          key={suggestion._id}
+                          to={`/movie/${suggestion.slug}`}
+                          onClick={() => {
+                            setSearch(suggestion.name);
+                            setShowSuggestions(false);
+                          }}
+                          className="flex items-center p-2 hover:bg-accent/50 transition-colors"
+                        >
+                          {suggestion.thumb_url && (
+                            <div className="w-10 h-14 overflow-hidden rounded mr-3 flex-shrink-0">
+                              <img
+                                src={suggestion.thumb_url}
+                                alt={suggestion.name}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).src = '/images/placeholder.jpg';
+                                }}
+                              />
+                            </div>
+                          )}
+                          <div className="flex-1 overflow-hidden">
+                            <div className="font-medium text-sm text-white truncate">{suggestion.name}</div>
+                            <div className="text-xs text-muted-foreground truncate">
+                              {suggestion.origin_name} • {suggestion.type === 'single' ? 'Movie' : 'TV Series'}
+                            </div>
+                          </div>
+                        </Link>
+                      ))}
+                      
+                      {/* View all results button */}
+                      <div className="p-2 border-t border-border">
+                        <Button
+                          variant="ghost"
+                          className="w-full text-xs text-center text-primary hover:text-primary hover:bg-accent/50"
+                          onClick={() => {
+                            navigate(`/search?q=${encodeURIComponent(search)}`);
+                            setShowSuggestions(false);
+                          }}
+                        >
+                          <span>View all results</span>
+                          <ChevronRight className="ml-1 h-3 w-3" />
+                        </Button>
                       </div>
-                    </Link>
-                  ))}
-                  
-                  {/* View all results button */}
-                  <div className="p-2 border-t border-border">
-                    <Button
-                      variant="ghost"
-                      className="w-full text-xs text-center text-primary hover:text-primary hover:bg-accent/50"
-                      onClick={() => {
-                        navigate(`/search?q=${encodeURIComponent(search)}`);
-                        setShowSuggestions(false);
-                      }}
-                    >
-                      <span>View all results</span>
-                      <ChevronRight className="ml-1 h-3 w-3" />
-                    </Button>
-                  </div>
+                    </>
+                  ) : (
+                    <div className="p-4 text-center text-muted-foreground">
+                      <p>No results found for "{debouncedSearch}"</p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

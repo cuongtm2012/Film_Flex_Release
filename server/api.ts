@@ -92,8 +92,21 @@ export async function fetchMovieDetail(slug: string): Promise<MovieDetailRespons
 }
 
 export async function searchMovies(keyword: string, page: number = 1, limit: number = 50): Promise<MovieListResponse> {
+  if (!keyword || keyword.trim() === "") {
+    return { 
+      status: true, 
+      items: [], 
+      pagination: { 
+        totalPages: 0, 
+        totalItems: 0, 
+        currentPage: page, 
+        totalItemsPerPage: limit 
+      } 
+    };
+  }
+  
   try {
-    const encodedKeyword = encodeURIComponent(keyword);
+    const encodedKeyword = encodeURIComponent(keyword.trim());
     
     // The external API returns ~10 items per page, but we want to show 50 items per page
     const pagesNeeded = Math.ceil(limit / 10); // 10 is the number of items per page from external API
@@ -105,15 +118,20 @@ export async function searchMovies(keyword: string, page: number = 1, limit: num
       const apiPage = startPage + i;
       fetchPromises.push(
         fetch(`${API_BASE_URL}/tim-kiem?keyword=${encodedKeyword}&page=${apiPage}`)
-          .then(response => {
+          .then(async response => {
             if (!response.ok) {
-              throw new Error(`API responded with status: ${response.status}`);
+              console.warn(`Search API responded with status: ${response.status} for keyword "${keyword}" on page ${apiPage}`);
+              return { status: false, items: [] } as MovieListResponse;
             }
-            return response.json() as Promise<MovieListResponse>;
+            try {
+              return await response.json() as MovieListResponse;
+            } catch (err) {
+              console.error(`Error parsing JSON for search page ${apiPage}:`, err);
+              return { status: false, items: [] } as MovieListResponse;
+            }
           })
           .catch(err => {
             console.error(`Error fetching search page ${apiPage}:`, err);
-            // Return an empty response for this page if it fails
             return { status: false, items: [] } as MovieListResponse;
           })
       );
@@ -124,6 +142,20 @@ export async function searchMovies(keyword: string, page: number = 1, limit: num
     
     // Combine the items from all pages
     const allItems = pagesData.flatMap(data => data.items || []);
+    
+    // If no results were found in any page
+    if (allItems.length === 0) {
+      return { 
+        status: true, 
+        items: [], 
+        pagination: { 
+          totalPages: 0, 
+          totalItems: 0, 
+          currentPage: page, 
+          totalItemsPerPage: limit 
+        } 
+      };
+    }
     
     // Calculate total items based on the first page's pagination data (if available)
     const firstPagePagination = pagesData[0]?.pagination;
@@ -147,7 +179,17 @@ export async function searchMovies(keyword: string, page: number = 1, limit: num
     return combinedResponse;
   } catch (error) {
     console.error(`Error searching movies with keyword: ${keyword}`, error);
-    throw error;
+    // Return empty results instead of throwing an error
+    return { 
+      status: true, 
+      items: [], 
+      pagination: { 
+        totalPages: 0, 
+        totalItems: 0, 
+        currentPage: page, 
+        totalItemsPerPage: limit 
+      } 
+    };
   }
 }
 

@@ -165,7 +165,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const keyword = req.query.q as string;
       
       if (!keyword || keyword.trim() === "") {
-        return res.json({ items: [] });
+        return res.json({ items: [], status: true });
       }
       
       // For suggestions, we always use a small limit (max 8 results)
@@ -178,7 +178,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error("Error fetching search suggestions:", error);
-      return res.status(500).json({ message: "Failed to fetch search suggestions" });
+      // Always return a valid response object even on error
+      return res.json({ items: [], status: true });
     }
   });
 
@@ -190,7 +191,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const limit = parseInt(req.query.limit as string) || 50; // Default to 50 items per page
       
       if (!keyword || keyword.trim() === "") {
-        return res.status(400).json({ message: "Search keyword is required" });
+        return res.json({
+          status: true,
+          items: [],
+          pagination: {
+            totalItems: 0,
+            totalPages: 0,
+            currentPage: page,
+            totalItemsPerPage: limit
+          }
+        });
       }
       
       const searchResults = await searchMovies(keyword, page, limit);
@@ -209,7 +219,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(searchResults);
     } catch (error) {
       console.error("Error searching movies:", error);
-      res.status(500).json({ message: "Failed to search movies" });
+      // Return empty results with proper status instead of error
+      res.json({
+        status: true,
+        items: [],
+        pagination: {
+          totalItems: 0,
+          totalPages: 0,
+          currentPage: page || 1,
+          totalItemsPerPage: limit || 50
+        }
+      });
     }
   });
   
