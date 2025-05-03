@@ -9,12 +9,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Info } from "lucide-react";
 
 interface MovieGridProps {
   title?: string;
   movies: MovieListItem[];
   currentPage: number;
   totalPages: number;
+  totalItems?: number;
+  itemsPerPage?: number;
   onPageChange: (page: number) => void;
   onSortChange?: (sortBy: string) => void;
   isLoading?: boolean;
@@ -25,6 +28,8 @@ export default function MovieGrid({
   movies,
   currentPage,
   totalPages,
+  totalItems = 0,
+  itemsPerPage = 50,
   onPageChange,
   onSortChange,
   isLoading = false,
@@ -89,6 +94,18 @@ export default function MovieGrid({
             {movies.map((movie) => (
               <MovieCard key={movie._id} movie={movie} />
             ))}
+          </div>
+
+          <div className="flex items-center justify-between mt-6 mb-2 text-sm text-muted-foreground">
+            <div className="flex items-center gap-1">
+              <Info className="h-4 w-4" />
+              <span>
+                Showing {movies.length > 0 ? ((currentPage - 1) * itemsPerPage) + 1 : 0} - {Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems} items
+              </span>
+            </div>
+            <div>
+              <span>Page {currentPage} of {totalPages}</span>
+            </div>
           </div>
 
           <Pagination
