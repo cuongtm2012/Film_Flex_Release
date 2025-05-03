@@ -7,7 +7,8 @@ import {
   Share2, 
   Star, 
   AlertCircle,
-  Loader2 
+  Loader2,
+  Search
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
@@ -220,7 +221,7 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
               />
             </div>
             
-            {/* Video Controls and Action Buttons */}
+            {/* Action Buttons */}
             <div className="flex flex-wrap gap-4 mb-6">
               <Button 
                 variant="outline" 
@@ -298,7 +299,7 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
               <div className="p-4 border-b border-gray-800">
                 <h3 className="text-lg font-bold flex items-center">
                   <Play className="mr-2 h-5 w-5 text-primary" />
-                  {isSingleEpisode() ? `Full Movie` : (movie.type === "series" ? "Episodes" : "Parts")}
+                  {isSingleEpisode() ? "Full Movie" : (movie.type === "series" ? "Episodes" : "Parts")}
                   {isSingleEpisode() && (
                     <Badge variant="outline" className="ml-2 bg-primary/10">Full Movie</Badge>
                   )}
@@ -317,15 +318,7 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
                           placeholder="Search episodes..." 
                           className="w-full bg-black/40 border border-gray-700 rounded-md py-2 px-3 text-sm"
                         />
-                        <svg 
-                          xmlns="http://www.w3.org/2000/svg" 
-                          className="h-4 w-4 absolute right-3 top-2.5 text-muted-foreground" 
-                          fill="none" 
-                          viewBox="0 0 24 24" 
-                          stroke="currentColor"
-                        >
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
+                        <Search className="h-4 w-4 absolute right-3 top-2.5 text-muted-foreground" />
                       </div>
                     </div>
                   )}
@@ -432,7 +425,7 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
       
       <div className="container mx-auto px-4">
         {/* Movie Meta */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 mb-8 mt-8">
           <div className="lg:col-span-3">
             <div>
               <h2 className="text-2xl font-bold mb-2">{movie.name}</h2>
@@ -471,7 +464,7 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
             </div>
             
             <div className="mb-6">
-              <h3 className="text-xl font-bold mb-3">{movie.origin_name || 'Overview'}</h3>
+              <h3 className="text-xl font-bold mb-3">Overview</h3>
               <p className="text-muted-foreground">
                 {movie.content || 'No description available'}
               </p>
@@ -541,85 +534,9 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
         
         <Separator className="my-6" />
         
-        {/* Server Selection & Episodes */}
-        <div id="video-player" className="mb-10 scroll-mt-20 bg-gray-900 rounded-xl p-6 border border-gray-800">
-          <h3 className="text-2xl font-bold mb-4 flex items-center">
-            <Play className="mr-2 h-5 w-5 text-primary" />
-            {isSingleEpisode() ? `Watch Full Movie: ${movie.name}` : `Watch "${movie.name}"`}
-            {isSingleEpisode() && (
-              <Badge variant="outline" className="ml-2 bg-primary/10">Full Movie</Badge>
-            )}
-          </h3>
-          
-          {/* No video player here - it's in the main section above */}
-          
-          {/* Only show server tabs if there are multiple servers */}
-          {movieDetail.episodes.length > 1 && (
-            <div className="mt-4 mb-6">
-              <h4 className="text-sm font-medium mb-2 text-muted-foreground">Available Servers</h4>
-              <div className="bg-black/40 p-3 rounded-md border border-gray-800">
-                <ServerTabs 
-                  servers={episodes} 
-                  onServerSelect={handleServerSelect}
-                  isLoading={isMovieLoading}
-                />
-              </div>
-            </div>
-          )}
-          
-          {/* Episodes Section - Only show if not a single episode movie */}
-          {!isSingleEpisode() && (
-            <div className="mb-6 mt-6 bg-black/40 p-4 rounded-md border border-gray-800">
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="font-bold flex items-center">
-                  <span className="text-primary mr-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect>
-                      <line x1="7" y1="2" x2="7" y2="22"></line>
-                      <line x1="17" y1="2" x2="17" y2="22"></line>
-                      <line x1="2" y1="12" x2="22" y2="12"></line>
-                      <line x1="2" y1="7" x2="7" y2="7"></line>
-                      <line x1="2" y1="17" x2="7" y2="17"></line>
-                      <line x1="17" y1="17" x2="22" y2="17"></line>
-                      <line x1="17" y1="7" x2="22" y2="7"></line>
-                    </svg>
-                  </span>
-                  {movie.type === "series" ? "Episodes" : "Parts"}
-                </h4>
-                
-                {/* Only show pagination controls if there are many episodes */}
-                {getCurrentEpisodeList().length > 10 && (
-                  <div className="flex items-center">
-                    <Select defaultValue="20">
-                      <SelectTrigger className="w-[110px] h-8 bg-black/30 text-xs">
-                        <SelectValue placeholder="Per page" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-background/90 backdrop-blur-sm">
-                        <SelectGroup>
-                          <SelectItem value="10">10 per page</SelectItem>
-                          <SelectItem value="20">20 per page</SelectItem>
-                          <SelectItem value="50">50 per page</SelectItem>
-                        </SelectGroup>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-              </div>
-              
-              {/* Episodes List with better visibility */}
-              <div className="border-t border-gray-800 pt-3">
-                <EpisodeList 
-                  episodes={getCurrentEpisodeList()}
-                  activeEpisode={selectedEpisode}
-                  onSelectEpisode={handleEpisodeSelect}
-                  isLoading={isMovieLoading}
-                />
-              </div>
-            </div>
-          )}
-          
-          {/* Comments Section */}
-          <div className="mt-10">
+        {/* Comments Section */}
+        <div className="container mx-auto px-4 mb-10">
+          <div className="bg-gray-900 rounded-xl p-6 border border-gray-800">
             <h3 className="text-xl font-bold mb-4 flex items-center">
               <span className="text-primary mr-2">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -656,150 +573,50 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
             </div>
             
             {/* Comment List */}
-            <div className="space-y-6">
-              {commentsData?.data && commentsData.data.length > 0 ? (
-                commentsData.data.map((comment) => (
-                  <div key={comment.id} className="flex gap-3">
-                    <div className="w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center text-white flex-shrink-0">
-                      {'U'}
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex justify-between items-start">
+            {commentsData && commentsData.data.length > 0 ? (
+              <div className="space-y-4">
+                {commentsData.data.map((comment) => (
+                  <div key={comment.id} className="bg-black/20 rounded-md p-4 border border-muted/30">
+                    <div className="flex justify-between mb-2">
+                      <div className="flex items-center">
+                        <div className="w-8 h-8 bg-primary/20 rounded-full flex items-center justify-center text-white mr-2">
+                          {comment.user?.username?.substring(0, 1) || "A"}
+                        </div>
                         <div>
-                          <h4 className="font-semibold">User #{comment.userId}</h4>
-                          <p className="text-xs text-muted-foreground">{new Date(comment.createdAt).toLocaleDateString()}</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-white">
-                            Reply
-                          </Button>
-                          <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-white">
-                            Report
-                          </Button>
+                          <h4 className="font-bold text-sm">{comment.user?.username || "Anonymous"}</h4>
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(comment.created_at).toLocaleDateString()}
+                          </p>
                         </div>
                       </div>
-                      <p className="mt-2 text-sm">{comment.content}</p>
-                      <div className="flex items-center gap-4 mt-2">
-                        <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-white flex items-center gap-1">
-                          <span>👍</span> {comment.likes || 0}
+                      <div className="flex items-center gap-2">
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path>
+                          </svg>
                         </Button>
-                        <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-white flex items-center gap-1">
-                          <span>👎</span> {comment.dislikes || 0}
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"></path>
+                          </svg>
                         </Button>
                       </div>
                     </div>
+                    <p className="text-sm">{comment.content}</p>
                   </div>
-                ))
-              ) : (
-                <div className="text-center py-8">
-                  <p className="text-muted-foreground">No comments yet. Be the first to leave a review!</p>
-                </div>
-              )}
-              
-              {/* Sample comments for demonstration */}
-              <div className="flex gap-3 bg-black/20 p-3 rounded-md border border-gray-800/50">
-                <div className="w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center text-white flex-shrink-0">
-                  <span className="relative">
-                    J
-                    <span className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border border-black"></span>
-                  </span>
-                </div>
-                <div className="flex-1">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h4 className="font-semibold flex items-center">
-                        John Doe 
-                        <span className="ml-1 text-xs px-1.5 py-0.5 bg-primary/20 text-primary rounded">Critic</span>
-                      </h4>
-                      <p className="text-xs text-muted-foreground">3 days ago</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-white relative group">
-                        Reply
-                        <span className="absolute -top-8 right-0 bg-black text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">Login required</span>
-                      </Button>
-                      <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-white relative group">
-                        Report
-                        <span className="absolute -top-8 right-0 bg-black text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">Login required</span>
-                      </Button>
-                    </div>
-                  </div>
-                  <p className="mt-2 text-sm">This is an amazing movie! The cinematography and acting were outstanding. I would definitely recommend it to anyone who enjoys this genre.</p>
-                  <div className="flex items-center gap-4 mt-2">
-                    <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-white flex items-center gap-1 relative group">
-                      <span>👍</span> 12
-                      <span className="absolute -top-8 left-0 bg-black text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">Login to like</span>
-                    </Button>
-                    <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-white flex items-center gap-1 relative group">
-                      <span>👎</span> 2
-                      <span className="absolute -top-8 left-0 bg-black text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">Login to dislike</span>
-                    </Button>
-                  </div>
-                </div>
+                ))}
+                
+                {commentsData.total > 5 && (
+                  <Button variant="outline" className="w-full mt-4">
+                    Load More Comments ({commentsData.total - 5} remaining)
+                  </Button>
+                )}
               </div>
-              
-              <div className="flex gap-3">
-                <div className="w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center text-white flex-shrink-0">
-                  <span className="relative">
-                    M
-                    <span className="absolute -top-1 -right-1 w-3 h-3 bg-gray-500 rounded-full border border-black"></span>
-                  </span>
-                </div>
-                <div className="flex-1">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h4 className="font-semibold">Mike Johnson</h4>
-                      <p className="text-xs text-muted-foreground">1 day ago</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-white relative group">
-                        Reply
-                        <span className="absolute -top-8 right-0 bg-black text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">Login required</span>
-                      </Button>
-                      <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-white relative group">
-                        Report
-                        <span className="absolute -top-8 right-0 bg-black text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">Login required</span>
-                      </Button>
-                    </div>
-                  </div>
-                  <p className="mt-2 text-sm">Agreed! The actors really outdid themselves on this one. The scene where [...]</p>
-                  <div className="flex items-center gap-4 mt-2">
-                    <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-white flex items-center gap-1 relative group">
-                      <span>👍</span> 5
-                      <span className="absolute -top-8 left-0 bg-black text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">Login to like</span>
-                    </Button>
-                    <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-white flex items-center gap-1 relative group">
-                      <span>👎</span> 0
-                      <span className="absolute -top-8 left-0 bg-black text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">Login to dislike</span>
-                    </Button>
-                  </div>
-                </div>
+            ) : (
+              <div className="bg-black/20 rounded-md p-8 text-center border border-muted/30">
+                <p className="text-muted-foreground">No comments yet. Be the first to comment!</p>
               </div>
-              
-              <Button variant="outline" size="sm" className="w-full text-muted-foreground mt-4 group relative">
-                <span className="flex items-center justify-center w-full">
-                  <span className="mr-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="1 4 1 10 7 10"></polyline>
-                      <polyline points="23 20 23 14 17 14"></polyline>
-                      <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path>
-                    </svg>
-                  </span>
-                  Load More Comments
-                  <span className="ml-1 text-xs">(5)</span>
-                </span>
-                <span className="absolute inset-0 overflow-hidden rounded flex items-center justify-center opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity bg-black/50">
-                  <span className="text-xs">Click to load</span>
-                </span>
-              </Button>
-              
-              {/* Pagination indicators */}
-              <div className="flex justify-center mt-4 gap-1">
-                <span className="w-6 h-1 bg-primary rounded-full"></span>
-                <span className="w-6 h-1 bg-muted rounded-full"></span>
-                <span className="w-6 h-1 bg-muted rounded-full"></span>
-              </div>
-            </div>
+            )}
           </div>
         </div>
       </div>
