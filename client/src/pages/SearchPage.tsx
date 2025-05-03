@@ -14,7 +14,7 @@ export default function SearchPage() {
   // Parse query params from URL
   const [location] = useLocation();
   const searchParams = new URLSearchParams(location.split("?")[1]);
-  const initialQuery = searchParams.get("q") || "";
+  const initialQuery = (searchParams.get("q") || "").trim();
   
   const [query, setQuery] = useState(initialQuery);
   const [currentPage, setCurrentPage] = useState(1);
