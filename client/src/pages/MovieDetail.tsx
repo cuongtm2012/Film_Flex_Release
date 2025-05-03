@@ -9,13 +9,20 @@ import {
   AlertCircle,
   Loader2,
   Search,
-  ChevronRight
+  ChevronRight,
+  ChevronLeft,
+  Clock,
+  Server,
+  Maximize,
+  Minimize,
+  ExternalLink
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Select,
   SelectContent,
