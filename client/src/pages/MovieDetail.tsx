@@ -289,6 +289,7 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
                 <VideoPlayer 
                   embedUrl={getCurrentEmbedUrl()}
                   isLoading={isMovieLoading || !selectedEpisode}
+                  duration={movie.time || "N/A"}
                   onError={(error) => {
                     setIsEpisodeLoading(false);
                     setIsEpisodeSwitching(false);
@@ -406,7 +407,7 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
                   
                   {/* Episodes Grid with scroll area */}
                   <div className="max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-                    <div className="grid grid-cols-2 sm:grid-cols-2 gap-3">
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                       {getCurrentEpisodeList().map((episode, index) => {
                         // Extract episode number for display
                         const episodeName = episode.name;
@@ -416,29 +417,60 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
                           episodeNumber = parseInt(episodeNumberMatch[0]);
                         }
                         
+                        // Extract episode duration if available
+                        const durationMatch = episode.filename?.match(/(\d+)[\s-]*min/i);
+                        const episodeDuration = durationMatch ? `${durationMatch[1]} min` : "N/A";
+                        
                         return (
-                          <Button
-                            key={episode.slug}
-                            variant={selectedEpisode === episode.slug ? "default" : "outline"}
-                            className={`p-3 rounded text-center transition relative ${
-                              selectedEpisode === episode.slug ? "bg-primary hover:bg-primary/90" : "bg-muted hover:bg-primary/80"
-                            }`}
-                            onClick={() => handleEpisodeSelect(episode.slug)}
-                            disabled={isEpisodeSwitching || (isEpisodeLoading && selectedEpisode !== episode.slug)}
-                          >
-                            {isEpisodeSwitching && selectedEpisode === episode.slug && (
-                              <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded z-10">
-                                <Loader2 className="h-5 w-5 text-white animate-spin" />
-                              </div>
-                            )}
-                            <span className="block font-medium">Ep {episodeNumber}</span>
-                            <span className="text-xs text-muted-foreground truncate">
-                              {episode.filename?.substring(0, 10) || episodeName}
-                            </span>
-                            {currentlyPlaying && currentlyPlaying.includes(episodeNumber.toString()) && (
-                              <div className="absolute -top-1 -right-1 bg-primary h-2 w-2 rounded-full"></div>
-                            )}
-                          </Button>
+                          <TooltipProvider key={episode.slug}>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant={selectedEpisode === episode.slug ? "default" : "outline"}
+                                  className={`p-2 h-auto w-full rounded text-center transition relative ${
+                                    selectedEpisode === episode.slug ? 
+                                      "bg-primary hover:bg-primary/90 border-2 border-primary-foreground" : 
+                                      "bg-muted hover:bg-primary/20"
+                                  }`}
+                                  onClick={() => handleEpisodeSelect(episode.slug)}
+                                  disabled={isEpisodeSwitching || (isEpisodeLoading && selectedEpisode !== episode.slug)}
+                                >
+                                  {isEpisodeSwitching && selectedEpisode === episode.slug && (
+                                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded z-10">
+                                      <Loader2 className="h-4 w-4 text-white animate-spin" />
+                                    </div>
+                                  )}
+                                  <div className="flex flex-col items-center justify-center">
+                                    <span className="font-medium text-sm">Ep {episodeNumber}</span>
+                                    {selectedEpisode === episode.slug && (
+                                      <div className="mt-1 flex items-center justify-center space-x-1">
+                                        <span className="h-1 w-1 rounded-full bg-current"></span>
+                                        <span className="h-1 w-1 rounded-full bg-current"></span>
+                                        <span className="h-1 w-1 rounded-full bg-current"></span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="max-w-xs">
+                                <div className="space-y-1">
+                                  <p className="font-medium">{episodeName}</p>
+                                  <div className="flex items-center gap-3 text-xs">
+                                    <div className="flex items-center gap-1">
+                                      <Clock className="h-3 w-3" />
+                                      <span>{episodeDuration}</span>
+                                    </div>
+                                    {episode.serverName && (
+                                      <div className="flex items-center gap-1">
+                                        <Server className="h-3 w-3" />
+                                        <span>{episode.serverName}</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                         );
                       })}
                     </div>
@@ -483,31 +515,82 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
               Recommended For You
             </span>
             <Link to={`/movies`} className="text-sm text-muted-foreground hover:text-primary flex items-center">
-              View More <ChevronRight className="h-4 w-4" />
+              See All <ChevronRight className="h-4 w-4" />
             </Link>
           </h3>
           
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            {isRecommendationsLoading ? (
-              // Loading placeholders
-              Array(6).fill(0).map((_, i) => (
-                <div key={i} className="animate-pulse">
-                  <div className="aspect-video bg-gray-800 rounded mb-2"></div>
-                  <div className="h-4 bg-gray-800 rounded w-3/4 mb-2"></div>
-                  <div className="h-3 bg-gray-800 rounded w-1/2"></div>
+          {/* Scrollable Recommendations Carousel */}
+          <div className="relative group">
+            {/* Previous button */}
+            <button
+              className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-black/70 rounded-full p-2 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300 transform -translate-x-1/2 hover:bg-black"
+              onClick={() => {
+                const carousel = document.querySelector('.recommendations-carousel');
+                if (carousel) {
+                  carousel.scrollBy({ left: -carousel.clientWidth / 2, behavior: 'smooth' });
+                }
+              }}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            
+            {/* Scrollable content */}
+            <div
+              className="recommendations-carousel flex overflow-x-auto space-x-4 pb-4 custom-scrollbar snap-x snap-mandatory scrollbar-hide"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
+              {isRecommendationsLoading ? (
+                // Loading placeholders
+                Array(8).fill(0).map((_, i) => (
+                  <div key={i} className="animate-pulse flex-none w-[180px] md:w-[200px] snap-start">
+                    <div className="aspect-[2/3] bg-gray-800 rounded-md mb-2"></div>
+                    <div className="h-4 bg-gray-800 rounded w-3/4 mb-2"></div>
+                    <div className="h-3 bg-gray-800 rounded w-1/2"></div>
+                  </div>
+                ))
+              ) : recommendationsData?.items && recommendationsData.items.length > 0 ? (
+                // Display recommendations
+                recommendationsData.items.map((movie) => (
+                  <div key={movie.slug} className="flex-none w-[180px] md:w-[200px] snap-start hover:scale-105 transition-transform duration-300">
+                    <Link to={`/movie/${movie.slug}`} className="block">
+                      <div className="relative aspect-[2/3] rounded-md overflow-hidden group mb-2">
+                        <img 
+                          src={movie.thumb_url || '/placeholder-portrait.png'} 
+                          alt={movie.name}
+                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                          loading="lazy" 
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-3">
+                          <span className="text-white text-sm font-medium truncate">{movie.name}</span>
+                        </div>
+                      </div>
+                      <h4 className="font-medium text-sm truncate">{movie.name}</h4>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {movie.quality || (movie.type === 'movie' ? 'Movie' : 'Series')}
+                      </p>
+                    </Link>
+                  </div>
+                ))
+              ) : (
+                // No recommendations found
+                <div className="w-full py-4 text-center text-muted-foreground">
+                  <p>No recommendations available for this movie.</p>
                 </div>
-              ))
-            ) : recommendationsData?.items && recommendationsData.items.length > 0 ? (
-              // Display recommendations
-              recommendationsData.items.slice(0, 6).map((movie, i) => (
-                <RecommendedMovieCard key={movie.slug} movie={movie} size="small" />
-              ))
-            ) : (
-              // No recommendations found
-              <div className="col-span-full py-4 text-center text-muted-foreground">
-                <p>No recommendations available for this movie.</p>
-              </div>
-            )}
+              )}
+            </div>
+            
+            {/* Next button */}
+            <button
+              className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-black/70 rounded-full p-2 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300 transform translate-x-1/2 hover:bg-black"
+              onClick={() => {
+                const carousel = document.querySelector('.recommendations-carousel');
+                if (carousel) {
+                  carousel.scrollBy({ left: carousel.clientWidth / 2, behavior: 'smooth' });
+                }
+              }}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
           </div>
         </div>
       </div>
