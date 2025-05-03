@@ -1,4 +1,4 @@
 #!/bin/bash
 
-# Run the tests
-NODE_ENV=test node --experimental-vm-modules node_modules/jest/bin/jest.js
+# Run the tests with ES module support
+NODE_ENV=test NODE_OPTIONS=--experimental-vm-modules npx jest
