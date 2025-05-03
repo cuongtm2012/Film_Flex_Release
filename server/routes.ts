@@ -368,21 +368,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const userData = userSchema.parse(req.body);
       
-      // Check if user already exists
-      const existingUser = await storage.getUserByUsername(userData.username);
-      if (existingUser) {
-        return res.status(400).json({ message: "Username already exists" });
-      }
-      
-      // Create new user (omitting confirmPassword)
-      const { confirmPassword, ...userToInsert } = userData;
-      const newUser = await storage.createUser(userToInsert);
-      
-      // Omit password from response
-      const { password, ...userResponse } = newUser;
-      res.status(201).json(userResponse);
+      // Forward to the register route in auth.ts
+      // This ensures we use the authentication logic properly
+      req.body = userData;
+      res.redirect(307, '/api/register');
     } catch (error) {
-      console.error("Error registering user:", error);
+      console.error("Error validating registration data:", error);
       res.status(400).json({ message: "Invalid user data" });
     }
   });
