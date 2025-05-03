@@ -19,11 +19,24 @@ export default function SearchPage() {
   const [query, setQuery] = useState(initialQuery);
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedCategorySlug, setSelectedCategorySlug] = useState<string>("all");
+  const [searchTerm, setSearchTerm] = useState(initialQuery); // Actual search term to be used for API calls
   
   // Reset to page 1 when query or category changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [query, selectedCategorySlug]);
+  }, [searchTerm, selectedCategorySlug]);
+  
+  // Update URL whenever searchTerm changes
+  useEffect(() => {
+    if (searchTerm !== initialQuery) {
+      const [path] = location.split("?");
+      window.history.pushState(
+        {},
+        "",
+        searchTerm ? `${path}?q=${encodeURIComponent(searchTerm)}` : path
+      );
+    }
+  }, [searchTerm, location, initialQuery]);
   
   // Search query
   const {
@@ -31,36 +44,32 @@ export default function SearchPage() {
     isLoading,
     isError,
   } = useQuery({
-    queryKey: ["/api/search", query, currentPage, selectedCategorySlug],
+    queryKey: ["/api/search", searchTerm, currentPage, selectedCategorySlug],
     queryFn: async () => {
-      let url = `/api/search?q=${encodeURIComponent(query)}&page=${currentPage}`;
+      let url = `/api/search?q=${encodeURIComponent(searchTerm)}&page=${currentPage}`;
       
       if (selectedCategorySlug && selectedCategorySlug !== "all") {
         url += `&category=${selectedCategorySlug}`;
       }
       
+      console.log("Fetching search results from:", url);
       const response = await fetch(url);
       if (!response.ok) {
         throw new Error("Failed to fetch search results");
       }
       return response.json() as Promise<MovieListResponse>;
     },
-    enabled: query.length > 0,
+    enabled: searchTerm.length > 0,
   });
   
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    // Update URL with new search term without reloading
-    const [path] = location.split("?");
-    window.history.pushState(
-      {},
-      "",
-      `${path}?q=${encodeURIComponent(query)}`
-    );
+    setSearchTerm(query);
   };
   
   const clearSearch = () => {
     setQuery("");
+    setSearchTerm("");
     window.history.pushState({}, "", "/search");
   };
   
@@ -112,14 +121,14 @@ export default function SearchPage() {
           </div>
           
           {/* Results */}
-          {query ? (
+          {searchTerm ? (
             <>
               <div className="mb-6">
                 <h2 className="text-xl font-medium mb-1">
                   {isLoading ? (
                     <Skeleton className="h-7 w-48" />
                   ) : (
-                    `Search results for "${query}"`
+                    `Search results for "${searchTerm}"`
                   )}
                 </h2>
                 <p className="text-muted-foreground">
@@ -157,12 +166,12 @@ export default function SearchPage() {
                   totalItems={searchResults.pagination?.totalItems || 0}
                   itemsPerPage={searchResults.pagination?.totalItemsPerPage || 50}
                   onPageChange={setCurrentPage}
-                  title={`Results for "${query}"`}
+                  title={`Results for "${searchTerm}"`}
                 />
               ) : (
                 <div className="text-center py-12">
                   <p className="text-muted-foreground">
-                    No results found for "{query}". Try a different search term.
+                    No results found for "{searchTerm}". Try a different search term.
                   </p>
                 </div>
               )}
