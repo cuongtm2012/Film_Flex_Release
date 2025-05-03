@@ -35,7 +35,7 @@ function Router() {
       
       <Route path="/">
         <MainLayout>
-          <ProtectedRoute component={Home} path="/" />
+          <Home />
         </MainLayout>
       </Route>
       
