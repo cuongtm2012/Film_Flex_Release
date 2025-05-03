@@ -82,18 +82,17 @@ export default function Navbar() {
                 <Link to="/" className="text-white font-medium hover:text-primary transition">
                   Home
                 </Link>
-                <Link to="/search?type=movie" className="text-muted-foreground font-medium hover:text-white transition">
+                <Link to="/movies" className="text-muted-foreground font-medium hover:text-white transition">
                   Movies
                 </Link>
-                <Link to="/search?type=tv" className="text-muted-foreground font-medium hover:text-white transition">
-                  TV Shows
+                <Link to="/news" className="text-muted-foreground font-medium hover:text-white transition">
+                  News & Popular
                 </Link>
-                <Link to="/search?sort=new" className="text-muted-foreground font-medium hover:text-white transition">
-                  New & Popular
-                </Link>
-                <Link to="/watchlist" className="text-muted-foreground font-medium hover:text-white transition">
-                  My List
-                </Link>
+                {user && (
+                  <Link to="/my-list" className="text-muted-foreground font-medium hover:text-white transition">
+                    My List
+                  </Link>
+                )}
               </nav>
             )}
           </div>
@@ -147,7 +146,7 @@ export default function Navbar() {
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem>
-                      <Link to="/watchlist" className="w-full flex items-center">
+                      <Link to="/my-list" className="w-full flex items-center">
                         <BookmarkPlus className="mr-2 h-4 w-4" />
                         My List
                       </Link>

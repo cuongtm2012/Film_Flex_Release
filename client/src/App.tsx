@@ -17,18 +17,13 @@ import Layout from "@/components/Layout";
 import { ThemeProvider } from "@/components/ui/theme-provider";
 import { AuthProvider } from "@/hooks/use-auth";
 import { ProtectedRoute } from "@/lib/protected-route";
-import MainHeader from "@/components/MainHeader";
+
 import MoviesPage from "@/pages/MoviesPage";
 import NewsPage from "@/pages/NewsPage";
 import MyListPage from "@/pages/MyListPage";
 
 function MainLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <>
-      <MainHeader />
-      <Layout>{children}</Layout>
-    </>
-  );
+  return <Layout>{children}</Layout>;
 }
 
 function Router() {
