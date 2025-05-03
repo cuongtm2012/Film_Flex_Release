@@ -22,34 +22,20 @@ export default function CategoryFilter({
   onSelectCategory,
   isLoading = false 
 }: CategoryFilterProps) {
-  // Default categories if none are provided - based on requirements
+  // Default categories based on API compatibility - phimapi.com has specific category slugs
   const defaultCategories = [
     { id: "all", name: "All", slug: "all" },
-    { id: "action", name: "Action", slug: "action" },
-    { id: "western", name: "Western", slug: "western" },
-    { id: "kids", name: "Kids", slug: "kids" },
-    { id: "history", name: "History", slug: "history" },
-    { id: "costume-drama", name: "Costume Drama", slug: "costume-drama" },
-    { id: "war", name: "War", slug: "war" },
-    { id: "sci-fi", name: "Sci-Fi", slug: "sci-fi" },
-    { id: "horror", name: "Horror", slug: "horror" },
-    { id: "documentary", name: "Documentary", slug: "documentary" },
-    { id: "mystery", name: "Mystery", slug: "mystery" },
-    { id: "adult", name: "Adult", slug: "adult" },
-    { id: "romance", name: "Romance", slug: "romance" },
-    { id: "psychological", name: "Psychological", slug: "psychological" },
-    { id: "sports", name: "Sports", slug: "sports" },
-    { id: "adventure", name: "Adventure", slug: "adventure" },
-    { id: "music", name: "Music", slug: "music" },
-    { id: "family", name: "Family", slug: "family" },
-    { id: "school", name: "School", slug: "school" },
-    { id: "comedy", name: "Comedy", slug: "comedy" },
-    { id: "crime", name: "Crime", slug: "crime" },
-    { id: "martial-arts", name: "Martial Arts", slug: "martial-arts" },
-    { id: "science", name: "Science", slug: "science" },
-    { id: "mythology", name: "Mythology", slug: "mythology" },
-    { id: "drama", name: "Drama", slug: "drama" },
-    { id: "classic", name: "Classic", slug: "classic" }
+    { id: "phim-hanh-dong", name: "Action", slug: "phim-hanh-dong" },
+    { id: "phim-hai-huoc", name: "Comedy", slug: "phim-hai-huoc" },
+    { id: "phim-tinh-cam", name: "Romance", slug: "phim-tinh-cam" },
+    { id: "phim-co-trang", name: "Historical", slug: "phim-co-trang" },
+    { id: "phim-tam-ly", name: "Drama", slug: "phim-tam-ly" },
+    { id: "phim-than-thoai", name: "Mythology", slug: "phim-than-thoai" },
+    { id: "phim-chien-tranh", name: "War", slug: "phim-chien-tranh" },
+    { id: "phim-hinh-su", name: "Crime", slug: "phim-hinh-su" },
+    { id: "phim-kinh-di", name: "Horror", slug: "phim-kinh-di" },
+    { id: "phim-vien-tuong", name: "Sci-Fi", slug: "phim-vien-tuong" },
+    { id: "phim-phieu-luu", name: "Adventure", slug: "phim-phieu-luu" }
   ];
 
   const displayCategories = categories.length > 0 ? categories : defaultCategories;
