@@ -163,12 +163,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const keyword = req.query.q as string;
       const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 50; // Default to 50 items per page
       
       if (!keyword || keyword.trim() === "") {
         return res.status(400).json({ message: "Search keyword is required" });
       }
       
-      const searchResults = await searchMovies(keyword, page);
+      const searchResults = await searchMovies(keyword, page, limit);
+      
+      // Ensure pagination info is present
+      if (!searchResults.pagination) {
+        const totalItems = searchResults.items?.length || 0;
+        searchResults.pagination = {
+          totalItems,
+          totalPages: Math.ceil(totalItems / limit),
+          currentPage: page,
+          totalItemsPerPage: limit
+        };
+      }
+      
       res.json(searchResults);
     } catch (error) {
       console.error("Error searching movies:", error);
