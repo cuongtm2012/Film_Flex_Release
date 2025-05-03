@@ -581,16 +581,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/movies/:slug/comments", async (req: Request, res: Response) => {
     try {
       const { slug } = req.params;
-      const commentData = insertCommentSchema.parse(req.body);
+      console.log("POST comment for movie:", slug, "body:", req.body);
+      
+      // Always use the slug from the URL, regardless of what's in the body
+      const commentData = insertCommentSchema.parse({
+        ...req.body,
+        movieSlug: slug
+      });
       
       const comment = await storage.addComment({
         ...commentData,
         movieSlug: slug
       });
       
+      console.log("Comment added successfully:", comment);
       res.status(201).json(comment);
     } catch (error) {
       console.error(`Error adding comment to movie ${req.params.slug}:`, error);
+      if (error instanceof Error) {
+        console.error("Error details:", error.message);
+      }
       res.status(400).json({ message: "Invalid comment data" });
     }
   });

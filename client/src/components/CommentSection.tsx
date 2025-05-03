@@ -59,7 +59,8 @@ export function CommentSection({
     resolver: zodResolver(formSchema),
     defaultValues: {
       userId: user?.id || 1, // Default to 1 if not logged in for demo
-      content: ""
+      content: "",
+      movieSlug: movieSlug, // Set the movie slug from props
     },
   });
   
@@ -69,8 +70,12 @@ export function CommentSection({
       return apiRequest("POST", `/api/movies/${movieSlug}/comments`, values);
     },
     onSuccess: () => {
-      // Reset form
-      form.reset({ content: "" });
+      // Reset form but keep the movieSlug
+      form.reset({ 
+        content: "", 
+        userId: user?.id || 1,
+        movieSlug: movieSlug 
+      });
       
       // Show success toast
       toast({
