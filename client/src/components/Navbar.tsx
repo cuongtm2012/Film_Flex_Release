@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -13,11 +12,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Search, ChevronDown, LogOut, User, Settings, BookmarkPlus, Clock } from "lucide-react";
+import { ChevronDown, LogOut, User, Settings, BookmarkPlus, Clock } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
+import SearchBox from "@/components/SearchBox";
 
 export default function Navbar() {
-  const [search, setSearch] = useState("");
   const [isScrolled, setIsScrolled] = useState(false);
   const [, navigate] = useLocation();
   const isMobile = useIsMobile();
@@ -37,13 +36,6 @@ export default function Navbar() {
       document.removeEventListener("scroll", handleScroll);
     };
   }, [isScrolled]);
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (search.trim()) {
-      navigate(`/search?q=${encodeURIComponent(search.trim())}`);
-    }
-  };
   
   const handleLogout = async () => {
     try {
@@ -98,24 +90,12 @@ export default function Navbar() {
           </div>
 
           <div className="flex items-center space-x-4">
-            {/* Search */}
-            <form onSubmit={handleSearch} className="relative group">
-              <Input
-                type="text"
-                placeholder="Search..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="bg-black/60 border border-muted/30 text-white rounded px-4 py-1 w-32 md:w-64 focus:outline-none focus:ring-1 focus:ring-primary transition-all duration-300"
-              />
-              <Button
-                type="submit"
-                variant="ghost"
-                size="icon"
-                className="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground"
-              >
-                <Search className="h-4 w-4" />
-              </Button>
-            </form>
+            {/* Search with Autocomplete */}
+            <SearchBox 
+              placeholder="Search movies..."
+              variant="navbar" 
+              maxWidth="320px"
+            />
 
             {/* User Menu */}
             <DropdownMenu>
