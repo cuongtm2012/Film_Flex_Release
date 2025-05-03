@@ -15,8 +15,12 @@ const rl = readline.createInterface({
 
 // Helper function to ask a question and get a response
 function askQuestion(question: string): Promise<string> {
+  if (question) {
+    process.stdout.write(question);
+  }
+  
   return new Promise((resolve) => {
-    rl.question(question, (answer) => {
+    rl.question('', (answer) => {
       resolve(answer);
     });
   });
@@ -66,17 +70,20 @@ async function main() {
   const progress = getImportProgress();
   if (progress) {
     console.log(`Found previous import progress: Last completed page ${progress.lastCompletedPage} (${new Date(progress.timestamp).toLocaleString()})`);
+    console.log(''); // Extra line for readability
     
     if (progress.lastCompletedPage >= TOTAL_PAGES) {
       console.log('It appears all pages have been imported already!');
-      const restart = await askQuestion('Would you like to restart the import from scratch? (y/n): ');
+      process.stdout.write('Would you like to restart the import from scratch? (y/n): '); // Use process.stdout directly for better console output
+      const restart = await askQuestion('');
       if (restart.toLowerCase() !== 'y') {
         console.log('Exiting import tool.');
         rl.close();
         return;
       }
     } else {
-      const resumeOption = await askQuestion(`Do you want to resume from page ${progress.lastCompletedPage + 1}? (y/n): `);
+      process.stdout.write(`Do you want to resume from page ${progress.lastCompletedPage + 1}? (y/n): `);
+      const resumeOption = await askQuestion('');
       if (resumeOption.toLowerCase() === 'y') {
         console.log(`\nResuming import from page ${progress.lastCompletedPage + 1} to ${TOTAL_PAGES}...`);
         executeImport(progress.lastCompletedPage + 1, TOTAL_PAGES);
@@ -93,7 +100,8 @@ async function main() {
   console.log('4) Resume from last saved point');
   console.log('5) Exit');
   
-  const options = await askQuestion('\nEnter your choice (1-5): ');
+  process.stdout.write('\nEnter your choice (1-5): ');
+  const options = await askQuestion('');
   
   switch (options.trim()) {
     case '1':
