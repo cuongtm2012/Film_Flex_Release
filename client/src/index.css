@@ -23,6 +23,9 @@
   --destructive-foreground: 60 9.1% 97.8%;
   --ring: 20 14.3% 4.1%;
   --radius: 0.5rem;
+  
+  /* RGB values for primary color for use in shadows/gradients */
+  --primary-rgb: 235, 70, 85;
 }
 
 .dark {
@@ -92,5 +95,70 @@
   .hide-scrollbar {
     scrollbar-width: none;
     -ms-overflow-style: none;
+  }
+  
+  /* Custom scrollbar */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    @apply bg-muted/10 rounded-full;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-muted/40 rounded-full hover:bg-muted/60 transition-colors;
+  }
+  
+  /* Animations */
+  @keyframes pulseOpacity {
+    0% { opacity: 0.6; }
+    50% { opacity: 1; }
+    100% { opacity: 0.6; }
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes scaleIn {
+    from { transform: scale(0.95); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+
+  .animate-pulseOpacity {
+    animation: pulseOpacity 2s infinite ease-in-out;
+  }
+
+  .animate-fadeIn {
+    animation: fadeIn 0.5s ease-out;
+  }
+
+  .animate-scaleIn {
+    animation: scaleIn 0.35s ease-out;
+  }
+  
+  /* Improved text readability */
+  .improved-text {
+    @apply leading-relaxed tracking-wide text-gray-200;
+  }
+  
+  .line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  
+  /* Scrollbar hide utility for horizontal scrolling elements */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
   }
 }
