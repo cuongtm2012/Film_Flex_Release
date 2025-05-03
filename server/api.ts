@@ -1,8 +1,5 @@
 import fetch from "node-fetch";
-import { Movie, Episode, InsertMovie, InsertEpisode } from "@shared/schema";
-
-// Re-export these types to fix import issues
-export type { MovieListResponse, MovieDetailResponse } from "@shared/schema";
+import { Movie, Episode, MovieListResponse, MovieDetailResponse, InsertMovie, InsertEpisode } from "@shared/schema";
 
 const API_BASE_URL = "https://phimapi.com";
 
@@ -91,42 +88,6 @@ export async function fetchMovieDetail(slug: string): Promise<MovieDetailRespons
   } catch (error) {
     console.error(`Error fetching movie detail for slug: ${slug}`, error);
     throw error;
-  }
-}
-
-export async function searchSuggestions(keyword: string, limit: number = 10): Promise<MovieListResponse> {
-  try {
-    if (!keyword || keyword.trim().length < 2) {
-      return { status: true, items: [], pagination: { totalItems: 0, totalPages: 0, currentPage: 1, totalItemsPerPage: limit } };
-    }
-    
-    const encodedKeyword = encodeURIComponent(keyword);
-    
-    // We only need a single page for suggestions
-    const response = await fetch(`${API_BASE_URL}/tim-kiem?keyword=${encodedKeyword}&page=1`);
-    
-    if (!response.ok) {
-      throw new Error(`API responded with status: ${response.status}`);
-    }
-    
-    const data = await response.json() as MovieListResponse;
-    
-    // Limit the number of suggestions
-    const limitedItems = data.items ? data.items.slice(0, limit) : [];
-    
-    return {
-      status: true,
-      items: limitedItems,
-      pagination: {
-        totalItems: data.pagination?.totalItems || limitedItems.length,
-        totalPages: data.pagination?.totalPages || 1,
-        currentPage: 1,
-        totalItemsPerPage: limit
-      }
-    };
-  } catch (error) {
-    console.error(`Error fetching search suggestions for "${keyword}":`, error);
-    return { status: false, items: [], pagination: { totalItems: 0, totalPages: 0, currentPage: 1, totalItemsPerPage: limit } };
   }
 }
 

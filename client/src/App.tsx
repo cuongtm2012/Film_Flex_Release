@@ -6,7 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
 import MovieDetail from "@/pages/MovieDetail";
-import SearchPage from "@/pages/SearchPage";
+import Search from "@/pages/Search";
 import AuthPage from "@/pages/auth-page";
 import ProfilePageComponent from "@/pages/ProfilePage";
 import SettingsPage from "@/pages/SettingsPage";
@@ -68,7 +68,7 @@ function Router() {
       
       <Route path="/search">
         <MainLayout>
-          <SearchPage />
+          <Search />
         </MainLayout>
       </Route>
       
