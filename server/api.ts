@@ -113,9 +113,12 @@ export function convertToEpisodeModels(movieDetail: MovieDetailResponse): Insert
   
   for (const server of movieDetail.episodes) {
     for (const episode of server.server_data) {
+      // Create a globally unique slug by combining movie slug and episode slug
+      const uniqueSlug = `${movieSlug}-${episode.slug}`;
+      
       episodes.push({
         name: episode.name,
-        slug: episode.slug,
+        slug: uniqueSlug,
         movieSlug,
         serverName: server.server_name,
         filename: episode.filename || null,
