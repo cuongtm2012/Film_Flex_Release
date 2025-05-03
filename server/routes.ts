@@ -40,7 +40,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // If not in cache, fetch from API
         if (!movieListData) {
-          movieListData = await fetchMoviesByCategory(category, page);
+          movieListData = await fetchMoviesByCategory(category, page, limit);
           
           // Cache the result
           await storage.cacheMovieCategory(movieListData, category, page);
@@ -181,8 +181,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { slug } = req.params;
       const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 50; // Default to 50 items per page
       
-      const categoryMovies = await fetchMoviesByCategory(slug, page);
+      const categoryMovies = await fetchMoviesByCategory(slug, page, limit);
+      
+      // Ensure pagination info is present
+      if (!categoryMovies.pagination) {
+        const totalItems = categoryMovies.items?.length || 0;
+        categoryMovies.pagination = {
+          totalItems,
+          totalPages: Math.ceil(totalItems / limit),
+          currentPage: page,
+          totalItemsPerPage: limit
+        };
+      }
+      
       res.json(categoryMovies);
     } catch (error) {
       console.error(`Error fetching movies for category ${req.params.slug}:`, error);
