@@ -170,9 +170,9 @@ export async function fetchMoviesByCategory(categorySlug: string, page: number =
     
     try {
       // Fetch one page first to check if the category exists
-      // Note: We've updated the URL to use the correct category endpoint based on the actual API
+      // Try with '/category' endpoint instead of '/the-loai'
       console.log(`Checking if category ${categorySlug} exists by fetching page 1`);
-      const testResponse = await fetch(`${API_BASE_URL}/the-loai/${categorySlug}?page=1`);
+      const testResponse = await fetch(`${API_BASE_URL}/category/${categorySlug}?page=1`);
       
       // If the category doesn't exist, return empty results early
       if (!testResponse.ok) {
@@ -197,7 +197,7 @@ export async function fetchMoviesByCategory(categorySlug: string, page: number =
         console.log(`Fetching category ${categorySlug} page ${apiPage}`);
         
         fetchPromises.push(
-          fetch(`${API_BASE_URL}/the-loai/${categorySlug}?page=${apiPage}`)
+          fetch(`${API_BASE_URL}/category/${categorySlug}?page=${apiPage}`)
             .then(response => {
               if (!response.ok) {
                 throw new Error(`API responded with status: ${response.status}`);
