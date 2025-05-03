@@ -17,9 +17,18 @@ import Layout from "@/components/Layout";
 import { ThemeProvider } from "@/components/ui/theme-provider";
 import { AuthProvider } from "@/hooks/use-auth";
 import { ProtectedRoute } from "@/lib/protected-route";
+import MainHeader from "@/components/MainHeader";
+import MoviesPage from "@/pages/MoviesPage";
+import NewsPage from "@/pages/NewsPage";
+import MyListPage from "@/pages/MyListPage";
 
 function MainLayout({ children }: { children: React.ReactNode }) {
-  return <Layout>{children}</Layout>;
+  return (
+    <>
+      <MainHeader />
+      <Layout>{children}</Layout>
+    </>
+  );
 }
 
 function Router() {
@@ -32,6 +41,25 @@ function Router() {
       <Route path="/">
         <MainLayout>
           <Home />
+        </MainLayout>
+      </Route>
+      
+      {/* Main menu routes */}
+      <Route path="/movies">
+        <MainLayout>
+          <MoviesPage />
+        </MainLayout>
+      </Route>
+      
+      <Route path="/news">
+        <MainLayout>
+          <NewsPage />
+        </MainLayout>
+      </Route>
+      
+      <Route path="/my-list">
+        <MainLayout>
+          <ProtectedRoute component={MyListPage} path="/my-list" />
         </MainLayout>
       </Route>
       
