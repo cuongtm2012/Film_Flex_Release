@@ -1,16 +1,18 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import HeroSection from "@/components/HeroSection";
 import CategoryFilter from "@/components/CategoryFilter";
 import MovieGrid from "@/components/MovieGrid";
 import { Category, MovieListResponse, MovieDetailResponse } from "@shared/schema";
+import { Loader2 } from "lucide-react";
 
 export default function Home() {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [sortBy, setSortBy] = useState("latest");
+  const [limit, setLimit] = useState(50); // Default to 50 items per page per requirements
 
-  // Fetch movie list query
+  // Fetch movie list with category filtering and pagination
   const {
     data: moviesData,
     isLoading: isMoviesLoading,
@@ -18,7 +20,7 @@ export default function Home() {
   } = useQuery<MovieListResponse>({
     queryKey: [
       `/api/movies`,
-      { page: currentPage, category: selectedCategory, sort: sortBy },
+      { page: currentPage, category: selectedCategory, sort: sortBy, limit },
     ],
   });
 
@@ -31,19 +33,29 @@ export default function Home() {
     enabled: !!moviesData?.items?.[0]?.slug,
   });
 
-  // Fetch categories (for now using dummy categories until API is ready)
-  const dummyCategories: Category[] = [
-    { id: "1", name: "Action", slug: "action" },
-    { id: "2", name: "Comedy", slug: "comedy" },
-    { id: "3", name: "Drama", slug: "drama" },
-    { id: "4", name: "Horror", slug: "horror" },
-    { id: "5", name: "Sci-Fi", slug: "sci-fi" },
+  // Comprehensive category list based on requirements
+  const availableCategories: Category[] = [
+    { id: "all", name: "All", slug: "all" },
+    { id: "action", name: "Action", slug: "action" },
+    { id: "comedy", name: "Comedy", slug: "comedy" },
+    { id: "drama", name: "Drama", slug: "drama" },
+    { id: "horror", name: "Horror", slug: "horror" },
+    { id: "sci-fi", name: "Sci-Fi", slug: "sci-fi" },
+    { id: "western", name: "Western", slug: "western" },
+    { id: "kids", name: "Kids", slug: "kids" },
+    { id: "history", name: "History", slug: "history" },
+    { id: "war", name: "War", slug: "war" },
+    { id: "documentary", name: "Documentary", slug: "documentary" },
+    { id: "mystery", name: "Mystery", slug: "mystery" },
+    { id: "romance", name: "Romance", slug: "romance" },
+    { id: "family", name: "Family", slug: "family" },
+    { id: "crime", name: "Crime", slug: "crime" },
+    { id: "martial-arts", name: "Martial Arts", slug: "martial-arts" },
+    { id: "adventure", name: "Adventure", slug: "adventure" }
   ];
   
-  const categoriesData = { categories: dummyCategories };
-
   // Default empty categories array if no data
-  const categories = categoriesData?.categories || [];
+  const categories = availableCategories;
 
   // Handle page change
   const handlePageChange = (page: number) => {
@@ -97,6 +109,8 @@ export default function Home() {
         movies={moviesData?.items || []}
         currentPage={currentPage}
         totalPages={moviesData?.pagination?.totalPages || 1}
+        totalItems={moviesData?.pagination?.totalItems || 0}
+        itemsPerPage={limit}
         onPageChange={handlePageChange}
         onSortChange={handleSortChange}
         isLoading={isMoviesLoading}
