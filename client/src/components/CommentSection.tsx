@@ -1,209 +1,286 @@
 import React, { useState } from "react";
+import { useAuth } from "@/hooks/use-auth";
+import { useToast } from "@/hooks/use-toast";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { User, insertCommentSchema } from "@shared/schema";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { format } from "date-fns";
+
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormMessage,
+} from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ThumbsUp, ThumbsDown, Reply } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { Comment } from "@shared/schema";
-import { format } from "date-fns";
-import { apiRequest } from "@/lib/queryClient";
+import { ThumbsUp, ThumbsDown, MessageCircle, Loader2 } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
+// Use Zod schema from shared schema
+const formSchema = insertCommentSchema.extend({});
+
+// Type for our component props
 interface CommentSectionProps {
   movieSlug: string;
-  comments: Comment[];
-  isLoading?: boolean;
-  onRefreshComments: () => void;
+  comments: any[];
+  totalComments: number;
+  isLoading: boolean;
+  refetchComments: () => void;
 }
 
-export default function CommentSection({ 
+export function CommentSection({ 
   movieSlug, 
   comments, 
-  isLoading = false,
-  onRefreshComments 
+  totalComments, 
+  isLoading, 
+  refetchComments 
 }: CommentSectionProps) {
+  const { user } = useAuth();
   const { toast } = useToast();
-  const [commentText, setCommentText] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const queryClient = useQueryClient();
+  const [showFullComments, setShowFullComments] = useState(false);
   
-  // Placeholder user ID (in a real app, this would come from auth)
-  const currentUserId = 1;
+  // Form setup
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      userId: user?.id || 1, // Default to 1 if not logged in for demo
+      content: ""
+    },
+  });
   
-  const handleSubmitComment = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!commentText.trim()) {
+  // Add comment mutation
+  const addCommentMutation = useMutation({
+    mutationFn: (values: z.infer<typeof formSchema>) => {
+      return apiRequest("POST", `/api/movies/${movieSlug}/comments`, values);
+    },
+    onSuccess: () => {
+      // Reset form
+      form.reset({ content: "" });
+      
+      // Show success toast
       toast({
-        title: "Error",
-        description: "Comment cannot be empty",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    setIsSubmitting(true);
-    
-    try {
-      await apiRequest("POST", `/api/movies/${movieSlug}/comments`, {
-        userId: currentUserId,
-        content: commentText.trim()
+        title: "Comment added",
+        description: "Your comment has been posted successfully",
       });
       
-      toast({
-        title: "Success",
-        description: "Comment posted successfully",
-      });
-      
-      setCommentText("");
-      onRefreshComments();
-    } catch (error) {
+      // Invalidate comments query to refresh
+      queryClient.invalidateQueries({ queryKey: [`/api/movies/${movieSlug}/comments`] });
+      refetchComments();
+    },
+    onError: (error) => {
       toast({
         title: "Error",
-        description: "Failed to post comment",
+        description: "Failed to post comment. Please try again.",
         variant: "destructive"
       });
-    } finally {
-      setIsSubmitting(false);
     }
-  };
+  });
   
-  const handleLikeComment = async (commentId: number) => {
-    try {
-      await apiRequest("POST", `/api/comments/${commentId}/like`, {});
-      onRefreshComments();
-    } catch (error) {
+  // Like comment mutation
+  const likeCommentMutation = useMutation({
+    mutationFn: (commentId: number) => {
+      return apiRequest("POST", `/api/comments/${commentId}/like`);
+    },
+    onSuccess: () => {
+      // Invalidate comments query to refresh
+      queryClient.invalidateQueries({ queryKey: [`/api/movies/${movieSlug}/comments`] });
+      refetchComments();
+    },
+    onError: () => {
       toast({
         title: "Error",
         description: "Failed to like comment",
         variant: "destructive"
       });
     }
-  };
+  });
   
-  const handleDislikeComment = async (commentId: number) => {
-    try {
-      await apiRequest("POST", `/api/comments/${commentId}/dislike`, {});
-      onRefreshComments();
-    } catch (error) {
+  // Dislike comment mutation
+  const dislikeCommentMutation = useMutation({
+    mutationFn: (commentId: number) => {
+      return apiRequest("POST", `/api/comments/${commentId}/dislike`);
+    },
+    onSuccess: () => {
+      // Invalidate comments query to refresh
+      queryClient.invalidateQueries({ queryKey: [`/api/movies/${movieSlug}/comments`] });
+      refetchComments();
+    },
+    onError: () => {
       toast({
         title: "Error",
         description: "Failed to dislike comment",
         variant: "destructive"
       });
     }
+  });
+  
+  // Handle form submission
+  function onSubmit(values: z.infer<typeof formSchema>) {
+    if (!user) {
+      toast({
+        title: "Please log in",
+        description: "You must be logged in to comment",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // Submit the comment
+    addCommentMutation.mutate(values);
+  }
+  
+  // Function to format dates
+  const formatDate = (dateString: string) => {
+    try {
+      return format(new Date(dateString), 'MMM d, yyyy h:mm a');
+    } catch (error) {
+      return 'Invalid date';
+    }
   };
   
-  if (isLoading) {
-    return (
-      <div>
-        <h4 className="text-lg font-bold mb-3">Comments</h4>
-        <div className="mb-4">
-          <div className="h-24 w-full bg-gray-700 rounded animate-pulse mb-2"></div>
-          <div className="h-10 w-32 bg-gray-700 rounded animate-pulse ml-auto"></div>
-        </div>
-        
-        <div className="space-y-4">
-          {[...Array(2)].map((_, i) => (
-            <div key={i} className="bg-muted p-4 rounded animate-pulse">
-              <div className="flex items-start gap-3 mb-2">
-                <div className="rounded-full w-10 h-10 bg-gray-700"></div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <div className="h-5 w-24 bg-gray-700 rounded"></div>
-                    <div className="h-4 w-16 bg-gray-700 rounded"></div>
-                  </div>
-                  <div className="h-12 w-full bg-gray-700 rounded"></div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
+  // Get initials for avatar
+  const getInitials = (name: string) => {
+    return name?.substring(0, 2).toUpperCase() || "U";
+  };
+  
   return (
-    <div>
-      <h4 className="text-lg font-bold mb-3">Comments</h4>
-      <form onSubmit={handleSubmitComment} className="mb-4">
-        <Textarea
-          placeholder="Write your comment..."
-          value={commentText}
-          onChange={(e) => setCommentText(e.target.value)}
-          className="w-full bg-muted border border-muted-foreground/30 rounded p-3 text-white focus:outline-none focus:border-primary resize-none"
-          rows={3}
-        />
-        <div className="flex justify-end mt-2">
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold flex items-center">
+          <MessageCircle className="h-5 w-5 mr-2 text-primary" />
+          Comments ({totalComments})
+        </h2>
+        
+        {totalComments > 5 && !showFullComments && (
           <Button 
-            type="submit"
-            disabled={isSubmitting}
-            className="bg-primary hover:bg-primary/90 text-white"
+            variant="outline" 
+            size="sm"
+            onClick={() => setShowFullComments(true)}
           >
-            {isSubmitting ? "Posting..." : "Post Comment"}
+            Show All
           </Button>
-        </div>
-      </form>
+        )}
+      </div>
       
-      {comments.length === 0 ? (
-        <div className="text-center py-8 bg-muted rounded">
-          <p className="text-muted-foreground">No comments yet. Be the first to comment!</p>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {comments.map((comment) => (
-            <div key={comment.id} className="bg-muted p-4 rounded">
-              <div className="flex items-start gap-3 mb-2">
-                <Avatar className="h-10 w-10">
-                  <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${comment.userId}`} />
-                  <AvatarFallback>
-                    {comment.userId.toString().substring(0, 2).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <h5 className="font-medium">User {comment.userId}</h5>
-                    <span className="text-xs text-muted-foreground">
-                      {format(new Date(comment.createdAt), 'MMM dd, yyyy')}
-                    </span>
-                  </div>
-                  <p className="text-sm text-muted-foreground">{comment.content}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-4 ml-12 text-sm text-muted-foreground">
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  className="flex items-center gap-1 hover:text-white transition"
-                  onClick={() => handleLikeComment(comment.id)}
-                >
-                  <ThumbsUp className="h-4 w-4" />
-                  <span>{comment.likes}</span>
-                </Button>
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  className="flex items-center gap-1 hover:text-white transition"
-                  onClick={() => handleDislikeComment(comment.id)}
-                >
-                  <ThumbsDown className="h-4 w-4" />
-                  <span>{comment.dislikes}</span>
-                </Button>
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  className="hover:text-white transition"
-                >
-                  <Reply className="h-4 w-4 mr-1" />
-                  Reply
-                </Button>
-              </div>
-            </div>
-          ))}
-          
-          <div className="flex justify-center mt-6">
-            <Button variant="outline" className="bg-muted hover:bg-muted/70 text-white">
-              Load More Comments
+      {/* Comment Form */}
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="w-full space-y-4">
+          <FormField
+            control={form.control}
+            name="content"
+            render={({ field }) => (
+              <FormItem>
+                <FormControl>
+                  <Textarea
+                    placeholder="Share your thoughts about this movie..."
+                    className="min-h-24 bg-card"
+                    {...field}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <div className="flex justify-end">
+            <Button 
+              type="submit" 
+              disabled={addCommentMutation.isPending}
+              className="w-full sm:w-auto"
+            >
+              {addCommentMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Posting...
+                </>
+              ) : (
+                "Post Comment"
+              )}
             </Button>
           </div>
+        </form>
+      </Form>
+
+      <Separator />
+      
+      {/* Comment List */}
+      {isLoading ? (
+        <div className="py-8 flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      ) : comments.length > 0 ? (
+        <div className="space-y-4">
+          {comments.slice(0, showFullComments ? undefined : 5).map((comment) => (
+            <Card key={comment.id} className="bg-card/50">
+              <CardHeader className="pb-2">
+                <div className="flex items-center space-x-4">
+                  <Avatar>
+                    <AvatarFallback>{getInitials(comment.username || "User")}</AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <div className="font-medium">{comment.username || "Anonymous User"}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {formatDate(comment.createdAt)}
+                    </div>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="pb-2">
+                <p>{comment.content}</p>
+              </CardContent>
+              <CardFooter className="pt-0">
+                <div className="flex items-center space-x-4">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => likeCommentMutation.mutate(comment.id)}
+                    disabled={likeCommentMutation.isPending}
+                  >
+                    <ThumbsUp className="h-4 w-4 mr-1" />
+                    <span>{comment.likes || 0}</span>
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => dislikeCommentMutation.mutate(comment.id)}
+                    disabled={dislikeCommentMutation.isPending}
+                  >
+                    <ThumbsDown className="h-4 w-4 mr-1" />
+                    <span>{comment.dislikes || 0}</span>
+                  </Button>
+                </div>
+              </CardFooter>
+            </Card>
+          ))}
+          
+          {!showFullComments && totalComments > 5 && (
+            <div className="text-center">
+              <Button 
+                variant="outline" 
+                onClick={() => setShowFullComments(true)}
+              >
+                Show All Comments ({totalComments})
+              </Button>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="text-center py-8">
+          <p className="text-muted-foreground">No comments yet. Be the first to comment!</p>
         </div>
       )}
     </div>

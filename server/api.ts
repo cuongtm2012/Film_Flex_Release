@@ -443,3 +443,160 @@ export function convertToEpisodeModels(movieDetail: MovieDetailResponse): Insert
   
   return episodes;
 }
+
+/**
+ * Fetches recommended movies based on a specific movie
+ * 
+ * @param movieSlug The slug of the movie to get recommendations for
+ * @param limit The maximum number of recommendations to return
+ * @returns A MovieListResponse containing the recommended movies
+ */
+export async function fetchRecommendedMovies(movieSlug: string, limit: number = 5): Promise<MovieListResponse> {
+  try {
+    console.log(`Generating recommendations for movie ${movieSlug} with limit ${limit}`);
+    
+    // First, get the movie details to get its categories
+    const movieDetailData = await storage.getMovieBySlug(movieSlug);
+    
+    if (!movieDetailData) {
+      console.log(`Movie ${movieSlug} not found in storage, attempting to fetch from API`);
+      try {
+        const apiDetail = await fetchMovieDetail(movieSlug);
+        if (apiDetail && apiDetail.movie) {
+          const movieModel = convertToMovieModel(apiDetail);
+          await storage.saveMovie(movieModel);
+          
+          // Get the saved movie
+          const savedMovie = await storage.getMovieBySlug(movieSlug);
+          if (savedMovie) {
+            return generateRecommendations(savedMovie, limit);
+          }
+        }
+      } catch (error) {
+        console.error(`Error fetching movie detail for recommendations: ${error}`);
+        return { 
+          status: true, 
+          items: [], 
+          pagination: { 
+            totalItems: 0, 
+            totalPages: 0, 
+            currentPage: 1, 
+            totalItemsPerPage: limit 
+          } 
+        };
+      }
+    } else {
+      return generateRecommendations(movieDetailData, limit);
+    }
+    
+    // If we couldn't get the movie, return empty recommendations
+    console.log(`Could not find or fetch movie ${movieSlug} for recommendations`);
+    return { 
+      status: true, 
+      items: [], 
+      pagination: { 
+        totalItems: 0, 
+        totalPages: 0, 
+        currentPage: 1, 
+        totalItemsPerPage: limit 
+      } 
+    };
+  } catch (error) {
+    console.error(`Error generating movie recommendations for ${movieSlug}:`, error);
+    return { 
+      status: true, 
+      items: [], 
+      pagination: { 
+        totalItems: 0, 
+        totalPages: 0, 
+        currentPage: 1, 
+        totalItemsPerPage: limit 
+      } 
+    };
+  }
+}
+
+/**
+ * Helper function to generate recommendations based on a movie's categories
+ */
+async function generateRecommendations(movie: Movie, limit: number): Promise<MovieListResponse> {
+  // Get the categories from the movie
+  const movieCategories = movie.categories as any[] || [];
+  const categoryNames = movieCategories.map(c => c.name || c.slug).filter(Boolean);
+  
+  console.log(`Generating recommendations for movie ${movie.slug} with categories:`, 
+    categoryNames.join(', '));
+  
+  // Strategy 1: Find movies with matching categories
+  let recommendedMovies: any[] = [];
+  
+  // If we have categories, try to find movies in those categories
+  if (movieCategories.length > 0) {
+    // For each category, try to find movies
+    for (const category of movieCategories) {
+      // Skip if the category has no slug
+      if (!category.slug) continue;
+      
+      try {
+        // Try to get movies from this category
+        const categoryMovies = await fetchMoviesByCategory(category.slug, 1, 20);
+        if (categoryMovies && categoryMovies.items && categoryMovies.items.length > 0) {
+          // Add movies from this category to recommendations, but exclude the current movie
+          categoryMovies.items.forEach(item => {
+            if (item.slug !== movie.slug) {
+              recommendedMovies.push(item);
+            }
+          });
+        }
+      } catch (error) {
+        console.error(`Error fetching movies from category ${category.slug}:`, error);
+        // Continue with other categories
+      }
+      
+      // Break if we have enough recommendations
+      if (recommendedMovies.length >= limit * 2) {
+        break;
+      }
+    }
+  }
+  
+  // Strategy 2: If we don't have enough recommendations, add some recent movies
+  if (recommendedMovies.length < limit) {
+    console.log(`Not enough recommendations (${recommendedMovies.length}), adding recent movies`);
+    try {
+      const recentMovies = await fetchMovieList(1, 20);
+      if (recentMovies && recentMovies.items && recentMovies.items.length > 0) {
+        recentMovies.items.forEach(item => {
+          if (item.slug !== movie.slug) {
+            recommendedMovies.push(item);
+          }
+        });
+      }
+    } catch (error) {
+      console.error(`Error fetching recent movies for recommendations:`, error);
+    }
+  }
+  
+  // Deduplicate recommendations by slug
+  const uniqueRecommendations = Array.from(
+    new Map(recommendedMovies.map(item => [item.slug, item])).values()
+  );
+  
+  // Limit to requested number
+  const limitedRecommendations = uniqueRecommendations.slice(0, limit);
+  
+  // Create the response
+  const response: MovieListResponse = {
+    status: true,
+    items: limitedRecommendations,
+    pagination: {
+      totalItems: limitedRecommendations.length,
+      totalPages: 1,
+      currentPage: 1,
+      totalItemsPerPage: limit
+    }
+  };
+  
+  console.log(`Returning ${limitedRecommendations.length} recommendations for movie ${movie.slug}`);
+  return response;
+}
