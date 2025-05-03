@@ -1,5 +1,6 @@
 import fetch from "node-fetch";
 import { Movie, Episode, MovieListResponse, MovieDetailResponse, InsertMovie, InsertEpisode } from "@shared/schema";
+import { storage } from "./storage";
 
 const API_BASE_URL = "https://phimapi.com";
 
@@ -106,45 +107,104 @@ export async function searchMovies(keyword: string, page: number = 1, limit: num
   }
   
   try {
-    const encodedKeyword = encodeURIComponent(keyword.trim());
+    const trimmedKeyword = keyword.trim();
+    console.log(`Searching for "${trimmedKeyword}" in page ${page} with limit ${limit}`);
     
-    // The external API returns ~10 items per page, but we want to show 50 items per page
+    // First, search in our local storage/database
+    const localResults = await storage.searchMovies(trimmedKeyword, 1, 1000); // Get all matches
+    console.log(`Local search found ${localResults.data.length} matches for "${trimmedKeyword}"`);
+    
+    // Format local results to match MovieListResponse expected format
+    const formattedLocalResults = localResults.data.map(movie => ({
+      _id: movie.movieId,
+      name: movie.name,
+      origin_name: movie.originName || "",
+      slug: movie.slug,
+      type: movie.type === "tv" ? "series" : "single",
+      thumb_url: movie.thumbUrl || "",
+      poster_url: movie.posterUrl || "",
+      year: (movie.year || 0).toString(),
+      category: movie.categories || [],
+      country: movie.countries || [],
+    }));
+    
+    // Try to search in the external API as well
+    const encodedKeyword = encodeURIComponent(trimmedKeyword);
     const pagesNeeded = Math.ceil(limit / 10); // 10 is the number of items per page from external API
     const startPage = (page - 1) * pagesNeeded + 1;
     
-    // Fetch multiple pages in parallel
-    const fetchPromises = [];
-    for (let i = 0; i < pagesNeeded; i++) {
-      const apiPage = startPage + i;
-      fetchPromises.push(
-        fetch(`${API_BASE_URL}/tim-kiem?keyword=${encodedKeyword}&page=${apiPage}`)
-          .then(async response => {
-            if (!response.ok) {
-              console.warn(`Search API responded with status: ${response.status} for keyword "${keyword}" on page ${apiPage}`);
+    // Define an explicit type for API results
+    let apiResults: Array<{
+      _id: string;
+      name: string;
+      origin_name: string;
+      slug: string;
+      type: string;
+      thumb_url: string;
+      poster_url: string;
+      year: string;
+      category: any[];
+      country: any[];
+    }> = [];
+    
+    try {
+      // Fetch multiple pages in parallel
+      const fetchPromises = [];
+      for (let i = 0; i < pagesNeeded; i++) {
+        const apiPage = startPage + i;
+        fetchPromises.push(
+          fetch(`${API_BASE_URL}/tim-kiem?keyword=${encodedKeyword}&page=${apiPage}`)
+            .then(async response => {
+              if (!response.ok) {
+                console.warn(`Search API responded with status: ${response.status} for keyword "${trimmedKeyword}" on page ${apiPage}`);
+                return { status: false, items: [] } as MovieListResponse;
+              }
+              try {
+                return await response.json() as MovieListResponse;
+              } catch (err) {
+                console.error(`Error parsing JSON for search page ${apiPage}:`, err);
+                return { status: false, items: [] } as MovieListResponse;
+              }
+            })
+            .catch(err => {
+              console.error(`Error fetching search page ${apiPage}:`, err);
               return { status: false, items: [] } as MovieListResponse;
-            }
-            try {
-              return await response.json() as MovieListResponse;
-            } catch (err) {
-              console.error(`Error parsing JSON for search page ${apiPage}:`, err);
-              return { status: false, items: [] } as MovieListResponse;
-            }
-          })
-          .catch(err => {
-            console.error(`Error fetching search page ${apiPage}:`, err);
-            return { status: false, items: [] } as MovieListResponse;
-          })
-      );
+            })
+        );
+      }
+      
+      // Wait for all fetch requests to complete
+      const pagesData = await Promise.all(fetchPromises);
+      
+      // Combine the items from all API pages
+      apiResults = pagesData.flatMap(data => data.items || []);
+      console.log(`API search found ${apiResults.length} matches for "${trimmedKeyword}"`);
+    } catch (apiError) {
+      console.error(`Error searching external API:`, apiError);
+      // Continue with local results only
     }
     
-    // Wait for all fetch requests to complete
-    const pagesData = await Promise.all(fetchPromises);
+    // Combine local and API results, removing duplicates by slug
+    const slugMap = new Map<string, any>();
     
-    // Combine the items from all pages
-    const allItems = pagesData.flatMap(data => data.items || []);
+    // Add local results first (higher priority)
+    formattedLocalResults.forEach(item => {
+      slugMap.set(item.slug, item);
+    });
     
-    // If no results were found in any page
+    // Add API results that don't duplicate local ones
+    apiResults.forEach(item => {
+      if (!slugMap.has(item.slug)) {
+        slugMap.set(item.slug, item);
+      }
+    });
+    
+    // Convert map to array
+    const allItems = Array.from(slugMap.values());
+    
+    // If no results were found
     if (allItems.length === 0) {
+      console.log(`No results found for "${trimmedKeyword}" in either local or API search`);
       return { 
         status: true, 
         items: [], 
@@ -157,17 +217,19 @@ export async function searchMovies(keyword: string, page: number = 1, limit: num
       };
     }
     
-    // Calculate total items based on the first page's pagination data (if available)
-    const firstPagePagination = pagesData[0]?.pagination;
-    const totalItems = firstPagePagination?.totalItems || allItems.length;
-    const totalPages = firstPagePagination 
-      ? Math.ceil(totalItems / limit)
-      : Math.ceil(allItems.length / limit);
+    // Calculate paginated results
+    const totalItems = allItems.length;
+    const totalPages = Math.ceil(totalItems / limit);
+    const startIndex = (page - 1) * limit;
+    const endIndex = Math.min(startIndex + limit, totalItems);
+    const paginatedItems = allItems.slice(startIndex, endIndex);
+    
+    console.log(`Combined search returned ${totalItems} total results, showing ${paginatedItems.length} items for page ${page}`);
     
     // Create the combined response
     const combinedResponse: MovieListResponse = {
       status: true,
-      items: allItems.slice(0, limit), // Only return the requested number of items
+      items: paginatedItems,
       pagination: {
         totalItems: totalItems,
         totalPages: totalPages,
