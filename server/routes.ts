@@ -11,8 +11,7 @@ import {
 import { 
   fetchMovieList, 
   fetchMovieDetail, 
-  searchMovies,
-  searchSuggestions,
+  searchMovies, 
   fetchMoviesByCategory,
   fetchMoviesByCountry,
   convertToMovieModel,
@@ -160,33 +159,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Search Suggestions / Autocomplete
-  app.get("/api/search/suggestions", async (req: Request, res: Response) => {
-    try {
-      const keyword = req.query.q as string;
-      const limit = parseInt(req.query.limit as string) || 10; // Default to 10 suggestions
-      
-      if (!keyword || keyword.trim().length < 2) {
-        return res.json({ 
-          status: true, 
-          items: [], 
-          pagination: { 
-            totalItems: 0, 
-            totalPages: 0, 
-            currentPage: 1, 
-            totalItemsPerPage: limit 
-          } 
-        });
-      }
-      
-      const suggestions = await searchSuggestions(keyword, limit);
-      res.json(suggestions);
-    } catch (error) {
-      console.error("Error fetching search suggestions:", error);
-      res.status(500).json({ message: "Failed to fetch search suggestions" });
-    }
-  });
-
   // Search movies
   app.get("/api/search", async (req: Request, res: Response) => {
     try {

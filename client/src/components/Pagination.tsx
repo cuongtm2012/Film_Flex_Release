@@ -1,114 +1,103 @@
-import React from 'react';
-import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight, MoreHorizontal } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import React from "react";
+import { Button } from "@/components/ui/button";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 interface PaginationProps {
   currentPage: number;
   totalPages: number;
   onPageChange: (page: number) => void;
-  className?: string;
 }
 
-export default function Pagination({ currentPage, totalPages, onPageChange, className }: PaginationProps) {
-  // Don't show pagination if there's only one page
-  if (totalPages <= 1) {
-    return null;
-  }
-
-  // Generate page numbers to show
+export default function Pagination({ currentPage, totalPages, onPageChange }: PaginationProps) {
+  // Calculate which page numbers to show
   const getPageNumbers = () => {
-    const pages: (number | string)[] = [];
+    const pageNumbers = [];
     
-    // Always include first page
-    pages.push(1);
+    // Always show first page
+    pageNumbers.push(1);
     
-    // Add ellipsis if there are many pages before the current one
-    if (currentPage > 3) {
-      pages.push('...');
+    // Create an array of page numbers we should show
+    let startPage = Math.max(2, currentPage - 1);
+    let endPage = Math.min(totalPages - 1, currentPage + 1);
+    
+    // If we're at the start, show more pages after
+    if (currentPage < 3) {
+      endPage = Math.min(totalPages - 1, 4);
     }
     
-    // Add one page before current if not adjacent to first or ellipsis
-    if (currentPage > 2) {
-      pages.push(currentPage - 1);
+    // If we're at the end, show more pages before
+    if (currentPage > totalPages - 2) {
+      startPage = Math.max(2, totalPages - 3);
     }
     
-    // Add current page if not first or last
-    if (currentPage > 1 && currentPage < totalPages) {
-      pages.push(currentPage);
+    // Add ellipsis after page 1 if needed
+    if (startPage > 2) {
+      pageNumbers.push("ellipsis1");
     }
     
-    // Add one page after current if not adjacent to last or ellipsis
-    if (currentPage < totalPages - 1) {
-      pages.push(currentPage + 1);
+    // Add the calculated page range
+    for (let i = startPage; i <= endPage; i++) {
+      pageNumbers.push(i);
     }
     
-    // Add ellipsis if there are many pages after the current one
-    if (currentPage < totalPages - 2) {
-      pages.push('...');
+    // Add ellipsis before last page if needed
+    if (endPage < totalPages - 1) {
+      pageNumbers.push("ellipsis2");
     }
     
-    // Always include last page if more than one page
+    // Always show last page if we have more than 1 page
     if (totalPages > 1) {
-      pages.push(totalPages);
+      pageNumbers.push(totalPages);
     }
     
-    // Remove duplicates and return
-    return Array.from(new Set(pages));
+    return pageNumbers;
   };
   
-  const pageNumbers = getPageNumbers();
-
+  const visiblePages = getPageNumbers();
+  
   return (
-    <div className={cn("flex items-center justify-center gap-2", className)}>
-      {/* Previous button */}
+    <div className="flex justify-center mt-10 gap-2">
       <Button
         variant="outline"
         size="icon"
-        onClick={() => onPageChange(currentPage - 1)}
+        className="w-10 h-10 rounded-full"
+        onClick={() => onPageChange(Math.max(1, currentPage - 1))}
         disabled={currentPage === 1}
-        aria-label="Previous page"
       >
         <ChevronLeft className="h-4 w-4" />
       </Button>
-
-      {/* Page numbers */}
-      {pageNumbers.map((page, index) => {
-        if (page === '...') {
+      
+      {visiblePages.map((page, index) => {
+        // If page is a string, it's an ellipsis
+        if (typeof page === "string") {
           return (
-            <Button
-              key={`ellipsis-${index}`}
-              variant="ghost"
-              size="icon"
-              disabled
-              className="cursor-default"
-            >
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
+            <span key={page} className="w-10 h-10 flex items-center justify-center text-muted-foreground">
+              ...
+            </span>
           );
         }
-
+        
+        // Otherwise it's a number
         return (
           <Button
-            key={page}
+            key={index}
             variant={currentPage === page ? "default" : "outline"}
-            onClick={() => onPageChange(page as number)}
-            aria-label={`Page ${page}`}
-            aria-current={currentPage === page ? "page" : undefined}
-            className="min-w-8"
+            className={`w-10 h-10 rounded-full ${
+              currentPage === page ? "bg-primary hover:bg-primary/90" : ""
+            }`}
+            onClick={() => onPageChange(page)}
           >
             {page}
           </Button>
         );
       })}
-
-      {/* Next button */}
+      
       <Button
         variant="outline"
         size="icon"
-        onClick={() => onPageChange(currentPage + 1)}
+        className="w-10 h-10 rounded-full"
+        onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
         disabled={currentPage === totalPages}
-        aria-label="Next page"
       >
         <ChevronRight className="h-4 w-4" />
       </Button>
