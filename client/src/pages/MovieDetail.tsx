@@ -10,9 +10,12 @@ import {
   Loader2,
   Search,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   Calendar,
   Clock,
-  Info
+  Info,
+  FileText
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
@@ -581,10 +584,40 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
             </div>
             
             <div className="mb-6">
-              <h3 className="text-xl font-bold mb-3">Overview</h3>
-              <p className="text-muted-foreground">
-                {movie.content || 'No description available'}
-              </p>
+              <h3 className="text-xl font-bold mb-3 flex items-center">
+                <FileText className="h-5 w-5 mr-2 text-primary" />
+                Overview
+              </h3>
+              {(() => {
+                const content = movie.content || 'No description available';
+                const isLongContent = content.length > 300;
+                const [isExpanded, setIsExpanded] = useState(!isLongContent);
+                
+                return (
+                  <div className="relative">
+                    <p className={`text-base leading-relaxed tracking-wide text-gray-200 ${!isExpanded ? 'line-clamp-3' : ''}`}>
+                      {content}
+                    </p>
+                    
+                    {isLongContent && (
+                      <div className={`${!isExpanded ? 'absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-background to-transparent' : ''} flex justify-center`}>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="mt-2 text-primary"
+                          onClick={() => setIsExpanded(!isExpanded)}
+                        >
+                          {isExpanded ? (
+                            <span className="flex items-center">Show less <ChevronUp className="ml-1 h-4 w-4" /></span>
+                          ) : (
+                            <span className="flex items-center">Read more <ChevronDown className="ml-1 h-4 w-4" /></span>
+                          )}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 mb-6">
