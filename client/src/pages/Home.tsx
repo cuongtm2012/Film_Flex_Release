@@ -14,6 +14,7 @@ export default function Home() {
 
   // Determine the API endpoint based on category selection
   // When using '/api/categories/all', the server will automatically redirect to '/api/movies'
+  // Try different URL format since category filtering still doesn't work
   const endpoint = selectedCategory === 'all' 
     ? '/api/movies' 
     : `/api/categories/${selectedCategory}`;
