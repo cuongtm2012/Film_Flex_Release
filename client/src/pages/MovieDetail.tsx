@@ -276,17 +276,17 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
         </Link>
       </div>
       
-      {/* Video Player and Episodes Section - Two-column layout */}
-      <div className="container mx-auto px-4" id="video-player">
-        <div className="grid grid-cols-1 lg:grid-cols-10 gap-6">
-          {/* Left Column - Video Player (70%) */}
-          <div className="lg:col-span-7">
+      {/* Video Player and Episodes Section - Optimized Responsive layout */}
+      <div className="container mx-auto px-4 max-w-screen-2xl" id="video-player">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6">
+          {/* Main Column - Video Player */}
+          <div className="lg:col-span-8 xl:col-span-9">
             {/* Main Video Player */}
-            <div className="mb-6 relative z-10 shadow-xl border border-gray-800 bg-black rounded-md overflow-hidden">
+            <div className="mb-4 relative z-10 shadow-xl border border-gray-800 bg-black rounded-md overflow-hidden">
               {/* Now Playing Indicator */}
               {currentlyPlaying && (
-                <div className="absolute top-4 right-4 z-10 bg-black/80 px-3 py-1.5 rounded-full text-sm font-medium border border-primary/30 text-primary flex items-center animate-fadeIn">
-                  <Play className="h-3.5 w-3.5 mr-1.5 animate-pulseOpacity" />
+                <div className="absolute top-3 right-3 z-10 bg-black/80 px-2.5 py-1 rounded-full text-xs sm:text-sm font-medium border border-primary/30 text-primary flex items-center animate-fadeIn">
+                  <Play className="h-3 w-3 mr-1.5 animate-pulseOpacity" />
                   {currentlyPlaying}
                 </div>
               )}
@@ -294,9 +294,9 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
               {/* Loading Overlay */}
               {isEpisodeLoading && (
                 <div className="absolute inset-0 bg-black/80 z-20 flex flex-col items-center justify-center animate-fadeIn">
-                  <Loader2 className="h-12 w-12 text-primary animate-spin mb-3" />
-                  <p className="text-white font-medium">Loading video...</p>
-                  <div className="mt-6 w-64 h-1 bg-gray-800 rounded-full overflow-hidden">
+                  <Loader2 className="h-10 w-10 sm:h-12 sm:w-12 text-primary animate-spin mb-2 sm:mb-3" />
+                  <p className="text-white font-medium text-sm sm:text-base">Loading video...</p>
+                  <div className="mt-4 sm:mt-6 w-48 sm:w-64 h-1 bg-gray-800 rounded-full overflow-hidden">
                     <div className="h-full bg-primary rounded-full animate-pulse w-1/2"></div>
                   </div>
                 </div>
@@ -319,23 +319,23 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
               </div>
             </div>
             
-            {/* Action Buttons */}
-            <div className="flex flex-wrap gap-4 mb-6">
+            {/* Action Buttons - Optimized */}
+            <div className="flex flex-wrap gap-2 mb-4">
               <Button 
                 variant="outline" 
                 size="sm" 
-                className="rounded-full flex items-center gap-1.5"
+                className="h-8 px-3 rounded-full flex items-center gap-1"
               >
-                <div className="flex items-center gap-1.5">
-                  <Star className="h-4 w-4 text-yellow-500" fill="currentColor" />
-                  <span>8.3</span>
+                <div className="flex items-center gap-1">
+                  <Star className="h-3.5 w-3.5 text-yellow-500" fill="currentColor" />
+                  <span className="text-xs">{(movie as any).tmdb?.vote_average || "8.3"}</span>
                 </div>
               </Button>
               
               <Button 
                 variant="outline" 
                 size="sm" 
-                className="rounded-full flex items-center gap-1.5"
+                className="h-8 px-3 rounded-full flex items-center gap-1"
                 onClick={() => {
                   // Handle share function
                   navigator.clipboard.writeText(window.location.href);
@@ -345,25 +345,25 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
                   });
                 }}
               >
-                <Share2 className="h-4 w-4" />
-                <span>Share</span>
+                <Share2 className="h-3.5 w-3.5" />
+                <span className="text-xs">Share</span>
               </Button>
               
               <Button 
                 variant="outline"
                 size="sm"
-                className="rounded-full flex items-center gap-1.5"
+                className="h-8 px-3 rounded-full flex items-center gap-1"
                 onClick={handleAddToWatchlist}
                 disabled={addToWatchlistMutation.isPending}
               >
-                <Plus className="h-4 w-4" />
-                <span>Add to List</span>
+                <Plus className="h-3.5 w-3.5" />
+                <span className="text-xs">Add to List</span>
               </Button>
               
               <Button 
                 variant="outline"
                 size="sm"
-                className="rounded-full flex items-center gap-1.5 ml-auto"
+                className="h-8 px-3 rounded-full flex items-center gap-1 ml-auto"
                 onClick={() => {
                   // Handle report function
                   toast({
@@ -372,36 +372,101 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
                   });
                 }}
               >
-                <AlertCircle className="h-4 w-4" />
-                <span>Report</span>
+                <AlertCircle className="h-3.5 w-3.5" />
+                <span className="text-xs">Report</span>
               </Button>
             </div>
             
-            {/* Server Selection - Only show if there are multiple servers */}
+            {/* Server Selection - Only show if there are multiple servers - Optimized */}
             {movieDetail.episodes.length > 1 && (
-              <div className="mb-6 bg-black/40 p-3 rounded-md border border-gray-800">
-                <h4 className="text-sm font-medium mb-2 text-muted-foreground">Available Servers</h4>
-                <ServerTabs 
-                  servers={episodes} 
-                  onServerSelect={handleServerSelect}
-                  isLoading={isMovieLoading}
-                />
+              <div className="mb-4 bg-black/40 p-3 rounded-md border border-gray-800">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-sm font-medium text-muted-foreground">Available Servers</h4>
+                  {/* Server dropdown for mobile only */}
+                  <div className="lg:hidden">
+                    <Select
+                      value={selectedServer}
+                      onValueChange={handleServerSelect}
+                    >
+                      <SelectTrigger className="w-[120px] h-7 text-xs">
+                        <SelectValue placeholder="Select server" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {episodes.map((server) => (
+                          <SelectItem key={server.server_name} value={server.server_name}>
+                            {server.server_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                {/* Server tabs for desktop only */}
+                <div className="hidden lg:block">
+                  <ServerTabs 
+                    servers={episodes} 
+                    onServerSelect={handleServerSelect}
+                    isLoading={isMovieLoading}
+                  />
+                </div>
+              </div>
+            )}
+            
+            {/* Mobile Episodes Horizontal Scroll - Only visible on mobile and tablet */}
+            {!isSingleEpisode() && (
+              <div className="lg:hidden mb-4 overflow-x-auto scrollbar-hide">
+                <div className="flex space-x-2 p-1 min-w-max">
+                  {getCurrentEpisodeList().map((episode, index) => {
+                    // Extract episode number for display
+                    const episodeName = episode.name;
+                    let episodeNumber = index + 1;
+                    const episodeNumberMatch = episodeName.match(/\d+/);
+                    if (episodeNumberMatch) {
+                      episodeNumber = parseInt(episodeNumberMatch[0]);
+                    }
+                    
+                    return (
+                      <Button
+                        key={episode.slug}
+                        variant={selectedEpisode === episode.slug ? "default" : "outline"}
+                        size="sm"
+                        className={`h-8 px-3 whitespace-nowrap ${
+                          selectedEpisode === episode.slug 
+                            ? "bg-primary text-white" 
+                            : "bg-card/30 hover:bg-card/50"
+                        }`}
+                        onClick={() => handleEpisodeSelect(episode.slug)}
+                      >
+                        Ep {episodeNumber}
+                      </Button>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>
           
-          {/* Right Column - Episodes List (30%) */}
-          <div className="lg:col-span-3">
+          {/* Right Column - Episodes List (only visible on desktop) */}
+          <div className="hidden lg:block lg:col-span-4 xl:col-span-3">
             <div className="bg-black/20 rounded-md border border-gray-800 h-full">
               {/* Episodes Section Header */}
-              <div className="p-4 border-b border-gray-800">
-                <h3 className="text-lg font-bold flex items-center">
-                  <Play className="mr-2 h-5 w-5 text-primary" />
-                  {isSingleEpisode() ? "Full Movie" : (movie.type === "series" ? "Episodes" : "Parts")}
-                  {isSingleEpisode() && (
-                    <Badge variant="outline" className="ml-2 bg-primary/10">Full Movie</Badge>
+              <div className="p-3 border-b border-gray-800">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-base font-bold flex items-center">
+                    <Play className="mr-2 h-4 w-4 text-primary" />
+                    {isSingleEpisode() ? "Full Movie" : (movie.type === "series" ? "Episodes" : "Parts")}
+                    {isSingleEpisode() && (
+                      <Badge variant="outline" className="ml-2 bg-primary/10 text-xs">Full Movie</Badge>
+                    )}
+                  </h3>
+                  
+                  {/* Episode count badge */}
+                  {!isSingleEpisode() && (
+                    <Badge variant="outline" className="bg-card/30">
+                      {getCurrentEpisodeList().length} episodes
+                    </Badge>
                   )}
-                </h3>
+                </div>
               </div>
               
               {/* Episodes List with its own scrollbar */}
