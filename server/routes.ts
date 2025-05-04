@@ -197,7 +197,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // For suggestions, we always use a small limit (max 8 results)
       console.log(`Fetching search suggestions for "${keyword}"`);
-      const searchResults = await searchMovies(keyword, 1, 8);
+      const normalizedKeyword = normalizeText(keyword);
+      const searchResults = await searchMovies(keyword, normalizedKeyword, 1, 8);
       
       // Log the search results
       if (searchResults.items && searchResults.items.length > 0) {
