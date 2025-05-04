@@ -282,6 +282,7 @@ export class MemStorage implements IStorage {
     const lowerQuery = query.toLowerCase();
     const lowerNormalizedQuery = normalizedQuery.toLowerCase();
     
+    // First get all matching movies
     const matchingMovies = Array.from(this.movies.values()).filter(
       (movie) => {
         // Check with original query
@@ -307,10 +308,51 @@ export class MemStorage implements IStorage {
       }
     );
     
-    const total = matchingMovies.length;
+    // Now sort the matching movies based on relevance
+    const sortedMovies = matchingMovies.sort((a, b) => {
+      const aName = a.name.toLowerCase();
+      const bName = b.name.toLowerCase();
+      const aNormalizedName = this.normalizeText(a.name).toLowerCase();
+      const bNormalizedName = this.normalizeText(b.name).toLowerCase();
+      
+      // Exact match gets highest priority
+      const aExactMatch = aName === lowerQuery || (a.originName && a.originName.toLowerCase() === lowerQuery);
+      const bExactMatch = bName === lowerQuery || (b.originName && b.originName.toLowerCase() === lowerQuery);
+      if (aExactMatch && !bExactMatch) return -1;
+      if (!aExactMatch && bExactMatch) return 1;
+      
+      // Exact match with normalized text gets next priority
+      const aNormalizedExactMatch = aNormalizedName === lowerNormalizedQuery;
+      const bNormalizedExactMatch = bNormalizedName === lowerNormalizedQuery;
+      if (aNormalizedExactMatch && !bNormalizedExactMatch) return -1;
+      if (!aNormalizedExactMatch && bNormalizedExactMatch) return 1;
+      
+      // Starts with gets next priority
+      const aStartsWith = aName.startsWith(lowerQuery) || (a.originName && a.originName.toLowerCase().startsWith(lowerQuery));
+      const bStartsWith = bName.startsWith(lowerQuery) || (b.originName && b.originName.toLowerCase().startsWith(lowerQuery));
+      if (aStartsWith && !bStartsWith) return -1;
+      if (!aStartsWith && bStartsWith) return 1;
+      
+      // Normalized starts with gets next priority
+      const aNormalizedStartsWith = aNormalizedName.startsWith(lowerNormalizedQuery);
+      const bNormalizedStartsWith = bNormalizedName.startsWith(lowerNormalizedQuery);
+      if (aNormalizedStartsWith && !bNormalizedStartsWith) return -1;
+      if (!aNormalizedStartsWith && bNormalizedStartsWith) return 1;
+      
+      // Title word boundary match gets next priority (e.g., "Tình yêu" in "Câu chuyện tình yêu")
+      const aWordMatch = ` ${aName} `.includes(` ${lowerQuery} `);
+      const bWordMatch = ` ${bName} `.includes(` ${lowerQuery} `);
+      if (aWordMatch && !bWordMatch) return -1;
+      if (!aWordMatch && bWordMatch) return 1;
+      
+      // Finally, fall back to alphabetical sort
+      return aName.localeCompare(bName);
+    });
+    
+    const total = sortedMovies.length;
     const start = (page - 1) * limit;
     const end = start + limit;
-    const paginatedMovies = matchingMovies.slice(start, end);
+    const paginatedMovies = sortedMovies.slice(start, end);
     
     return { data: paginatedMovies, total };
   }
@@ -854,6 +896,10 @@ export class DatabaseStorage implements IStorage {
    * @param limit The number of results per page
    */
   async searchMovies(query: string, normalizedQuery: string, page: number, limit: number): Promise<{ data: Movie[], total: number }> {
+    const exactPattern = query.toLowerCase();
+    const normalizedExactPattern = normalizedQuery.toLowerCase();
+    const startWithPattern = `${query}%`;
+    const normalizedStartWithPattern = `${normalizedQuery}%`;
     const searchPattern = `%${query}%`;
     const normalizedPattern = `%${normalizedQuery}%`;
     
@@ -867,23 +913,8 @@ export class DatabaseStorage implements IStorage {
     }
     
     try {
-      // First try with the normalized pattern using unaccent function
-      const data = await db.select().from(movies)
-        .where(
-          sql`(
-            ${movies.name} ILIKE ${searchPattern} OR 
-            ${movies.originName} ILIKE ${searchPattern} OR 
-            ${movies.description} ILIKE ${searchPattern} OR
-            unaccent(${movies.name}) ILIKE ${normalizedPattern} OR
-            unaccent(${movies.originName}) ILIKE ${normalizedPattern} OR
-            unaccent(${movies.description}) ILIKE ${normalizedPattern} OR
-            ${movies.slug} ILIKE ${normalizedPattern}
-          )`
-        )
-        .limit(limit)
-        .offset((page - 1) * limit);
-      
-      const [{ count }] = await db.select({ count: sql<number>`count(*)` }).from(movies)
+      // Get all matching items first, then we'll apply custom sorting
+      const allMatches = await db.select().from(movies)
         .where(
           sql`(
             ${movies.name} ILIKE ${searchPattern} OR 
@@ -896,11 +927,64 @@ export class DatabaseStorage implements IStorage {
           )`
         );
       
-      return { data, total: count };
+      // Sort the results based on relevance
+      const sortedResults = allMatches.sort((a, b) => {
+        const aName = a.name.toLowerCase();
+        const bName = b.name.toLowerCase();
+        const aOriginName = a.originName?.toLowerCase() || '';
+        const bOriginName = b.originName?.toLowerCase() || '';
+        
+        // Exact match gets highest priority
+        const aExactMatch = aName === exactPattern || aOriginName === exactPattern;
+        const bExactMatch = bName === exactPattern || bOriginName === exactPattern;
+        if (aExactMatch && !bExactMatch) return -1;
+        if (!aExactMatch && bExactMatch) return 1;
+        
+        // Normalized exact match gets next priority
+        const aNormalizedName = this.normalizeText(a.name).toLowerCase();
+        const bNormalizedName = this.normalizeText(b.name).toLowerCase();
+        const aNormalizedOriginName = a.originName ? this.normalizeText(a.originName).toLowerCase() : '';
+        const bNormalizedOriginName = b.originName ? this.normalizeText(b.originName).toLowerCase() : '';
+        
+        const aNormalizedExactMatch = aNormalizedName === normalizedExactPattern || aNormalizedOriginName === normalizedExactPattern;
+        const bNormalizedExactMatch = bNormalizedName === normalizedExactPattern || bNormalizedOriginName === normalizedExactPattern;
+        if (aNormalizedExactMatch && !bNormalizedExactMatch) return -1;
+        if (!aNormalizedExactMatch && bNormalizedExactMatch) return 1;
+        
+        // Starts with gets next priority
+        const aStartsWith = aName.startsWith(exactPattern) || aOriginName.startsWith(exactPattern);
+        const bStartsWith = bName.startsWith(exactPattern) || bOriginName.startsWith(exactPattern);
+        if (aStartsWith && !bStartsWith) return -1;
+        if (!aStartsWith && bStartsWith) return 1;
+        
+        // Normalized starts with gets next priority
+        const aNormalizedStartsWith = aNormalizedName.startsWith(normalizedExactPattern) || aNormalizedOriginName.startsWith(normalizedExactPattern);
+        const bNormalizedStartsWith = bNormalizedName.startsWith(normalizedExactPattern) || bNormalizedOriginName.startsWith(normalizedExactPattern);
+        if (aNormalizedStartsWith && !bNormalizedStartsWith) return -1;
+        if (!aNormalizedStartsWith && bNormalizedStartsWith) return 1;
+        
+        // Title word boundary match gets next priority (e.g., "Tình yêu" in "Câu chuyện tình yêu")
+        const aWordMatch = ` ${aName} `.includes(` ${exactPattern} `) || ` ${aOriginName} `.includes(` ${exactPattern} `);
+        const bWordMatch = ` ${bName} `.includes(` ${exactPattern} `) || ` ${bOriginName} `.includes(` ${exactPattern} `);
+        if (aWordMatch && !bWordMatch) return -1;
+        if (!aWordMatch && bWordMatch) return 1;
+        
+        // Finally, fall back to alphabetical sort
+        return aName.localeCompare(bName);
+      });
+      
+      // Apply pagination to the sorted results
+      const total = sortedResults.length;
+      const start = (page - 1) * limit;
+      const end = Math.min(start + limit, total);
+      const data = sortedResults.slice(start, end);
+      
+      return { data, total };
     } catch (error) {
       // If unaccent fails or isn't available, fall back to simpler matching
-      console.error("Error with unaccent search, falling back to basic search:", error);
+      console.error("Error with advanced search, falling back to basic search:", error);
       
+      // For fallback, we'll just do a simple DB query with limit/offset
       const data = await db.select().from(movies)
         .where(
           sql`(
