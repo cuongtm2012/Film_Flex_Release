@@ -8,31 +8,31 @@ echo "=========================================="
 # Function to run all tests
 run_all_tests() {
   echo "Running all Cypress tests on BrowserStack..."
-  npx browserstack-cypress run
+  npx browserstack-cypress run --cf browserstack.json
 }
 
 # Function to run search tests
 run_search_tests() {
   echo "Running search functionality tests on BrowserStack..."
-  npx browserstack-cypress run --spec 'cypress/e2e/search.cy.js'
+  npx browserstack-cypress run --cf browserstack.json --spec 'cypress/e2e/search.cy.js'
 }
 
 # Function to run authentication tests
 run_auth_tests() {
   echo "Running authentication tests on BrowserStack..."
-  npx browserstack-cypress run --spec 'cypress/e2e/auth.cy.js'
+  npx browserstack-cypress run --cf browserstack.json --spec 'cypress/e2e/auth.cy.js'
 }
 
 # Function to run movie details tests
 run_movie_details_tests() {
   echo "Running movie details tests on BrowserStack..."
-  npx browserstack-cypress run --spec 'cypress/e2e/movie-details.cy.js'
+  npx browserstack-cypress run --cf browserstack.json --spec 'cypress/e2e/movie-details.cy.js'
 }
 
 # Function to run watchlist tests
 run_watchlist_tests() {
   echo "Running watchlist tests on BrowserStack..."
-  npx browserstack-cypress run --spec 'cypress/e2e/watchlist.cy.js'
+  npx browserstack-cypress run --cf browserstack.json --spec 'cypress/e2e/watchlist.cy.js'
 }
 
 # Check command line arguments
