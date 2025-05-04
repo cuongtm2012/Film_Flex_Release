@@ -432,8 +432,8 @@ export function convertToMovieModel(movieDetail: MovieDetailResponse): InsertMov
     trailerUrl: movie.trailer_url,
     categories: movie.category,
     countries: movie.country,
-    actors: movie.actor.join(", "),
-    directors: movie.director.join(", ")
+    actors: Array.isArray(movie.actor) ? movie.actor.join(", ") : "",
+    directors: Array.isArray(movie.director) ? movie.director.join(", ") : ""
     // Note: modifiedAt will be defaulted by the database
   };
 }
