@@ -40,18 +40,20 @@ export default function MovieCard({ movie }: MovieCardProps) {
           const response = await fetch(`/api/movies/${movie.slug}/episodes`);
           const data = await response.json();
           
-          // Count total episodes by summing up server_data lengths across all servers
+          // Calculate episode count from the server_data array
           let count = 0;
           if (data.episodes && data.episodes.length > 0) {
-            data.episodes.forEach((episode: any) => {
-              if (episode.server_data && Array.isArray(episode.server_data)) {
-                count += episode.server_data.length;
+            // Loop through each server
+            data.episodes.forEach((server: any) => {
+              // For servers with server_data array, count the episodes
+              if (server.server_data && Array.isArray(server.server_data)) {
+                count = Math.max(count, server.server_data.length);
               }
             });
           }
           
-          // If it's just one full episode, count it as 1
-          count = count || data.episodes?.length || 0;
+          // Default to 1 if we can't find any episodes but the API returned a result
+          count = count || (data.episodes?.length > 0 ? 1 : 0);
           
           // Cache the result
           episodeCountCache.set(movie.slug, count);
@@ -82,13 +84,13 @@ export default function MovieCard({ movie }: MovieCardProps) {
         </AspectRatio>
         
         {/* Episode count badge (only for TV shows) */}
-        {type === "tv" && episodeCount !== null && (
+        {type === "tv" && (
           <Badge 
             variant="secondary" 
-            className="absolute top-2 right-2 bg-black/70 hover:bg-black/70"
+            className="absolute top-2 right-2 bg-black/70 hover:bg-black/70 z-10"
           >
             <Tv size={14} className="mr-1" />
-            {isLoading ? "..." : `${episodeCount} EP`}
+            {isLoading ? "..." : `${episodeCount || '?'} EP`}
           </Badge>
         )}
         
@@ -96,7 +98,7 @@ export default function MovieCard({ movie }: MovieCardProps) {
         {type === "movie" && (
           <Badge 
             variant="secondary" 
-            className="absolute top-2 right-2 bg-black/70 hover:bg-black/70"
+            className="absolute top-2 right-2 bg-black/70 hover:bg-black/70 z-10"
           >
             <Film size={14} className="mr-1" />
             Film
