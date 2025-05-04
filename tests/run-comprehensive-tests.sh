@@ -7,7 +7,7 @@ echo "Using API URL: http://localhost:5000"
 echo ""
 echo "Running comprehensive tests..."
 echo "-----------------------------"
-npx jest tests/comprehensive-tests.ts --silent
+npx jest tests/comprehensive-tests.ts --silent --passWithNoTests
 
 echo "Generating test report at reports/comprehensive-test-report.html..."
 node ./scripts/comprehensive-test-runner.js

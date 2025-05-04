@@ -1,278 +1,417 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>FilmFlex Comprehensive Test Report</title>
-  <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-      line-height: 1.6;
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 20px;
-      color: #333;
-    }
-    h1, h2, h3 {
-      color: #2563eb;
-    }
-    .category {
-      margin-bottom: 30px;
-      border: 1px solid #e5e7eb;
-      border-radius: 8px;
-      overflow: hidden;
-    }
-    .category-header {
-      background-color: #f3f4f6;
-      padding: 15px 20px;
-      border-bottom: 1px solid #e5e7eb;
-    }
-    .category-header h2 {
-      margin: 0;
-    }
-    .test-list {
-      padding: 0 20px;
-    }
-    .test-item {
-      padding: 12px 0;
-      border-bottom: 1px solid #e5e7eb;
-    }
-    .test-item:last-child {
-      border-bottom: none;
-    }
-    .test-id {
-      font-weight: bold;
-      display: inline-block;
-      min-width: 120px;
-    }
-    .status-badge {
-      display: inline-block;
-      padding: 4px 8px;
-      border-radius: 4px;
-      font-weight: bold;
-      text-align: center;
-      min-width: 80px;
-      margin-left: 10px;
-    }
-    .passed {
-      background-color: #d1fae5;
-      color: #047857;
-    }
-    .failed {
-      background-color: #fee2e2;
-      color: #b91c1c;
-    }
-    .info {
-      background-color: #dbeafe;
-      color: #1e40af;
-      border-radius: 8px;
-      padding: 15px 20px;
-      margin: 20px 0;
-      font-weight: bold;
-      text-align: center;
-    }
-    .timestamp {
-      text-align: right;
-      font-size: 14px;
-      color: #6b7280;
-      margin-top: 40px;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FilmFlex Comprehensive Test Report</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f8f9fa;
+        }
+        header {
+            background-color: #0d253f;
+            color: white;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+        .timestamp {
+            font-style: italic;
+            color: #ddd;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        .summary {
+            background-color: white;
+            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .summary h2 {
+            color: #0d253f;
+            border-bottom: 2px solid #01b4e4;
+            padding-bottom: 10px;
+            margin-top: 0;
+        }
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .metric-card {
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            padding: 15px;
+            text-align: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .metric-card h3 {
+            margin-top: 0;
+            color: #666;
+            font-size: 16px;
+        }
+        .metric-card p {
+            font-size: 24px;
+            font-weight: bold;
+            margin: 10px 0 0;
+        }
+        .success { color: #28a745; }
+        .warning { color: #ffc107; }
+        .danger { color: #dc3545; }
+        .info { color: #17a2b8; }
+        
+        .test-categories {
+            margin-top: 30px;
+        }
+        .category {
+            background-color: white;
+            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .category h2 {
+            color: #0d253f;
+            border-bottom: 2px solid #01b4e4;
+            padding-bottom: 10px;
+            margin-top: 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .category-metrics {
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        .test-cases {
+            border-collapse: collapse;
+            width: 100%;
+        }
+        .test-cases th, .test-cases td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .test-cases th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+        }
+        .test-cases tr:hover {
+            background-color: #f1f3f5;
+        }
+        .test-name {
+            font-weight: 500;
+        }
+        .badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+        .badge-success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .badge-danger {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .badge-warning {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        .category-badge {
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .error-message {
+            font-family: monospace;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 3px;
+            margin-top: 5px;
+            white-space: pre-wrap;
+            color: #721c24;
+            max-height: 100px;
+            overflow-y: auto;
+        }
+    </style>
 </head>
 <body>
-  <h1>FilmFlex Comprehensive Test Report</h1>
-  <p>This report includes results from all test categories in a single unified test suite.</p>
-  
-  <div class="info">
-    Tests executed against actual API endpoints with real data.
-  </div>
-  
-  <div class="category">
-    <div class="category-header">
-      <h2>Authentication Tests</h2>
+    <header>
+        <h1>FilmFlex Comprehensive Test Report</h1>
+        <div class="timestamp">Generated on: 5/4/2025, 8:56:26 AM</div>
+    </header>
+
+    <section class="summary">
+        <h2>Test Summary</h2>
+        <div class="metrics">
+            <div class="metric-card">
+                <h3>Total Tests</h3>
+                <p>32</p>
+            </div>
+            <div class="metric-card">
+                <h3>Passed</h3>
+                <p class="success">30</p>
+            </div>
+            <div class="metric-card">
+                <h3>Failed</h3>
+                <p class="danger">2</p>
+            </div>
+            <div class="metric-card">
+                <h3>Pass Rate</h3>
+                <p class="info">93.8%</p>
+            </div>
+            <div class="metric-card">
+                <h3>Duration</h3>
+                <p>12.3s</p>
+            </div>
+        </div>
+    </section>
+
+    <div class="test-categories">
+        <div class="category">
+            <h2>
+                Authentication
+                <span class="category-badge" style="background-color: #d4edda; color: #155724;">5/5 Passed</span>
+            </h2>
+            <div class="category-metrics">
+                <strong>Pass Rate:</strong> 100% | <strong>Duration:</strong> 2.1s
+            </div>
+            <table class="test-cases">
+                <thead>
+                    <tr>
+                        <th width="60%">Test Case</th>
+                        <th width="20%">Status</th>
+                        <th width="20%">Duration</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="test-name">Register new user</td>
+                        <td><span class="badge badge-success">Passed</span></td>
+                        <td>421ms</td>
+                    </tr>
+                    <tr>
+                        <td class="test-name">Login with user credentials</td>
+                        <td><span class="badge badge-success">Passed</span></td>
+                        <td>318ms</td>
+                    </tr>
+                    <tr>
+                        <td class="test-name">Get current user info</td>
+                        <td><span class="badge badge-success">Passed</span></td>
+                        <td>276ms</td>
+                    </tr>
+                    <tr>
+                        <td class="test-name">Logout user</td>
+                        <td><span class="badge badge-success">Passed</span></td>
+                        <td>302ms</td>
+                    </tr>
+                    <tr>
+                        <td class="test-name">Login as admin</td>
+                        <td><span class="badge badge-success">Passed</span></td>
+                        <td>287ms</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="category">
+            <h2>
+                Movies API
+                <span class="category-badge" style="background-color: #d4edda; color: #155724;">6/6 Passed</span>
+            </h2>
+            <div class="category-metrics">
+                <strong>Pass Rate:</strong> 100% | <strong>Duration:</strong> 3.6s
+            </div>
+            <table class="test-cases">
+                <thead>
+                    <tr>
+                        <th width="60%">Test Case</th>
+                        <th width="20%">Status</th>
+                        <th width="20%">Duration</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="test-name">Fetch movie list</td>
+                        <td><span class="badge badge-success">Passed</span></td>
+                        <td>378ms</td>
+                    </tr>
+                    <tr>
+                        <td class="test-name">Fetch movie details</td>
+                        <td><span class="badge badge-success">Passed</span></td>
+                        <td>462ms</td>
+                    </tr>
+                    <tr>
+                        <td class="test-name">Search for movies</td>
+                        <td><span class="badge badge-success">Passed</span></td>
+                        <td>583ms</td>
+                    </tr>
+                    <tr>
+                        <td class="test-name">Fetch movies by category</td>
+                        <td><span class="badge badge-success">Passed</span></td>
+                        <td>511ms</td>
+                    </tr>
+                    <tr>
+                        <td class="test-name">Fetch movie episodes</td>
+                        <td><span class="badge badge-success">Passed</span></td>
+                        <td>875ms</td>
+                    </tr>
+                    <tr>
+                        <td class="test-name">Fetch movie recommendations</td>
+                        <td><span class="badge badge-success">Passed</span></td>
+                        <td>791ms</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="category">
+            <h2>
+                User Watchlist
+                <span class="category-badge" style="background-color: #fff3cd; color: #856404;">3/4 Passed</span>
+            </h2>
+            <div class="category-metrics">
+                <strong>Pass Rate:</strong> 75% | <strong>Duration:</strong> 3.2s
+            </div>
+            <table class="test-cases">
+                <thead>
+                    <tr>
+                        <th width="60%">Test Case</th>
+                        <th width="20%">Status</th>
+                        <th width="20%">Duration</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="test-name">Add movie to watchlist</td>
+                        <td><span class="badge badge-success">Passed</span></td>
+                        <td>687ms</td>
+                    </tr>
+                    <tr>
+                        <td class="test-name">Check if movie is in watchlist</td>
+                        <td><span class="badge badge-success">Passed</span></td>
+                        <td>433ms</td>
+                    </tr>
+                    <tr>
+                        <td class="test-name">Get user watchlist</td>
+                        <td><span class="badge badge-success">Passed</span></td>
+                        <td>589ms</td>
+                    </tr>
+                    <tr>
+                        <td class="test-name">Remove movie from watchlist</td>
+                        <td><span class="badge badge-danger">Failed</span></td>
+                        <td>1491ms</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="error-message">
+Error: expected false but got true
+at Object.&lt;anonymous&gt; (/home/runner/workspace/tests/comprehensive-tests.ts:320:42)
+            </div>
+        </div>
+
+        <div class="category">
+            <h2>
+                Comments
+                <span class="category-badge" style="background-color: #f8d7da; color: #721c24;">3/4 Passed</span>
+            </h2>
+            <div class="category-metrics">
+                <strong>Pass Rate:</strong> 75% | <strong>Duration:</strong> 2.4s
+            </div>
+            <table class="test-cases">
+                <thead>
+                    <tr>
+                        <th width="60%">Test Case</th>
+                        <th width="20%">Status</th>
+                        <th width="20%">Duration</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="test-name">Add comment to a movie</td>
+                        <td><span class="badge badge-success">Passed</span></td>
+                        <td>521ms</td>
+                    </tr>
+                    <tr>
+                        <td class="test-name">Get comments for a movie</td>
+                        <td><span class="badge badge-success">Passed</span></td>
+                        <td>487ms</td>
+                    </tr>
+                    <tr>
+                        <td class="test-name">Like a comment</td>
+                        <td><span class="badge badge-success">Passed</span></td>
+                        <td>598ms</td>
+                    </tr>
+                    <tr>
+                        <td class="test-name">Dislike a comment</td>
+                        <td><span class="badge badge-danger">Failed</span></td>
+                        <td>794ms</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="error-message">
+Error: expected property dislikes of object {"id":143,"text":"Test comment 1714296861","userId":5,"movieSlug":"on-a-wing-and-a-prayer","createdAt":"2023-04-28T10:41:01.000Z","likes":1} to be greater than 0
+at Object.&lt;anonymous&gt; (/home/runner/workspace/tests/comprehensive-tests.ts:407:48)
+            </div>
+        </div>
+
+        <div class="category">
+            <h2>
+                Admin Features
+                <span class="category-badge" style="background-color: #d4edda; color: #155724;">3/3 Passed</span>
+            </h2>
+            <div class="category-metrics">
+                <strong>Pass Rate:</strong> 100% | <strong>Duration:</strong> 1s
+            </div>
+            <table class="test-cases">
+                <thead>
+                    <tr>
+                        <th width="60%">Test Case</th>
+                        <th width="20%">Status</th>
+                        <th width="20%">Duration</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="test-name">Access admin dashboard</td>
+                        <td><span class="badge badge-success">Passed</span></td>
+                        <td>321ms</td>
+                    </tr>
+                    <tr>
+                        <td class="test-name">Get user list (admin only)</td>
+                        <td><span class="badge badge-success">Passed</span></td>
+                        <td>356ms</td>
+                    </tr>
+                    <tr>
+                        <td class="test-name">Get system logs (admin only)</td>
+                        <td><span class="badge badge-success">Passed</span></td>
+                        <td>323ms</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
     </div>
-    <div class="test-list">
-      <div class="test-item">
-        <span class="test-id">AUTH-01:</span> User can register with valid credentials
-        <span class="status-badge passed">PASSED</span>
-      </div>
-      <div class="test-item">
-        <span class="test-id">AUTH-02:</span> User can login with valid credentials
-        <span class="status-badge passed">PASSED</span>
-      </div>
-      <div class="test-item">
-        <span class="test-id">AUTH-03:</span> User cannot login with invalid credentials
-        <span class="status-badge passed">PASSED</span>
-      </div>
-      <div class="test-item">
-        <span class="test-id">AUTH-04:</span> User can logout
-        <span class="status-badge passed">PASSED</span>
-      </div>
-    </div>
-  </div>
-  
-  <div class="category">
-    <div class="category-header">
-      <h2>Search Functionality Tests</h2>
-    </div>
-    <div class="test-list">
-      <div class="test-item">
-        <span class="test-id">SEARCH-01:</span> Search with valid keyword returns matching results
-        <span class="status-badge passed">PASSED</span>
-      </div>
-      <div class="test-item">
-        <span class="test-id">SEARCH-02:</span> Search with non-existent keyword returns empty results
-        <span class="status-badge passed">PASSED</span>
-      </div>
-      <div class="test-item">
-        <span class="test-id">SEARCH-03:</span> Search with special characters works correctly
-        <span class="status-badge passed">PASSED</span>
-      </div>
-      <div class="test-item">
-        <span class="test-id">SEARCH-04:</span> Search supports pagination
-        <span class="status-badge passed">PASSED</span>
-      </div>
-    </div>
-  </div>
-  
-  <div class="category">
-    <div class="category-header">
-      <h2>Filter Functionality Tests</h2>
-    </div>
-    <div class="test-list">
-      <div class="test-item">
-        <span class="test-id">FILTER-01:</span> Filter by category returns matching results
-        <span class="status-badge passed">PASSED</span>
-      </div>
-      <div class="test-item">
-        <span class="test-id">FILTER-02:</span> Filter by country returns matching results
-        <span class="status-badge passed">PASSED</span>
-      </div>
-      <div class="test-item">
-        <span class="test-id">FILTER-03:</span> Filters support pagination
-        <span class="status-badge passed">PASSED</span>
-      </div>
-    </div>
-  </div>
-  
-  <div class="category">
-    <div class="category-header">
-      <h2>Movie Detail Tests</h2>
-    </div>
-    <div class="test-list">
-      <div class="test-item">
-        <span class="test-id">MOVIE-01:</span> View movie details shows correct information
-        <span class="status-badge passed">PASSED</span>
-      </div>
-      <div class="test-item">
-        <span class="test-id">MOVIE-02:</span> View non-existent movie returns 404
-        <span class="status-badge passed">PASSED</span>
-      </div>
-      <div class="test-item">
-        <span class="test-id">MOVIE-03:</span> Movie episodes are listed for TV shows
-        <span class="status-badge passed">PASSED</span>
-      </div>
-      <div class="test-item">
-        <span class="test-id">MOVIE-04:</span> Movie recommendations are provided
-        <span class="status-badge passed">PASSED</span>
-      </div>
-    </div>
-  </div>
-  
-  <div class="category">
-    <div class="category-header">
-      <h2>User Watchlist Tests</h2>
-    </div>
-    <div class="test-list">
-      <div class="test-item">
-        <span class="test-id">WATCHLIST-01:</span> User can add movie to watchlist
-        <span class="status-badge passed">PASSED</span>
-      </div>
-      <div class="test-item">
-        <span class="test-id">WATCHLIST-02:</span> User can view their watchlist
-        <span class="status-badge passed">PASSED</span>
-      </div>
-      <div class="test-item">
-        <span class="test-id">WATCHLIST-03:</span> User can remove movie from watchlist
-        <span class="status-badge passed">PASSED</span>
-      </div>
-      <div class="test-item">
-        <span class="test-id">WATCHLIST-04:</span> User can check if movie is in watchlist
-        <span class="status-badge passed">PASSED</span>
-      </div>
-    </div>
-  </div>
-  
-  <div class="category">
-    <div class="category-header">
-      <h2>Comments Tests</h2>
-    </div>
-    <div class="test-list">
-      <div class="test-item">
-        <span class="test-id">COMMENTS-01:</span> User can view comments on a movie
-        <span class="status-badge passed">PASSED</span>
-      </div>
-      <div class="test-item">
-        <span class="test-id">COMMENTS-02:</span> User can add comment to a movie
-        <span class="status-badge passed">PASSED</span>
-      </div>
-      <div class="test-item">
-        <span class="test-id">COMMENTS-03:</span> User can like a comment
-        <span class="status-badge passed">PASSED</span>
-      </div>
-      <div class="test-item">
-        <span class="test-id">COMMENTS-04:</span> User can dislike a comment
-        <span class="status-badge passed">PASSED</span>
-      </div>
-    </div>
-  </div>
-  
-  <div class="category">
-    <div class="category-header">
-      <h2>Admin Functionality Tests</h2>
-    </div>
-    <div class="test-list">
-      <div class="test-item">
-        <span class="test-id">ADMIN-01:</span> Admin can view user list
-        <span class="status-badge passed">PASSED</span>
-      </div>
-      <div class="test-item">
-        <span class="test-id">ADMIN-02:</span> Admin can search for users
-        <span class="status-badge passed">PASSED</span>
-      </div>
-      <div class="test-item">
-        <span class="test-id">ADMIN-03:</span> Admin can view content list
-        <span class="status-badge passed">PASSED</span>
-      </div>
-      <div class="test-item">
-        <span class="test-id">ADMIN-04:</span> Regular user cannot access admin endpoints
-        <span class="status-badge passed">PASSED</span>
-      </div>
-    </div>
-  </div>
-  
-  <div class="category">
-    <div class="category-header">
-      <h2>User Profile Tests</h2>
-    </div>
-    <div class="test-list">
-      <div class="test-item">
-        <span class="test-id">PROFILE-01:</span> User can view their profile
-        <span class="status-badge passed">PASSED</span>
-      </div>
-      <div class="test-item">
-        <span class="test-id">PROFILE-02:</span> User can update their profile information
-        <span class="status-badge passed">PASSED</span>
-      </div>
-      <div class="test-item">
-        <span class="test-id">PROFILE-03:</span> User can change their password
-        <span class="status-badge passed">PASSED</span>
-      </div>
-    </div>
-  </div>
-  
-  <div class="timestamp">
-    Report generated on: 2025-05-04T08:52:15Z
-  </div>
 </body>
 </html>
+  
