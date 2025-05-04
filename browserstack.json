@@ -21,12 +21,12 @@
     },
     {
       "browser": "safari",
-      "os": "OS X Monterey",
-      "versions": ["15.6"]
+      "os": "OS X Big Sur",
+      "versions": ["14.1"]
     }
   ],
   "run_settings": {
-    "cypress_config_file": "./cypress.config.js",
+    "cypress_config_file": "./cypress.cjs.config.js",
     "project_name": "FilmFlex Automation Testing",
     "build_name": "FilmFlex Build 1.0",
     "parallels": 2,
