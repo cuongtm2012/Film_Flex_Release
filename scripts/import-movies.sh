@@ -5,4 +5,4 @@
 # or: ./import-movies.sh --resume
 
 # Use npx tsx to run the import script
-npx tsx import_new.ts "$@"
+npx tsx import.ts "$@"
