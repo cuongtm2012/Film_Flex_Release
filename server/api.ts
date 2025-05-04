@@ -92,6 +92,23 @@ export async function fetchMovieDetail(slug: string): Promise<MovieDetailRespons
   }
 }
 
+/**
+ * Function to normalize Vietnamese text by removing accents and diacritics
+ * This helps with search functionality where users might type without accents
+ */
+function normalizeText(text: string): string {
+  if (!text) return '';
+  
+  // Normalize to NFD form where accented chars are separated into base char + accent
+  return text.normalize('NFD')
+    // Remove combining diacritical marks (accents, etc.)
+    .replace(/[\u0300-\u036f]/g, '')
+    // Remove other special characters and normalize to lowercase
+    .toLowerCase()
+    // Replace đ/Đ with d
+    .replace(/[đĐ]/g, 'd');
+}
+
 export async function searchMovies(keyword: string, page: number = 1, limit: number = 50): Promise<MovieListResponse> {
   if (!keyword || keyword.trim() === "") {
     return { 
@@ -108,10 +125,11 @@ export async function searchMovies(keyword: string, page: number = 1, limit: num
   
   try {
     const trimmedKeyword = keyword.trim();
+    const normalizedKeyword = normalizeText(trimmedKeyword);
     console.log(`Searching for "${trimmedKeyword}" in page ${page} with limit ${limit}`);
     
     // First, search in our local storage/database
-    const localResults = await storage.searchMovies(trimmedKeyword, 1, 1000); // Get all matches
+    const localResults = await storage.searchMovies(trimmedKeyword, normalizedKeyword, 1, 1000); // Get all matches
     console.log(`Local search found ${localResults.data.length} matches for "${trimmedKeyword}"`);
     
     // Format local results to match MovieListResponse expected format
