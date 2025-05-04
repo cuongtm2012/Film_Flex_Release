@@ -756,6 +756,23 @@ export class MemStorage implements IStorage {
 export class DatabaseStorage implements IStorage {
   sessionStore: session.Store;
   
+  /**
+   * Function to normalize Vietnamese text by removing accents and diacritics
+   * This helps with search functionality where users might type without accents
+   */
+  private normalizeText(text: string): string {
+    if (!text) return '';
+    
+    // Normalize to NFD form where accented chars are separated into base char + accent
+    return text.normalize('NFD')
+      // Remove combining diacritical marks (accents, etc.)
+      .replace(/[\u0300-\u036f]/g, '')
+      // Remove other special characters and normalize to lowercase
+      .toLowerCase()
+      // Replace đ/Đ with d
+      .replace(/[đĐ]/g, 'd');
+  }
+  
   constructor() {
     const PostgresStore = connectPg(session);
     this.sessionStore = new PostgresStore({
