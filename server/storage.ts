@@ -265,7 +265,22 @@ export class MemStorage implements IStorage {
         break;
       case 'year':
         // Sort by release year (newest first)
-        allMovies.sort((a, b) => (b.year || 0) - (a.year || 0));
+        // Add more sophisticated year sorting - handle invalid years and ensure proper formatting
+        allMovies.sort((a, b) => {
+          // Validate the year values (should be legitimate years, not future years)
+          const currentYear = new Date().getFullYear();
+          
+          // Convert to numbers and default to 0 if not valid
+          const yearA = typeof a.year === 'number' && a.year > 1900 && a.year <= currentYear ? a.year : 0;
+          const yearB = typeof b.year === 'number' && b.year > 1900 && b.year <= currentYear ? b.year : 0;
+          
+          // First sort by valid vs. invalid years (valid years come first)
+          if (yearA === 0 && yearB !== 0) return 1;
+          if (yearB === 0 && yearA !== 0) return -1;
+          
+          // Then sort by year (newest first)
+          return yearB - yearA;
+        });
         break;
       default:
         // Default sort by latest modified
@@ -414,7 +429,22 @@ export class MemStorage implements IStorage {
         break;
       case 'year':
         // Sort by release year (newest first)
-        matchingMovies.sort((a, b) => (b.year || 0) - (a.year || 0));
+        // Add more sophisticated year sorting - handle invalid years and ensure proper formatting
+        matchingMovies.sort((a, b) => {
+          // Validate the year values (should be legitimate years, not future years)
+          const currentYear = new Date().getFullYear();
+          
+          // Convert to numbers and default to 0 if not valid
+          const yearA = typeof a.year === 'number' && a.year > 1900 && a.year <= currentYear ? a.year : 0;
+          const yearB = typeof b.year === 'number' && b.year > 1900 && b.year <= currentYear ? b.year : 0;
+          
+          // First sort by valid vs. invalid years (valid years come first)
+          if (yearA === 0 && yearB !== 0) return 1;
+          if (yearB === 0 && yearA !== 0) return -1;
+          
+          // Then sort by year (newest first)
+          return yearB - yearA;
+        });
         break;
       default:
         // Default sort by latest modified
