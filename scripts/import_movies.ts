@@ -1,7 +1,7 @@
-import { fetchMovieList, fetchMovieDetail, convertToMovieModel, convertToEpisodeModels } from './server/api';
-import { db } from './server/db';
-import { storage } from './server/storage';
-import { movies, episodes } from './shared/schema';
+import { fetchMovieList, fetchMovieDetail, convertToMovieModel, convertToEpisodeModels } from '../server/api';
+import { db } from '../server/db';
+import { storage } from '../server/storage';
+import { movies, episodes } from '../shared/schema';
 import { eq } from 'drizzle-orm';
 import * as fs from 'fs';
 import * as path from 'path';
