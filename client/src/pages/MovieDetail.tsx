@@ -110,7 +110,7 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
   // Add to watchlist mutation
   const addToWatchlistMutation = useMutation({
     mutationFn: () => {
-      return apiRequest("POST", `/api/users/1/watchlist`, { movieSlug: slug });
+      return apiRequest("POST", `/api/users/1/watchlist`, { userId: 1, movieSlug: slug });
     },
     onSuccess: () => {
       toast({
@@ -118,7 +118,8 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
         description: "This title has been added to your watchlist",
       });
     },
-    onError: () => {
+    onError: (error) => {
+      console.error("Watchlist error:", error);
       toast({
         title: "Error",
         description: "Failed to add to watchlist",
