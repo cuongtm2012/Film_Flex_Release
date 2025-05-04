@@ -77,18 +77,84 @@ export async function fetchMovieList(page: number = 1, limit: number = 50): Prom
   }
 }
 
-export async function fetchMovieDetail(slug: string): Promise<MovieDetailResponse> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/phim/${slug}`);
-    
-    if (!response.ok) {
-      throw new Error(`API responded with status: ${response.status}`);
+// Helper function to retry fetch operations
+async function fetchWithRetries<T>(url: string, maxRetries: number = 3, initialDelay: number = 1000): Promise<T> {
+  let lastError: Error | null = null;
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        const statusError = new Error(`API responded with status: ${response.status} for URL: ${url}`);
+        
+        // If it's a 404, no need to retry
+        if (response.status === 404) {
+          throw statusError;
+        }
+        
+        // For other errors, log and retry
+        console.warn(`Attempt ${attempt}/${maxRetries} failed: ${statusError.message}`);
+        lastError = statusError;
+      } else {
+        // Parse the JSON response
+        try {
+          const data = await response.json();
+          return data as T;
+        } catch (jsonError) {
+          console.error(`Error parsing JSON on attempt ${attempt}/${maxRetries}:`, jsonError);
+          lastError = jsonError as Error;
+        }
+      }
+    } catch (fetchError) {
+      console.error(`Fetch error on attempt ${attempt}/${maxRetries}:`, fetchError);
+      lastError = fetchError as Error;
     }
     
-    return await response.json() as MovieDetailResponse;
+    // If this wasn't the last attempt, wait before retrying
+    if (attempt < maxRetries) {
+      const delay = initialDelay * Math.pow(2, attempt - 1); // Exponential backoff
+      console.log(`Retrying in ${delay}ms...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  
+  // If we got here, all retries failed
+  throw lastError || new Error(`Failed to fetch ${url} after ${maxRetries} attempts`);
+}
+
+export async function fetchMovieDetail(slug: string): Promise<MovieDetailResponse> {
+  try {
+    // Use the retry mechanism
+    const data = await fetchWithRetries<MovieDetailResponse>(
+      `${API_BASE_URL}/phim/${slug}`,
+      3, // max retries
+      1000 // initial delay
+    );
+    
+    // Some basic validation of the response
+    if (!data) {
+      return { status: false, msg: "Empty response", movie: null } as MovieDetailResponse;
+    }
+    
+    // Check if the API returned a not found or error response
+    if (data.status === false || !data.movie) {
+      return { 
+        status: false, 
+        msg: data.msg || "Movie not found", 
+        movie: null 
+      } as MovieDetailResponse;
+    }
+    
+    return data;
   } catch (error) {
     console.error(`Error fetching movie detail for slug: ${slug}`, error);
-    throw error;
+    // Return an error response instead of throwing
+    return { 
+      status: false, 
+      msg: error instanceof Error ? error.message : "Unknown error", 
+      movie: null 
+    } as MovieDetailResponse;
   }
 }
 
@@ -413,25 +479,40 @@ export async function fetchMoviesByCountry(countrySlug: string, page: number = 1
 
 // Convert API response to Movie model for insertion
 export function convertToMovieModel(movieDetail: MovieDetailResponse): InsertMovie {
+  // Check if the movie details exist and are valid
+  if (!movieDetail || !movieDetail.movie) {
+    throw new Error("Cannot convert invalid movie details to model");
+  }
+  
   const movie = movieDetail.movie;
+  
+  // Check if required fields exist
+  if (!movie._id || !movie.slug || !movie.name) {
+    throw new Error(`Movie is missing required fields: ${JSON.stringify({
+      id: movie._id || "missing",
+      slug: movie.slug || "missing",
+      name: movie.name || "missing"
+    })}`);
+  }
+  
   return {
     movieId: movie._id,
     slug: movie.slug,
     name: movie.name,
-    originName: movie.origin_name,
-    posterUrl: movie.poster_url,
-    thumbUrl: movie.thumb_url,
-    year: (movie as any).year || 0,
+    originName: movie.origin_name || "",
+    posterUrl: movie.poster_url || "",
+    thumbUrl: movie.thumb_url || "",
+    year: parseInt((movie as any).year || "0") || 0,
     type: movie.type === "series" ? "tv" : "movie",
-    quality: movie.quality,
-    lang: movie.lang,
-    time: movie.time,
-    view: movie.view,
-    description: movie.content,
-    status: movie.status,
-    trailerUrl: movie.trailer_url,
-    categories: movie.category,
-    countries: movie.country,
+    quality: movie.quality || "",
+    lang: movie.lang || "",
+    time: movie.time || "",
+    view: movie.view || 0,
+    description: movie.content || "",
+    status: movie.status || "ongoing",
+    trailerUrl: movie.trailer_url || "",
+    categories: movie.category || [],
+    countries: movie.country || [],
     actors: Array.isArray(movie.actor) ? movie.actor.join(", ") : "",
     directors: Array.isArray(movie.director) ? movie.director.join(", ") : ""
     // Note: modifiedAt will be defaulted by the database
@@ -441,20 +522,43 @@ export function convertToMovieModel(movieDetail: MovieDetailResponse): InsertMov
 // Convert API response to Episode models for insertion
 export function convertToEpisodeModels(movieDetail: MovieDetailResponse): InsertEpisode[] {
   const episodes: InsertEpisode[] = [];
+  
+  // Check if movie details exist and are valid
+  if (!movieDetail || !movieDetail.movie || !movieDetail.movie.slug) {
+    console.warn("Cannot convert episodes from invalid movie details");
+    return episodes;
+  }
+  
+  // Check if episodes exist
+  if (!movieDetail.episodes || !Array.isArray(movieDetail.episodes)) {
+    console.warn(`No episodes found for movie ${movieDetail.movie.slug}`);
+    return episodes;
+  }
+  
   const movieSlug = movieDetail.movie.slug;
   
   for (const server of movieDetail.episodes) {
+    // Skip if server_data doesn't exist or isn't an array
+    if (!server.server_data || !Array.isArray(server.server_data)) {
+      continue;
+    }
+    
     for (const episode of server.server_data) {
+      // Skip episodes without required fields
+      if (!episode || !episode.slug) {
+        continue;
+      }
+      
       // Create a globally unique slug by combining movie slug and episode slug
       const uniqueSlug = `${movieSlug}-${episode.slug}`;
       
       episodes.push({
-        name: episode.name,
+        name: episode.name || `Episode ${episode.slug}`,
         slug: uniqueSlug,
         movieSlug,
-        serverName: server.server_name,
+        serverName: server.server_name || "default",
         filename: episode.filename || null,
-        linkEmbed: episode.link_embed,
+        linkEmbed: episode.link_embed || "",
         linkM3u8: episode.link_m3u8 || null
       });
     }
