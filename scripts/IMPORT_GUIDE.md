@@ -1,96 +1,107 @@
-# FilmFlex Import Guide
+# FilmFlex Movie Import Guide
 
-This guide provides instructions for importing movies from PhimAPI into your FilmFlex database using the simplified import tool.
+This guide explains how to import movies into the FilmFlex platform database using our import tools.
 
-## Getting Started
+## Overview
 
-The import process allows you to fetch movie data and episodes from PhimAPI and save them to your database. You can import a single page, a range of pages, or resume from where you left off.
+We've created a robust import script that properly handles errors and provides better feedback during the import process. The script includes:
 
-## Import Tool Usage
+- Progress tracking to resume interrupted imports
+- Better error handling for API failures
+- Duplication prevention to avoid database errors
+- Detailed logging of the import process
 
-We've created a simplified import tool that makes it easier to manage the import process. Here are the available commands:
+## Quick Start
 
-### Check Import Status
-
-To check the current status of your import:
-
-```bash
-npx tsx simple_import.ts status
-```
-
-This will show how many pages have been imported and your overall progress.
-
-### Import a Single Page
-
-To import a single page (useful for testing or importing specific content):
+Use the provided shell script to import movies:
 
 ```bash
-npx tsx simple_import.ts single <page_number>
+# Go to the scripts directory
+cd scripts
+
+# Show help
+./import-movies.sh --help
+
+# Import a single page (page 1)
+./import-movies.sh 1 1
+
+# Import a range of pages (pages 1-10)
+./import-movies.sh 1 10
+
+# Resume from the last completed page
+./import-movies.sh --resume
 ```
 
-Example:
-```bash
-npx tsx simple_import.ts single 5
-```
+## Features
 
-### Import a Range of Pages
+1. **Progress Tracking**: The script saves progress after each page in `import_progress.json`, allowing you to resume interrupted imports.
 
-To import a specific range of pages:
+2. **Error Handling**: The script properly handles API errors and database constraints, ensuring the import continues even if some movies fail.
 
-```bash
-npx tsx simple_import.ts range <start_page> <end_page>
-```
+3. **Duplicate Prevention**: The script checks if movies and episodes already exist before attempting to save them, preventing database errors.
 
-Example:
-```bash
-npx tsx simple_import.ts range 10 20
-```
+4. **Detailed Logging**: The script provides detailed logs of what's happening during the import process.
 
-### Resume from Last Saved Point
+## Advanced Usage
 
-If your import was interrupted, you can resume from where you left off:
+### Understanding the Import Process
 
-```bash
-npx tsx simple_import.ts resume
-```
+The FilmFlex import process fetches movie data from an external API and saves it to our database. The process involves:
 
-This will automatically continue from the last successfully imported page.
+1. Fetching a list of movies from the API (paginated)
+2. For each movie, fetching detailed information
+3. Converting the API data to our internal data model
+4. Saving the movie and its episodes to the database
 
-## Checking Progress
+The external API has approximately 2252 pages of movies, with each page containing about 20 movies.
 
-The import progress is saved in a file named `import_progress.json`. This file keeps track of the last successfully imported page, allowing you to resume the import process if it's interrupted.
+### Limiting Pages
 
-## Important Notes
-
-1. **Duration**: Importing all 2,252 pages (approximately 22,520 movies) will take a significant amount of time, potentially several days depending on your system and network speed.
-
-2. **Network Issues**: If you encounter network issues or API rate limiting, the import tool will automatically retry a few times before failing.
-
-3. **Duplicate Movies**: The import tool checks for existing movies and will skip importing movies that already exist in your database.
-
-4. **Interruptions**: You can safely interrupt the import process at any time by pressing Ctrl+C. The progress is saved after each page, so you can resume later.
-
-## Troubleshooting
-
-If you encounter issues with the import process:
-
-1. Check your network connection
-2. Verify that the PhimAPI is accessible
-3. Ensure your database is running properly
-4. Check available disk space
-
-If the problem persists, try importing a single page to isolate the issue:
+By default, the script imports 5 pages at a time. You can control this by specifying the start and end pages:
 
 ```bash
-npx tsx simple_import.ts single 1
+# Import pages 1 through 20
+./import-movies.sh 1 20
+
+# Import only page 100
+./import-movies.sh 100 100
 ```
 
-## Complete Import
+### Resuming Imports
 
-To import all 2,252 pages (full database):
+If an import is interrupted, you can resume from where it left off:
 
 ```bash
-npx tsx simple_import.ts range 1 2252
+# Resume from the last completed page
+./import-movies.sh --resume
 ```
 
-Note that this will take a very long time. Consider importing in smaller ranges or setting up the process to run overnight or during periods when your system is not in active use.
+### Troubleshooting
+
+If you encounter issues:
+
+1. Check the console output for error messages
+2. Make sure you're in the `scripts` directory when running the command
+3. Try importing just a single page to identify specific issues
+4. Check `import_progress.json` to see the last successfully completed page
+
+## Notes
+
+- The import process is intentionally slow to avoid overwhelming the API or the database.
+- Each page contains about 20 movies and their associated episodes.
+- The total number of pages is 2252, so importing all movies will take a significant amount of time.
+- Consider running imports in batches of 10-20 pages at a time.
+
+## Script Files
+
+- `import-movies.sh`: Main shell script for easy execution
+- `import_new.ts`: The new TypeScript import implementation
+- `import_progress.json`: File that tracks import progress
+
+## For Developers
+
+If you need to modify the import process:
+
+1. The main import logic is in `import_new.ts`
+2. The script uses the API functions in `server/api.ts` to fetch movie data
+3. The storage functions in `server/storage.ts` are used to save data to the database
