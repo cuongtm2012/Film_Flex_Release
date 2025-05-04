@@ -86,6 +86,12 @@ To run Cypress tests on BrowserStack:
 ./run-browserstack-tests.sh watchlist
 ```
 
+If you encounter a "Permission denied" error when trying to run the scripts, you may need to make them executable first:
+```bash
+chmod +x run-browserstack-tests.sh
+chmod +x run-all-tests.sh
+```
+
 ## Test Reports
 
 Test reports are generated in the `reports` directory:
