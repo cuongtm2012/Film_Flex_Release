@@ -1,0 +1,688 @@
+{
+  "status": true,
+  "msg": "",
+  "movie": {
+    "tmdb": {
+      "type": "tv",
+      "id": "74771",
+      "season": 1,
+      "vote_average": 8,
+      "vote_count": 1
+    },
+    "imdb": {
+      "id": null
+    },
+    "created": {
+      "time": "2025-04-25T02:36:02.000Z"
+    },
+    "modified": {
+      "time": "2025-04-25T04:35:40.000Z"
+    },
+    "_id": "ad2d8a4d8e8654a34f898980254af33f",
+    "name": "Truyền Thuyết Phi Đao",
+    "slug": "truyen-thuyet-phi-dao",
+    "origin_name": "The Legend of Flying Daggers",
+    "content": "Truyền nhân của “Tiểu Lý Phi Đao” – Lý Hoại (Lưu Khải Uy) dù xuất thân danh môn nhưng phải sống lưu lạc bên ngoài từ nhỏ. Dựa vào tấm họa đồ do mẹ để lại, Lý Hoại đã luyện thành tuyệt học võ công và tìm ra được một kho báu chứa đầy vàng. Lúc này, anh trở lại quê nhà để theo đuổi lý tưởng và tình yêu, đồng thời tìm lại người bạn thanh mai trúc mã Phương Khả Khả (Ngô Ánh Khiết). Mọi chuyện trở nên rắc rối khi anh bị tình nghi có liên can đến số vàng bị mất trong cung. Tiết Thái Nguyệt – Nguyệt Thần (Dương Dung) vốn phụng mệnh triều đình đã bắt Lý Hoại, thế nhưng cô lại đem lòng yêu anh. Mối tình oan nghiệt này đã dẫn đến một kết cục đau thương khi cả hai phải quyết chiến với nhau. Phi đao hựu kiến phi đao được đầu tư nhiều ở khâu kỹ xảo. Vũ khí và những cảnh chiến đấu trong phim đều được thêm các hiệu ứng đặc biệt, lột tả một cách tinh tế nét tinh hoa, huyền diệu của võ thuật Trung Quốc. Đây là điểm khác biệt của Phi đao hựu kiến phi đao với các dòng phim võ hiệp trước đây.",
+    "type": "series",
+    "status": "completed",
+    "poster_url": "https://phimimg.com/upload/vod/20250425-1/e9b2168ec3c696e43dbe43aabf821043.jpg",
+    "thumb_url": "https://phimimg.com/upload/vod/20250425-1/4b7ad91ed896cd7406814b89139a47f4.jpg",
+    "is_copyright": false,
+    "sub_docquyen": false,
+    "chieurap": false,
+    "trailer_url": "",
+    "time": "45 phút/tập",
+    "episode_current": "Hoàn Tất (42/42)",
+    "episode_total": "42",
+    "quality": "FHD",
+    "lang": "Lồng Tiếng + Thuyết Minh",
+    "notify": "",
+    "showtimes": "",
+    "year": 2016,
+    "view": 0,
+    "actor": [
+      "Hawick Lau Hau-Wai",
+      "Yang Rong",
+      "Emma Wu",
+      "Kenny Kwan Chi-Bun",
+      "Huang Youming",
+      "Yuan Bingyan",
+      "Zong Fengyan",
+      "He Zhonghua",
+      "Yang Minna",
+      "Xu Zhengxi",
+      "Zhou Tingwei",
+      "Zhao Yunzhuo",
+      "Lu Shun"
+    ],
+    "director": [
+      "황준문",
+      "량승권"
+    ],
+    "category": [
+      {
+        "id": "37a7b38b6184a5ebd3c43015aa20709d",
+        "name": "Chính Kịch",
+        "slug": "chinh-kich"
+      },
+      {
+        "id": "9822be111d2ccc29c7172c78b8af8ff5",
+        "name": "Hành Động",
+        "slug": "hanh-dong"
+      },
+      {
+        "id": "66c78b23908113d478d8d85390a244b4",
+        "name": "Phiêu Lưu",
+        "slug": "phieu-luu"
+      }
+    ],
+    "country": [
+      {
+        "id": "92aa3c93de523a414a520399bb6a4304",
+        "name": "Trung Quốc",
+        "slug": "trung-quoc"
+      }
+    ]
+  },
+  "episodes": [
+    {
+      "server_name": "#Hà Nội (Lồng Tiếng)",
+      "server_data": [
+        {
+          "name": "Tập 01",
+          "slug": "tap-01",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Lồng Tiếng - Tập 01",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/DrykD6yd/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/DrykD6yd/index.m3u8"
+        },
+        {
+          "name": "Tập 02",
+          "slug": "tap-02",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Lồng Tiếng - Tập 02",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/UVxPBjOB/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/UVxPBjOB/index.m3u8"
+        },
+        {
+          "name": "Tập 03",
+          "slug": "tap-03",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Lồng Tiếng - Tập 03",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/avLfThHW/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/avLfThHW/index.m3u8"
+        },
+        {
+          "name": "Tập 04",
+          "slug": "tap-04",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Lồng Tiếng - Tập 04",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/ijoLhXbR/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/ijoLhXbR/index.m3u8"
+        },
+        {
+          "name": "Tập 05",
+          "slug": "tap-05",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Lồng Tiếng - Tập 05",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/0KxuDcz8/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/0KxuDcz8/index.m3u8"
+        },
+        {
+          "name": "Tập 06",
+          "slug": "tap-06",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Lồng Tiếng - Tập 06",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/u04VExFR/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/u04VExFR/index.m3u8"
+        },
+        {
+          "name": "Tập 07",
+          "slug": "tap-07",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Lồng Tiếng - Tập 07",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/9Sy5uSHH/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/9Sy5uSHH/index.m3u8"
+        },
+        {
+          "name": "Tập 08",
+          "slug": "tap-08",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Lồng Tiếng - Tập 08",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/ETMi4FG5/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/ETMi4FG5/index.m3u8"
+        },
+        {
+          "name": "Tập 09",
+          "slug": "tap-09",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Lồng Tiếng - Tập 09",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/i3ioNX03/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/i3ioNX03/index.m3u8"
+        },
+        {
+          "name": "Tập 10",
+          "slug": "tap-10",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Lồng Tiếng - Tập 10",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/NA61zsDt/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/NA61zsDt/index.m3u8"
+        },
+        {
+          "name": "Tập 11",
+          "slug": "tap-11",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Lồng Tiếng - Tập 11",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/kaOA15N7/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/kaOA15N7/index.m3u8"
+        },
+        {
+          "name": "Tập 12",
+          "slug": "tap-12",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Lồng Tiếng - Tập 12",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/5eYMyzLR/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/5eYMyzLR/index.m3u8"
+        },
+        {
+          "name": "Tập 13",
+          "slug": "tap-13",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Lồng Tiếng - Tập 13",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/3ssOAmmt/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/3ssOAmmt/index.m3u8"
+        },
+        {
+          "name": "Tập 14",
+          "slug": "tap-14",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Lồng Tiếng - Tập 14",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/QxbtdBYW/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/QxbtdBYW/index.m3u8"
+        },
+        {
+          "name": "Tập 15",
+          "slug": "tap-15",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Lồng Tiếng - Tập 15",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/BrbuZSOY/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/BrbuZSOY/index.m3u8"
+        },
+        {
+          "name": "Tập 16",
+          "slug": "tap-16",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Lồng Tiếng - Tập 16",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/lbEA82ap/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/lbEA82ap/index.m3u8"
+        },
+        {
+          "name": "Tập 17",
+          "slug": "tap-17",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Lồng Tiếng - Tập 17",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/7ipc3wGU/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/7ipc3wGU/index.m3u8"
+        },
+        {
+          "name": "Tập 18",
+          "slug": "tap-18",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Lồng Tiếng - Tập 18",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/QY8HU4Vi/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/QY8HU4Vi/index.m3u8"
+        },
+        {
+          "name": "Tập 19",
+          "slug": "tap-19",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Lồng Tiếng - Tập 19",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/OGUVTaIx/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/OGUVTaIx/index.m3u8"
+        },
+        {
+          "name": "Tập 20",
+          "slug": "tap-20",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Lồng Tiếng - Tập 20",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/Ciuy6Llh/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/Ciuy6Llh/index.m3u8"
+        },
+        {
+          "name": "Tập 21",
+          "slug": "tap-21",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Lồng Tiếng - Tập 21",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/ePycRXjB/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/ePycRXjB/index.m3u8"
+        },
+        {
+          "name": "Tập 22",
+          "slug": "tap-22",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Lồng Tiếng - Tập 22",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/74acVzmo/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/74acVzmo/index.m3u8"
+        },
+        {
+          "name": "Tập 23",
+          "slug": "tap-23",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Lồng Tiếng - Tập 23",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/82UIivsj/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/82UIivsj/index.m3u8"
+        },
+        {
+          "name": "Tập 24",
+          "slug": "tap-24",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Lồng Tiếng - Tập 24",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/eE7ef3ws/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/eE7ef3ws/index.m3u8"
+        },
+        {
+          "name": "Tập 25",
+          "slug": "tap-25",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Lồng Tiếng - Tập 25",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/UNjVynnd/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/UNjVynnd/index.m3u8"
+        },
+        {
+          "name": "Tập 26",
+          "slug": "tap-26",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Lồng Tiếng - Tập 26",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/hjHAfJUF/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/hjHAfJUF/index.m3u8"
+        },
+        {
+          "name": "Tập 27",
+          "slug": "tap-27",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Lồng Tiếng - Tập 27",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/h9eAEMgB/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/h9eAEMgB/index.m3u8"
+        },
+        {
+          "name": "Tập 28",
+          "slug": "tap-28",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Lồng Tiếng - Tập 28",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/2i39uFeZ/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/2i39uFeZ/index.m3u8"
+        },
+        {
+          "name": "Tập 29",
+          "slug": "tap-29",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Lồng Tiếng - Tập 29",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/cK7v9IYY/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/cK7v9IYY/index.m3u8"
+        },
+        {
+          "name": "Tập 30",
+          "slug": "tap-30",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Lồng Tiếng - Tập 30",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/ONTN7X33/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/ONTN7X33/index.m3u8"
+        },
+        {
+          "name": "Tập 31",
+          "slug": "tap-31",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Lồng Tiếng - Tập 31",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/3wnlm0hT/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/3wnlm0hT/index.m3u8"
+        },
+        {
+          "name": "Tập 32",
+          "slug": "tap-32",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Lồng Tiếng - Tập 32",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/n4FIu664/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/n4FIu664/index.m3u8"
+        },
+        {
+          "name": "Tập 33",
+          "slug": "tap-33",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Lồng Tiếng - Tập 33",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/3AvdFlQL/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/3AvdFlQL/index.m3u8"
+        },
+        {
+          "name": "Tập 34",
+          "slug": "tap-34",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Lồng Tiếng - Tập 34",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/CICsZVqk/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/CICsZVqk/index.m3u8"
+        },
+        {
+          "name": "Tập 35",
+          "slug": "tap-35",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Lồng Tiếng - Tập 35",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/bm6BvZXF/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/bm6BvZXF/index.m3u8"
+        },
+        {
+          "name": "Tập 36",
+          "slug": "tap-36",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Lồng Tiếng - Tập 36",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/1P9YwGJl/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/1P9YwGJl/index.m3u8"
+        },
+        {
+          "name": "Tập 37",
+          "slug": "tap-37",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Lồng Tiếng - Tập 37",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/NY09QL3Q/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/NY09QL3Q/index.m3u8"
+        },
+        {
+          "name": "Tập 38",
+          "slug": "tap-38",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Lồng Tiếng - Tập 38",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/dTWhf2vQ/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/dTWhf2vQ/index.m3u8"
+        },
+        {
+          "name": "Tập 39",
+          "slug": "tap-39",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Lồng Tiếng - Tập 39",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/QS83Wq7D/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/QS83Wq7D/index.m3u8"
+        },
+        {
+          "name": "Tập 40",
+          "slug": "tap-40",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Lồng Tiếng - Tập 40",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/zJcgIZVQ/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/zJcgIZVQ/index.m3u8"
+        },
+        {
+          "name": "Tập 41",
+          "slug": "tap-41",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Lồng Tiếng - Tập 41",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/WntEyhVU/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/WntEyhVU/index.m3u8"
+        },
+        {
+          "name": "Tập 42",
+          "slug": "tap-42",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Lồng Tiếng - Tập 42",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/2bBSy7VU/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/2bBSy7VU/index.m3u8"
+        }
+      ]
+    },
+    {
+      "server_name": "#Hà Nội (Thuyết Minh)",
+      "server_data": [
+        {
+          "name": "Tập 01",
+          "slug": "tap-01",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Thuyết Minh - Tập 01",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/SdfNmmS5/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/SdfNmmS5/index.m3u8"
+        },
+        {
+          "name": "Tập 02",
+          "slug": "tap-02",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Thuyết Minh - Tập 02",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/lmqmwHfj/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/lmqmwHfj/index.m3u8"
+        },
+        {
+          "name": "Tập 03",
+          "slug": "tap-03",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Thuyết Minh - Tập 03",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/cJHBuS8i/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/cJHBuS8i/index.m3u8"
+        },
+        {
+          "name": "Tập 04",
+          "slug": "tap-04",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Thuyết Minh - Tập 04",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/WmOpqyQM/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/WmOpqyQM/index.m3u8"
+        },
+        {
+          "name": "Tập 05",
+          "slug": "tap-05",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Thuyết Minh - Tập 05",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/ZB7mtuHS/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/ZB7mtuHS/index.m3u8"
+        },
+        {
+          "name": "Tập 06",
+          "slug": "tap-06",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Thuyết Minh - Tập 06",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/AQuFC74N/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/AQuFC74N/index.m3u8"
+        },
+        {
+          "name": "Tập 07",
+          "slug": "tap-07",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Thuyết Minh - Tập 07",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/QAhs6r9P/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/QAhs6r9P/index.m3u8"
+        },
+        {
+          "name": "Tập 08",
+          "slug": "tap-08",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Thuyết Minh - Tập 08",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/jjJtGnVw/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/jjJtGnVw/index.m3u8"
+        },
+        {
+          "name": "Tập 09",
+          "slug": "tap-09",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Thuyết Minh - Tập 09",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/1aaoOpgk/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/1aaoOpgk/index.m3u8"
+        },
+        {
+          "name": "Tập 10",
+          "slug": "tap-10",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Thuyết Minh - Tập 10",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/aWF3P1k0/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/aWF3P1k0/index.m3u8"
+        },
+        {
+          "name": "Tập 11",
+          "slug": "tap-11",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Thuyết Minh - Tập 11",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/3cVb8zBJ/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/3cVb8zBJ/index.m3u8"
+        },
+        {
+          "name": "Tập 12",
+          "slug": "tap-12",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Thuyết Minh - Tập 12",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/CS3CjvPo/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/CS3CjvPo/index.m3u8"
+        },
+        {
+          "name": "Tập 13",
+          "slug": "tap-13",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Thuyết Minh - Tập 13",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/mWPebIUA/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/mWPebIUA/index.m3u8"
+        },
+        {
+          "name": "Tập 14",
+          "slug": "tap-14",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Thuyết Minh - Tập 14",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/9qHDIi3q/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/9qHDIi3q/index.m3u8"
+        },
+        {
+          "name": "Tập 15",
+          "slug": "tap-15",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Thuyết Minh - Tập 15",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/MRmH5xGc/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/MRmH5xGc/index.m3u8"
+        },
+        {
+          "name": "Tập 16",
+          "slug": "tap-16",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Thuyết Minh - Tập 16",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/X8bAvr6T/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/X8bAvr6T/index.m3u8"
+        },
+        {
+          "name": "Tập 17",
+          "slug": "tap-17",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Thuyết Minh - Tập 17",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/GZwLCFv2/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/GZwLCFv2/index.m3u8"
+        },
+        {
+          "name": "Tập 18",
+          "slug": "tap-18",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Thuyết Minh - Tập 18",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/hXkGmsvv/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/hXkGmsvv/index.m3u8"
+        },
+        {
+          "name": "Tập 19",
+          "slug": "tap-19",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Thuyết Minh - Tập 19",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/UaTTbfXz/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/UaTTbfXz/index.m3u8"
+        },
+        {
+          "name": "Tập 20",
+          "slug": "tap-20",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Thuyết Minh - Tập 20",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/HsJOw512/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/HsJOw512/index.m3u8"
+        },
+        {
+          "name": "Tập 21",
+          "slug": "tap-21",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Thuyết Minh - Tập 21",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/2AC7JXO5/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/2AC7JXO5/index.m3u8"
+        },
+        {
+          "name": "Tập 22",
+          "slug": "tap-22",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Thuyết Minh - Tập 22",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/8796vbPL/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/8796vbPL/index.m3u8"
+        },
+        {
+          "name": "Tập 23",
+          "slug": "tap-23",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Thuyết Minh - Tập 23",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/Qd5WlRDp/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/Qd5WlRDp/index.m3u8"
+        },
+        {
+          "name": "Tập 24",
+          "slug": "tap-24",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Thuyết Minh - Tập 24",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/zzyu8aBM/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/zzyu8aBM/index.m3u8"
+        },
+        {
+          "name": "Tập 25",
+          "slug": "tap-25",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Thuyết Minh - Tập 25",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/c7m4WtXx/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/c7m4WtXx/index.m3u8"
+        },
+        {
+          "name": "Tập 26",
+          "slug": "tap-26",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Thuyết Minh - Tập 26",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/A6EE1J8x/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/A6EE1J8x/index.m3u8"
+        },
+        {
+          "name": "Tập 27",
+          "slug": "tap-27",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Thuyết Minh - Tập 27",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/Cl6FdnGl/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/Cl6FdnGl/index.m3u8"
+        },
+        {
+          "name": "Tập 28",
+          "slug": "tap-28",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Thuyết Minh - Tập 28",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/noksXb1I/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/noksXb1I/index.m3u8"
+        },
+        {
+          "name": "Tập 29",
+          "slug": "tap-29",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Thuyết Minh - Tập 29",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/WcynJ5Ai/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/WcynJ5Ai/index.m3u8"
+        },
+        {
+          "name": "Tập 30",
+          "slug": "tap-30",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Thuyết Minh - Tập 30",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/jDygalcc/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/jDygalcc/index.m3u8"
+        },
+        {
+          "name": "Tập 31",
+          "slug": "tap-31",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Thuyết Minh - Tập 31",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/fHqGpN7b/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/fHqGpN7b/index.m3u8"
+        },
+        {
+          "name": "Tập 32",
+          "slug": "tap-32",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Thuyết Minh - Tập 32",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/R6W3O45E/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/R6W3O45E/index.m3u8"
+        },
+        {
+          "name": "Tập 33",
+          "slug": "tap-33",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Thuyết Minh - Tập 33",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/wLc077sr/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/wLc077sr/index.m3u8"
+        },
+        {
+          "name": "Tập 34",
+          "slug": "tap-34",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Thuyết Minh - Tập 34",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/CCYSESm8/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/CCYSESm8/index.m3u8"
+        },
+        {
+          "name": "Tập 35",
+          "slug": "tap-35",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Thuyết Minh - Tập 35",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/lr808xKq/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/lr808xKq/index.m3u8"
+        },
+        {
+          "name": "Tập 36",
+          "slug": "tap-36",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Thuyết Minh - Tập 36",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/iZSztmKK/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/iZSztmKK/index.m3u8"
+        },
+        {
+          "name": "Tập 37",
+          "slug": "tap-37",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Thuyết Minh - Tập 37",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/Z2LpG4H0/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/Z2LpG4H0/index.m3u8"
+        },
+        {
+          "name": "Tập 38",
+          "slug": "tap-38",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Thuyết Minh - Tập 38",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/z7mK3Loc/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/z7mK3Loc/index.m3u8"
+        },
+        {
+          "name": "Tập 39",
+          "slug": "tap-39",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Thuyết Minh - Tập 39",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/OsHqYTrA/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/OsHqYTrA/index.m3u8"
+        },
+        {
+          "name": "Tập 40",
+          "slug": "tap-40",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Thuyết Minh - Tập 40",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/e0CGMqav/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/e0CGMqav/index.m3u8"
+        },
+        {
+          "name": "Tập 41",
+          "slug": "tap-41",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Thuyết Minh - Tập 41",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/0I2EAbhV/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/0I2EAbhV/index.m3u8"
+        },
+        {
+          "name": "Tập 42",
+          "slug": "tap-42",
+          "filename": "Truyền Thuyết Phi Đao - The Legend of Flying Daggers - 2016 - 1080p - Thuyết Minh - Tập 42",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250425/h2S8c29v/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250425/h2S8c29v/index.m3u8"
+        }
+      ]
+    }
+  ]
+}
+Explain

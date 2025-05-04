@@ -1,0 +1,190 @@
+Technical Analysis Document for FilmFlex Movie Streaming Platform
+
+
+## 1. System Overview
+
+
+The FilmFlex platform aims to automatically ingest, process, and serve movie and TV series data sourced from the phimapi.com API. The system handles a large volume of data (over 22,000 movies/series across 2,251 pages) and provides detailed movie information, episode lists, and streaming links for playback.
+
+
+---
+
+
+## 2. API Data Analysis
+
+
+### 2.1 Movie List API
+
+
+**Endpoint:**  
+`GET https://phimapi.com/danh-sach/phim-moi-cap-nhat?page={page}`
+
+
+**Response Highlights:**
+
+
+- `items`: Array of movies on the current page, each containing:
+  - `_id`: internal unique identifier.
+  - `name`: localized movie title.
+  - `slug`: unique string identifier used for querying detailed movie info.
+  - `origin_name`: original title.
+  - `poster_url` and `thumb_url`: URLs to movie poster and thumbnail images.
+  - `year`: release year.
+  - `tmdb`: external metadata including type (`movie` or `tv`), TMDB id, season number, vote average, vote count.
+  - `imdb`: IMDb id (nullable).
+  - `modified.time`: timestamp of last update.
+
+
+- `pagination`:  
+  - `totalItems`: total movies available (e.g., 22,509).  
+  - `totalPages`: total pages (e.g., 2,251).  
+  - `currentPage`: current page number.  
+  - `totalItemsPerPage`: number of items per page (usually 10).
+
+
+**Implications:**
+
+
+- The system must paginate through all pages to collect the entire movie catalog.
+- The `slug` is the key to fetch detailed movie data.
+- `modified.time` allows incremental updates by comparing timestamps.
+
+
+---
+
+
+### 2.2 Movie Detail API
+
+
+**Endpoint:**  
+`GET https://phimapi.com/phim/{slug}`
+
+
+**Response Highlights:**
+
+
+- `movie`: Detailed movie metadata including:
+  - Titles (`name`, `origin_name`), description (`content`), type (`single` or series), status (`completed`, etc.).
+  - Media assets (`poster_url`, `thumb_url`, `trailer_url`).
+  - Duration (`time`), quality (`quality`), language (`lang`).
+  - Episode info: current and total episodes.
+  - View count, copyright flags.
+  - Cast (`actor`), crew (`director`).
+  - Categories and countries (arrays with id, name, slug).
+
+
+- `episodes`: Array of streaming servers, each with:
+  - `server_name`: server label (e.g., "#Hà Nội (Vietsub)").
+  - `server_data`: array of episodes per server, each containing:
+    - `name`: episode title or number.
+    - `slug`: episode identifier.
+    - `filename`: descriptive filename.
+    - `link_embed`: iframe URL for embedding video player.
+    - `link_m3u8`: direct HLS streaming URL.
+
+
+**Implications:**
+
+
+- Detailed movie data supports rich UI display and search.
+- Multi-server, multi-episode structure requires flexible data modeling.
+- `link_embed` is the primary source for video playback in the frontend.
+- Metadata supports filtering, recommendations, and enhanced user experience.
+
+
+---
+
+
+## 3. Data Processing and Storage Design
+
+
+### 3.1 Data Ingestion Workflow
+
+
+- Sequentially or concurrently fetch movie list pages.
+- Extract `slug` for each movie and fetch detailed info.
+- Use `modified.time` to determine if update is necessary.
+- Normalize and validate data fields.
+- Handle API errors and implement retry logic.
+
+
+### 3.2 Database Schema Suggestions
+
+
+- **Movies Table/Collection:**
+  - Unique ID, slug, localized and original names.
+  - Description, type, status, year, duration, quality, language.
+  - Poster, thumbnail, trailer URLs.
+  - View counts, copyright flags.
+  - Relationships to categories, countries, actors, directors.
+
+
+- **Episodes Table/Collection:**
+  - Episode ID, slug, name, filename.
+  - Foreign key to movie and server.
+  - Streaming URLs: `link_embed`, `link_m3u8`.
+
+
+- **Servers Table/Collection:**
+  - Server ID, name.
+
+
+- **Supporting Tables:**
+  - Categories, countries, actors, directors (many-to-many relationships).
+
+
+### 3.3 Caching Layer
+
+
+- Use Redis or similar for caching frequently accessed movie details and episode lists.
+- Set appropriate TTL to balance freshness and performance.
+
+
+---
+
+
+## 4. Backend API Design
+
+
+- Provide endpoints for:
+  - Movie list with pagination and filtering.
+  - Movie detail by slug including episodes and servers.
+  - User interactions: view count updates, likes, comments.
+  - Recommendations based on genre, popularity, or user behavior.
+
+
+- Implement rate limiting and secure access.
+- Retrieve data preferentially from cache, fallback to database.
+
+
+---
+
+
+## 5. Frontend Features
+
+
+- Display paginated lists of new movies with posters and basic info.
+- Movie detail page showing:
+  - Full metadata, description, trailer.
+  - Episode list grouped by server.
+  - Embedded video player using `link_embed`.
+  - User interaction buttons (like, share, add to watchlist).
+  - Comments section with real-time updates.
+  - Recommended movies carousel.
+
+
+- Responsive design for mobile and desktop.
+
+
+---
+
+
+## 6. Key Technical Considerations
+
+
+- **Scalability:** Efficient pagination and batching for large datasets.
+- **Reliability:** Robust error handling and retry for API failures.
+- **Data Consistency:** Use `modified.time` for incremental updates.
+- **Performance:** Cache hot data, optimize database indexes.
+- **Security:** Protect API keys, sanitize user inputs.
+- **Monitoring:** Log API calls, errors, and job statuses for maintenance.
