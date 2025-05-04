@@ -1,15 +1,20 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { MovieListItem } from "@shared/schema";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
+import { Badge } from "@/components/ui/badge";
+import { Film, Tv } from "lucide-react";
 
 interface MovieCardProps {
   movie: MovieListItem;
 }
 
+// Cache for episode counts to avoid repeated API calls
+const episodeCountCache = new Map<string, number>();
+
 export default function MovieCard({ movie }: MovieCardProps) {
-  // Debug log to see movie data
-  console.log("Movie data:", movie);
+  const [episodeCount, setEpisodeCount] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   
   // Extract the year from the movie data
   const year = movie.year || parseInt(movie.modified?.time?.toString().substring(0, 4)) || "N/A";
@@ -19,6 +24,48 @@ export default function MovieCard({ movie }: MovieCardProps) {
   
   // Format the type string for display
   const typeFormatted = type === "tv" ? "TV" : "Movie";
+  
+  useEffect(() => {
+    // Only fetch episode count for TV shows
+    if (type === "tv") {
+      const fetchEpisodeCount = async () => {
+        // Check cache first
+        if (episodeCountCache.has(movie.slug)) {
+          setEpisodeCount(episodeCountCache.get(movie.slug) || 0);
+          return;
+        }
+        
+        try {
+          setIsLoading(true);
+          const response = await fetch(`/api/movies/${movie.slug}/episodes`);
+          const data = await response.json();
+          
+          // Count total episodes by summing up server_data lengths across all servers
+          let count = 0;
+          if (data.episodes && data.episodes.length > 0) {
+            data.episodes.forEach((episode: any) => {
+              if (episode.server_data && Array.isArray(episode.server_data)) {
+                count += episode.server_data.length;
+              }
+            });
+          }
+          
+          // If it's just one full episode, count it as 1
+          count = count || data.episodes?.length || 0;
+          
+          // Cache the result
+          episodeCountCache.set(movie.slug, count);
+          setEpisodeCount(count);
+        } catch (error) {
+          console.error("Error fetching episode count:", error);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      
+      fetchEpisodeCount();
+    }
+  }, [movie.slug, type]);
   
   return (
     <Link href={`/movie/${movie.slug}`}>
@@ -33,6 +80,29 @@ export default function MovieCard({ movie }: MovieCardProps) {
             }}
           />
         </AspectRatio>
+        
+        {/* Episode count badge (only for TV shows) */}
+        {type === "tv" && episodeCount !== null && (
+          <Badge 
+            variant="secondary" 
+            className="absolute top-2 right-2 bg-black/70 hover:bg-black/70"
+          >
+            <Tv size={14} className="mr-1" />
+            {isLoading ? "..." : `${episodeCount} EP`}
+          </Badge>
+        )}
+        
+        {/* Movie type badge (only for movies) */}
+        {type === "movie" && (
+          <Badge 
+            variant="secondary" 
+            className="absolute top-2 right-2 bg-black/70 hover:bg-black/70"
+          >
+            <Film size={14} className="mr-1" />
+            Film
+          </Badge>
+        )}
+        
         <div className="card-overlay absolute inset-0 flex flex-col justify-end p-3">
           <h3 className="font-bold text-sm sm:text-base truncate">{movie.name}</h3>
           <div className="flex justify-between text-xs text-muted-foreground mt-1">
