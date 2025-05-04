@@ -23,6 +23,23 @@ import { setupAuth, isAuthenticated, isActive } from "./auth";
 
 const API_CACHE_TTL = 5 * 60 * 1000; // 5 minutes in milliseconds
 
+/**
+ * Function to normalize Vietnamese text by removing accents and diacritics
+ * This helps with search functionality where users might type without accents
+ */
+function normalizeText(text: string): string {
+  if (!text) return '';
+  
+  // Normalize to NFD form where accented chars are separated into base char + accent
+  return text.normalize('NFD')
+    // Remove combining diacritical marks (accents, etc.)
+    .replace(/[\u0300-\u036f]/g, '')
+    // Remove other special characters and normalize to lowercase
+    .toLowerCase()
+    // Replace đ/Đ with d
+    .replace(/[đĐ]/g, 'd');
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Set up authentication
   setupAuth(app);
@@ -245,7 +262,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      const searchResults = await searchMovies(keyword, page, limit);
+      const normalizedKeyword = normalizeText(keyword);
+      const searchResults = await searchMovies(keyword, normalizedKeyword, page, limit);
       
       // Ensure pagination info is present
       if (!searchResults.pagination) {
