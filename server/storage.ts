@@ -914,6 +914,16 @@ export class DatabaseStorage implements IStorage {
     return result.map(item => item.movie);
   }
   
+  async checkWatchlist(userId: number, movieSlug: string): Promise<boolean> {
+    const [existing] = await db.select().from(watchlist)
+      .where(and(
+        eq(watchlist.userId, userId),
+        eq(watchlist.movieSlug, movieSlug)
+      ));
+    
+    return Boolean(existing);
+  }
+  
   async addToWatchlist(watchlistItem: InsertWatchlist): Promise<void> {
     // Check if already exists
     const [existing] = await db.select().from(watchlist)

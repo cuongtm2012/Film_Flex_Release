@@ -668,6 +668,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to remove from watchlist" });
     }
   });
+  
+  app.get("/api/users/:userId/watchlist/check/:slug", async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const { slug } = req.params;
+      
+      const inWatchlist = await storage.checkWatchlist(userId, slug);
+      res.json({ inWatchlist, movieSlug: slug, userId });
+    } catch (error) {
+      console.error(`Error checking watchlist status for user ${req.params.userId} and movie ${req.params.slug}:`, error);
+      res.status(500).json({ message: "Failed to check watchlist status" });
+    }
+  });
 
   const httpServer = createServer(app);
   return httpServer;
