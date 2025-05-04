@@ -1,19 +1,25 @@
 #!/bin/bash
-# FilmFlex Master Test Runner
-# This script serves as a central entry point to run all tests
 
-echo "FilmFlex Master Test Runner"
-echo "=========================="
+echo "FilmFlex Test Suite"
+echo "=================="
+echo "Running all tests..."
 echo ""
 
-# Execute the comprehensive tests
-tests/run-comprehensive-tests.sh
+echo "1. Running Real Component Tests..."
+./tests/run-real-tests.sh
+echo ""
+echo "------------------------------------------------"
+echo ""
 
+echo "2. Running Admin Panel Tests..."
+./tests/run-admin-tests.sh
 echo ""
-echo "All tests completed!"
+echo "------------------------------------------------"
 echo ""
-echo "For more specific testing needs, you can use these scripts:"
-echo "  - ./tests/run-admin-tests.sh       (Admin panel tests only)"
-echo "  - ./tests/run-real-tests.sh        (Tests with real components)"
-echo "  - ./tests/run-profile-image-tests.sh  (Profile image upload tests)"
+
+echo "3. Running Comprehensive API Tests..."
+./tests/run-comprehensive-tests.sh
 echo ""
+
+echo "All test runs completed!"
+echo "Check the reports directory for HTML reports."
