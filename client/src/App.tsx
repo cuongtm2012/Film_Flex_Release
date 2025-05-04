@@ -31,6 +31,12 @@ import NewReleasesPage from "@/pages/NewReleasesPage";
 import TopRatedPage from "@/pages/TopRatedPage";
 import GenresPage from "@/pages/GenresPage";
 import ContactPage from "@/pages/ContactPage";
+import HowToWatchPage from "@/pages/HowToWatchPage";
+import DevicesPage from "@/pages/DevicesPage";
+import CareersPage from "@/pages/CareersPage";
+import PressPage from "@/pages/PressPage";
+import BlogPage from "@/pages/BlogPage";
+import PartnersPage from "@/pages/PartnersPage";
 
 function MainLayout({ children }: { children: React.ReactNode }) {
   return <Layout>{children}</Layout>;
@@ -159,6 +165,42 @@ function Router() {
       <Route path="/contact">
         <MainLayout>
           <ContactPage />
+        </MainLayout>
+      </Route>
+      
+      <Route path="/how-to-watch">
+        <MainLayout>
+          <HowToWatchPage />
+        </MainLayout>
+      </Route>
+      
+      <Route path="/devices">
+        <MainLayout>
+          <DevicesPage />
+        </MainLayout>
+      </Route>
+
+      <Route path="/careers">
+        <MainLayout>
+          <CareersPage />
+        </MainLayout>
+      </Route>
+      
+      <Route path="/press">
+        <MainLayout>
+          <PressPage />
+        </MainLayout>
+      </Route>
+      
+      <Route path="/blog">
+        <MainLayout>
+          <BlogPage />
+        </MainLayout>
+      </Route>
+      
+      <Route path="/partners">
+        <MainLayout>
+          <PartnersPage />
         </MainLayout>
       </Route>
       
