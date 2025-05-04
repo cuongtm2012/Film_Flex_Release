@@ -487,10 +487,11 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
               </div>
             )}
             
-            {/* Mobile Episodes Horizontal Scroll - Only visible on mobile and tablet */}
+            {/* Mobile Episodes Grid - Only visible on mobile and tablet */}
             {!isSingleEpisode() && (
-              <div className="lg:hidden mb-4 overflow-x-auto scrollbar-hide">
-                <div className="flex space-x-2 p-1 min-w-max">
+              <div className="lg:hidden mb-4">
+                <h4 className="text-sm font-semibold mb-2">Episodes:</h4>
+                <div className="grid grid-cols-3 xs:grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2 p-1">
                   {getCurrentEpisodeList().map((episode, index) => {
                     // Extract episode number for display
                     const episodeName = episode.name;
@@ -505,7 +506,7 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
                         key={episode.slug}
                         variant={selectedEpisode === episode.slug ? "default" : "outline"}
                         size="sm"
-                        className={`h-8 px-3 whitespace-nowrap ${
+                        className={`h-7 xs:h-8 px-1 xs:px-2 text-xs ${
                           selectedEpisode === episode.slug 
                             ? "bg-primary text-white" 
                             : "bg-card/30 hover:bg-card/50"
