@@ -1,5 +1,5 @@
 import React from "react";
-import { Button } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { 
   Film, 
