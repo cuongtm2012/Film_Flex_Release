@@ -115,43 +115,42 @@ export default function Navbar() {
         isScrolled ? "bg-background shadow-md" : "bg-gradient-to-b from-black to-transparent"
       }`}
     >
-      <div className="container mx-auto px-2 xs:px-4 py-3">
+      <div className="container mx-auto px-4 py-3">
         <div className="flex justify-between items-center">
-          {/* Logo */}
-          <div className="flex-shrink-0">
-            <Link to="/" className="text-primary font-bold text-xl xs:text-2xl">
+          <div className="flex items-center space-x-8">
+            {/* Logo */}
+            <Link to="/" className="text-primary font-bold text-2xl">
               FilmFlex
             </Link>
-          </div>
 
-          {/* Main Navigation - Mobile Friendly */}
-          <div className="flex-grow px-2 xs:px-3">
-            <nav className="flex justify-center">
-              <Link to="/" className="text-white text-xs xs:text-sm px-1 xs:px-1.5 sm:px-2 md:px-3 hover:text-primary transition">
-                Home
-              </Link>
-              <Link to="/movies" className="text-muted-foreground text-xs xs:text-sm px-1 xs:px-1.5 sm:px-2 md:px-3 hover:text-white transition">
-                Movies
-              </Link>
-              <Link to="/news" className="text-muted-foreground text-xs xs:text-sm px-1 xs:px-1.5 sm:px-2 md:px-3 hover:text-white transition whitespace-nowrap">
-                News
-              </Link>
-              {user && (
-                <Link to="/my-list" className="text-muted-foreground text-xs xs:text-sm px-1 xs:px-1.5 sm:px-2 md:px-3 hover:text-white transition">
-                  My List
+            {/* Main Navigation - Hide on Mobile */}
+            {!isMobile && (
+              <nav className="hidden md:flex space-x-6">
+                <Link to="/" className="text-white font-medium hover:text-primary transition">
+                  Home
                 </Link>
-              )}
-            </nav>
+                <Link to="/movies" className="text-muted-foreground font-medium hover:text-white transition">
+                  Movies
+                </Link>
+                <Link to="/news" className="text-muted-foreground font-medium hover:text-white transition">
+                  News & Popular
+                </Link>
+                {user && (
+                  <Link to="/my-list" className="text-muted-foreground font-medium hover:text-white transition">
+                    My List
+                  </Link>
+                )}
+              </nav>
+            )}
           </div>
 
-          {/* Search and User */}
-          <div className="flex items-center space-x-2 sm:space-x-3">
-            {/* Search Box - Responsive */}
+          <div className="flex items-center space-x-4">
+            {/* Search Box */}
             <div ref={searchBoxRef} className="relative">
-              <form onSubmit={handleSubmitSearch} className="relative flex items-center">
+              <form onSubmit={handleSubmitSearch} className="relative">
                 <Input
                   type="text"
-                  placeholder={isMobile ? "Search..." : "Search movies..."}
+                  placeholder="Search movies..."
                   value={search}
                   onChange={(e) => {
                     setSearch(e.target.value);
@@ -166,21 +165,21 @@ export default function Navbar() {
                       setShowSuggestions(true);
                     }
                   }}
-                  className="bg-black/80 border border-muted/40 text-white rounded-md pr-8 py-1.5 w-[110px] xs:w-[130px] sm:w-[170px] md:w-[220px] focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all duration-300"
+                  className="bg-black/60 border border-muted/30 text-white rounded px-4 py-1 w-32 md:w-64 focus:outline-none focus:ring-1 focus:ring-primary transition-all duration-300"
                 />
                 <Button
                   type="submit"
                   variant="ghost"
                   size="icon"
-                  className="absolute right-0.5 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-white"
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-white"
                 >
                   <Search className="h-4 w-4" />
                 </Button>
               </form>
 
-              {/* Search Suggestions - Improved for mobile */}
+              {/* Search Suggestions */}
               {showSuggestions && debouncedSearch.length >= 2 && (
-                <div className="absolute top-full left-0 w-[220px] xs:w-[250px] sm:w-[280px] md:w-[320px] mt-1 bg-background/95 backdrop-blur-sm border border-border rounded-md shadow-lg z-50 max-h-[70vh] overflow-y-auto">
+                <div className="absolute top-full left-0 w-full mt-1 bg-background border border-border rounded-md shadow-lg z-50 max-h-[300px] overflow-y-auto">
                   {suggestions && suggestions.items && suggestions.items.length > 0 ? (
                     <>
                       {suggestions.items.map((suggestion: SearchSuggestion) => (
@@ -205,7 +204,7 @@ export default function Navbar() {
                               />
                             </div>
                           )}
-                          <div className="flex-1 min-w-0">
+                          <div className="flex-1 overflow-hidden">
                             <div className="font-medium text-sm text-white truncate">{suggestion.name}</div>
                             <div className="text-xs text-muted-foreground truncate">
                               {suggestion.origin_name} • {suggestion.type === 'single' ? 'Movie' : 'TV Series'}
@@ -239,16 +238,16 @@ export default function Navbar() {
               )}
             </div>
 
-            {/* User Menu - Improved for mobile */}
+            {/* User Menu */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="flex items-center text-white px-1 xs:px-1.5">
-                  <Avatar className="h-7 w-7 xs:h-8 xs:w-8 border border-primary/20">
-                    <AvatarFallback className="bg-primary/10 text-xs xs:text-sm text-primary">
+                <Button variant="ghost" className="flex items-center text-white">
+                  <Avatar className="h-8 w-8">
+                    <AvatarFallback>
                       {user ? user.username.substring(0, 2).toUpperCase() : "GU"}
                     </AvatarFallback>
                   </Avatar>
-                  <ChevronDown className="ml-1 xs:ml-1.5 h-3 w-3 xs:h-4 xs:w-4 text-gray-400" />
+                  <ChevronDown className="ml-2 h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
