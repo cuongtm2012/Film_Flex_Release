@@ -113,6 +113,16 @@ export const watchlist = pgTable("watchlist", {
   addedAt: timestamp("added_at").defaultNow().notNull(),
 });
 
+// View History model for tracking watched movies
+export const viewHistory = pgTable("view_history", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  movieSlug: text("movie_slug").notNull(),
+  lastViewedAt: timestamp("last_viewed_at").defaultNow().notNull(),
+  viewCount: integer("view_count").default(1),
+  progress: integer("progress").default(0), // Stores watch progress in seconds
+});
+
 // Content Status enum
 export const ContentStatus = {
   PENDING: 'pending',
@@ -235,6 +245,7 @@ export const insertMovieSchema = createInsertSchema(movies).omit({ id: true, mod
 export const insertEpisodeSchema = createInsertSchema(episodes).omit({ id: true });
 export const insertCommentSchema = createInsertSchema(comments).omit({ id: true, likes: true, dislikes: true, createdAt: true });
 export const insertWatchlistSchema = createInsertSchema(watchlist).omit({ id: true, addedAt: true });
+export const insertViewHistorySchema = createInsertSchema(viewHistory).omit({ id: true, lastViewedAt: true });
 export const insertContentApprovalSchema = createInsertSchema(contentApprovals).omit({ 
   id: true, submittedAt: true, reviewedAt: true 
 });
@@ -255,6 +266,7 @@ export type InsertMovie = z.infer<typeof insertMovieSchema>;
 export type InsertEpisode = z.infer<typeof insertEpisodeSchema>;
 export type InsertComment = z.infer<typeof insertCommentSchema>;
 export type InsertWatchlist = z.infer<typeof insertWatchlistSchema>;
+export type InsertViewHistory = z.infer<typeof insertViewHistorySchema>;
 export type InsertContentApproval = z.infer<typeof insertContentApprovalSchema>;
 export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
 export type InsertApiKey = z.infer<typeof insertApiKeySchema>;
@@ -270,6 +282,7 @@ export type Movie = typeof movies.$inferSelect;
 export type Episode = typeof episodes.$inferSelect;
 export type Comment = typeof comments.$inferSelect;
 export type Watchlist = typeof watchlist.$inferSelect;
+export type ViewHistory = typeof viewHistory.$inferSelect;
 export type ContentApproval = typeof contentApprovals.$inferSelect;
 export type AuditLog = typeof auditLogs.$inferSelect;
 export type ApiKey = typeof apiKeys.$inferSelect;
@@ -284,6 +297,7 @@ export type RolePermission = typeof rolePermissions.$inferSelect;
 export const usersRelations = relations(users, ({ many }) => ({
   comments: many(comments),
   watchlist: many(watchlist),
+  viewHistory: many(viewHistory),
   submittedContent: many(contentApprovals, { relationName: "submittedBy" }),
   reviewedContent: many(contentApprovals, { relationName: "reviewedBy" }),
   auditLogs: many(auditLogs),
@@ -295,6 +309,7 @@ export const moviesRelations = relations(movies, ({ many }) => ({
   episodes: many(episodes),
   comments: many(comments),
   watchlist: many(watchlist),
+  viewHistory: many(viewHistory),
   contentApprovals: many(contentApprovals),
   contentPerformance: many(contentPerformance),
 }));
