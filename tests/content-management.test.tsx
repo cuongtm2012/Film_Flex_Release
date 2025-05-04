@@ -67,20 +67,62 @@ describe('Admin Panel - Content Management Tests (Real API)', () => {
       expect(screen.getByText(/Content Management/i)).toBeInTheDocument();
     }, { timeout: 5000 });
     
-    // Find and interact with the search box
-    const searchInput = screen.getByPlaceholderText(/Search content/i);
+    // Find the search box with a more reliable query
+    // Using a combination of queries to increase chance of finding the element
+    let searchInput;
+    try {
+      // First try by placeholder text
+      searchInput = screen.getByPlaceholderText(/search/i);
+    } catch (e) {
+      try {
+        // Then try by role
+        searchInput = screen.getByRole('searchbox');
+      } catch (e) {
+        // Finally try by a generic input with a search-related attribute
+        searchInput = Array.from(document.querySelectorAll('input')).find(
+          input => input.placeholder?.toLowerCase().includes('search') ||
+                  input.getAttribute('aria-label')?.toLowerCase().includes('search') ||
+                  input.id?.toLowerCase().includes('search')
+        );
+      }
+    }
     
-    // Use a search term that's likely to match some content in your database
-    await userEvent.type(searchInput, 'a'); // Just searching for the letter 'a' should match something
+    expect(searchInput).toBeTruthy();
+    
+    // Use a more specific search term that's more likely to yield consistent results
+    // instead of just "a" which is too generic
+    const searchTerm = "Stranger"; // A common term in movie titles
+    
+    // Clear the input first to ensure clean state
+    await userEvent.clear(searchInput);
+    await userEvent.type(searchInput, searchTerm);
+    
+    // Add a slight delay to ensure the UI updates
+    await new Promise(resolve => setTimeout(resolve, 300));
+    
+    // Use multiple ways to trigger the search
     fireEvent.keyPress(searchInput, { key: 'Enter', code: 'Enter', charCode: 13 });
     
-    // Verify that the search results are displayed
-    // We can't check specific titles since they'll vary, but we can verify the search triggered
+    // Look for a search button as an alternative way to trigger search
+    try {
+      const searchButton = screen.getByRole('button', { name: /search/i });
+      if (searchButton) {
+        await userEvent.click(searchButton);
+      }
+    } catch (e) {
+      // It's fine if there's no search button
+      console.log('No explicit search button found, continuing with Enter key search');
+    }
+    
+    // Verify that the search results are displayed with a more lenient check
     await waitFor(() => {
+      // First verify we still have content (not an empty state)
+      expect(document.body.textContent).not.toMatch(/no results found/i);
+      
       // Check that at least one content row exists after search
       const contentRows = screen.getAllByRole('row');
       expect(contentRows.length).toBeGreaterThan(1); // Header row + at least one data row
-    }, { timeout: 5000 });
+    }, { timeout: 8000 }); // Longer timeout for API response
   });
 
   // CM-03: Filter by content type
