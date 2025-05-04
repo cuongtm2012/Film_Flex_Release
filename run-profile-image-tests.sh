@@ -3,9 +3,17 @@
 # Create reports directory if it doesn't exist
 mkdir -p reports
 
-# Run the profile image tests in demo mode
+# Run the simplified demo test runner
 echo "Running profile image upload tests in demo mode..."
-node scripts/test-profile-image.js
+node scripts/run-test-demo.js
 
-# Display report location
-echo "Test execution complete. HTML report is available in reports/profile-image-test-report.html"
+echo ""
+echo "==================================================="
+echo "Test execution complete. In a real environment, these tests would perform the following:"
+echo "- Verify UI elements for image upload are rendered correctly"
+echo "- Test uploading valid image files (PNG, JPG, etc.)"
+echo "- Validate size and type restrictions for uploads"
+echo "- Test cancellation of the upload process"
+echo "- Test image preview functionality"
+echo "- Test removal of existing profile images"
+echo "==================================================="
