@@ -49,6 +49,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 50; // Default to 50 per page per requirements
       const category = req.query.category as string || 'all';
+      const sortBy = req.query.sort as string || 'latest'; // Default sort by latest
       
       let movieListData;
       
@@ -67,6 +68,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Process and save movies to storage
           await processAndSaveMovies(movieListData.items);
         }
+        
+        // Now sort the fetched movies using our database
+        const sortedMovies = await storage.getMoviesByCategory(category, page, limit, sortBy);
+        
+        // If we have results from our database, use those instead (they're sorted correctly)
+        if (sortedMovies.data.length > 0) {
+          // Create a new response with the sorted data
+          const sortedResponse = {
+            ...movieListData,
+            items: sortedMovies.data
+          };
+          
+          return res.json(sortedResponse);
+        }
       } else {
         // For 'all' category, use the regular movie list
         // Try to get from cache first
@@ -81,6 +96,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           // Process and save movies to storage
           await processAndSaveMovies(movieListData.items);
+        }
+        
+        // Now sort the fetched movies using our database
+        const sortedMovies = await storage.getMovies(page, limit, sortBy);
+        
+        // If we have results from our database, use those instead (they're sorted correctly)
+        if (sortedMovies.data.length > 0) {
+          // Create a new response with the sorted data
+          const sortedResponse = {
+            ...movieListData,
+            items: sortedMovies.data
+          };
+          
+          return res.json(sortedResponse);
         }
       }
       
@@ -354,19 +383,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { slug } = req.params;
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 50; // Default to 50 items per page
+      const sortBy = req.query.sort as string || 'latest'; // Default sort by latest
       
-      console.log(`Handling category request for ${slug}, page ${page}, limit ${limit}`);
+      console.log(`Handling category request for ${slug}, page ${page}, limit ${limit}, sort ${sortBy}`);
       
       // If slug is 'all', just redirect to the regular movies endpoint
       if (slug === 'all') {
         console.log(`Redirecting 'all' category to regular movies endpoint`);
-        const moviesData = await fetchMovieList(page, limit);
-        return res.json(moviesData);
+        return res.redirect(`/api/movies?page=${page}&limit=${limit}&sort=${sortBy}`);
       }
       
-      // Instead of trying different API endpoints that don't work, let's directly create
-      // a real category-based filter on the movies we get from the fetchMovieList API
+      // First, check if we have enough movies in our database for this category
+      // and can just use the database sort directly
+      const dbCategoryMovies = await storage.getMoviesByCategory(slug, page, limit, sortBy);
       
+      if (dbCategoryMovies.data.length > 0) {
+        console.log(`Using local database sort for category ${slug}, found ${dbCategoryMovies.total} matches`);
+        
+        const categoryResponse: MovieListResponse = {
+          status: true,
+          items: dbCategoryMovies.data,
+          pagination: {
+            totalItems: dbCategoryMovies.total,
+            totalPages: Math.ceil(dbCategoryMovies.total / limit),
+            currentPage: page,
+            totalItemsPerPage: limit
+          }
+        };
+        
+        return res.json(categoryResponse);
+      }
+      
+      // Otherwise, use our client-side filtering approach
       console.log(`Filtering main movie list for category ${slug}`);
       
       // Get all movies first
@@ -419,14 +467,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const skipItems = categoryValue % 10; // Skip between 0-9 items
       
       // Apply our deterministic category filter - take a subset of items starting from skipItems
-      const filteredItems = allMoviesResponse.items.slice(skipItems);
+      let filteredItems = allMoviesResponse.items.slice(skipItems);
       
       console.log(`Category ${slug} filter: skipping ${skipItems} items`);
+      
+      // Process and save the filtered movies to our database for future use
+      await processAndSaveMovies(filteredItems);
+      
+      // Apply sorting if needed - try to use database sorting for consistency
+      const sortedMovies = await storage.getMoviesByCategory(slug, page, limit, sortBy);
+      
+      // If we got results from the database, use those (they're properly sorted)
+      // Otherwise, just use the filtered items
+      const itemsToReturn = sortedMovies.data.length > 0 ? 
+        sortedMovies.data : 
+        filteredItems.slice(0, limit);
       
       // Create the filtered response
       const categoryResponse: MovieListResponse = {
         status: true,
-        items: filteredItems.slice(0, limit), // Only return the requested number of items
+        items: itemsToReturn,
         pagination: {
           totalItems: allMoviesResponse.pagination?.totalItems || 0,
           totalPages: allMoviesResponse.pagination?.totalPages || 1,
@@ -449,12 +509,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { slug } = req.params;
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 50;
+      const sortBy = req.query.sort as string || 'latest'; // Default sort by latest
       
-      console.log(`Handling country request for ${slug}, page ${page}, limit ${limit}`);
+      console.log(`Handling country request for ${slug}, page ${page}, limit ${limit}, sort ${sortBy}`);
       
       try {
         // Try the external API first
         const countryMovies = await fetchMoviesByCountry(slug, page);
+        
+        // Process and save movies to our database so we can sort them properly
+        await processAndSaveMovies(countryMovies.items);
+        
+        // Now try to get sorted movies from our database
+        // We don't have a getMoviesByCountry method yet, so we'll do client-side filtering for now
+        // but at least save the movies to our database for future sorting capabilities
+        
+        // Return the original response from the API
         res.json(countryMovies);
       } catch (error) {
         console.log(`External API for country ${slug} failed, falling back to filtering main movie list`);
@@ -481,6 +551,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
         
         console.log(`Country ${slug} filter: showing ${filteredMovies.length} items`);
+        
+        // Process and save the filtered movies to enable sorting in the future
+        await processAndSaveMovies(filteredMovies);
+        
+        // Try to get a better sort from our database 
+        // (Not implemented yet as we don't have a getMoviesByCountry method)
+        // This is just future-proofing the code
         
         // Create a response with pagination
         const countryResponse: MovieListResponse = {
