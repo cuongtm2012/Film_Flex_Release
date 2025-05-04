@@ -19,7 +19,7 @@ export default function MyListPage() {
     data: watchlistData,
     isLoading,
     isError,
-  } = useQuery<MovieListResponse>({
+  } = useQuery<any[]>({
     queryKey: [`/api/users/${userId}/watchlist`],
     enabled: !!userId,
   });
@@ -52,15 +52,15 @@ export default function MyListPage() {
 
   // Filter movies based on the active tab
   const getFilteredMovies = () => {
-    if (!watchlistData?.items) return [];
+    if (!watchlistData || !Array.isArray(watchlistData)) return [];
     
-    if (activeTab === "all") return watchlistData.items;
+    if (activeTab === "all") return watchlistData;
     
     // This is a placeholder - in a real app, we would have a "watched" field in the watchlist data
     if (activeTab === "watched") {
-      return watchlistData.items.filter((_: any, index: number) => index % 3 === 0); // Every third item for demo
+      return watchlistData.filter((_: any, index: number) => index % 3 === 0); // Every third item for demo
     } else {
-      return watchlistData.items.filter((_: any, index: number) => index % 3 !== 0);
+      return watchlistData.filter((_: any, index: number) => index % 3 !== 0);
     }
   };
 
