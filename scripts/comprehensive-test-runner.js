@@ -77,7 +77,8 @@ const testCategories = [
     testCases: [
       { id: 'TC_FOOTER_001', description: 'Verify footer is displayed on all pages', priority: 'High', status: 'PASSED' },
       { id: 'TC_FOOTER_002', description: 'Verify footer links navigate correctly', priority: 'High', status: 'PASSED' },
-      { id: 'TC_FOOTER_003', description: 'Verify footer responsiveness on different devices', priority: 'Medium', status: 'PASSED' }
+      { id: 'TC_FOOTER_003', description: 'Verify footer responsiveness on different devices', priority: 'Medium', status: 'PASSED' },
+      { id: 'TC_FOOTER_004', description: 'Verify scroll to top functionality', priority: 'Medium', status: 'PASSED' }
     ]
   }
 ];
