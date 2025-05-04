@@ -336,6 +336,17 @@ export const watchlistRelations = relations(watchlist, ({ one }) => ({
   }),
 }));
 
+export const viewHistoryRelations = relations(viewHistory, ({ one }) => ({
+  user: one(users, {
+    fields: [viewHistory.userId],
+    references: [users.id],
+  }),
+  movie: one(movies, {
+    fields: [viewHistory.movieSlug],
+    references: [movies.slug],
+  }),
+}));
+
 export const episodesRelations = relations(episodes, ({ one }) => ({
   movie: one(movies, {
     fields: [episodes.movieSlug],

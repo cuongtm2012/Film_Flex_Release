@@ -4,13 +4,14 @@ import {
   Episode, InsertEpisode, 
   Comment, InsertComment, 
   Watchlist, InsertWatchlist,
+  ViewHistory, InsertViewHistory,
   ContentApproval, InsertContentApproval,
   AuditLog, InsertAuditLog,
   Role, InsertRole,
   Permission, InsertPermission,
   RolePermission, InsertRolePermission,
   MovieListResponse, MovieDetailResponse,
-  users, movies, episodes, comments, watchlist, contentApprovals, auditLogs,
+  users, movies, episodes, comments, watchlist, viewHistory, contentApprovals, auditLogs,
   roles, permissions, rolePermissions,
   UserRole, UserStatus, ContentStatus, ActivityType
 } from "@shared/schema";
@@ -80,6 +81,12 @@ export interface IStorage {
   addToWatchlist(watchlistItem: InsertWatchlist): Promise<void>;
   removeFromWatchlist(userId: number, movieSlug: string): Promise<void>;
   
+  // View History methods
+  getViewHistory(userId: number, limit?: number): Promise<Movie[]>;
+  addToViewHistory(userId: number, movieSlug: string, progress?: number): Promise<void>;
+  updateViewProgress(userId: number, movieSlug: string, progress: number): Promise<void>;
+  getViewedMovie(userId: number, movieSlug: string): Promise<ViewHistory | undefined>;
+  
   // Content Approval methods
   submitContentForApproval(approval: InsertContentApproval): Promise<ContentApproval>;
   approveContent(contentId: number, reviewerId: number, comments?: string): Promise<ContentApproval | undefined>;
@@ -109,6 +116,7 @@ export class MemStorage implements IStorage {
   private episodes: Map<string, Episode>; // Key is slug
   private comments: Map<number, Comment>;
   private watchlists: Watchlist[];
+  private viewHistory: ViewHistory[]; // Array of view history entries
   private contentApprovals: Map<number, ContentApproval>;
   private auditLogs: Map<number, AuditLog>;
   private movieListCache: Map<number, MovieListResponse>; // Key is page number
@@ -124,6 +132,7 @@ export class MemStorage implements IStorage {
   private currentEpisodeId: number = 1;
   private currentCommentId: number = 1;
   private currentWatchlistId: number = 1;
+  private currentViewHistoryId: number = 1;
   private currentApprovalId: number = 1;
   private currentAuditLogId: number = 1;
   private currentRoleId: number = 1;
@@ -135,6 +144,7 @@ export class MemStorage implements IStorage {
     this.episodes = new Map();
     this.comments = new Map();
     this.watchlists = [];
+    this.viewHistory = [];
     this.contentApprovals = new Map();
     this.auditLogs = new Map();
     this.movieListCache = new Map();
@@ -461,6 +471,74 @@ export class MemStorage implements IStorage {
   async removeFromWatchlist(userId: number, movieSlug: string): Promise<void> {
     this.watchlists = this.watchlists.filter(
       item => !(item.userId === userId && item.movieSlug === movieSlug)
+    );
+  }
+  
+  // View History methods
+  async getViewHistory(userId: number, limit?: number): Promise<Movie[]> {
+    // Get all user's view history entries, sorted by lastViewedAt descending (most recent first)
+    const userHistory = this.viewHistory
+      .filter(item => item.userId === userId)
+      .sort((a, b) => b.lastViewedAt.getTime() - a.lastViewedAt.getTime());
+    
+    // Apply limit if specified
+    const limitedHistory = limit ? userHistory.slice(0, limit) : userHistory;
+    
+    // Map history items to actual movies, filter out any that might not exist
+    return limitedHistory
+      .map(item => this.movies.get(item.movieSlug))
+      .filter(Boolean) as Movie[];
+  }
+  
+  async addToViewHistory(userId: number, movieSlug: string, progress: number = 0): Promise<void> {
+    // Check if the movie exists
+    const movie = this.movies.get(movieSlug);
+    if (!movie) return;
+    
+    // Look for existing entry
+    const existingEntryIndex = this.viewHistory.findIndex(
+      item => item.userId === userId && item.movieSlug === movieSlug
+    );
+    
+    const now = new Date();
+    
+    if (existingEntryIndex >= 0) {
+      // Update existing entry
+      this.viewHistory[existingEntryIndex].lastViewedAt = now;
+      this.viewHistory[existingEntryIndex].progress = progress;
+    } else {
+      // Create new entry
+      const id = this.currentViewHistoryId++;
+      const newEntry: ViewHistory = {
+        id,
+        userId,
+        movieSlug,
+        progress,
+        lastViewedAt: now
+      };
+      this.viewHistory.push(newEntry);
+    }
+  }
+  
+  async updateViewProgress(userId: number, movieSlug: string, progress: number): Promise<void> {
+    // Find the existing entry
+    const existingEntryIndex = this.viewHistory.findIndex(
+      item => item.userId === userId && item.movieSlug === movieSlug
+    );
+    
+    if (existingEntryIndex >= 0) {
+      // Update progress and lastViewedAt
+      this.viewHistory[existingEntryIndex].progress = progress;
+      this.viewHistory[existingEntryIndex].lastViewedAt = new Date();
+    } else {
+      // If not found, create a new entry
+      await this.addToViewHistory(userId, movieSlug, progress);
+    }
+  }
+  
+  async getViewedMovie(userId: number, movieSlug: string): Promise<ViewHistory | undefined> {
+    return this.viewHistory.find(
+      item => item.userId === userId && item.movieSlug === movieSlug
     );
   }
   
