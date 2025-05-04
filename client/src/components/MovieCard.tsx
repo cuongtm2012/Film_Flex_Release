@@ -8,6 +8,9 @@ interface MovieCardProps {
 }
 
 export default function MovieCard({ movie }: MovieCardProps) {
+  // Debug log to see movie data
+  console.log("Movie data:", movie);
+  
   // Extract the year from the movie data
   const year = movie.year || parseInt(movie.modified?.time?.toString().substring(0, 4)) || "N/A";
   
@@ -22,7 +25,7 @@ export default function MovieCard({ movie }: MovieCardProps) {
       <div className="movie-card group relative rounded overflow-hidden cursor-pointer">
         <AspectRatio ratio={2/3}>
           <img
-            src={movie.poster_url || movie.thumb_url}
+            src={movie.posterUrl || movie.poster_url || movie.thumbUrl || movie.thumb_url}
             alt={movie.name}
             className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
             onError={(e) => {
