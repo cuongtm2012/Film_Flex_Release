@@ -515,10 +515,11 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
         </div>
       </div>
       
-      <div className="container mx-auto px-4">
-        {/* Movie Meta */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 mb-8 mt-8">
-          <div className="lg:col-span-3">
+      <div className="container mx-auto px-4 max-w-screen-2xl">
+        {/* Movie Meta - Optimized Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8 mt-8">
+          {/* Main content - spans 8 columns on large screens */}
+          <div className="lg:col-span-8 xl:col-span-9">
             <div>
               <h2 className="text-2xl font-bold mb-2">{movie.name}</h2>
               {movie.origin_name && movie.origin_name !== movie.name && (
@@ -526,7 +527,8 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
               )}
             </div>
             
-            <div className="flex flex-wrap gap-x-8 gap-y-3 mb-6 text-sm">
+            {/* Movie quick stats - more compact layout */}
+            <div className="flex flex-wrap gap-x-6 gap-y-2 mb-4 text-sm">
               <div className="flex gap-1">
                 <span className="text-muted-foreground">Release Year:</span>
                 <span>{(movie as any).year || 'Unknown'}</span>
@@ -555,8 +557,37 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
               </div>
             </div>
             
-            <div className="mb-6">
-              <h3 className="text-xl font-bold mb-3 flex items-center">
+            {/* Quick Info Cards */}
+            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mb-4">
+              <div className="bg-card/30 p-2 rounded text-center">
+                <p className="text-xs text-muted-foreground">Year</p>
+                <p className="font-semibold text-sm">{(movie as any).year || '2023'}</p>
+              </div>
+              <div className="bg-card/30 p-2 rounded text-center">
+                <p className="text-xs text-muted-foreground">Duration</p>
+                <p className="font-semibold text-sm">{movie.time || '150 min'}</p>
+              </div>
+              <div className="bg-card/30 p-2 rounded text-center">
+                <p className="text-xs text-muted-foreground">Score</p>
+                <p className="font-semibold text-sm">{(movie as any).tmdb?.vote_average || "8.2"}/10</p>
+              </div>
+              {movie.quality && (
+                <div className="bg-card/30 p-2 rounded text-center">
+                  <p className="text-xs text-muted-foreground">Quality</p>
+                  <p className="font-semibold text-sm">{movie.quality}</p>
+                </div>
+              )}
+              {movie.lang && (
+                <div className="bg-card/30 p-2 rounded text-center">
+                  <p className="text-xs text-muted-foreground">Language</p>
+                  <p className="font-semibold text-sm truncate">{movie.lang}</p>
+                </div>
+              )}
+            </div>
+            
+            {/* Overview section */}
+            <div className="mb-5 bg-card/20 rounded-md p-4 border border-gray-800">
+              <h3 className="text-lg font-bold mb-2 flex items-center">
                 <FileText className="h-5 w-5 mr-2 text-primary" />
                 Overview
               </h3>
@@ -584,115 +615,89 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
               </div>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 mb-6">
+            {/* Cast and Crew - better column arrangement */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-4 mb-5">
               {movie.director?.length > 0 && (
-                <div>
+                <div className="bg-card/20 p-3 rounded-md border border-gray-800">
                   <h4 className="text-sm font-bold text-muted-foreground mb-1">Director</h4>
-                  <p>{movie.director.join(", ")}</p>
+                  <p className="text-sm">{movie.director.join(", ")}</p>
                 </div>
               )}
               
               {movie.actor?.length > 0 && (
-                <div>
+                <div className="bg-card/20 p-3 rounded-md border border-gray-800">
                   <h4 className="text-sm font-bold text-muted-foreground mb-1">Cast</h4>
-                  <p>{movie.actor.join(", ")}</p>
+                  <p className="text-sm">{movie.actor.join(", ")}</p>
                 </div>
               )}
               
               {movie.country?.length > 0 && (
-                <div>
+                <div className="bg-card/20 p-3 rounded-md border border-gray-800">
                   <h4 className="text-sm font-bold text-muted-foreground mb-1">Country</h4>
-                  <p>{movie.country.map(c => c.name).join(", ")}</p>
+                  <p className="text-sm">{movie.country.map(c => c.name).join(", ")}</p>
                 </div>
               )}
               
               {movie.lang && (
-                <div>
+                <div className="bg-card/20 p-3 rounded-md border border-gray-800">
                   <h4 className="text-sm font-bold text-muted-foreground mb-1">Languages</h4>
-                  <p>{movie.lang}</p>
+                  <p className="text-sm">{movie.lang}</p>
                 </div>
               )}
-            </div>
-            
-            <div className="mb-6">
-              <div className="grid grid-cols-3 gap-3 text-center">
-                <div className="border border-muted p-3 rounded">
-                  <h4 className="text-muted-foreground text-xs mb-1">Release Year</h4>
-                  <p className="font-semibold">{(movie as any).year || '2023'}</p>
-                </div>
-                <div className="border border-muted p-3 rounded">
-                  <h4 className="text-muted-foreground text-xs mb-1">Duration</h4>
-                  <p className="font-semibold">{movie.time || '150 min'}</p>
-                </div>
-                <div className="border border-muted p-3 rounded">
-                  <h4 className="text-muted-foreground text-xs mb-1">Score/10</h4>
-                  <p className="font-semibold">{(movie as any).tmdb?.vote_average || "8.2"}</p>
-                </div>
-              </div>
             </div>
           </div>
           
-          <div className="lg:col-span-1">
-            <div className="flex justify-between items-center mb-3">
-              <h3 className="text-xl font-bold flex items-center">
-                <Star className="h-5 w-5 mr-2 text-primary" fill="currentColor" />
-                Recommended For You
-              </h3>
-              
-              {/* See More Button */}
-              {recommendationsData?.items && recommendationsData.items.length > 3 && (
-                <Link to={`/recommendations/${slug}`} className="text-primary text-sm hover:underline flex items-center">
-                  See More
-                  <ChevronRight className="h-4 w-4 ml-1" />
-                </Link>
-              )}
-            </div>
-            
-            {isRecommendationsLoading ? (
-              // Loading placeholders for side recommendations
-              <div className="grid grid-cols-2 lg:grid-cols-1 gap-4">
-                {Array(3).fill(0).map((_, i) => (
-                  <div key={i} className="animate-pulse">
-                    <div className="aspect-[2/1] bg-gray-800 rounded mb-2"></div>
-                    <div className="h-4 bg-gray-800 rounded w-3/4 mb-2"></div>
-                    <div className="h-3 bg-gray-800 rounded w-1/2"></div>
-                  </div>
-                ))}
+          {/* Sidebar content - spans 4 columns on large screens */}
+          <div className="lg:col-span-4 xl:col-span-3">
+            <div className="bg-card/20 p-4 rounded-md border border-gray-800">
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="text-lg font-bold flex items-center">
+                  <Star className="h-5 w-5 mr-2 text-primary" fill="currentColor" />
+                  Recommended For You
+                </h3>
+                
+                {/* See More Button */}
+                {recommendationsData?.items && recommendationsData.items.length > 3 && (
+                  <Link to={`/recommendations/${slug}`} className="text-primary text-sm hover:underline flex items-center">
+                    See More
+                    <ChevronRight className="h-4 w-4 ml-1" />
+                  </Link>
+                )}
               </div>
-            ) : recommendationsData?.items && recommendationsData.items.length > 0 ? (
-              // Scrollable carousel for mobile, grid for desktop
-              <div className="lg:hidden relative overflow-x-auto pb-4 -mx-4 px-4 scrollbar-hide">
-                <div className="flex space-x-4 w-max">
-                  {recommendationsData.items.map((movie) => (
-                    <div key={movie.slug} className="w-36 flex-shrink-0">
-                      <RecommendedMovieCard movie={movie} size="medium" />
+              
+              {isRecommendationsLoading ? (
+                // Loading placeholders for side recommendations
+                <div className="grid grid-cols-2 lg:grid-cols-1 gap-4">
+                  {Array(3).fill(0).map((_, i) => (
+                    <div key={i} className="animate-pulse">
+                      <div className="aspect-[2/1] bg-gray-800 rounded mb-2"></div>
+                      <div className="h-4 bg-gray-800 rounded w-3/4 mb-2"></div>
+                      <div className="h-3 bg-gray-800 rounded w-1/2"></div>
                     </div>
                   ))}
                 </div>
-              </div>
-            ) : (
-              // No recommendations found
-              <div className="bg-card/20 p-4 rounded-md border border-muted text-muted-foreground text-sm text-center">
-                <p>No similar movies found.</p>
-              </div>
-            )}
-            
-            {/* Desktop layout - vertical list */}
-            {!isRecommendationsLoading && recommendationsData?.items && recommendationsData.items.length > 0 && (
-              <div className="hidden lg:grid lg:grid-cols-1 gap-4">
-                {recommendationsData.items.slice(0, 5).map((movie) => (
-                  <RecommendedMovieCard key={movie.slug} movie={movie} size="small" />
-                ))}
-              </div>
-            )}
+              ) : recommendationsData?.items && recommendationsData.items.length > 0 ? (
+                // Grid layout for both mobile and desktop
+                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-3">
+                  {recommendationsData.items.slice(0, 6).map((movie) => (
+                    <RecommendedMovieCard key={movie.slug} movie={movie} size="small" />
+                  ))}
+                </div>
+              ) : (
+                // No recommendations found
+                <div className="bg-card/20 p-4 rounded-md border border-muted text-muted-foreground text-sm text-center">
+                  <p>No similar movies found.</p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
         
         <Separator className="my-6" />
         
-        {/* Comments Section */}
-        <div className="container mx-auto px-4 mb-10">
-          <div className="bg-gray-900 rounded-xl p-6 border border-gray-800">
+        {/* Comments Section - Optimized */}
+        <div className="mb-10">
+          <div className="bg-gray-900 rounded-xl p-4 sm:p-6 border border-gray-800">
             <CommentSection
               movieSlug={slug}
               comments={commentsData?.data || []}
