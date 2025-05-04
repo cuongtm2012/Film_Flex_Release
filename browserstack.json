@@ -1,0 +1,37 @@
+{
+  "auth": {
+    "username": "tranthanh_AndDU7",
+    "access_key": "GJAHV7fs1TXCyAEryBfY"
+  },
+  "browsers": [
+    {
+      "browser": "chrome",
+      "os": "Windows 10",
+      "versions": ["latest", "latest-1"]
+    },
+    {
+      "browser": "firefox",
+      "os": "Windows 10",
+      "versions": ["latest"]
+    },
+    {
+      "browser": "edge",
+      "os": "Windows 10",
+      "versions": ["latest"]
+    },
+    {
+      "browser": "safari",
+      "os": "OS X Monterey",
+      "versions": ["15.6"]
+    }
+  ],
+  "run_settings": {
+    "cypress_config_file": "./cypress.config.js",
+    "project_name": "FilmFlex Automation Testing",
+    "build_name": "FilmFlex Build 1.0",
+    "parallels": 2,
+    "npm_dependencies": {
+      "cypress": "^14.3.0"
+    }
+  }
+}
