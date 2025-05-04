@@ -22,6 +22,11 @@ import MoviesPage from "@/pages/MoviesPage";
 import NewsPage from "@/pages/NewsPage";
 import MyListPage from "@/pages/MyListPage";
 
+// Footer-linked pages
+import AboutPage from "@/pages/AboutPage";
+import FAQsPage from "@/pages/FAQsPage";
+import TermsPage from "@/pages/TermsPage";
+
 function MainLayout({ children }: { children: React.ReactNode }) {
   return <Layout>{children}</Layout>;
 }
