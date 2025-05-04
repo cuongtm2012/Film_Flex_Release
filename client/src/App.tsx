@@ -21,6 +21,7 @@ import { ProtectedRoute } from "@/lib/protected-route";
 import MoviesPage from "@/pages/MoviesPage";
 import NewsPage from "@/pages/NewsPage";
 import MyListPage from "@/pages/MyListPage";
+import ProfileSettingsPage from "@/pages/ProfileSettingsPage";
 
 // Footer-linked pages
 import AboutPage from "@/pages/AboutPage";
@@ -97,7 +98,7 @@ function Router() {
       
       <Route path="/settings">
         <MainLayout>
-          <ProtectedRoute component={SettingsPage} path="/settings" />
+          <ProtectedRoute component={ProfileSettingsPage} path="/settings" />
         </MainLayout>
       </Route>
       
