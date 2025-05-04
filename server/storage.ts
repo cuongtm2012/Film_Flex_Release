@@ -834,6 +834,19 @@ export class MemStorage implements IStorage {
 export class DatabaseStorage implements IStorage {
   sessionStore: session.Store;
   
+  constructor() {
+    // Initialize session store with PostgreSQL
+    const PostgresStore = connectPg(session);
+    this.sessionStore = new PostgresStore({
+      pool,
+      tableName: 'user_sessions',
+      createTableIfMissing: true
+    });
+    
+    // Initialize admin user if it doesn't exist
+    this.initializeAdminUser();
+  }
+  
   /**
    * Function to normalize Vietnamese text by removing accents and diacritics
    * This helps with search functionality where users might type without accents
@@ -849,17 +862,6 @@ export class DatabaseStorage implements IStorage {
       .toLowerCase()
       // Replace đ/Đ with d
       .replace(/[đĐ]/g, 'd');
-  }
-  
-  constructor() {
-    const PostgresStore = connectPg(session);
-    this.sessionStore = new PostgresStore({
-      pool,
-      createTableIfMissing: true,
-    });
-    
-    // Initialize admin user if it doesn't exist
-    this.initializeAdminUser();
   }
   
   private async initializeAdminUser() {
