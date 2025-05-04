@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { MovieListItem } from "@shared/schema";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Badge } from "@/components/ui/badge";
-import { Film, Tv } from "lucide-react";
+import { Film, Tv, Layers } from "lucide-react";
 
 interface MovieCardProps {
   movie: MovieListItem;
@@ -26,48 +26,46 @@ export default function MovieCard({ movie }: MovieCardProps) {
   const typeFormatted = type === "tv" ? "TV" : "Movie";
   
   useEffect(() => {
-    // Only fetch episode count for TV shows
-    if (type === "tv") {
-      const fetchEpisodeCount = async () => {
-        // Check cache first
-        if (episodeCountCache.has(movie.slug)) {
-          setEpisodeCount(episodeCountCache.get(movie.slug) || 0);
-          return;
+    // Fetch episode counts for all content types
+    const fetchEpisodeCount = async () => {
+      // Check cache first
+      if (episodeCountCache.has(movie.slug)) {
+        setEpisodeCount(episodeCountCache.get(movie.slug) || 0);
+        return;
+      }
+      
+      try {
+        setIsLoading(true);
+        const response = await fetch(`/api/movies/${movie.slug}/episodes`);
+        const data = await response.json();
+        
+        // Calculate episode count from the server_data array
+        let count = 0;
+        if (data.episodes && data.episodes.length > 0) {
+          // Loop through each server
+          data.episodes.forEach((server: any) => {
+            // For servers with server_data array, count the episodes
+            if (server.server_data && Array.isArray(server.server_data)) {
+              count = Math.max(count, server.server_data.length);
+            }
+          });
         }
         
-        try {
-          setIsLoading(true);
-          const response = await fetch(`/api/movies/${movie.slug}/episodes`);
-          const data = await response.json();
-          
-          // Calculate episode count from the server_data array
-          let count = 0;
-          if (data.episodes && data.episodes.length > 0) {
-            // Loop through each server
-            data.episodes.forEach((server: any) => {
-              // For servers with server_data array, count the episodes
-              if (server.server_data && Array.isArray(server.server_data)) {
-                count = Math.max(count, server.server_data.length);
-              }
-            });
-          }
-          
-          // Default to 1 if we can't find any episodes but the API returned a result
-          count = count || (data.episodes?.length > 0 ? 1 : 0);
-          
-          // Cache the result
-          episodeCountCache.set(movie.slug, count);
-          setEpisodeCount(count);
-        } catch (error) {
-          console.error("Error fetching episode count:", error);
-        } finally {
-          setIsLoading(false);
-        }
-      };
-      
-      fetchEpisodeCount();
-    }
-  }, [movie.slug, type]);
+        // Default to 1 if we can't find any episodes but the API returned a result
+        count = count || (data.episodes?.length > 0 ? 1 : 0);
+        
+        // Cache the result
+        episodeCountCache.set(movie.slug, count);
+        setEpisodeCount(count);
+      } catch (error) {
+        console.error("Error fetching episode count:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchEpisodeCount();
+  }, [movie.slug]);
   
   return (
     <Link href={`/movie/${movie.slug}`}>
@@ -83,25 +81,32 @@ export default function MovieCard({ movie }: MovieCardProps) {
           />
         </AspectRatio>
         
-        {/* Episode count badge (only for TV shows) */}
-        {type === "tv" && (
+        {/* Multiple episodes badge */}
+        {!isLoading && episodeCount && episodeCount > 1 ? (
           <Badge 
             variant="secondary" 
             className="absolute top-2 right-2 bg-black/70 hover:bg-black/70 z-10"
           >
-            <Tv size={14} className="mr-1" />
-            {isLoading ? "..." : `${episodeCount || '?'} EP`}
+            <Layers size={14} className="mr-1" />
+            {episodeCount} EP
           </Badge>
-        )}
-        
-        {/* Movie type badge (only for movies) */}
-        {type === "movie" && (
+        ) : (
+          // Show content type badge when there's only 1 episode or still loading
           <Badge 
             variant="secondary" 
             className="absolute top-2 right-2 bg-black/70 hover:bg-black/70 z-10"
           >
-            <Film size={14} className="mr-1" />
-            Film
+            {type === "tv" ? (
+              <>
+                <Tv size={14} className="mr-1" />
+                {isLoading ? "..." : "TV"}
+              </>
+            ) : (
+              <>
+                <Film size={14} className="mr-1" />
+                Film
+              </>
+            )}
           </Badge>
         )}
         
