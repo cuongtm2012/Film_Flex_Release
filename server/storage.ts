@@ -1222,6 +1222,111 @@ export class DatabaseStorage implements IStorage {
       ));
   }
   
+  // View History methods
+  async getViewHistory(userId: number, limit?: number): Promise<Movie[]> {
+    // Get user's view history entries, sorted by lastViewedAt descending (most recent first)
+    let query = db.select()
+      .from(viewHistory)
+      .where(eq(viewHistory.userId, userId))
+      .orderBy(desc(viewHistory.lastViewedAt));
+    
+    // Apply limit if specified
+    if (limit) {
+      query = query.limit(limit);
+    }
+    
+    const historyItems = await query;
+    
+    if (!historyItems.length) return [];
+    
+    // Get all movies in one query using the movieSlugs from history
+    const movieSlugs = historyItems.map(item => item.movieSlug);
+    
+    // Join with movies table to get movie details
+    const result = await db.select({ movie: movies })
+      .from(movies)
+      .where(sql`${movies.slug} IN (${movieSlugs.join(',')})`);
+    
+    // Map history items to movies in the same order as the history
+    return historyItems
+      .map(item => {
+        const movieResult = result.find(r => r.movie.slug === item.movieSlug);
+        return movieResult?.movie;
+      })
+      .filter(Boolean) as Movie[]; // Filter out any undefined entries
+  }
+  
+  async addToViewHistory(userId: number, movieSlug: string, progress: number = 0): Promise<void> {
+    // Check if the movie exists first
+    const movie = await this.getMovieBySlug(movieSlug);
+    if (!movie) return;
+    
+    // Check if the user already has this movie in their view history
+    const [existingEntry] = await db.select()
+      .from(viewHistory)
+      .where(and(
+        eq(viewHistory.userId, userId),
+        eq(viewHistory.movieSlug, movieSlug)
+      ));
+    
+    const now = new Date();
+    
+    if (existingEntry) {
+      // Update existing entry
+      await db.update(viewHistory)
+        .set({ 
+          lastViewedAt: now,
+          progress,
+          // Increment view count if progress was reset (indicating a new viewing)
+          viewCount: progress === 0 ? (existingEntry.viewCount || 1) + 1 : existingEntry.viewCount
+        })
+        .where(eq(viewHistory.id, existingEntry.id));
+    } else {
+      // Create new entry
+      await db.insert(viewHistory).values({
+        userId,
+        movieSlug,
+        progress,
+        viewCount: 1,
+        lastViewedAt: now
+      });
+    }
+  }
+  
+  async updateViewProgress(userId: number, movieSlug: string, progress: number): Promise<void> {
+    // Find existing entry
+    const [existingEntry] = await db.select()
+      .from(viewHistory)
+      .where(and(
+        eq(viewHistory.userId, userId),
+        eq(viewHistory.movieSlug, movieSlug)
+      ));
+    
+    if (existingEntry) {
+      // Update progress and lastViewedAt
+      await db.update(viewHistory)
+        .set({ 
+          progress, 
+          lastViewedAt: new Date() 
+        })
+        .where(eq(viewHistory.id, existingEntry.id));
+    } else {
+      // If no entry exists, create one with the specified progress
+      await this.addToViewHistory(userId, movieSlug, progress);
+    }
+  }
+  
+  async getViewedMovie(userId: number, movieSlug: string): Promise<ViewHistory | undefined> {
+    const [entry] = await db.select()
+      .from(viewHistory)
+      .where(and(
+        eq(viewHistory.userId, userId),
+        eq(viewHistory.movieSlug, movieSlug)
+      ));
+    
+    return entry;
+  }
+  
   // Content Approval methods
   async submitContentForApproval(approval: InsertContentApproval): Promise<ContentApproval> {
     const [savedApproval] = await db.insert(contentApprovals)
