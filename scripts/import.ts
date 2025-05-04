@@ -147,13 +147,11 @@ async function processMovie(movieSlug: string): Promise<{ status: 'saved' | 'exi
       return { status: 'failed' };
     }
     
-    if (!movieDetail._id) {
-      console.warn(`Movie details missing _id for ${movieSlug}`);
-      
-      // Log the actual response for debugging
+    // Check that we have a movie object
+    if (!movieDetail.movie) {
+      console.warn(`Movie response missing movie object for ${movieSlug}`);
       console.log(`Response for ${movieSlug}:`, JSON.stringify(movieDetail).substring(0, 200) + '...');
       
-      // Check if it's the common "not found" response
       if (movieDetail.status === false || movieDetail.msg === 'Movie not found') {
         console.warn(`Movie ${movieSlug} reported as not found by the API`);
       }
@@ -161,8 +159,18 @@ async function processMovie(movieSlug: string): Promise<{ status: 'saved' | 'exi
       return { status: 'failed' };
     }
     
+    // Check for an ID - either direct _id or TMDB ID
+    const hasId = movieDetail.movie._id || 
+                 (movieDetail.movie.tmdb && movieDetail.movie.tmdb.id);
+                 
+    if (!hasId) {
+      console.warn(`Movie details missing ID for ${movieSlug}`);
+      console.log(`Response for ${movieSlug}:`, JSON.stringify(movieDetail).substring(0, 200) + '...');
+      return { status: 'failed' };
+    }
+    
     // Additional validation for required fields
-    if (!movieDetail.name || !movieDetail.slug) {
+    if (!movieDetail.movie.name || !movieDetail.movie.slug) {
       console.warn(`Movie details missing essential fields for ${movieSlug}`);
       return { status: 'failed' };
     }
