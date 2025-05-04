@@ -1,0 +1,120 @@
+{
+  "status": true,
+  "msg": "",
+  "movie": {
+    "tmdb": {
+      "type": "tv",
+      "id": "50712",
+      "season": 5,
+      "vote_average": 7.8,
+      "vote_count": 215
+    },
+    "imdb": {
+      "id": null
+    },
+    "created": {
+      "time": "2025-04-15T02:50:49.000Z"
+    },
+    "modified": {
+      "time": "2025-05-03T14:58:01.000Z"
+    },
+    "_id": "eb8609534055613868edc1116c6ae1dd",
+    "name": "Hắc Quản Gia (Phần 5)",
+    "slug": "hac-quan-gia-phan-5",
+    "origin_name": "Black Butler (Season 5)",
+    "content": "Mùa mới của Kuroshitsuji.",
+    "type": "hoathinh",
+    "status": "ongoing",
+    "poster_url": "https://phimimg.com/upload/vod/20250415-1/51a4a035f903db48b5ce1d22ed2137de.jpg",
+    "thumb_url": "https://phimimg.com/upload/vod/20250415-1/53b56e0cf97cb7dd16d208fb72537c1e.jpg",
+    "is_copyright": false,
+    "sub_docquyen": false,
+    "chieurap": false,
+    "trailer_url": "",
+    "time": "24 phút/tập",
+    "episode_current": "Tập 4",
+    "episode_total": "13",
+    "quality": "FHD",
+    "lang": "Vietsub",
+    "notify": "",
+    "showtimes": "",
+    "year": 2025,
+    "view": 0,
+    "actor": [
+      "Đang cập nhật"
+    ],
+    "director": [
+      "Đang cập nhật"
+    ],
+    "category": [
+      {
+        "id": "ba6fd52e5a3aca80eaaf1a3b50a182db",
+        "name": "Hài Hước",
+        "slug": "hai-huoc"
+      },
+      {
+        "id": "37a7b38b6184a5ebd3c43015aa20709d",
+        "name": "Chính Kịch",
+        "slug": "chinh-kich"
+      },
+      {
+        "id": "2fb53017b3be83cd754a08adab3e916c",
+        "name": "Bí Ẩn",
+        "slug": "bi-an"
+      },
+      {
+        "id": "0bcf4077916678de9b48c89221fcf8ae",
+        "name": "Khoa Học",
+        "slug": "khoa-hoc"
+      },
+      {
+        "id": "68564911f00849030f9c9c144ea1b931",
+        "name": "Viễn Tưởng",
+        "slug": "vien-tuong"
+      }
+    ],
+    "country": [
+      {
+        "id": "d4097fbffa8f7149a61281437171eb83",
+        "name": "Nhật Bản",
+        "slug": "nhat-ban"
+      }
+    ]
+  },
+  "episodes": [
+    {
+      "server_name": "#Hà Nội (Vietsub)",
+      "server_data": [
+        {
+          "name": "Tập 01",
+          "slug": "tap-01",
+          "filename": "Hắc Quản Gia (Phần 5) - Black Butler (Season 5) - 2025 - 1080p - Vietsub - Tập 01",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s5.phim1280.tv/20250415/L1mHuJDi/index.m3u8",
+          "link_m3u8": "https://s5.phim1280.tv/20250415/L1mHuJDi/index.m3u8"
+        },
+        {
+          "name": "Tập 02",
+          "slug": "tap-02",
+          "filename": "Hắc Quản Gia (Phần 5) - Black Butler (Season 5) - 2025 - 1080p - Vietsub - Tập 02",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s5.phim1280.tv/20250415/aQgCgjY5/index.m3u8",
+          "link_m3u8": "https://s5.phim1280.tv/20250415/aQgCgjY5/index.m3u8"
+        },
+        {
+          "name": "Tập 03",
+          "slug": "tap-03",
+          "filename": "Hắc Quản Gia (Phần 5) - Black Butler (Season 5) - 2025 - 1080p - Vietsub - Tập 03",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250426/v2BYXOO6/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250426/v2BYXOO6/index.m3u8"
+        },
+        {
+          "name": "Tập 04",
+          "slug": "tap-04",
+          "filename": "Hắc Quản Gia (Phần 5) - Black Butler (Season 5) - 2025 - 1080p - Vietsub - Tập 04",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s5.phim1280.tv/20250503/s5ZmRpXA/index.m3u8",
+          "link_m3u8": "https://s5.phim1280.tv/20250503/s5ZmRpXA/index.m3u8"
+        }
+      ]
+    }
+  ]
+}
+Explain

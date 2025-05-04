@@ -1,0 +1,94 @@
+
+
+# UI/UX Layout Proposal for Movie Details Page
+
+
+## 1. Header (Top Bar)
+- Logo, search bar, main navigation menu.
+- Compact design to save vertical space.
+
+
+---
+
+
+## 2. Main Content Area
+
+
+### A. Video Player and Episodes List Section
+
+
+- **Two-column layout on large screens:**
+
+
+  | Left Column (70%)              | Right Column (30%)             |
+  |-------------------------------|-------------------------------|
+  | **Video Player**               | **Episodes List**              |
+  | - Standard size, easy to watch | - Scrollable episode list with its own scrollbar, supports pagination or grouping by season if needed. |
+  | - Video controls: play/pause, quality selection | - Current episode is clearly highlighted. |
+  | - Ability to switch between trailer, full movie, or episodes | - Search or filter functionality for quick episode selection. |
+
+
+- **On mobile devices:**
+  - Video player spans full width at the top.
+  - Episodes list placed directly below the video player, collapsible (accordion style).
+  - Episodes list has its own scroll or pagination to avoid excessive page length.
+
+
+---
+
+
+### B. Movie Information Section
+
+
+- Positioned below or beside the video player (depending on layout).
+- Includes:
+  - Movie title, English title, release year, genre, duration, quality.
+  - Rating with star icons prominently displayed.
+  - Movie description with a "Read more" toggle if lengthy.
+  - Director, cast, country, and language details (optionally with small images).
+- Clear design with good spacing and readable fonts.
+
+
+---
+
+
+### C. Comments and Reviews Section
+
+
+- Located below the movie information.
+- Includes comment input box and list of user comments with avatars, usernames, timestamps, and content.
+- Pagination or "Load more" button to manage long comment threads.
+
+
+---
+
+
+## 3. Sidebar (Right Sidebar) — (Desktop only)
+
+
+- **Recommended / More Like This:**
+  - Displayed as a carousel or small grid.
+  - Each item shows thumbnail, movie title, and rating.
+- Optionally includes ads or other relevant links.
+
+
+---
+
+
+## 4. Footer
+
+
+- Contact information, terms of service, social media links.
+- Simple and easy to read.
+
+
+---
+
+
+# Summary: Focus on Video Player & Episodes List
+
+
+| Component              | Position & Layout                                              | Key Features                                  |
+|------------------------|----------------------------------------------------------------|-----------------------------------------------|
+| **Video Player**        | Left column in two-column layout (desktop), top full-width (mobile) | Video playback, quality selection, switch between trailer/full movie/episodes |
+| **Episodes List**       | Right column (desktop), directly below video player (mobile)   | Independent scroll, pagination, highlight current episode, search/filter episodes |
