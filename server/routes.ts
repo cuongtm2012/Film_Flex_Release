@@ -715,6 +715,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // View History routes
+  app.get("/api/users/:userId/view-history", async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
+      
+      const viewHistory = await storage.getViewHistory(userId, limit);
+      res.json(viewHistory);
+    } catch (error) {
+      console.error(`Error fetching view history for user ${req.params.userId}:`, error);
+      res.status(500).json({ message: "Failed to fetch view history" });
+    }
+  });
+  
+  app.post("/api/users/:userId/view-history", async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const { movieSlug, progress } = req.body;
+      
+      if (!movieSlug) {
+        return res.status(400).json({ message: "Movie slug is required" });
+      }
+      
+      // Check if the movie exists
+      const movie = await storage.getMovieBySlug(movieSlug);
+      if (!movie) {
+        return res.status(404).json({ message: "Movie not found" });
+      }
+      
+      await storage.addToViewHistory(userId, movieSlug, progress || 0);
+      res.status(201).json({ message: "View history added successfully" });
+    } catch (error) {
+      console.error(`Error adding to view history for user ${req.params.userId}:`, error);
+      res.status(400).json({ message: "Invalid view history data" });
+    }
+  });
+  
+  app.put("/api/users/:userId/view-history/:slug/progress", async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const { slug } = req.params;
+      const { progress } = req.body;
+      
+      if (progress === undefined) {
+        return res.status(400).json({ message: "Progress is required" });
+      }
+      
+      await storage.updateViewProgress(userId, slug, progress);
+      res.json({ message: "View progress updated successfully" });
+    } catch (error) {
+      console.error(`Error updating view progress for user ${req.params.userId} and movie ${req.params.slug}:`, error);
+      res.status(500).json({ message: "Failed to update view progress" });
+    }
+  });
+  
+  app.get("/api/users/:userId/view-history/:slug", async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const { slug } = req.params;
+      
+      const viewHistory = await storage.getViewedMovie(userId, slug);
+      if (viewHistory) {
+        res.json(viewHistory);
+      } else {
+        res.status(404).json({ message: "Movie not found in view history" });
+      }
+    } catch (error) {
+      console.error(`Error getting view history for user ${req.params.userId} and movie ${req.params.slug}:`, error);
+      res.status(500).json({ message: "Failed to get view history" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
