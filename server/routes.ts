@@ -110,10 +110,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Helper function to process and save movies
   async function processAndSaveMovies(items: any[]) {
+    const successCount = { saved: 0, existing: 0, failed: 0 };
+    const errors: Error[] = [];
+    
     for (const item of items) {
-      const existingMovie = await storage.getMovieBySlug(item.slug);
-      
-      if (!existingMovie) {
+      try {
+        // Check if this is a valid movie object with required fields
+        if (!item || !item.slug || !item._id) {
+          console.warn(`Skipping invalid movie item:`, item);
+          successCount.failed++;
+          continue;
+        }
+        
+        // First check by movieId since that's our unique constraint
+        const existingMovieById = await storage.getMovieByMovieId(item._id);
+        if (existingMovieById) {
+          // Movie already exists with this ID
+          successCount.existing++;
+          continue;
+        }
+        
+        // Double check by slug as well
+        const existingMovieBySlug = await storage.getMovieBySlug(item.slug);
+        if (existingMovieBySlug) {
+          // Movie already exists with this slug
+          successCount.existing++;
+          continue;
+        }
+        
+        // Save the new movie
         await storage.saveMovie({
           movieId: item._id,
           slug: item.slug,
@@ -135,7 +160,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           actors: item.actor ? item.actor.join(", ") : "",
           directors: item.director ? item.director.join(", ") : ""
         });
+        
+        successCount.saved++;
+      } catch (error) {
+        console.error(`Error saving movie ${item?.slug || 'unknown'}:`, error);
+        errors.push(error instanceof Error ? error : new Error(String(error)));
+        successCount.failed++;
       }
+    }
+    
+    // Log the success count
+    console.log(`Processed ${items.length} movies: ${successCount.saved} saved, ${successCount.existing} existing, ${successCount.failed} failed`);
+    if (errors.length > 0) {
+      console.log(`Encountered ${errors.length} errors while saving movies`);
     }
   }
   
