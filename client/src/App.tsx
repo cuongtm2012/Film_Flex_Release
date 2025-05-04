@@ -108,6 +108,25 @@ function Router() {
         </MainLayout>
       </Route>
       
+      {/* Footer pages */}
+      <Route path="/about">
+        <MainLayout>
+          <AboutPage />
+        </MainLayout>
+      </Route>
+      
+      <Route path="/faqs">
+        <MainLayout>
+          <FAQsPage />
+        </MainLayout>
+      </Route>
+      
+      <Route path="/terms">
+        <MainLayout>
+          <TermsPage />
+        </MainLayout>
+      </Route>
+      
       <Route>
         <MainLayout>
           <NotFound />
