@@ -15,8 +15,12 @@ import {
   Calendar,
   Clock,
   Info,
-  FileText
+  FileText,
+  CheckCircle,
+  X,
+  MinusCircle
 } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Badge } from "@/components/ui/badge";
@@ -42,6 +46,12 @@ import { useToast } from "@/hooks/use-toast";
 
 interface MovieDetailProps {
   slug: string;
+}
+
+interface WatchlistCheckResponse {
+  inWatchlist: boolean;
+  movieSlug?: string;
+  userId?: number;
 }
 
 export default function MovieDetail({ slug }: MovieDetailProps) {
@@ -107,12 +117,30 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
     enabled: !!slug
   });
   
+  // Get user info from auth context
+  const { user } = useAuth();
+  const userId = user?.id || 1; // Default to 1 for demo if not logged in
+  
+  // Check if movie is in watchlist
+  const { 
+    data: watchlistData,
+    isLoading: isWatchlistLoading 
+  } = useQuery<WatchlistCheckResponse>({
+    queryKey: [`/api/users/${userId}/watchlist/check/${slug}`],
+    enabled: !!userId
+  });
+  
+  // Initialize with a default value if the data is not loaded yet
+  const isInWatchlist = watchlistData ? !!watchlistData.inWatchlist : false;
+  
   // Add to watchlist mutation
   const addToWatchlistMutation = useMutation({
     mutationFn: () => {
-      return apiRequest("POST", `/api/users/1/watchlist`, { userId: 1, movieSlug: slug });
+      return apiRequest("POST", `/api/users/${userId}/watchlist`, { userId, movieSlug: slug });
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/watchlist`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/watchlist/check/${slug}`] });
       toast({
         title: "Added to My List",
         description: "This title has been added to your watchlist",
@@ -123,6 +151,29 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
       toast({
         title: "Error",
         description: "Failed to add to watchlist",
+        variant: "destructive"
+      });
+    }
+  });
+  
+  // Remove from watchlist mutation
+  const removeFromWatchlistMutation = useMutation({
+    mutationFn: () => {
+      return apiRequest("DELETE", `/api/users/${userId}/watchlist/${slug}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/watchlist`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/watchlist/check/${slug}`] });
+      toast({
+        title: "Removed from My List",
+        description: "This title has been removed from your watchlist",
+      });
+    },
+    onError: (error) => {
+      console.error("Watchlist removal error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to remove from watchlist",
         variant: "destructive"
       });
     }
@@ -230,9 +281,23 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
     );
   };
   
-  // Handle add to watchlist
-  const handleAddToWatchlist = () => {
-    addToWatchlistMutation.mutate();
+  // Handle toggle watchlist (add or remove)
+  const handleToggleWatchlist = () => {
+    if (!user) {
+      // If not logged in, redirect to login or show login prompt
+      toast({
+        title: "Login Required",
+        description: "Please log in to add movies to your list",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    if (isInWatchlist) {
+      removeFromWatchlistMutation.mutate();
+    } else {
+      addToWatchlistMutation.mutate();
+    }
   };
   
   // Loading state
@@ -351,14 +416,23 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
               </Button>
               
               <Button 
-                variant="outline"
+                variant={isInWatchlist ? "default" : "outline"}
                 size="sm"
-                className="h-8 px-3 rounded-full flex items-center gap-1"
-                onClick={handleAddToWatchlist}
-                disabled={addToWatchlistMutation.isPending}
+                className={`h-8 px-3 rounded-full flex items-center gap-1 ${isInWatchlist ? 'bg-primary/90 hover:bg-primary/80' : ''}`}
+                onClick={handleToggleWatchlist}
+                disabled={addToWatchlistMutation.isPending || removeFromWatchlistMutation.isPending || isWatchlistLoading}
               >
-                <Plus className="h-3.5 w-3.5" />
-                <span className="text-xs">Add to List</span>
+                {isInWatchlist ? (
+                  <>
+                    <CheckCircle className="h-3.5 w-3.5" />
+                    <span className="text-xs">In My List</span>
+                  </>
+                ) : (
+                  <>
+                    <Plus className="h-3.5 w-3.5" />
+                    <span className="text-xs">Add to List</span>
+                  </>
+                )}
               </Button>
               
               <Button 
