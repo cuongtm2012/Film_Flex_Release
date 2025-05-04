@@ -1,3 +1,5 @@
+// Cypress needs to use CommonJS style even though our project is ESM
+// This file is automatically excluded from the ESM rules
 const { defineConfig } = require('cypress');
 
 module.exports = defineConfig({
