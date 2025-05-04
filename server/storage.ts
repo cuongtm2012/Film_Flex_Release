@@ -57,12 +57,12 @@ export interface IStorage {
   getRolesByPermission(permissionId: number): Promise<Role[]>;
   
   // Movie methods
-  getMovies(page: number, limit: number): Promise<{ data: Movie[], total: number }>;
+  getMovies(page: number, limit: number, sortBy?: string): Promise<{ data: Movie[], total: number }>;
   getMovieBySlug(slug: string): Promise<Movie | undefined>;
   getMovieByMovieId(movieId: string): Promise<Movie | undefined>;
   saveMovie(movie: InsertMovie): Promise<Movie>;
   searchMovies(query: string, normalizedQuery: string, page: number, limit: number): Promise<{ data: Movie[], total: number }>;
-  getMoviesByCategory(categorySlug: string, page: number, limit: number): Promise<{ data: Movie[], total: number }>;
+  getMoviesByCategory(categorySlug: string, page: number, limit: number, sortBy?: string): Promise<{ data: Movie[], total: number }>;
   
   // Episode methods
   getEpisodesByMovieSlug(movieSlug: string): Promise<Episode[]>;
@@ -1042,10 +1042,76 @@ export class DatabaseStorage implements IStorage {
   }
   
   // Movie methods
-  async getMovies(page: number, limit: number): Promise<{ data: Movie[], total: number }> {
-    const data = await db.select().from(movies).limit(limit).offset((page - 1) * limit);
-    const [{ count }] = await db.select({ count: sql<number>`count(*)` }).from(movies);
-    return { data, total: count };
+  async getMovies(page: number, limit: number, sortBy: string = 'latest'): Promise<{ data: Movie[], total: number }> {
+    let query = db.select().from(movies);
+    
+    // Apply sorting based on parameter
+    switch (sortBy) {
+      case 'latest':
+        // Sort by most recent modified time (newest first)
+        query = query.orderBy(desc(movies.modifiedAt));
+        break;
+      case 'popular':
+        // Sort by popularity (view count)
+        query = query.orderBy(desc(movies.view));
+        break;
+      case 'rating':
+        // Sort by rating (not implemented yet, fall back to popularity)
+        query = query.orderBy(desc(movies.view));
+        break;
+      case 'year':
+        // Sort by release year (newest first)
+        // Special handling for year sorting to prioritize valid years
+        // First get all the movies so we can do custom sorting (not ideal for large datasets but works for our case)
+        const allMovies = await db.select().from(movies);
+        const currentYear = new Date().getFullYear();
+        
+        // Sort with custom logic to prioritize valid years
+        const sortedMovies = allMovies.sort((a, b) => {
+          // Validate the year values (should be legitimate years, not future years)
+          const yearA = typeof a.year === 'number' && a.year > 1900 && a.year <= currentYear ? a.year : 0;
+          const yearB = typeof b.year === 'number' && b.year > 1900 && b.year <= currentYear ? b.year : 0;
+          
+          // First sort by valid vs. invalid years (valid years come first)
+          if (yearA === 0 && yearB !== 0) return 1;
+          if (yearB === 0 && yearA !== 0) return -1;
+          
+          // Then sort by year (newest first)
+          return yearB - yearA;
+        });
+        
+        // Apply pagination manually
+        const total = sortedMovies.length;
+        const start = (page - 1) * limit;
+        const end = start + limit;
+        const paginatedMovies = sortedMovies.slice(start, end);
+        
+        // Log what's happening for debugging
+        console.log(`Year sorting: Found ${total} movies, returning ${paginatedMovies.length} for page ${page}`);
+        if (paginatedMovies.length > 0) {
+          console.log('First 5 movies by year:');
+          paginatedMovies.slice(0, 5).forEach((movie, index) => {
+            console.log(`${index+1}. ${movie.name} (${movie.year || 'N/A'}) - ID: ${movie.id}`);
+          });
+        }
+        
+        return { data: paginatedMovies, total };
+        
+      default:
+        // Default sort by latest modified
+        query = query.orderBy(desc(movies.modifiedAt));
+    }
+    
+    // Apply pagination (for all cases except year which has custom handling)
+    if (sortBy !== 'year') {
+      const data = await query.limit(limit).offset((page - 1) * limit);
+      const [{ count }] = await db.select({ count: sql<number>`count(*)` }).from(movies);
+      return { data, total: count };
+    }
+    
+    // This line will never execute due to the early return in the year case,
+    // but TypeScript expects a return statement here
+    return { data: [], total: 0 };
   }
   
   async getMovieBySlug(slug: string): Promise<Movie | undefined> {
@@ -1186,18 +1252,79 @@ export class DatabaseStorage implements IStorage {
     }
   }
   
-  async getMoviesByCategory(categorySlug: string, page: number, limit: number): Promise<{ data: Movie[], total: number }> {
+  async getMoviesByCategory(categorySlug: string, page: number, limit: number, sortBy: string = 'latest'): Promise<{ data: Movie[], total: number }> {
     // This assumes categories is a JSONB array field with objects that have a slug property
-    const data = await db.select().from(movies)
-      .where(sql`EXISTS (SELECT 1 FROM jsonb_array_elements(${movies.categories}) as category 
-      WHERE category->>'slug' = ${categorySlug})`)
-      .limit(limit)
-      .offset((page - 1) * limit);
-    
+    // First, get the total count which doesn't change with sorting
     const [{ count }] = await db.select({ count: sql<number>`count(*)` }).from(movies)
       .where(sql`EXISTS (SELECT 1 FROM jsonb_array_elements(${movies.categories}) as category 
       WHERE category->>'slug' = ${categorySlug})`);
+      
+    // For year sorting, we need the custom handling similar to the getMovies method
+    if (sortBy === 'year') {
+      // Get all movies in this category
+      const allMovies = await db.select().from(movies)
+        .where(sql`EXISTS (SELECT 1 FROM jsonb_array_elements(${movies.categories}) as category 
+        WHERE category->>'slug' = ${categorySlug})`);
+      
+      const currentYear = new Date().getFullYear();
+      
+      // Sort with custom logic to prioritize valid years
+      const sortedMovies = allMovies.sort((a, b) => {
+        // Validate the year values (should be legitimate years, not future years)
+        const yearA = typeof a.year === 'number' && a.year > 1900 && a.year <= currentYear ? a.year : 0;
+        const yearB = typeof b.year === 'number' && b.year > 1900 && b.year <= currentYear ? b.year : 0;
+        
+        // First sort by valid vs. invalid years (valid years come first)
+        if (yearA === 0 && yearB !== 0) return 1;
+        if (yearB === 0 && yearA !== 0) return -1;
+        
+        // Then sort by year (newest first)
+        return yearB - yearA;
+      });
+      
+      // Apply pagination manually
+      const start = (page - 1) * limit;
+      const end = start + limit;
+      const paginatedMovies = sortedMovies.slice(start, end);
+      
+      // Log what's happening for debugging
+      console.log(`Category (${categorySlug}) year sorting: Found ${sortedMovies.length} movies, returning ${paginatedMovies.length} for page ${page}`);
+      if (paginatedMovies.length > 0) {
+        console.log('First 5 movies by year in this category:');
+        paginatedMovies.slice(0, 5).forEach((movie, index) => {
+          console.log(`${index+1}. ${movie.name} (${movie.year || 'N/A'}) - ID: ${movie.id}`);
+        });
+      }
+      
+      return { data: paginatedMovies, total: count };
+    }
     
+    // For all other sorting options
+    let query = db.select().from(movies)
+      .where(sql`EXISTS (SELECT 1 FROM jsonb_array_elements(${movies.categories}) as category 
+      WHERE category->>'slug' = ${categorySlug})`);
+    
+    // Apply sorting based on parameter
+    switch (sortBy) {
+      case 'latest':
+        // Sort by most recent modified time (newest first)
+        query = query.orderBy(desc(movies.modifiedAt));
+        break;
+      case 'popular':
+        // Sort by popularity (view count)
+        query = query.orderBy(desc(movies.view));
+        break;
+      case 'rating':
+        // Sort by rating (not implemented yet, fall back to popularity)
+        query = query.orderBy(desc(movies.view));
+        break;
+      default:
+        // Default sort by latest modified
+        query = query.orderBy(desc(movies.modifiedAt));
+    }
+    
+    // Apply pagination
+    const data = await query.limit(limit).offset((page - 1) * limit);
     return { data, total: count };
   }
   
