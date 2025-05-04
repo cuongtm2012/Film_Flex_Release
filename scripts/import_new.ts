@@ -1,5 +1,12 @@
 /**
- * New Import Tool for FilmFlex - Uses tsx directly
+ * FilmFlex Movie Import Tool
+ * 
+ * This script imports movies from an external API into the FilmFlex database.
+ * It handles errors, saves progress, and can be resumed if interrupted.
+ * 
+ * Usage:
+ *   npx tsx import_new.ts [startPage] [endPage]
+ *   npx tsx import_new.ts --resume
  */
 import { fetchMovieList, fetchMovieDetail, convertToMovieModel, convertToEpisodeModels } from '../server/api';
 import { db } from '../server/db';
@@ -21,7 +28,10 @@ const PROGRESS_FILE = path.join(__dirname, 'import_progress.json');
 // Helper function to pause execution
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-// Save the import progress to continue later
+/**
+ * Save the current import progress to a JSON file
+ * @param page The page number that was just completed
+ */
 function saveProgress(page: number): void {
   try {
     const data = JSON.stringify({
@@ -35,12 +45,16 @@ function saveProgress(page: number): void {
   }
 }
 
-// Load the import progress
+/**
+ * Load the last saved import progress
+ * @returns Object containing the last completed page
+ */
 function loadProgress(): { lastCompletedPage: number } {
   try {
     if (fs.existsSync(PROGRESS_FILE)) {
       const data = fs.readFileSync(PROGRESS_FILE, 'utf8');
-      return JSON.parse(data);
+      const progress = JSON.parse(data);
+      return { lastCompletedPage: progress.lastCompletedPage || 0 };
     }
   } catch (error) {
     console.error('Error reading progress file:', error);
@@ -48,25 +62,76 @@ function loadProgress(): { lastCompletedPage: number } {
   return { lastCompletedPage: 0 };
 }
 
-// Main import function
+/**
+ * Format a time duration in seconds to a human-readable string
+ * @param seconds Time in seconds
+ * @returns Formatted time string (e.g., "2h 30m 15s")
+ */
+function formatTime(seconds: number): string {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = Math.floor(seconds % 60);
+  
+  let result = '';
+  if (hours > 0) result += `${hours}h `;
+  if (minutes > 0 || hours > 0) result += `${minutes}m `;
+  result += `${secs}s`;
+  
+  return result;
+}
+
+/**
+ * Estimate remaining time based on progress and average processing time
+ * @param currentPage Current page number
+ * @param totalPages Total number of pages
+ * @param startTime Import start time
+ * @returns Estimated remaining time as a formatted string
+ */
+function estimateRemainingTime(currentPage: number, totalPages: number, startTime: number): string {
+  const elapsed = (Date.now() - startTime) / 1000;
+  const pagesCompleted = currentPage - 1;
+  
+  if (pagesCompleted <= 0) return "Calculating...";
+  
+  const timePerPage = elapsed / pagesCompleted;
+  const pagesRemaining = totalPages - currentPage + 1;
+  const secondsRemaining = timePerPage * pagesRemaining;
+  
+  return formatTime(secondsRemaining);
+}
+
+/**
+ * Main import function
+ * @param startPage First page to import (default: 1)
+ * @param endPage Last page to import (default: 5)
+ * @returns Promise that resolves when import is complete
+ */
 export async function runImport(startPage: number = 1, endPage: number = 5) {
-  console.time('ImportTime');
+  const startTime = Date.now();
+  console.time('TotalImportTime');
   
   console.log("\n======================================");
   console.log("==== FilmFlex Movie Import Tool =====");
   console.log("======================================\n");
   
   // Validate input
-  startPage = Math.max(1, startPage);
-  endPage = Math.min(TOTAL_PAGES, endPage);
+  startPage = Math.max(1, Math.min(startPage, TOTAL_PAGES));
+  endPage = Math.max(startPage, Math.min(endPage, TOTAL_PAGES));
   
-  console.log(`Starting import from page ${startPage} to ${endPage}`);
+  console.log(`Starting import from page ${startPage} to ${endPage} (${endPage - startPage + 1} pages total)`);
   
   let totalSaved = 0;
+  let totalExisting = 0;
+  let totalFailed = 0;
   
   for (let page = startPage; page <= endPage; page++) {
-    console.log(`\n=== Processing page ${page} ===`);
+    const progress = Math.round(((page - startPage) / (endPage - startPage + 1)) * 100);
+    const estRemaining = estimateRemainingTime(page, endPage, startTime);
+    
+    console.log(`\n=== Processing page ${page}/${endPage} (${progress}% complete, Est. remaining: ${estRemaining}) ===`);
     let savedCount = 0;
+    let existingCount = 0;
+    let failedCount = 0;
     
     try {
       // Fetch the page data
@@ -75,6 +140,7 @@ export async function runImport(startPage: number = 1, endPage: number = 5) {
       
       if (!movieListData || !movieListData.items || movieListData.items.length === 0) {
         console.log(`No movies found on page ${page}`);
+        saveProgress(page); // Save progress even for empty pages
         continue;
       }
       
@@ -83,7 +149,8 @@ export async function runImport(startPage: number = 1, endPage: number = 5) {
       // Process each movie
       for (const movie of movieListData.items) {
         if (!movie || !movie.slug) {
-          console.warn(`Invalid movie data found`);
+          console.warn(`Invalid movie data found, skipping`);
+          failedCount++;
           continue;
         }
         
@@ -93,12 +160,20 @@ export async function runImport(startPage: number = 1, endPage: number = 5) {
           // Check if movie already exists
           const existingMovie = await storage.getMovieBySlug(movie.slug);
           if (existingMovie) {
-            console.log(`Movie already exists: ${movie.slug}`);
+            console.log(`Movie already exists: ${movie.slug} (ID: ${existingMovie.id})`);
+            existingCount++;
             continue;
           }
           
           // Get movie details
           const movieDetail = await fetchMovieDetail(movie.slug);
+          
+          // Validate movie details
+          if (!movieDetail || !movieDetail._id) {
+            console.warn(`Failed to fetch movie details for ${movie.slug}, skipping`);
+            failedCount++;
+            continue;
+          }
           
           // Convert to our models
           const movieModel = convertToMovieModel(movieDetail);
@@ -133,6 +208,7 @@ export async function runImport(startPage: number = 1, endPage: number = 5) {
           console.log(`Saved ${episodeCount} episodes for ${movieModel.name}`);
         } catch (movieError) {
           console.error(`Error processing movie ${movie.slug}:`, movieError);
+          failedCount++;
         }
         
         // Add delay between movies
@@ -141,8 +217,10 @@ export async function runImport(startPage: number = 1, endPage: number = 5) {
       
       // Save progress after each page
       totalSaved += savedCount;
+      totalExisting += existingCount;
+      totalFailed += failedCount;
       saveProgress(page);
-      console.log(`Page ${page} completed: Saved ${savedCount} new movies`);
+      console.log(`Page ${page} completed: Saved ${savedCount} new movies, ${existingCount} already existed, ${failedCount} failed`);
       
       // Add a bit more delay between pages
       if (page < endPage) {
@@ -151,16 +229,23 @@ export async function runImport(startPage: number = 1, endPage: number = 5) {
       }
     } catch (pageError) {
       console.error(`Error processing page ${page}:`, pageError);
+      // Still save progress even if the page had errors
+      saveProgress(page);
     }
   }
   
-  console.log(`\n=== Import Completed ===`);
-  console.log(`Processed pages ${startPage} to ${endPage}`);
-  console.log(`Total new movies saved: ${totalSaved}`);
-  console.timeEnd('ImportTime');
+  console.log(`\n=== Import Summary ===`);
+  console.log(`Processed pages ${startPage} to ${endPage} (${endPage - startPage + 1} pages total)`);
+  console.log(`Total results:`);
+  console.log(` - New movies saved: ${totalSaved}`);
+  console.log(` - Already existing: ${totalExisting}`);
+  console.log(` - Failed to import: ${totalFailed}`);
+  console.timeEnd('TotalImportTime');
 }
 
-// Handle command line args
+/**
+ * Command-line entry point
+ */
 async function main() {
   try {
     // Get parameters
@@ -170,6 +255,8 @@ async function main() {
     
     // Show help?
     if (args.includes('--help') || args.includes('-h')) {
+      console.log('FilmFlex Movie Import Tool');
+      console.log('=========================');
       console.log('Usage:');
       console.log('  npx tsx import_new.ts [startPage] [endPage]');
       console.log('  npx tsx import_new.ts --resume');
@@ -185,6 +272,8 @@ async function main() {
       if (progress.lastCompletedPage > 0) {
         startPage = progress.lastCompletedPage + 1;
         console.log(`Resuming from page ${startPage} (last completed: ${progress.lastCompletedPage})`);
+      } else {
+        console.log('No previous progress found. Starting from page 1.');
       }
     } else {
       // Parse page numbers
