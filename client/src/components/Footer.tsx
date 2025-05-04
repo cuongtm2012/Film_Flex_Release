@@ -25,16 +25,52 @@ import {
 } from "lucide-react";
 
 // Helper component for footer links
-const FooterLink = ({ href, icon, children }: { href: string, icon: React.ReactNode, children: React.ReactNode }) => (
-  <li>
-    <Link href={href}>
-      <div className="text-gray-300 hover:text-primary flex items-center cursor-pointer transition-colors duration-200">
-        {icon}
-        <span>{children}</span>
-      </div>
-    </Link>
-  </li>
-);
+const FooterLink = ({ 
+  href, 
+  icon, 
+  children, 
+  isScrollTop = false,
+  onScrollTop
+}: { 
+  href: string, 
+  icon: React.ReactNode, 
+  children: React.ReactNode,
+  isScrollTop?: boolean,
+  onScrollTop?: () => void
+}) => {
+  
+  if (isScrollTop) {
+    return (
+      <li>
+        <div 
+          onClick={onScrollTop}
+          className="text-gray-300 hover:text-primary flex items-center cursor-pointer transition-colors duration-200 relative group"
+          role="button"
+          aria-label="Scroll to top"
+        >
+          {icon}
+          <span>{children}</span>
+          
+          {/* Tooltip */}
+          <div className="absolute -top-8 left-0 bg-black text-white text-xs py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap">
+            Scroll to top
+          </div>
+        </div>
+      </li>
+    );
+  }
+  
+  return (
+    <li>
+      <Link href={href}>
+        <div className="text-gray-300 hover:text-primary flex items-center cursor-pointer transition-colors duration-200">
+          {icon}
+          <span>{children}</span>
+        </div>
+      </Link>
+    </li>
+  );
+};
 
 const Footer = () => {
   const [showScrollTop, setShowScrollTop] = useState(false);
@@ -101,8 +137,13 @@ const Footer = () => {
           <div>
             <h3 className="text-lg font-bold mb-4">Browse</h3>
             <ul className="space-y-2">
-              <FooterLink href="/movies" icon={<Film className="h-4 w-4 mr-2" />}>
-                Movies
+              <FooterLink 
+                href="/movies" 
+                icon={<Film className="h-4 w-4 mr-2" />}
+                isScrollTop={true}
+                onScrollTop={scrollToTop}
+              >
+                Movies <ChevronUp className="inline-block h-3 w-3 ml-1 text-primary" />
               </FooterLink>
               <FooterLink href="/tv" icon={<Tv className="h-4 w-4 mr-2" />}>
                 TV Shows
