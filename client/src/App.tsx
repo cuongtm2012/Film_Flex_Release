@@ -26,6 +26,11 @@ import MyListPage from "@/pages/MyListPage";
 import AboutPage from "@/pages/AboutPage";
 import FAQsPage from "@/pages/FAQsPage";
 import TermsPage from "@/pages/TermsPage";
+import TVShowsPage from "@/pages/TVShowsPage";
+import NewReleasesPage from "@/pages/NewReleasesPage";
+import TopRatedPage from "@/pages/TopRatedPage";
+import GenresPage from "@/pages/GenresPage";
+import ContactPage from "@/pages/ContactPage";
 
 function MainLayout({ children }: { children: React.ReactNode }) {
   return <Layout>{children}</Layout>;
@@ -124,6 +129,36 @@ function Router() {
       <Route path="/terms">
         <MainLayout>
           <TermsPage />
+        </MainLayout>
+      </Route>
+      
+      <Route path="/tv">
+        <MainLayout>
+          <TVShowsPage />
+        </MainLayout>
+      </Route>
+      
+      <Route path="/new-releases">
+        <MainLayout>
+          <NewReleasesPage />
+        </MainLayout>
+      </Route>
+      
+      <Route path="/top-rated">
+        <MainLayout>
+          <TopRatedPage />
+        </MainLayout>
+      </Route>
+      
+      <Route path="/genres">
+        <MainLayout>
+          <GenresPage />
+        </MainLayout>
+      </Route>
+      
+      <Route path="/contact">
+        <MainLayout>
+          <ContactPage />
         </MainLayout>
       </Route>
       
