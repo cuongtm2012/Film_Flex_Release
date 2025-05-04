@@ -109,7 +109,7 @@ function normalizeText(text: string): string {
     .replace(/[đĐ]/g, 'd');
 }
 
-export async function searchMovies(keyword: string, page: number = 1, limit: number = 50): Promise<MovieListResponse> {
+export async function searchMovies(keyword: string, normalizedQuery: string | null = null, page: number = 1, limit: number = 50): Promise<MovieListResponse> {
   if (!keyword || keyword.trim() === "") {
     return { 
       status: true, 
@@ -125,7 +125,8 @@ export async function searchMovies(keyword: string, page: number = 1, limit: num
   
   try {
     const trimmedKeyword = keyword.trim();
-    const normalizedKeyword = normalizeText(trimmedKeyword);
+    // If normalizedQuery is provided, use it, otherwise normalize the trimmed keyword
+    const normalizedKeyword = normalizedQuery || normalizeText(trimmedKeyword);
     console.log(`Searching for "${trimmedKeyword}" in page ${page} with limit ${limit}`);
     
     // First, search in our local storage/database
