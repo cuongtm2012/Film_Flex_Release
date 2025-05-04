@@ -39,12 +39,28 @@ async function saveMovieWithEpisodes(movieSlug: string) {
         await storage.saveMovie(movieModel);
         
         let episodeCount = 0;
+        let skippedEpisodes = 0;
+        
         // Save episodes
         for (const episode of episodeModels) {
-          await storage.saveEpisode(episode);
-          episodeCount++;
+          // Check if episode already exists
+          const existingEpisode = await storage.getEpisodeBySlug(episode.slug);
+          
+          if (!existingEpisode) {
+            try {
+              await storage.saveEpisode(episode);
+              episodeCount++;
+            } catch (error) {
+              console.error(`Error saving episode ${episode.slug}:`, error.message || error);
+              skippedEpisodes++;
+            }
+          } else {
+            console.log(`Episode already exists: ${episode.slug}`);
+            skippedEpisodes++;
+          }
         }
-        console.log(`Saved ${episodeCount} episodes for ${movieModel.name}`);
+        
+        console.log(`Saved ${episodeCount} episodes for ${movieModel.name} (Skipped ${skippedEpisodes})`);
         return true;
       } else {
         console.log(`Movie already exists: ${movieModel.name} (${movieModel.movieId})`);
@@ -68,6 +84,12 @@ async function fetchWithRetry<T>(fetchFn: () => Promise<T>, retries = MAX_RETRIE
     try {
       return await fetchFn();
     } catch (error) {
+      // Check for database constraint violations which are permanent errors that retrying won't fix
+      if (error && error.code === '23505') { // PostgreSQL unique constraint violation
+        console.log(`Database constraint violation (no retry needed): ${error.detail || error.message}`);
+        throw error; // Don't retry on constraint violations
+      }
+      
       console.error(`Fetch failed (attempt ${i + 1}/${retries}):`, error);
       lastError = error;
       
