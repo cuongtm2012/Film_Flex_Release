@@ -96,23 +96,21 @@ export default function MyListPage() {
     <div className="container mx-auto px-4 py-8">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
         <h1 className="text-3xl font-bold mb-4 md:mb-0">My List</h1>
-        
-        <Tabs 
-          value={activeTab} 
-          onValueChange={setActiveTab}
-          className="w-full md:w-auto"
-        >
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="all">All</TabsTrigger>
-            <TabsTrigger value="unwatched">Unwatched</TabsTrigger>
-            <TabsTrigger value="watched">Watched</TabsTrigger>
-          </TabsList>
-        </Tabs>
       </div>
 
       <Separator className="mb-6" />
 
-      <div className="flex-col">
+      <Tabs 
+        value={activeTab} 
+        onValueChange={setActiveTab}
+        className="w-full"
+      >
+        <TabsList className="mb-6 grid w-full max-w-md grid-cols-3">
+          <TabsTrigger value="all">All</TabsTrigger>
+          <TabsTrigger value="unwatched">Unwatched</TabsTrigger>
+          <TabsTrigger value="watched">Watched</TabsTrigger>
+        </TabsList>
+        
         <TabsContent value={activeTab} forceMount>
           {isEmptyList ? (
             <div className="text-center py-16">
@@ -181,7 +179,7 @@ export default function MyListPage() {
             </div>
           )}
         </TabsContent>
-      </div>
+      </Tabs>
     </div>
   );
 }
