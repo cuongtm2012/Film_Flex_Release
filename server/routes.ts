@@ -160,30 +160,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!movieDetailData) {
         try {
           movieDetailData = await fetchMovieDetail(slug);
+          
+          // Validate movie data from API
+          if (!movieDetailData || !movieDetailData.movie || !movieDetailData.movie._id) {
+            console.error(`Invalid movie data structure for slug: ${slug}`);
+            return res.status(404).json({ 
+              message: "Movie not found or invalid data", 
+              status: false 
+            });
+          }
+          
+          // Cache the result
+          await storage.cacheMovieDetail(movieDetailData);
+          
+          // Save movie and episodes to storage
+          const movieModel = convertToMovieModel(movieDetailData);
+          const episodeModels = convertToEpisodeModels(movieDetailData);
+          
+          // Check if movie already exists before saving
+          const existingMovie = await storage.getMovieByMovieId(movieModel.movieId);
+          if (!existingMovie && movieModel.movieId) {  // Make sure movieId is valid
+            try {
+              await storage.saveMovie(movieModel);
+              
+              // Save episodes only if the movie is new
+              for (const episode of episodeModels) {
+                await storage.saveEpisode(episode);
+              }
+            } catch (saveError) {
+              console.error(`Error saving movie to database: ${saveError}`);
+              // Still continue to serve the cached data, just don't save to DB
+            }
+          }
         } catch (fetchError) {
           console.error(`Error fetching movie detail from API: ${fetchError}`);
           return res.status(404).json({ 
             message: "Movie not found", 
             status: false 
           });
-        }
-        
-        // Cache the result
-        await storage.cacheMovieDetail(movieDetailData);
-        
-        // Save movie and episodes to storage
-        const movieModel = convertToMovieModel(movieDetailData);
-        const episodeModels = convertToEpisodeModels(movieDetailData);
-        
-        // Check if movie already exists before saving
-        const existingMovie = await storage.getMovieByMovieId(movieModel.movieId);
-        if (!existingMovie) {
-          await storage.saveMovie(movieModel);
-          
-          // Save episodes only if the movie is new
-          for (const episode of episodeModels) {
-            await storage.saveEpisode(episode);
-          }
         }
       }
       
