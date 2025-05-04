@@ -245,10 +245,34 @@ export class MemStorage implements IStorage {
   }
   
   // Movie methods
-  async getMovies(page: number, limit: number): Promise<{ data: Movie[], total: number }> {
-    const allMovies = Array.from(this.movies.values());
-    const total = allMovies.length;
+  async getMovies(page: number, limit: number, sortBy: string = 'latest'): Promise<{ data: Movie[], total: number }> {
+    let allMovies = Array.from(this.movies.values());
     
+    // Apply sorting based on parameter
+    switch (sortBy) {
+      case 'latest':
+        // Sort by most recent modified time (newest first)
+        allMovies.sort((a, b) => b.modifiedAt.getTime() - a.modifiedAt.getTime());
+        break;
+      case 'popular':
+        // Sort by popularity (view count)
+        allMovies.sort((a, b) => (b.view || 0) - (a.view || 0));
+        break;
+      case 'rating':
+        // Sort by rating (we'll need to add this logic later when ratings are implemented)
+        // For now, fallback to popularity
+        allMovies.sort((a, b) => (b.view || 0) - (a.view || 0));
+        break;
+      case 'year':
+        // Sort by release year (newest first)
+        allMovies.sort((a, b) => (b.year || 0) - (a.year || 0));
+        break;
+      default:
+        // Default sort by latest modified
+        allMovies.sort((a, b) => b.modifiedAt.getTime() - a.modifiedAt.getTime());
+    }
+    
+    const total = allMovies.length;
     const start = (page - 1) * limit;
     const end = start + limit;
     const paginatedMovies = allMovies.slice(start, end);
@@ -367,11 +391,35 @@ export class MemStorage implements IStorage {
     return { data: paginatedMovies, total };
   }
   
-  async getMoviesByCategory(categorySlug: string, page: number, limit: number): Promise<{ data: Movie[], total: number }> {
-    const matchingMovies = Array.from(this.movies.values()).filter(movie => {
+  async getMoviesByCategory(categorySlug: string, page: number, limit: number, sortBy: string = 'latest'): Promise<{ data: Movie[], total: number }> {
+    let matchingMovies = Array.from(this.movies.values()).filter(movie => {
       const categories = movie.categories as any[];
       return categories.some(category => category.slug === categorySlug);
     });
+    
+    // Apply sorting based on parameter
+    switch (sortBy) {
+      case 'latest':
+        // Sort by most recent modified time (newest first)
+        matchingMovies.sort((a, b) => b.modifiedAt.getTime() - a.modifiedAt.getTime());
+        break;
+      case 'popular':
+        // Sort by popularity (view count)
+        matchingMovies.sort((a, b) => (b.view || 0) - (a.view || 0));
+        break;
+      case 'rating':
+        // Sort by rating (we'll need to add this logic later when ratings are implemented)
+        // For now, fallback to popularity
+        matchingMovies.sort((a, b) => (b.view || 0) - (a.view || 0));
+        break;
+      case 'year':
+        // Sort by release year (newest first)
+        matchingMovies.sort((a, b) => (b.year || 0) - (a.year || 0));
+        break;
+      default:
+        // Default sort by latest modified
+        matchingMovies.sort((a, b) => b.modifiedAt.getTime() - a.modifiedAt.getTime());
+    }
     
     const total = matchingMovies.length;
     const start = (page - 1) * limit;

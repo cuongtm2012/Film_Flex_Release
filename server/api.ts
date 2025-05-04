@@ -486,24 +486,40 @@ export function convertToMovieModel(movieDetail: MovieDetailResponse): InsertMov
   
   const movie = movieDetail.movie;
   
-  // Check if required fields exist
-  if (!movie._id || !movie.slug || !movie.name) {
+  // Get movie ID - either from direct _id or from tmdb.id as a fallback
+  const movieId = movie._id || 
+                 (movie.tmdb && movie.tmdb.id ? `tmdb-${movie.tmdb.id}` : null);
+  
+  // Check if we have enough info to create a valid movie record
+  if (!movieId || !movie.slug || !movie.name) {
     throw new Error(`Movie is missing required fields: ${JSON.stringify({
-      id: movie._id || "missing",
+      id: movieId || "missing",
       slug: movie.slug || "missing",
       name: movie.name || "missing"
     })}`);
   }
   
+  // Extract the year from the name if not provided
+  let year = 0;
+  if ((movie as any).year) {
+    year = parseInt((movie as any).year) || 0;
+  } else {
+    // Try to extract year from name like "Movie Name (2023)"
+    const yearMatch = movie.name.match(/\((\d{4})\)$/);
+    if (yearMatch && yearMatch[1]) {
+      year = parseInt(yearMatch[1]);
+    }
+  }
+  
   return {
-    movieId: movie._id,
+    movieId: movieId,
     slug: movie.slug,
     name: movie.name,
     originName: movie.origin_name || "",
     posterUrl: movie.poster_url || "",
     thumbUrl: movie.thumb_url || "",
-    year: parseInt((movie as any).year || "0") || 0,
-    type: movie.type === "series" ? "tv" : "movie",
+    year: year,
+    type: (movie.tmdb && movie.tmdb.type === "tv") ? "tv" : "movie",
     quality: movie.quality || "",
     lang: movie.lang || "",
     time: movie.time || "",
