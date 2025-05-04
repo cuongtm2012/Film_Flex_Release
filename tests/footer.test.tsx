@@ -143,4 +143,47 @@ describe('Footer', () => {
     // Test mobile layout
     testResponsiveness(480);
   });
+
+  // TC_FOOTER_004: Verify scroll to top functionality
+  test('TC_FOOTER_004: Verify scroll to top functionality', async () => {
+    // Mock window.scrollTo
+    const scrollToMock = jest.fn();
+    Object.defineProperty(window, 'scrollTo', {
+      writable: true,
+      value: scrollToMock
+    });
+    
+    // Mock scrollY value to show scroll button
+    Object.defineProperty(window, 'scrollY', {
+      writable: true,
+      value: 400
+    });
+    
+    // Render footer
+    const { getByText, getByLabelText } = render(<Footer />);
+    
+    // Trigger a scroll event to show the button
+    window.dispatchEvent(new Event('scroll'));
+    
+    // Find and click the "Back to Top" button in the footer
+    const backToTopLink = getByText('Back to Top');
+    fireEvent.click(backToTopLink);
+    
+    // Verify scrollTo was called with the right parameters
+    expect(scrollToMock).toHaveBeenCalledWith({
+      top: 0,
+      behavior: 'smooth'
+    });
+    
+    // Also test the floating button
+    const scrollToTopButton = getByLabelText('Scroll to top');
+    fireEvent.click(scrollToTopButton);
+    
+    // Verify scrollTo was called again
+    expect(scrollToMock).toHaveBeenCalledTimes(2);
+    expect(scrollToMock).toHaveBeenLastCalledWith({
+      top: 0,
+      behavior: 'smooth'
+    });
+  });
 });

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { 
   Film, 
@@ -19,7 +19,9 @@ import {
   Shield,
   Cookie,
   CheckSquare,
-  ShieldAlert
+  ShieldAlert,
+  ArrowUp, // Added for scroll to top button
+  ChevronUp
 } from "lucide-react";
 
 // Helper component for footer links
@@ -35,8 +37,51 @@ const FooterLink = ({ href, icon, children }: { href: string, icon: React.ReactN
 );
 
 const Footer = () => {
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
+  // Function to handle scrolling to top
+  const scrollToTop = () => {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+  };
+
+  // Show button when page is scrolled down
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 300) {
+        setShowScrollTop(true);
+      } else {
+        setShowScrollTop(false);
+      }
+    };
+
+    // Add scroll event listener
+    window.addEventListener('scroll', handleScroll);
+    
+    // Check initial scroll position
+    handleScroll();
+
+    // Remove event listener on cleanup
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
+
   return (
-    <footer className="bg-black text-white py-12 mt-8">
+    <footer className="bg-black text-white py-12 mt-8 relative">
+      {/* Scroll to top button */}
+      {showScrollTop && (
+        <button
+          onClick={scrollToTop}
+          className="scroll-to-top-btn fixed bottom-20 right-6 bg-primary text-white p-3 rounded-full shadow-lg hover:bg-primary-dark transition-all duration-300 z-50 animate-fade-in"
+          aria-label="Scroll to top"
+        >
+          <ChevronUp className="h-6 w-6" />
+        </button>
+      )}
+
       <div className="container mx-auto px-4">
         {/* Logo and tagline */}
         <div className="flex flex-col md:flex-row justify-between mb-10">
@@ -143,6 +188,16 @@ const Footer = () => {
 
         {/* Bottom copyright section */}
         <div className="border-t border-gray-800 mt-10 pt-6 text-center text-gray-400">
+          <div className="flex justify-center mb-4">
+            <button 
+              onClick={scrollToTop}
+              className="flex items-center text-gray-300 hover:text-primary transition-colors duration-200"
+              aria-label="Back to top"
+            >
+              <ChevronUp className="h-4 w-4 mr-1" />
+              <span>Back to Top</span>
+            </button>
+          </div>
           <p>© {new Date().getFullYear()} FilmFlex. All rights reserved.</p>
           <p className="mt-2 text-xs">
             FilmFlex is a fictional streaming service created for demonstration purposes. Any resemblance to real services is coincidental.
