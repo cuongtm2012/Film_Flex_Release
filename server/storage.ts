@@ -839,8 +839,8 @@ export class DatabaseStorage implements IStorage {
     const PostgresStore = connectPg(session);
     this.sessionStore = new PostgresStore({
       pool,
-      tableName: 'user_sessions',
-      createTableIfMissing: true
+      // Use the default table name 'session' to avoid conflicts
+      createTableIfMissing: false // Don't try to create the table since it already exists
     });
     
     // Initialize admin user if it doesn't exist
