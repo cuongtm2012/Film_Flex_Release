@@ -107,11 +107,17 @@ const NewReleasesPage = () => {
                   {"Experience the latest release on FilmFlex, now available for streaming."}
                 </p>
                 <div className="flex flex-wrap gap-3 mb-6">
-                  {newReleases[0].category?.map((cat: string, idx: number) => (
-                    <Badge key={idx} variant="secondary">
-                      {cat}
+                  {newReleases[0].category && newReleases[0].category.length > 0 ? (
+                    newReleases[0].category.map((cat: { name: string; slug: string }, idx: number) => (
+                      <Badge key={idx} variant="secondary">
+                        {cat.name}
+                      </Badge>
+                    ))
+                  ) : (
+                    <Badge variant="secondary">
+                      Movie
                     </Badge>
-                  ))}
+                  )}
                 </div>
                 <div>
                   <Link href={`/movie/${newReleases[0].slug}`}>
