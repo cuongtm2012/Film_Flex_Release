@@ -261,13 +261,50 @@ export class MemStorage implements IStorage {
     return newMovie;
   }
   
-  async searchMovies(query: string, page: number, limit: number): Promise<{ data: Movie[], total: number }> {
+  /**
+   * Function to normalize Vietnamese text by removing accents and diacritics
+   * This helps with search functionality where users might type without accents
+   */
+  private normalizeText(text: string): string {
+    if (!text) return '';
+    
+    // Normalize to NFD form where accented chars are separated into base char + accent
+    return text.normalize('NFD')
+      // Remove combining diacritical marks (accents, etc.)
+      .replace(/[\u0300-\u036f]/g, '')
+      // Remove other special characters and normalize to lowercase
+      .toLowerCase()
+      // Replace đ/Đ with d
+      .replace(/[đĐ]/g, 'd');
+  }
+  
+  async searchMovies(query: string, normalizedQuery: string, page: number, limit: number): Promise<{ data: Movie[], total: number }> {
     const lowerQuery = query.toLowerCase();
+    const lowerNormalizedQuery = normalizedQuery.toLowerCase();
+    
     const matchingMovies = Array.from(this.movies.values()).filter(
-      (movie) => 
-        movie.name.toLowerCase().includes(lowerQuery) ||
-        (movie.originName && movie.originName.toLowerCase().includes(lowerQuery)) ||
-        (movie.description && movie.description.toLowerCase().includes(lowerQuery))
+      (movie) => {
+        // Check with original query
+        const nameMatch = movie.name.toLowerCase().includes(lowerQuery);
+        const originNameMatch = movie.originName && movie.originName.toLowerCase().includes(lowerQuery);
+        const descriptionMatch = movie.description && movie.description.toLowerCase().includes(lowerQuery);
+        
+        // Also check with normalized query, comparing against normalized versions of movie fields
+        const normalizedName = this.normalizeText(movie.name);
+        const normalizedOriginName = movie.originName ? this.normalizeText(movie.originName) : '';
+        const normalizedDescription = movie.description ? this.normalizeText(movie.description) : '';
+        
+        const normalizedNameMatch = normalizedName.includes(lowerNormalizedQuery);
+        const normalizedOriginNameMatch = normalizedOriginName.includes(lowerNormalizedQuery);
+        const normalizedDescriptionMatch = normalizedDescription.includes(lowerNormalizedQuery);
+        
+        // Also check if slug contains the normalized query
+        const slugMatch = movie.slug.includes(lowerNormalizedQuery);
+        
+        return nameMatch || originNameMatch || descriptionMatch || 
+               normalizedNameMatch || normalizedOriginNameMatch || normalizedDescriptionMatch || 
+               slugMatch;
+      }
     );
     
     const total = matchingMovies.length;
@@ -809,26 +846,85 @@ export class DatabaseStorage implements IStorage {
     return savedMovie;
   }
   
-  async searchMovies(query: string, page: number, limit: number): Promise<{ data: Movie[], total: number }> {
+  /**
+   * Search for movies using both original query and normalized query (without accents)
+   * @param query The original search query
+   * @param normalizedQuery The search query with accents removed (e.g., "co dau" for "cô dâu")
+   * @param page The page number
+   * @param limit The number of results per page
+   */
+  async searchMovies(query: string, normalizedQuery: string, page: number, limit: number): Promise<{ data: Movie[], total: number }> {
     const searchPattern = `%${query}%`;
+    const normalizedPattern = `%${normalizedQuery}%`;
     
-    const data = await db.select().from(movies)
-      .where(
-        sql`(${movies.name} ILIKE ${searchPattern} OR 
-        ${movies.originName} ILIKE ${searchPattern} OR 
-        ${movies.description} ILIKE ${searchPattern})`
-      )
-      .limit(limit)
-      .offset((page - 1) * limit);
+    // The SQL function unaccent() is used to remove accents for comparison
+    // We need to install the unaccent extension if it's not already available
+    try {
+      await db.execute(sql`CREATE EXTENSION IF NOT EXISTS unaccent`);
+    } catch (error) {
+      console.error("Error creating unaccent extension:", error);
+      // Continue without unaccent if it fails - we'll rely on direct pattern matching
+    }
     
-    const [{ count }] = await db.select({ count: sql<number>`count(*)` }).from(movies)
-      .where(
-        sql`(${movies.name} ILIKE ${searchPattern} OR 
-        ${movies.originName} ILIKE ${searchPattern} OR 
-        ${movies.description} ILIKE ${searchPattern})`
-      );
-    
-    return { data, total: count };
+    try {
+      // First try with the normalized pattern using unaccent function
+      const data = await db.select().from(movies)
+        .where(
+          sql`(
+            ${movies.name} ILIKE ${searchPattern} OR 
+            ${movies.originName} ILIKE ${searchPattern} OR 
+            ${movies.description} ILIKE ${searchPattern} OR
+            unaccent(${movies.name}) ILIKE ${normalizedPattern} OR
+            unaccent(${movies.originName}) ILIKE ${normalizedPattern} OR
+            unaccent(${movies.description}) ILIKE ${normalizedPattern} OR
+            ${movies.slug} ILIKE ${normalizedPattern}
+          )`
+        )
+        .limit(limit)
+        .offset((page - 1) * limit);
+      
+      const [{ count }] = await db.select({ count: sql<number>`count(*)` }).from(movies)
+        .where(
+          sql`(
+            ${movies.name} ILIKE ${searchPattern} OR 
+            ${movies.originName} ILIKE ${searchPattern} OR 
+            ${movies.description} ILIKE ${searchPattern} OR
+            unaccent(${movies.name}) ILIKE ${normalizedPattern} OR
+            unaccent(${movies.originName}) ILIKE ${normalizedPattern} OR
+            unaccent(${movies.description}) ILIKE ${normalizedPattern} OR
+            ${movies.slug} ILIKE ${normalizedPattern}
+          )`
+        );
+      
+      return { data, total: count };
+    } catch (error) {
+      // If unaccent fails or isn't available, fall back to simpler matching
+      console.error("Error with unaccent search, falling back to basic search:", error);
+      
+      const data = await db.select().from(movies)
+        .where(
+          sql`(
+            ${movies.name} ILIKE ${searchPattern} OR 
+            ${movies.originName} ILIKE ${searchPattern} OR 
+            ${movies.description} ILIKE ${searchPattern} OR
+            ${movies.slug} ILIKE ${normalizedPattern}
+          )`
+        )
+        .limit(limit)
+        .offset((page - 1) * limit);
+      
+      const [{ count }] = await db.select({ count: sql<number>`count(*)` }).from(movies)
+        .where(
+          sql`(
+            ${movies.name} ILIKE ${searchPattern} OR 
+            ${movies.originName} ILIKE ${searchPattern} OR 
+            ${movies.description} ILIKE ${searchPattern} OR
+            ${movies.slug} ILIKE ${normalizedPattern}
+          )`
+        );
+      
+      return { data, total: count };
+    }
   }
   
   async getMoviesByCategory(categorySlug: string, page: number, limit: number): Promise<{ data: Movie[], total: number }> {
