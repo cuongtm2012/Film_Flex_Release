@@ -132,30 +132,7 @@ export default function AdminPage() {
                   <ShieldCheck className="mr-2 h-4 w-4" />
                   Security
                 </Button>
-                <Button 
-                  variant={activeTab === "api-management" ? "default" : "ghost"} 
-                  className="w-full justify-start"
-                  onClick={() => setActiveTab("api-management")}
-                >
-                  <svg 
-                    className="mr-2 h-4 w-4"
-                    width="15" 
-                    height="15" 
-                    viewBox="0 0 15 15" 
-                    fill="none" 
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path 
-                      d="M13.9 5.3L7.7 0.3C7.5 0.1 7.3 0 7 0C6.7 0 6.5 0.1 6.3 0.3L0.1 5.3C0 5.5 0 5.6 0 5.8C0 5.9 0 6.1 0.1 6.2L6.3 11.2C6.5 11.4 6.7 11.5 7 11.5C7.3 11.5 7.5 11.4 7.7 11.2L13.9 6.2C14 6.1 14 5.9 14 5.8C14 5.6 14 5.5 13.9 5.3ZM7 9.5L2.7 6L7 2.5L11.3 6L7 9.5Z" 
-                      fill="currentColor"
-                    />
-                    <path 
-                      d="M7 12.5L4.7 10.7L3.6 11.5L7 14.2L10.4 11.5L9.3 10.7L7 12.5Z" 
-                      fill="currentColor"
-                    />
-                  </svg>
-                  API Management
-                </Button>
+
                 <Button 
                   variant={activeTab === "audit-logs" ? "default" : "ghost"} 
                   className="w-full justify-start"
