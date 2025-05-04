@@ -76,6 +76,7 @@ export interface IStorage {
   
   // Watchlist methods
   getWatchlist(userId: number): Promise<Movie[]>;
+  checkWatchlist(userId: number, movieSlug: string): Promise<boolean>;
   addToWatchlist(watchlistItem: InsertWatchlist): Promise<void>;
   removeFromWatchlist(userId: number, movieSlug: string): Promise<void>;
   
@@ -358,6 +359,12 @@ export class MemStorage implements IStorage {
   async getWatchlist(userId: number): Promise<Movie[]> {
     const userWatchlist = this.watchlists.filter(item => item.userId === userId);
     return userWatchlist.map(item => this.movies.get(item.movieSlug)!).filter(Boolean);
+  }
+  
+  async checkWatchlist(userId: number, movieSlug: string): Promise<boolean> {
+    return this.watchlists.some(
+      item => item.userId === userId && item.movieSlug === movieSlug
+    );
   }
   
   async addToWatchlist(watchlistItem: InsertWatchlist): Promise<void> {
