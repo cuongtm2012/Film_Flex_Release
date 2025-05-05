@@ -1,0 +1,45 @@
+root@lightnode:/var/www/filmflex# curl http://localhost:5000
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+    <script type="module" crossorigin src="/assets/index-DjUPru3R.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-BqfWuDaE.css">
+  </head>
+  <body>
+    <div id="root"></div>
+    <!-- This is a replit script which adds a banner on the top of the page when opened in development mode outside the replit environment -->
+    <script type="text/javascript" src="https://replit.com/public/js/replit-dev-banner.js"></script>
+  </body>
+</html>root@lightnode:/var/www/filmflex# pm2 logs filmflex --lines 20
+[TAILING] Tailing last 20 lines for [filmflex] process (change the value with --lines option)
+/var/log/filmflex-out.log last 20 lines:
+0|filmflex | 2025-05-05T19:05:53: 7:05:53 PM [express] serving on port 5000
+0|filmflex | 2025-05-05T19:05:53: 7:05:53 PM [express] serving on port 5000
+0|filmflex | 2025-05-05T19:12:52: 7:12:52 PM [express] serving on port 5000
+0|filmflex | 2025-05-05T19:12:52: 7:12:52 PM [express] serving on port 5000
+
+/var/log/filmflex-error.log last 20 lines:
+0|filmflex |     _bufferedAmount: 0,
+0|filmflex |     _isServer: false,
+0|filmflex |     _redirects: 0,
+0|filmflex |     _autoPong: true,
+0|filmflex |     _url: 'wss://localhost/v2',
+0|filmflex |     _req: null,
+0|filmflex |     [Symbol(shapeMode)]: false,
+0|filmflex |     [Symbol(kCapture)]: false
+0|filmflex |   },
+0|filmflex |   [Symbol(kType)]: 'error',
+0|filmflex |   [Symbol(kError)]: Error: connect ECONNREFUSED 127.0.0.1:443
+0|filmflex |       at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1611:16) {
+0|filmflex |     errno: -111,
+0|filmflex |     code: 'ECONNREFUSED',
+0|filmflex |     syscall: 'connect',
+0|filmflex |     address: '127.0.0.1',
+0|filmflex |     port: 443
+0|filmflex |   },
+0|filmflex |   [Symbol(kMessage)]: 'connect ECONNREFUSED 127.0.0.1:443'
+0|filmflex | }
+
+

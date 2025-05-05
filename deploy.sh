@@ -88,6 +88,7 @@ WorkingDirectory=/var/www/filmflex
 ExecStart=/usr/bin/pm2 start ecosystem.config.cjs
 ExecReload=/usr/bin/pm2 reload ecosystem.config.cjs
 ExecStop=/usr/bin/pm2 stop ecosystem.config.cjs
+PIDFile=/root/.pm2/pm2.pid
 Restart=on-failure
 
 [Install]
@@ -262,6 +263,16 @@ function deploy_app {
   echo -e "${YELLOW}Starting/restarting the application...${NC}"
   pm2 reload ecosystem.config.cjs || pm2 start ecosystem.config.cjs
   pm2 save
+  
+  # Make sure PM2 will start on boot
+  echo -e "${YELLOW}Setting up PM2 to start on boot...${NC}"
+  pm2 startup
+  
+  # For systemd control
+  echo -e "${YELLOW}Updating systemd service...${NC}"
+  systemctl daemon-reload
+  systemctl restart filmflex.service
+  systemctl status filmflex.service
   
   echo -e "\n${GREEN}Application deployed successfully!${NC}"
   echo -e "${YELLOW}Your FilmFlex application is now accessible at:${NC}"
