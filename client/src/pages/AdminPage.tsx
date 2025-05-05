@@ -97,8 +97,8 @@ const predefinedCategories = [
 
 const predefinedCountries = [
   "Trung Quốc", "Hàn Quốc", "Việt Nam", "Mỹ", "Thái Lan", "Hồng Kông", "Nhật Bản", 
-  "Ấn Độ", "Đài Loan", "Pháp", "Anh", "Canada", "Đức", "Nga", "Úc", "Brazil", "Malaysia", 
-  "Indonesia", "Philippines", "Singapore"
+  "Ấn Độ", "Đài Loan", "Pháp", "Anh", "Canada", "Đức", "Nga", "Úc", "Brazil", "Malaysia",
+  "Indonesia", "Philippines", "Singapore", "Tây Ban Nha", "Ý", "Thổ Nhĩ Kỳ", "Mexico"
 ];
 
 // Component for multi-select tags
@@ -216,6 +216,9 @@ export default function AdminPage() {
       const data = await response.json();
       if (data.status && data.movie) {
         setCurrentEditMovie(data.movie);
+        // Update the multi-select components with the movie data
+        setSelectedCategories(data.movie.category || []);
+        setSelectedCountries(data.movie.country || []);
       } else {
         throw new Error("Invalid movie data received");
       }
