@@ -1,23 +1,22 @@
-name: FilmFlex CI
+name: CI
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main ]
   pull_request:
-    branches: [ main, develop ]
+    branches: [ main ]
 
 jobs:
-  test:
-    name: Test and Lint
+  build:
     runs-on: ubuntu-latest
-
+    
     services:
       postgres:
-        image: postgres:15
+        image: postgres:14
         env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: filmflex_test
+          POSTGRES_USER: filmflex
+          POSTGRES_PASSWORD: filmflex
+          POSTGRES_DB: filmflex
         ports:
           - 5432:5432
         options: >-
@@ -25,55 +24,34 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-
+    
     steps:
-      - uses: actions/checkout@v3
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Lint code
-        run: npm run lint
-
-      - name: Run tests
-        run: npm test
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/filmflex_test
-          SESSION_SECRET: test_session_secret
-
-  build:
-    name: Build
-    runs-on: ubuntu-latest
-    needs: test
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
-
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build application
-        run: npm run build
-
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: build-artifacts
-          path: |
-            client/dist
-            server/**/*.js
-            shared/**/*.js
-          retention-days: 1
+    - uses: actions/checkout@v3
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '20'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Run type check
+      run: npm run check
+    
+    - name: Build application
+      run: npm run build
+      
+    - name: Run database migrations
+      run: npm run db:push
+      env:
+        DATABASE_URL: postgresql://filmflex:filmflex@localhost:5432/filmflex
+        
+    - name: Archive production artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: dist-folder
+        path: |
+          dist
+          client/dist

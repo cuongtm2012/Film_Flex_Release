@@ -1,8 +1,8 @@
-name: FilmFlex CD
+name: CD
 
 on:
   workflow_run:
-    workflows: ["FilmFlex CI"]
+    workflows: ["CI"]
     types:
       - completed
     branches:
@@ -10,70 +10,55 @@ on:
 
 jobs:
   deploy:
-    name: Deploy to Production
     runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     
     steps:
-      - name: Download build artifacts
-        uses: dawidd6/action-download-artifact@v2
-        with:
-          workflow: ci.yml
-          name: build-artifacts
-          path: build-artifacts
-      
-      - name: Set up SSH key
-        uses: webfactory/ssh-agent@v0.7.0
-        with:
-          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-      
-      - name: Add server to known hosts
-        run: |
-          mkdir -p ~/.ssh
-          ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
-      
-      - name: Create .env.production file
-        run: |
-          cat > .env.production << 'EOF'
-          NODE_ENV=production
-          PORT=5000
-          DATABASE_URL=${{ secrets.DATABASE_URL }}
-          SESSION_SECRET=${{ secrets.SESSION_SECRET }}
-          EOF
-      
-      - name: Create ecosystem.config.js file
-        run: |
-          cat > ecosystem.config.js << 'EOF'
-          module.exports = {
-            apps: [
-              {
-                name: "filmflex",
-                script: "./server/index.js",
-                env: {
-                  NODE_ENV: "production",
-                  PORT: 5000
-                },
-                instances: "max",
-                exec_mode: "cluster",
-                watch: false,
-                merge_logs: true,
-                log_file: "/var/log/filmflex.log",
-                error_file: "/var/log/filmflex-error.log",
-                out_file: "/var/log/filmflex-out.log",
-                time: true
-              }
-            ]
-          };
-          EOF
-      
-      - name: Deploy to server
-        run: |
-          rsync -avz --delete build-artifacts/ ${{ secrets.SSH_USER }}@${{ secrets.SERVER_IP }}:/var/www/filmflex/
-          rsync -avz .env.production ${{ secrets.SSH_USER }}@${{ secrets.SERVER_IP }}:/var/www/filmflex/
-          rsync -avz ecosystem.config.js ${{ secrets.SSH_USER }}@${{ secrets.SERVER_IP }}:/var/www/filmflex/
-          ssh ${{ secrets.SSH_USER }}@${{ secrets.SERVER_IP }} 'cd /var/www/filmflex && pm2 reload ecosystem.config.js || pm2 start ecosystem.config.js && pm2 save'
-      
-      - name: Send deployment notification
-        run: |
-          curl -X POST -H 'Content-type: application/json' --data '{"text":"📢 FilmFlex deployed successfully to production! 🚀\nCommit: ${{ github.event.workflow_run.head_commit.message }}\nDeployed by: ${{ github.actor }}"}' ${{ secrets.SLACK_WEBHOOK_URL }}
-        if: ${{ success() && secrets.SLACK_WEBHOOK_URL != '' }}
+    - uses: actions/checkout@v3
+    
+    - name: Download build artifacts
+      uses: dawidd6/action-download-artifact@v2
+      with:
+        workflow: ci.yml
+        workflow_conclusion: success
+        name: dist-folder
+        path: dist
+        
+    - name: Install SSH key
+      uses: shimataro/ssh-key-action@v2
+      with:
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        known_hosts: ${{ secrets.SSH_KNOWN_HOSTS }}
+        
+    - name: Deploy to VPS
+      env:
+        SERVER_IP: ${{ secrets.SERVER_IP }}
+        SERVER_USER: ${{ secrets.SERVER_USER }}
+      run: |
+        # Create deployment package
+        mkdir -p deploy
+        cp -r dist deploy/
+        cp -r server deploy/
+        cp -r shared deploy/
+        cp -r client deploy/
+        cp package.json package-lock.json ecosystem.config.cjs deploy.sh deploy/
+        
+        # Create a temporary release directory
+        ssh $SERVER_USER@$SERVER_IP "mkdir -p ~/releases/$(date +%Y%m%d_%H%M%S)"
+        
+        # Copy deployment package
+        rsync -avz --delete deploy/ $SERVER_USER@$SERVER_IP:~/releases/$(date +%Y%m%d_%H%M%S)/
+        
+        # Create symlink for current release
+        ssh $SERVER_USER@$SERVER_IP "ln -sfn ~/releases/$(date +%Y%m%d_%H%M%S) ~/current_release"
+        
+        # Run deploy script
+        ssh $SERVER_USER@$SERVER_IP "cd ~/current_release && chmod +x deploy.sh && ./deploy.sh --deploy"
+        
+    - name: Verify deployment
+      env:
+        SERVER_IP: ${{ secrets.SERVER_IP }}
+        SERVER_USER: ${{ secrets.SERVER_USER }}
+      run: |
+        # Check server status
+        ssh $SERVER_USER@$SERVER_IP "cd ~/current_release && ./deploy.sh --status"
