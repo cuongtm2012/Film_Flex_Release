@@ -67,7 +67,10 @@ export default function AuthPage() {
     },
   });
 
+  const [authError, setAuthError] = useState<string | null>(null);
+
   const onLoginSubmit = (data: LoginFormValues) => {
+    setAuthError(null);
     loginMutation.mutate(data, {
       onSuccess: () => {
         toast({
@@ -77,6 +80,7 @@ export default function AuthPage() {
         navigate("/");
       },
       onError: (error) => {
+        setAuthError(error.message || "Invalid username or password");
         toast({
           title: "Login failed",
           description: error.message || "Please check your credentials",
@@ -127,6 +131,11 @@ export default function AuthPage() {
                 </CardHeader>
                 <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="login-form">
                   <CardContent className="space-y-4">
+                    {authError && (
+                      <div className="bg-destructive/15 text-destructive px-4 py-3 rounded-md auth-error" data-testid="auth-error">
+                        <p>{authError}</p>
+                      </div>
+                    )}
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
                         <Label htmlFor="username">Username</Label>
@@ -143,7 +152,7 @@ export default function AuthPage() {
                           data-testid="username"
                           className={`username-input pl-10 ${loginForm.formState.errors.username ? "border-destructive" : ""}`}
                           placeholder="Enter your username"
-                          {...loginForm.register("username")}
+                          {...loginForm.register("username", { required: true })}
                         />
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-muted-foreground/70">
                           <svg className="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
