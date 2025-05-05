@@ -85,9 +85,9 @@ After=network.target postgresql.service
 Type=forking
 User=root
 WorkingDirectory=/var/www/filmflex
-ExecStart=/usr/bin/pm2 start ecosystem.config.js
-ExecReload=/usr/bin/pm2 reload ecosystem.config.js
-ExecStop=/usr/bin/pm2 stop ecosystem.config.js
+ExecStart=/usr/bin/pm2 start ecosystem.config.cjs
+ExecReload=/usr/bin/pm2 reload ecosystem.config.cjs
+ExecStop=/usr/bin/pm2 stop ecosystem.config.cjs
 Restart=on-failure
 
 [Install]
@@ -207,17 +207,18 @@ BACKUP
   # Create cron job for daily backups at 2 AM
   (crontab -l 2>/dev/null || true; echo "0 2 * * * /etc/filmflex/scripts/backup-db.sh > /var/log/filmflex-backup.log 2>&1") | crontab -
   
-  # Create ecosystem.config.js if it doesn't exist
-  if [ ! -f "ecosystem.config.js" ]; then
-    cat > ecosystem.config.js << 'ECOSYSTEM'
+  # Create ecosystem.config.cjs (CommonJS format) if it doesn't exist
+  if [ ! -f "ecosystem.config.cjs" ]; then
+    cat > ecosystem.config.cjs << 'ECOSYSTEM'
 module.exports = {
   apps: [
     {
       name: "filmflex",
-      script: "./server/index.js",
+      script: "./dist/index.js",
       env: {
         NODE_ENV: "production",
-        PORT: 5000
+        PORT: 5000,
+        DATABASE_URL: "postgresql://filmflex:Cuongtm2012$@localhost:5432/filmflex"
       },
       instances: "max",
       exec_mode: "cluster",
@@ -259,7 +260,7 @@ function deploy_app {
   
   # Start or restart the application
   echo -e "${YELLOW}Starting/restarting the application...${NC}"
-  pm2 reload ecosystem.config.js || pm2 start ecosystem.config.js
+  pm2 reload ecosystem.config.cjs || pm2 start ecosystem.config.cjs
   pm2 save
   
   echo -e "\n${GREEN}Application deployed successfully!${NC}"
