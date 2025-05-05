@@ -1,268 +1,204 @@
 # FilmFlex Deployment Guide
 
-This document provides comprehensive instructions for deploying, maintaining, and operating the FilmFlex streaming platform in a production environment.
+This document provides comprehensive instructions for deploying and maintaining the FilmFlex application on a production server.
+
+## Table of Contents
+
+- [Prerequisites](#prerequisites)
+- [Deployment Options](#deployment-options)
+- [Initial Server Setup](#initial-server-setup)
+- [Automatic Deployment](#automatic-deployment)
+- [Manual Deployment](#manual-deployment)
+- [Database Management](#database-management)
+- [Monitoring and Maintenance](#monitoring-and-maintenance)
+- [Troubleshooting](#troubleshooting)
 
 ## Prerequisites
 
-- Linux server (Ubuntu 20.04 LTS or higher recommended)
-- Root access to the server
-- Domain name pointing to your server (optional but recommended)
-- GitHub repository for your FilmFlex codebase
+- VPS with at least 2GB RAM (Ubuntu 22.04 LTS recommended)
+- Domain name (optional but recommended)
+- SSH access to the server
+- Git repository with the FilmFlex application code
+- PostgreSQL database
 
-## Server Specifications
+## Deployment Options
 
-- Minimum 2 CPU cores
-- 4GB RAM
-- 40GB SSD storage
-- PostgreSQL 13+ database
+FilmFlex can be deployed in two ways:
 
-## Deployment Process
+1. **Automated Deployment**: Using GitHub Actions CI/CD pipeline
+2. **Manual Deployment**: Using the deploy.sh script directly on the server
 
-### Getting Started
+## Initial Server Setup
 
-1. Clone this repository to your server:
+To set up a new server for FilmFlex:
+
+1. SSH into your server
+2. Clone the repository:
    ```bash
-   git clone https://github.com/cuongtm2012/Film_Flex_R.git
-   cd Film_Flex_R
+   git clone https://github.com/yourusername/filmflex.git Film_Flex_Release
+   cd Film_Flex_Release
    ```
-
-2. Make the deployment script executable:
+3. Run the setup script:
    ```bash
    chmod +x deploy.sh
-   ```
-
-3. Run the initial setup:
-   ```bash
    ./deploy.sh --setup
    ```
 
-   This script will:
-   - Set up the server environment with required packages
-   - Configure PostgreSQL database
-   - Set up Nginx web server
-   - Create systemd service for automatic startup
-   - Deploy the application
+This will:
+- Install all required dependencies
+- Set up PostgreSQL database
+- Configure Nginx
+- Create systemd service for automatic startup
+- Deploy the application
 
-### All-in-One Deployment Script
+## Automatic Deployment
 
-The `deploy.sh` script handles all deployment operations with a simple command-line interface:
+FilmFlex uses GitHub Actions for CI/CD. When you push changes to the main branch:
 
-- **Initial Setup**: Set up the server environment and deploy the application
-  ```bash
-  ./deploy.sh --setup
-  ```
+1. The CI workflow will build and test the application
+2. The CD workflow will deploy it to your production server
 
-- **Deploy/Update Application**: Deploy new code or update existing installation (default action)
-  ```bash
-  ./deploy.sh
-  ```
-  or
-  ```bash
-  ./deploy.sh --deploy
-  ```
+### Setting up GitHub Secrets
 
-- **Import Movies**: Start the movie import process (runs in background)
-  ```bash
-  ./deploy.sh --import
-  ```
+For CI/CD to work, you need to add these secrets to your GitHub repository:
 
-- **Create Database Backup**: Manually create a database backup
-  ```bash
-  ./deploy.sh --backup
-  ```
+- `SSH_PRIVATE_KEY`: The SSH private key to access your server
+- `SSH_KNOWN_HOSTS`: The SSH known hosts entry for your server
+- `SERVER_IP`: Your server's IP address
+- `SERVER_USER`: The SSH user (usually 'root')
 
-- **Check System Status**: View system, application, and database status
-  ```bash
-  ./deploy.sh --status
-  ```
-
-- **View Help**: See all available options
-  ```bash
-  ./deploy.sh --help
-  ```
-
-## Configuration
-
-### Environment Variables
-
-The deployment script automatically creates a `.env` file with the following variables:
-
-```
-NODE_ENV=production
-PORT=5000
-DATABASE_URL=postgresql://filmflex:FilmFlexPassword@localhost:5432/filmflex
-SESSION_SECRET=generated-secure-secret
+To get the SSH known hosts value:
+```bash
+ssh-keyscan -H YOUR_SERVER_IP
 ```
 
-You can modify this file manually if needed.
+## Manual Deployment
 
-### SSL Setup
+For manual deployment:
 
-To enable HTTPS with Let's Encrypt (after you have a domain name):
-
-1. Connect your domain to your server's IP
-2. On your server, run:
+1. SSH into your server
+2. Navigate to the repository
    ```bash
-   certbot --nginx -d yourdomain.com
+   cd ~/Film_Flex_Release
+   ```
+3. Pull the latest changes
+   ```bash
+   git pull
+   ```
+4. Run the deploy script
+   ```bash
+   ./deploy.sh --deploy
    ```
 
-3. Then update your Nginx configuration in `/etc/nginx/sites-available/filmflex` to use the SSL configuration from `nginx/filmflex_ssl.conf` (modify domain name as needed).
+## Database Management
 
-## Data Management
-
-### Movie Import
-
-The import process runs in a background screen session and can be monitored:
+### Running Migrations
 
 ```bash
-# Start import
-./deploy.sh --import
-
-# Monitor import progress
-tail -f /var/log/filmflex-import.log
-
-# Attach to the import screen session
-screen -r import
+cd /var/www/filmflex
+DATABASE_URL="postgresql://filmflex:yourpassword@localhost:5432/filmflex" npm run db:push
 ```
 
-### Database Backups
+### Creating Backups
 
-Daily database backups are automatically configured. To manage backups:
+The system automatically creates daily backups at 2 AM in `/var/backups/filmflex/`.
 
+You can manually trigger a backup:
 ```bash
-# Create a manual backup
 ./deploy.sh --backup
-
-# View recent backups
-ls -lh /var/backups/filmflex/
-```
-
-### Database Restore
-
-To restore from a backup, use a direct PostgreSQL command:
-
-```bash
-# First, stop the application
-pm2 stop filmflex
-
-# Restore from backup
-gunzip -c /var/backups/filmflex/your-backup-file.sql.gz | sudo -u postgres psql filmflex
-
-# Restart the application
-pm2 start filmflex
 ```
 
 ## Monitoring and Maintenance
 
-### System Status
-
-Check the system, application, database, and Nginx status:
+### Checking Application Status
 
 ```bash
 ./deploy.sh --status
 ```
 
-### Application Logs
+### Viewing Logs
 
-View application logs:
-
-```bash
-tail -f /var/log/filmflex.log       # General application logs
-tail -f /var/log/filmflex-error.log # Error logs
-```
-
-### Process Management
-
-Manage the application using PM2:
+FilmFlex provides a convenient script for checking logs remotely:
 
 ```bash
-pm2 list                # List all processes
-pm2 monit               # Monitor application performance
-pm2 logs filmflex       # View application logs
-pm2 restart filmflex    # Restart the application
+# Make the script executable
+chmod +x scripts/check-logs.sh
+
+# View all logs
+./scripts/check-logs.sh --all
+
+# View application logs only
+./scripts/check-logs.sh --app
+
+# View error logs only
+./scripts/check-logs.sh --error
+
+# Follow logs in real-time
+./scripts/check-logs.sh --tail
+
+# View system status
+./scripts/check-logs.sh --system
+
+# View PM2 logs in real-time
+./scripts/check-logs.sh --pm2
 ```
 
-## CI/CD Setup
+### Monitoring Resource Usage
 
-To set up continuous integration and deployment with GitHub Actions:
+```bash
+# Memory usage
+free -h
 
-1. Generate SSH keys for deployment:
-   ```bash
-   ssh-keygen -t ed25519 -f ~/.ssh/filmflex_deploy_key -N "" -C "filmflex-deploy@github-actions"
-   ```
+# Disk usage
+df -h
 
-2. Add the generated public key to your server's authorized_keys:
-   ```bash
-   cat ~/.ssh/filmflex_deploy_key.pub >> ~/.ssh/authorized_keys
-   ```
-
-3. Add the following secrets to your GitHub repository:
-   - `SSH_PRIVATE_KEY`: The content of the private key file (~/.ssh/filmflex_deploy_key)
-   - `SERVER_IP`: Your server's IP address
-   - `SSH_USER`: Username (usually 'root')
-   - `DATABASE_URL`: Your database connection string
-   - `SESSION_SECRET`: Your session secret
-
-4. The CI/CD workflow will automatically deploy changes to the main branch.
+# Process info
+top
+```
 
 ## Troubleshooting
 
-### Application Not Starting
+### Common Issues
 
-1. Check application logs:
-   ```bash
-   tail -f /var/log/filmflex.log
-   tail -f /var/log/filmflex-error.log
-   ```
+#### Application not starting
 
-2. Check if the port is already in use:
-   ```bash
-   netstat -tulpn | grep 5000
-   ```
+Check the logs for errors:
+```bash
+pm2 logs filmflex
+```
 
-3. Verify the application process:
-   ```bash
-   pm2 list
-   pm2 logs filmflex
-   ```
+Reset the service:
+```bash
+systemctl reset-failed filmflex.service
+systemctl restart filmflex.service
+```
 
-### Database Connection Issues
+#### Database Connection Issues
 
-1. Verify the database is running:
-   ```bash
-   systemctl status postgresql
-   ```
+Verify the database connection:
+```bash
+cd /var/www/filmflex
+DATABASE_URL="postgresql://filmflex:yourpassword@localhost:5432/filmflex" node -e "
+  const { Pool } = require('pg');
+  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  pool.query('SELECT NOW()', (err, res) => {
+    if (err) {
+      console.error('Database connection error:', err);
+    } else {
+      console.log('Database connected:', res.rows[0]);
+    }
+    pool.end();
+  });
+"
+```
 
-2. Check database connection:
-   ```bash
-   sudo -u postgres psql -c "\l"
-   ```
+#### PM2 Issues
 
-3. Verify database credentials match those in your `.env` file.
-
-### Nginx Issues
-
-1. Check Nginx configuration:
-   ```bash
-   nginx -t
-   ```
-
-2. View Nginx logs:
-   ```bash
-   tail -f /var/log/nginx/error.log
-   ```
-
-3. Ensure Nginx is running:
-   ```bash
-   systemctl status nginx
-   ```
-
-## Security Considerations
-
-- Keep your server updated with security patches
-- Use strong passwords for database and admin accounts
-- Use SSH keys instead of passwords for server access
-- Enable firewall with minimal open ports
-- Use HTTPS for all traffic
-- Configure proper Content-Security-Policy headers
-- Regularly review server logs for suspicious activity
+If PM2 is not managing your application properly:
+```bash
+pm2 delete all
+cd /var/www/filmflex
+pm2 start ecosystem.config.cjs
+pm2 save
+pm2 startup
+```
