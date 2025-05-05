@@ -1,6 +1,6 @@
 #!/bin/bash
 # Check logs script for remote server monitoring
-# Usage: ./check-logs.sh [--all|--app|--error|--nginx|--system]
+# Usage: ./check-logs.sh [--all|--app|--error|--nginx|--system|--pm2|--tail]
 
 # Color definitions
 RED='\033[0;31m'
@@ -26,6 +26,7 @@ function show_usage {
   echo "  --nginx    Show nginx logs only"
   echo "  --system   Show system logs only"
   echo "  --pm2      Show PM2 logs (real-time)"
+  echo "  --tail     Continuously follow application logs"
   echo "  --help     Display this help message"
   echo ""
   echo "Examples:"
@@ -68,6 +69,13 @@ function check_pm2_logs {
   ssh $SSH_USER@$SSH_HOST "pm2 logs filmflex"
 }
 
+# Tail application logs continuously
+function tail_app_logs {
+  echo -e "${GREEN}===== TAILING APPLICATION LOGS (REAL-TIME) =====${NC}"
+  echo -e "${YELLOW}Press Ctrl+C to exit${NC}"
+  ssh $SSH_USER@$SSH_HOST "tail -f $LOG_PATH/filmflex-out.log"
+}
+
 # Parse command-line arguments
 if [ $# -eq 0 ]; then
   # Default action: show usage
@@ -95,6 +103,9 @@ else
       ;;
     --pm2)
       check_pm2_logs
+      ;;
+    --tail)
+      tail_app_logs
       ;;
     --help)
       show_usage
