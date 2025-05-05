@@ -332,15 +332,23 @@ export default function AdminPage() {
         );
       }
       
-      // Update data with filtered items
+      // Only update totalItems/totalPages if we've applied filtering
+      if (contentType !== "all" || statusFilter !== "all" || recommendedFilter !== "all") {
+        return {
+          ...data,
+          items: filteredItems,
+          pagination: {
+            ...data.pagination,
+            totalItems: filteredItems.length,
+            totalPages: Math.ceil(filteredItems.length / itemsPerPage)
+          }
+        };
+      }
+      
+      // Otherwise keep the server-provided pagination 
       return {
         ...data,
-        items: filteredItems,
-        pagination: {
-          ...data.pagination,
-          totalItems: filteredItems.length,
-          totalPages: Math.ceil(filteredItems.length / itemsPerPage)
-        }
+        items: filteredItems
       };
     },
   });
@@ -700,6 +708,10 @@ export default function AdminPage() {
                         `Showing ${(currentPage - 1) * itemsPerPage + 1}-${Math.min(currentPage * itemsPerPage, moviesData.pagination.totalItems)} of ${moviesData.pagination.totalItems} items`
                       ) : (
                         "Loading..."
+                      )}
+                      {/* Display whether we're using filtered counts or server counts */}
+                      {(contentType !== "all" || statusFilter !== "all" || recommendedFilter !== "all") && (
+                        <span className="ml-1 text-xs">(Filtered)</span>
                       )}
                     </div>
                     <div className="flex items-center gap-4">
