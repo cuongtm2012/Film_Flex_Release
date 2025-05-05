@@ -1765,12 +1765,14 @@ export default function AdminPage() {
                 <Label htmlFor="categories" className="text-right">
                   Categories
                 </Label>
-                <Input
-                  id="categories"
-                  defaultValue={currentEditMovie.category?.join(", ") || ""}
-                  placeholder="Action, Drama, Comedy (comma separated)"
-                  className="col-span-3"
-                />
+                <div className="col-span-3">
+                  <MultiSelectTags
+                    options={predefinedCategories}
+                    selectedValues={selectedCategories}
+                    onChange={setSelectedCategories}
+                    placeholder="Select categories..."
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-4 items-center gap-4">
@@ -1813,12 +1815,14 @@ export default function AdminPage() {
                 <Label htmlFor="country" className="text-right">
                   Country
                 </Label>
-                <Input
-                  id="country"
-                  defaultValue={currentEditMovie.country?.join(", ") || ""}
-                  placeholder="Country of origin (comma separated)"
-                  className="col-span-3"
-                />
+                <div className="col-span-3">
+                  <MultiSelectTags
+                    options={predefinedCountries}
+                    selectedValues={selectedCountries}
+                    onChange={setSelectedCountries}
+                    placeholder="Select countries..."
+                  />
+                </div>
               </div>
               
               <div className="grid grid-cols-4 items-center gap-4">
