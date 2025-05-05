@@ -622,8 +622,10 @@ export default function AdminPage() {
                           {moviesData?.items.map((movie, index) => {
                             // Cast movie to the full type with all fields
                             const movieDetails = movie as unknown as MovieDetailsType;
+                            // Use a reliable unique key combining multiple properties
+                            const uniqueKey = `movie-${movieDetails.id || movieDetails._id || movieDetails.slug || index}`;
                             return (
-                              <tr key={movie._id} className="border-b hover:bg-muted/10">
+                              <tr key={uniqueKey} className="border-b hover:bg-muted/10">
                                 <td className="py-4 px-2">{movieDetails.id || index + 1}</td>
                                 <td className="py-4 px-2 font-medium">
                                   <div className="flex items-center">
@@ -705,18 +707,35 @@ export default function AdminPage() {
                   <div className="flex justify-between items-center mt-6">
                     <div className="text-sm text-muted-foreground">
                       {moviesData?.pagination ? (
-                        `Showing ${(currentPage - 1) * itemsPerPage + 1}-${Math.min(currentPage * itemsPerPage, moviesData.pagination.totalItems)} of ${moviesData.pagination.totalItems} items`
+                        <>
+                          {/* Calculate start and end item numbers more accurately */}
+                          Showing {(currentPage - 1) * itemsPerPage + 1}-
+                          {Math.min(
+                            currentPage * itemsPerPage, 
+                            // For accuracy, use items.length for filtered results instead of relying on pagination
+                            (contentType !== "all" || statusFilter !== "all" || recommendedFilter !== "all") 
+                              ? (currentPage - 1) * itemsPerPage + (moviesData?.items?.length || 0)
+                              : moviesData.pagination.totalItems
+                          )} of {moviesData.pagination.totalItems} items
+                          
+                          {/* Display whether we're using filtered counts */}
+                          {(contentType !== "all" || statusFilter !== "all" || recommendedFilter !== "all") && (
+                            <span className="ml-1 text-xs font-medium">(Filtered results)</span>
+                          )}
+                        </>
                       ) : (
                         "Loading..."
-                      )}
-                      {/* Display whether we're using filtered counts or server counts */}
-                      {(contentType !== "all" || statusFilter !== "all" || recommendedFilter !== "all") && (
-                        <span className="ml-1 text-xs">(Filtered)</span>
                       )}
                     </div>
                     <div className="flex items-center gap-4">
                       <div className="text-sm text-muted-foreground">
-                        Page {currentPage} of {moviesData?.pagination?.totalPages || 1}
+                        {/* Show a more descriptive page counter with filtering indication */}
+                        Page {currentPage} of {
+                          // When filtering is applied, use the recalculated pages
+                          (contentType !== "all" || statusFilter !== "all" || recommendedFilter !== "all")
+                            ? Math.max(Math.ceil((moviesData?.items?.length || 0) / itemsPerPage), 1)
+                            : (moviesData?.pagination?.totalPages || 1)
+                        }
                       </div>
                       <div className="flex gap-2">
                         <Button 
@@ -738,7 +757,16 @@ export default function AdminPage() {
                         <Button 
                           variant="outline" 
                           size="sm" 
-                          disabled={!moviesData?.pagination || currentPage >= moviesData.pagination.totalPages || isLoadingMovies}
+                          disabled={
+                            !moviesData?.pagination || 
+                            isLoadingMovies || 
+                            (
+                              // When filtering, use the calculated page count based on filtered items
+                              (contentType !== "all" || statusFilter !== "all" || recommendedFilter !== "all")
+                                ? currentPage >= Math.max(Math.ceil((moviesData?.items?.length || 0) / itemsPerPage), 1) 
+                                : currentPage >= moviesData.pagination.totalPages
+                            )
+                          }
                           onClick={() => setCurrentPage(prev => prev + 1)}
                         >
                           Next
@@ -746,8 +774,27 @@ export default function AdminPage() {
                         <Button 
                           variant="outline" 
                           size="sm" 
-                          disabled={!moviesData?.pagination || currentPage >= moviesData.pagination.totalPages || isLoadingMovies}
-                          onClick={() => moviesData?.pagination && setCurrentPage(moviesData.pagination.totalPages)}
+                          disabled={
+                            !moviesData?.pagination || 
+                            isLoadingMovies || 
+                            (
+                              // When filtering, use the calculated page count based on filtered items
+                              (contentType !== "all" || statusFilter !== "all" || recommendedFilter !== "all") 
+                                ? currentPage >= Math.max(Math.ceil((moviesData?.items?.length || 0) / itemsPerPage), 1)
+                                : currentPage >= moviesData.pagination.totalPages
+                            )
+                          }
+                          onClick={() => {
+                            if (!moviesData?.pagination) return;
+                            
+                            // When filtering, go to max calculated page, otherwise go to server-provided max page
+                            if (contentType !== "all" || statusFilter !== "all" || recommendedFilter !== "all") {
+                              const maxPage = Math.max(Math.ceil((moviesData?.items?.length || 0) / itemsPerPage), 1);
+                              setCurrentPage(maxPage);
+                            } else {
+                              setCurrentPage(moviesData.pagination.totalPages);
+                            }
+                          }}
                         >
                           Last
                         </Button>
