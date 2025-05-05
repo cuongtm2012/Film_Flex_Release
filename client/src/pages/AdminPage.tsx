@@ -509,10 +509,10 @@ export default function AdminPage() {
                           <SelectValue placeholder="Select type" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="all">All Types</SelectItem>
-                          <SelectItem value="movie">Movies</SelectItem>
-                          <SelectItem value="tv">TV Series</SelectItem>
-                          <SelectItem value="documentary">Documentary</SelectItem>
+                          <SelectItem key="all" value="all">All Types</SelectItem>
+                          <SelectItem key="movie" value="movie">Movies</SelectItem>
+                          <SelectItem key="tv" value="tv">TV Series</SelectItem>
+                          <SelectItem key="documentary" value="documentary">Documentary</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -530,9 +530,9 @@ export default function AdminPage() {
                           <SelectValue placeholder="Select status" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="all">All Statuses</SelectItem>
-                          <SelectItem value="active">Active</SelectItem>
-                          <SelectItem value="inactive">Inactive</SelectItem>
+                          <SelectItem key="all-statuses" value="all">All Statuses</SelectItem>
+                          <SelectItem key="active-status" value="active">Active</SelectItem>
+                          <SelectItem key="inactive-status" value="inactive">Inactive</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -550,9 +550,9 @@ export default function AdminPage() {
                           <SelectValue placeholder="Recommendation status" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="all">All</SelectItem>
-                          <SelectItem value="yes">Recommended</SelectItem>
-                          <SelectItem value="no">Not Recommended</SelectItem>
+                          <SelectItem key="all-rec" value="all">All</SelectItem>
+                          <SelectItem key="yes-rec" value="yes">Recommended</SelectItem>
+                          <SelectItem key="no-rec" value="no">Not Recommended</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -570,10 +570,10 @@ export default function AdminPage() {
                           <SelectValue placeholder="Items per page" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="10">10</SelectItem>
-                          <SelectItem value="20">20</SelectItem>
-                          <SelectItem value="50">50</SelectItem>
-                          <SelectItem value="100">100</SelectItem>
+                          <SelectItem key="10-items" value="10">10</SelectItem>
+                          <SelectItem key="20-items" value="20">20</SelectItem>
+                          <SelectItem key="50-items" value="50">50</SelectItem>
+                          <SelectItem key="100-items" value="100">100</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
