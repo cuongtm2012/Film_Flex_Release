@@ -1,0 +1,61 @@
+name: CD
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Build
+      run: npm run build
+      
+    - name: Create deployment package
+      run: |
+        tar -czf filmflex-deploy.tar.gz \
+        --exclude='node_modules' \
+        --exclude='.git' \
+        --exclude='cypress' \
+        --exclude='attached_assets' \
+        --exclude='tests' \
+        --exclude='reports' \
+        --exclude='results' \
+        --exclude='log' \
+        .
+    
+    - name: Set up SSH key
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
+    
+    - name: Deploy to server
+      run: |
+        scp filmflex-deploy.tar.gz ${{ secrets.SSH_USER }}@${{ secrets.SERVER_IP }}:/tmp/
+        ssh ${{ secrets.SSH_USER }}@${{ secrets.SERVER_IP }} << 'EOF'
+          mkdir -p /var/www/filmflex
+          tar -xzf /tmp/filmflex-deploy.tar.gz -C /var/www/filmflex
+          cd /var/www/filmflex
+          npm ci --production
+          npm run db:push
+          pm2 reload filmflex || pm2 start ecosystem.config.js --env production
+          rm /tmp/filmflex-deploy.tar.gz
+        EOF
+        
+    - name: Clean up
+      run: rm filmflex-deploy.tar.gz
