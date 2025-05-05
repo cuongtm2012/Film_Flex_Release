@@ -149,7 +149,8 @@ export default function Navbar() {
             <div ref={searchBoxRef} className="relative">
               <form onSubmit={handleSubmitSearch} className="relative">
                 <Input
-                  type="text"
+                  type="search"
+                  data-testid="search-input"
                   placeholder="Search movies..."
                   value={search}
                   onChange={(e) => {
@@ -169,8 +170,9 @@ export default function Navbar() {
                 />
                 <Button
                   type="submit"
+                  data-testid="search-submit"
                   variant="ghost"
-                  size="icon"
+                  size="icon" 
                   className="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-white"
                 >
                   <Search className="h-4 w-4" />
@@ -179,7 +181,9 @@ export default function Navbar() {
 
               {/* Search Suggestions */}
               {showSuggestions && debouncedSearch.length >= 2 && (
-                <div className="absolute top-full left-0 w-full mt-1 bg-background border border-border rounded-md shadow-lg z-50 max-h-[300px] overflow-y-auto">
+                <div 
+                  data-testid="search-suggestions" 
+                  className="search-suggestions absolute top-full left-0 w-full mt-1 bg-background border border-border rounded-md shadow-lg z-50 max-h-[300px] overflow-y-auto">
                   {suggestions && suggestions.items && suggestions.items.length > 0 ? (
                     <>
                       {suggestions.items.map((suggestion: SearchSuggestion) => (
@@ -242,7 +246,7 @@ export default function Navbar() {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="flex items-center text-white">
-                  <Avatar className="h-8 w-8">
+                  <Avatar data-testid="user-avatar" className="user-avatar h-8 w-8">
                     <AvatarFallback>
                       {user ? user.username.substring(0, 2).toUpperCase() : "GU"}
                     </AvatarFallback>
@@ -293,7 +297,7 @@ export default function Navbar() {
                       </DropdownMenuItem>
                     )}
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={handleLogout} className="text-red-500 cursor-pointer">
+                    <DropdownMenuItem data-testid="logout" onClick={handleLogout} className="logout-button text-red-500 cursor-pointer">
                       <LogOut className="mr-2 h-4 w-4" />
                       Log out
                     </DropdownMenuItem>

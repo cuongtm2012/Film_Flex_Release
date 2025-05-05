@@ -125,7 +125,7 @@ export default function AuthPage() {
                     Enter your credentials to access your account
                   </CardDescription>
                 </CardHeader>
-                <form onSubmit={loginForm.handleSubmit(onLoginSubmit)}>
+                <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="login-form">
                   <CardContent className="space-y-4">
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
@@ -140,7 +140,8 @@ export default function AuthPage() {
                         <Input
                           id="username"
                           type="text"
-                          className={`pl-10 ${loginForm.formState.errors.username ? "border-destructive" : ""}`}
+                          data-testid="username"
+                          className={`username-input pl-10 ${loginForm.formState.errors.username ? "border-destructive" : ""}`}
                           placeholder="Enter your username"
                           {...loginForm.register("username")}
                         />
@@ -169,7 +170,8 @@ export default function AuthPage() {
                         <Input
                           id="password"
                           type="password"
-                          className={`pl-10 ${loginForm.formState.errors.password ? "border-destructive" : ""}`}
+                          data-testid="password"
+                          className={`password-input pl-10 ${loginForm.formState.errors.password ? "border-destructive" : ""}`}
                           placeholder="••••••••"
                           {...loginForm.register("password")}
                         />
@@ -200,7 +202,8 @@ export default function AuthPage() {
                   <CardFooter className="flex flex-col gap-4">
                     <Button 
                       type="submit" 
-                      className="w-full"
+                      data-testid="login-button"
+                      className="login-button w-full"
                       disabled={loginMutation.isPending}
                     >
                       {loginMutation.isPending ? (

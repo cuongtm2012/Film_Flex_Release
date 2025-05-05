@@ -178,7 +178,7 @@ export default function SearchPage() {
                   title={`Results for "${searchTerm}"`}
                 />
               ) : (
-                <div className="text-center py-12">
+                <div className="text-center py-12 no-results-message" data-testid="no-results">
                   <p className="text-muted-foreground">
                     No results found for "{searchTerm}". Try a different search term.
                   </p>
