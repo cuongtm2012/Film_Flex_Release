@@ -1,61 +1,79 @@
-name: CD
+name: FilmFlex CD
 
 on:
-  push:
-    branches: [ main ]
-  workflow_dispatch:
+  workflow_run:
+    workflows: ["FilmFlex CI"]
+    types:
+      - completed
+    branches:
+      - main
 
 jobs:
   deploy:
+    name: Deploy to Production
     runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     
     steps:
-    - uses: actions/checkout@v3
-    
-    - name: Set up Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: '18'
-        cache: 'npm'
-    
-    - name: Install dependencies
-      run: npm ci
-    
-    - name: Build
-      run: npm run build
+      - name: Download build artifacts
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          workflow: ci.yml
+          name: build-artifacts
+          path: build-artifacts
       
-    - name: Create deployment package
-      run: |
-        tar -czf filmflex-deploy.tar.gz \
-        --exclude='node_modules' \
-        --exclude='.git' \
-        --exclude='cypress' \
-        --exclude='attached_assets' \
-        --exclude='tests' \
-        --exclude='reports' \
-        --exclude='results' \
-        --exclude='log' \
-        .
-    
-    - name: Set up SSH key
-      run: |
-        mkdir -p ~/.ssh
-        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-        chmod 600 ~/.ssh/id_rsa
-        ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
-    
-    - name: Deploy to server
-      run: |
-        scp filmflex-deploy.tar.gz ${{ secrets.SSH_USER }}@${{ secrets.SERVER_IP }}:/tmp/
-        ssh ${{ secrets.SSH_USER }}@${{ secrets.SERVER_IP }} << 'EOF'
-          mkdir -p /var/www/filmflex
-          tar -xzf /tmp/filmflex-deploy.tar.gz -C /var/www/filmflex
-          cd /var/www/filmflex
-          npm ci --production
-          npm run db:push
-          pm2 reload filmflex || pm2 start ecosystem.config.js --env production
-          rm /tmp/filmflex-deploy.tar.gz
-        EOF
-        
-    - name: Clean up
-      run: rm filmflex-deploy.tar.gz
+      - name: Set up SSH key
+        uses: webfactory/ssh-agent@v0.7.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+      
+      - name: Add server to known hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
+      
+      - name: Create .env.production file
+        run: |
+          cat > .env.production << 'EOF'
+          NODE_ENV=production
+          PORT=5000
+          DATABASE_URL=${{ secrets.DATABASE_URL }}
+          SESSION_SECRET=${{ secrets.SESSION_SECRET }}
+          EOF
+      
+      - name: Create ecosystem.config.js file
+        run: |
+          cat > ecosystem.config.js << 'EOF'
+          module.exports = {
+            apps: [
+              {
+                name: "filmflex",
+                script: "./server/index.js",
+                env: {
+                  NODE_ENV: "production",
+                  PORT: 5000
+                },
+                instances: "max",
+                exec_mode: "cluster",
+                watch: false,
+                merge_logs: true,
+                log_file: "/var/log/filmflex.log",
+                error_file: "/var/log/filmflex-error.log",
+                out_file: "/var/log/filmflex-out.log",
+                time: true
+              }
+            ]
+          };
+          EOF
+      
+      - name: Deploy to server
+        run: |
+          rsync -avz --delete build-artifacts/ ${{ secrets.SSH_USER }}@${{ secrets.SERVER_IP }}:/var/www/filmflex/
+          rsync -avz .env.production ${{ secrets.SSH_USER }}@${{ secrets.SERVER_IP }}:/var/www/filmflex/
+          rsync -avz ecosystem.config.js ${{ secrets.SSH_USER }}@${{ secrets.SERVER_IP }}:/var/www/filmflex/
+          ssh ${{ secrets.SSH_USER }}@${{ secrets.SERVER_IP }} 'cd /var/www/filmflex && pm2 reload ecosystem.config.js || pm2 start ecosystem.config.js && pm2 save'
+      
+      - name: Send deployment notification
+        run: |
+          curl -X POST -H 'Content-type: application/json' --data '{"text":"📢 FilmFlex deployed successfully to production! 🚀\nCommit: ${{ github.event.workflow_run.head_commit.message }}\nDeployed by: ${{ github.actor }}"}' ${{ secrets.SLACK_WEBHOOK_URL }}
+        if: ${{ success() && secrets.SLACK_WEBHOOK_URL != '' }}

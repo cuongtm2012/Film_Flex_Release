@@ -7,7 +7,8 @@ APP_NAME="filmflex"
 REMOTE_USER="root"
 REMOTE_HOST="38.54.115.156"
 REMOTE_APP_PATH="/var/www/filmflex"
-REMOTE_ENV_FILE="${REMOTE_APP_PATH}/.env"
+GITHUB_REPO="https://github.com/yourusername/filmflex.git"
+BRANCH="main"
 
 # Colors for output
 GREEN='\033[0;32m'
@@ -17,58 +18,47 @@ NC='\033[0m' # No Color
 
 echo -e "${GREEN}Starting deployment of ${APP_NAME} to ${REMOTE_HOST}...${NC}"
 
-# Step 1: Build the application locally
-echo -e "${YELLOW}Building application...${NC}"
-npm run build
+# Step 1: Deploy to the server
+ssh ${REMOTE_USER}@${REMOTE_HOST} << EOF
+  # Create app directory if it doesn't exist
+  mkdir -p ${REMOTE_APP_PATH}
+  cd ${REMOTE_APP_PATH}
 
-# Step 2: Create a tar archive of the application
-echo -e "${YELLOW}Creating application archive...${NC}"
-tar -czf filmflex-deploy.tar.gz \
-    --exclude='node_modules' \
-    --exclude='.git' \
-    --exclude='cypress' \
-    --exclude='attached_assets' \
-    --exclude='tests' \
-    --exclude='reports' \
-    --exclude='results' \
-    --exclude='log' \
-    .
+  # Check if this is the first deployment
+  if [ ! -d ".git" ]; then
+    echo -e "${YELLOW}Initializing git repository...${NC}"
+    git init
+    git remote add origin ${GITHUB_REPO}
+  fi
 
-# Step 3: Copy the archive to the server
-echo -e "${YELLOW}Copying application to server...${NC}"
-scp filmflex-deploy.tar.gz ${REMOTE_USER}@${REMOTE_HOST}:/tmp/
+  # Pull latest code
+  echo -e "${YELLOW}Pulling latest code from ${BRANCH} branch...${NC}"
+  git fetch --all
+  git reset --hard origin/${BRANCH}
 
-# Step 4: Deploy the application on the server
-echo -e "${YELLOW}Deploying application on server...${NC}"
-ssh ${REMOTE_USER}@${REMOTE_HOST} << 'EOF'
-    # Create app directory if it doesn't exist
-    mkdir -p /var/www/filmflex
+  # Install dependencies
+  echo -e "${YELLOW}Installing dependencies...${NC}"
+  npm ci
 
-    # Extract the application
-    tar -xzf /tmp/filmflex-deploy.tar.gz -C /var/www/filmflex
+  # Build the application
+  echo -e "${YELLOW}Building the application...${NC}"
+  npm run build
 
-    # Change to app directory
-    cd /var/www/filmflex
+  # Restart the application using PM2
+  echo -e "${YELLOW}Restarting the application...${NC}"
+  pm2 reload ecosystem.config.js || pm2 start ecosystem.config.js
 
-    # Install dependencies
-    npm ci --production
+  # Save PM2 process list
+  pm2 save
 
-    # Apply database migrations
-    npm run db:push
-
-    # Restart the application service
-    if systemctl is-active --quiet filmflex.service; then
-        systemctl restart filmflex.service
-    else
-        echo "Service not running yet - it will be started during setup"
-    fi
-
-    # Clean up
-    rm /tmp/filmflex-deploy.tar.gz
+  # Restart Nginx if needed
+  echo -e "${YELLOW}Checking Nginx configuration...${NC}"
+  if [ -f "/etc/nginx/sites-available/filmflex" ] && [ ! -f "/etc/nginx/sites-enabled/filmflex" ]; then
+    ln -s /etc/nginx/sites-available/filmflex /etc/nginx/sites-enabled/
+    nginx -t && systemctl restart nginx
+  elif [ -f "/etc/nginx/sites-enabled/filmflex" ]; then
+    nginx -t && systemctl reload nginx
+  fi
 EOF
-
-# Step 5: Clean up local archive
-echo -e "${YELLOW}Cleaning up...${NC}"
-rm filmflex-deploy.tar.gz
 
 echo -e "${GREEN}Deployment completed successfully!${NC}"
