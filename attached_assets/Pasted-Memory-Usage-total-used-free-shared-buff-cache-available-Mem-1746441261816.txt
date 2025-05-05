@@ -1,0 +1,55 @@
+Memory Usage:
+               total        used        free      shared  buff/cache   available
+Mem:           3.8Gi       293Mi       2.7Gi        14Mi       843Mi       3.3Gi
+Swap:             0B          0B          0B
+
+Disk Usage:
+/dev/vda2        50G  5.9G   45G  12% /
+tmpfs           2.0G   28K  2.0G   1% /dev/shm
+
+Application Status:
+× filmflex.service - FilmFlex Application
+     Loaded: loaded (/etc/systemd/system/filmflex.service; enabled; vendor preset: enabled)
+     Active: failed (Result: exit-code) since Mon 2025-05-05 18:14:40 CST; 19min ago
+        CPU: 1ms
+
+May 05 18:14:40 lightnode systemd[1]: filmflex.service: Scheduled restart job, restart counter is at 9.
+May 05 18:14:40 lightnode systemd[1]: Stopped FilmFlex Application.
+May 05 18:14:40 lightnode systemd[1]: filmflex.service: Start request repeated too quickly.
+May 05 18:14:40 lightnode systemd[1]: filmflex.service: Failed with result 'exit-code'.
+May 05 18:14:40 lightnode systemd[1]: Failed to start FilmFlex Application.
+Service not found
+
+PM2 Process Status:
+┌────┬───────────┬─────────────┬─────────┬─────────┬──────────┬────────┬──────┬───────────┬──────────┬──────────┬──────────┬──────────┐
+│ id │ name      │ namespace   │ version │ mode    │ pid      │ uptime │ ↺    │ status    │ cpu      │ mem      │ user     │ watching │
+└────┴───────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┴──────────┴──────────┘
+
+Nginx Status:
+● nginx.service - A high performance web server and a reverse proxy server
+     Loaded: loaded (/lib/systemd/system/nginx.service; enabled; vendor preset: enabled)
+     Active: active (running) since Mon 2025-05-05 18:33:22 CST; 43s ago
+       Docs: man:nginx(8)
+    Process: 9762 ExecStartPre=/usr/sbin/nginx -t -q -g daemon on; master_process on; (code=exited, status=0/SUCCESS)
+
+Recent Application Logs:
+No logs found
+
+Database Status:
+● postgresql.service - PostgreSQL RDBMS
+     Loaded: loaded (/lib/systemd/system/postgresql.service; enabled; vendor preset: enabled)
+     Active: active (exited) since Mon 2025-05-05 18:14:38 CST; 19min ago
+   Main PID: 1284 (code=exited, status=0/SUCCESS)
+        CPU: 2ms
+
+Database Size:
+ pg_size_pretty
+----------------
+ 8409 kB
+(1 row)
+
+
+Recent Backups:
+total 4.0K
+-rw------- 1 root root 20 May  5 18:19 filmflex_20250505-181906.sql.gz
+root@lightnode:~/Film_Flex_Release#
