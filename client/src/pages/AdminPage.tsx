@@ -299,7 +299,7 @@ export default function AdminPage() {
                             <tr key={movie._id} className="border-b">
                               <td className="py-4 px-2">{index + 1}</td>
                               <td className="py-4 px-2 font-medium">{movie.name}</td>
-                              <td className="py-4 px-2">{movie.category?.join(", ") || "Uncategorized"}</td>
+                              <td className="py-4 px-2">{(movie as any).category?.join(", ") || "Uncategorized"}</td>
                               <td className="py-4 px-2">
                                 <Badge variant={movie.tmdb?.type === "movie" ? "default" : "secondary"}>
                                   {movie.tmdb?.type || "unknown"}
