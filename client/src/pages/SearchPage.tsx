@@ -95,6 +95,7 @@ export default function SearchPage() {
               placeholder="Search for movies, TV shows, actors..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
+              data-testid="search-input"
               className="bg-background/80 backdrop-blur-sm border-border/40 text-white rounded-full py-6 pl-5 pr-12 text-lg w-full focus:ring-2 focus:ring-primary"
             />
             <div className="absolute right-4 top-1/2 transform -translate-y-1/2 flex items-center space-x-2">
@@ -113,6 +114,7 @@ export default function SearchPage() {
                 type="submit"
                 variant="ghost"
                 size="icon"
+                data-testid="search-button"
                 className="text-primary hover:text-white"
               >
                 <SearchIcon className="h-5 w-5" />
