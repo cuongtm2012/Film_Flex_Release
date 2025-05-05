@@ -599,7 +599,6 @@ export default function AdminPage() {
                                 <ArrowUpDown className="h-3 w-3" />
                               </div>
                             </th>
-                            <th className="py-3 px-2 text-left font-medium">Type</th>
                             <th className="py-3 px-2 text-left font-medium">
                               <div className="flex items-center gap-1 cursor-pointer">
                                 Year
@@ -631,11 +630,6 @@ export default function AdminPage() {
                                     )}
                                     <span>{movieDetails.name}</span>
                                   </div>
-                                </td>
-                                <td className="py-4 px-2">
-                                  <Badge variant={movieDetails.tmdb?.type === "movie" ? "default" : "secondary"}>
-                                    {movieDetails.tmdb?.type || "unknown"}
-                                  </Badge>
                                 </td>
                                 <td className="py-4 px-2">{movieDetails.year || "N/A"}</td>
                                 <td className="py-4 px-2">
