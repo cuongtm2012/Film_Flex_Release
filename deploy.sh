@@ -259,6 +259,21 @@ function deploy_app {
   npm ci
   npm run build
   
+  # Run database migrations to ensure schema is up to date
+  echo -e "${YELLOW}Running database migrations...${NC}"
+  DATABASE_URL="postgresql://${DB_USER}:${DB_PASSWORD}@localhost:5432/${DB_NAME}" npm run db:push || {
+    echo -e "${RED}Failed to run database migrations. Check database connection and schema.${NC}"
+    echo -e "${YELLOW}Attempting to manually create tables...${NC}"
+    # Fallback: Try to manually create tables if migration fails
+    DATABASE_URL="postgresql://${DB_USER}:${DB_PASSWORD}@localhost:5432/${DB_NAME}" node -e "
+      const { createClient } = require('@neondatabase/serverless');
+      const client = createClient(process.env.DATABASE_URL);
+      client.connect()
+        .then(() => console.log('Connected to database'))
+        .catch(err => console.error('Failed to connect to database:', err));
+    "
+  }
+  
   # Start or restart the application
   echo -e "${YELLOW}Starting/restarting the application...${NC}"
   pm2 reload ecosystem.config.cjs || pm2 start ecosystem.config.cjs
