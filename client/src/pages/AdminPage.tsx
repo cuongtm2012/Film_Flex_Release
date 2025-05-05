@@ -140,15 +140,18 @@ function MultiSelectTags({ options, selectedValues, onChange, placeholder = "Sel
                   className="flex items-center gap-1 max-w-[150px] truncate"
                 >
                   {value}
-                  <button
-                    className="ml-1 rounded-full outline-none focus:outline-none"
+                  <div
+                    className="ml-1 rounded-full outline-none focus:outline-none cursor-pointer inline-flex"
                     onClick={(e) => {
                       e.stopPropagation();
                       onChange(selectedValues.filter((v) => v !== value));
                     }}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Remove ${value}`}
                   >
                     <X className="h-3 w-3" />
-                  </button>
+                  </div>
                 </Badge>
               ))}
             </div>
@@ -632,10 +635,20 @@ export default function AdminPage() {
                                   </div>
                                 </td>
                                 <td className="py-4 px-2 max-w-[200px] truncate">
-                                  {movieDetails.category?.join(", ") || "Uncategorized"}
+                                  {movieDetails.category ? 
+                                    movieDetails.category.map(cat => 
+                                      typeof cat === 'string' ? cat : (cat.name || String(cat))
+                                    ).join(", ") 
+                                    : "Uncategorized"
+                                  }
                                 </td>
                                 <td className="py-4 px-2 max-w-[150px] truncate">
-                                  {movieDetails.country?.join(", ") || "Unknown"}
+                                  {movieDetails.country ? 
+                                    movieDetails.country.map(country => 
+                                      typeof country === 'string' ? country : (country.name || String(country))
+                                    ).join(", ") 
+                                    : "Unknown"
+                                  }
                                 </td>
                                 <td className="py-4 px-2">
                                   <Badge variant={movieDetails.tmdb?.type === "movie" ? "default" : "secondary"}>
