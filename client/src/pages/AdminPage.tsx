@@ -36,6 +36,8 @@ interface MovieDetailsType {
   category?: string[];
   country?: string[];
   episodes?: any[];
+  isRecommended?: boolean;
+  active?: boolean;
   created?: {
     time: string;
   };
@@ -67,7 +69,12 @@ import {
   Filter,
   Download,
   RefreshCw,
-  ChevronLeft
+  ChevronLeft,
+  Star,
+  SlidersHorizontal,
+  CheckCircle,
+  XCircle,
+  ArrowUpDown
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
@@ -84,7 +91,12 @@ export default function AdminPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [contentType, setContentType] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState<string[]>([]);
+  const [recommendedFilter, setRecommendedFilter] = useState("all");
+  const [itemsPerPage, setItemsPerPage] = useState(20);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [fullScreenEdit, setFullScreenEdit] = useState(false);
   const [currentEditMovie, setCurrentEditMovie] = useState<MovieDetailsType | null>(null);
   const [isLoadingMovieDetails, setIsLoadingMovieDetails] = useState(false);
   
@@ -113,13 +125,13 @@ export default function AdminPage() {
 
   // Fetch real movie data
   const { data: moviesData, isLoading: isLoadingMovies, error: moviesError } = useQuery({
-    queryKey: ["/api/movies", currentPage, contentType, searchQuery],
+    queryKey: ["/api/movies", currentPage, contentType, statusFilter, recommendedFilter, searchQuery, itemsPerPage],
     queryFn: async () => {
-      let url = `/api/movies?page=${currentPage}`;
+      let url = `/api/movies?page=${currentPage}&limit=${itemsPerPage}`;
       
       // If search query exists, use search endpoint instead
       if (searchQuery.trim()) {
-        url = `/api/search?keyword=${encodeURIComponent(searchQuery)}&page=${currentPage}`;
+        url = `/api/search?keyword=${encodeURIComponent(searchQuery)}&page=${currentPage}&limit=${itemsPerPage}`;
       }
       
       const response = await fetch(url);
@@ -129,12 +141,40 @@ export default function AdminPage() {
       
       const data = await response.json() as MovieListResponse;
       
-      // Filter by content type if needed
+      // Apply filters on client-side
+      let filteredItems = [...data.items];
+      
+      // Filter by content type
       if (contentType !== "all") {
-        data.items = data.items.filter(movie => movie.tmdb?.type === contentType);
+        filteredItems = filteredItems.filter(movie => movie.tmdb?.type === contentType);
       }
       
-      return data;
+      // Filter by status (active/inactive)
+      if (statusFilter !== "all") {
+        const isActive = statusFilter === "active";
+        filteredItems = filteredItems.filter(movie => 
+          (movie as unknown as MovieDetailsType).active === isActive
+        );
+      }
+      
+      // Filter by recommendation status
+      if (recommendedFilter !== "all") {
+        const isRecommended = recommendedFilter === "yes";
+        filteredItems = filteredItems.filter(movie => 
+          (movie as unknown as MovieDetailsType).isRecommended === isRecommended
+        );
+      }
+      
+      // Update data with filtered items
+      return {
+        ...data,
+        items: filteredItems,
+        pagination: {
+          ...data.pagination,
+          totalItems: filteredItems.length,
+          totalPages: Math.ceil(filteredItems.length / itemsPerPage)
+        }
+      };
     },
   });
 
@@ -260,31 +300,22 @@ export default function AdminPage() {
                   <CardDescription>Manage movies, series, and other content on the platform</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex flex-col sm:flex-row gap-4 mb-6">
+                  {/* Search and Filter Options */}
+                  <div className="flex flex-col sm:flex-row gap-4 mb-4">
                     <div className="relative flex-1">
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input 
-                        placeholder="Search content..." 
+                        placeholder="Search by title..." 
                         className="pl-10" 
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                       />
                     </div>
                     <div className="flex gap-2">
-                      <Select 
-                        defaultValue="all" 
-                        value={contentType}
-                        onValueChange={(value) => setContentType(value)}
-                      >
-                        <SelectTrigger className="w-[120px]">
-                          <SelectValue placeholder="Type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Types</SelectItem>
-                          <SelectItem value="movie">Movies</SelectItem>
-                          <SelectItem value="tv">Series</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <Button variant="outline" onClick={() => {}} className="flex items-center gap-1">
+                        <SlidersHorizontal className="h-4 w-4" />
+                        Filters
+                      </Button>
                       <Button onClick={() => setCurrentPage(1)}>
                         <RefreshCw className="mr-2 h-4 w-4" />
                         Refresh
@@ -294,6 +325,91 @@ export default function AdminPage() {
                       <Plus className="mr-2 h-4 w-4" />
                       Add Content
                     </Button>
+                  </div>
+
+                  {/* Advanced Filter Panel */}
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 p-4 bg-muted/20 rounded-md mb-4">
+                    <div>
+                      <Label htmlFor="content-type" className="text-sm font-medium block mb-2">
+                        Content Type
+                      </Label>
+                      <Select 
+                        defaultValue="all" 
+                        value={contentType}
+                        onValueChange={(value) => setContentType(value)}
+                      >
+                        <SelectTrigger id="content-type">
+                          <SelectValue placeholder="Select type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Types</SelectItem>
+                          <SelectItem value="movie">Movies</SelectItem>
+                          <SelectItem value="tv">TV Series</SelectItem>
+                          <SelectItem value="documentary">Documentary</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="status-filter" className="text-sm font-medium block mb-2">
+                        Status
+                      </Label>
+                      <Select 
+                        defaultValue="all" 
+                        value={statusFilter}
+                        onValueChange={(value) => setStatusFilter(value)}
+                      >
+                        <SelectTrigger id="status-filter">
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Statuses</SelectItem>
+                          <SelectItem value="active">Active</SelectItem>
+                          <SelectItem value="inactive">Inactive</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="recommended-filter" className="text-sm font-medium block mb-2">
+                        Recommended
+                      </Label>
+                      <Select 
+                        defaultValue="all" 
+                        value={recommendedFilter}
+                        onValueChange={(value) => setRecommendedFilter(value)}
+                      >
+                        <SelectTrigger id="recommended-filter">
+                          <SelectValue placeholder="Recommendation status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All</SelectItem>
+                          <SelectItem value="yes">Recommended</SelectItem>
+                          <SelectItem value="no">Not Recommended</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="items-per-page" className="text-sm font-medium block mb-2">
+                        Items Per Page
+                      </Label>
+                      <Select 
+                        defaultValue="20" 
+                        value={itemsPerPage.toString()}
+                        onValueChange={(value) => setItemsPerPage(parseInt(value))}
+                      >
+                        <SelectTrigger id="items-per-page">
+                          <SelectValue placeholder="Items per page" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="10">10</SelectItem>
+                          <SelectItem value="20">20</SelectItem>
+                          <SelectItem value="50">50</SelectItem>
+                          <SelectItem value="100">100</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
 
                   <div className="overflow-x-auto">
@@ -310,56 +426,116 @@ export default function AdminPage() {
                         <thead>
                           <tr className="border-b">
                             <th className="py-3 px-2 text-left font-medium">ID</th>
-                            <th className="py-3 px-2 text-left font-medium">Title</th>
+                            <th className="py-3 px-2 text-left font-medium">
+                              <div className="flex items-center gap-1 cursor-pointer">
+                                Title
+                                <ArrowUpDown className="h-3 w-3" />
+                              </div>
+                            </th>
                             <th className="py-3 px-2 text-left font-medium">Category</th>
+                            <th className="py-3 px-2 text-left font-medium">Country</th>
                             <th className="py-3 px-2 text-left font-medium">Type</th>
-                            <th className="py-3 px-2 text-left font-medium">Year</th>
+                            <th className="py-3 px-2 text-left font-medium">
+                              <div className="flex items-center gap-1 cursor-pointer">
+                                Year
+                                <ArrowUpDown className="h-3 w-3" />
+                              </div>
+                            </th>
                             <th className="py-3 px-2 text-left font-medium">Status</th>
+                            <th className="py-3 px-2 text-center font-medium">Recommend</th>
                             <th className="py-3 px-2 text-left font-medium">Actions</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {moviesData?.items.map((movie, index) => (
-                            <tr key={movie._id} className="border-b">
-                              <td className="py-4 px-2">{index + 1}</td>
-                              <td className="py-4 px-2 font-medium">{movie.name}</td>
-                              <td className="py-4 px-2">{(movie as any).category?.join(", ") || "Uncategorized"}</td>
-                              <td className="py-4 px-2">
-                                <Badge variant={movie.tmdb?.type === "movie" ? "default" : "secondary"}>
-                                  {movie.tmdb?.type || "unknown"}
-                                </Badge>
-                              </td>
-                              <td className="py-4 px-2">{movie.year || "N/A"}</td>
-                              <td className="py-4 px-2">
-                                <Badge variant="outline">Active</Badge>
-                              </td>
-                              <td className="py-4 px-2">
-                                <div className="flex gap-2">
-                                  <Button 
-                                    variant="outline" 
-                                    size="sm"
-                                    onClick={() => {
-                                      // First set the basic movie data we have
-                                      setCurrentEditMovie(movie as unknown as MovieDetailsType);
-                                      // Then open the dialog
-                                      setEditDialogOpen(true);
-                                      // And finally fetch the full details
-                                      fetchMovieDetails(movie.slug);
-                                    }}
+                          {moviesData?.items.map((movie, index) => {
+                            // Cast movie to the full type with all fields
+                            const movieDetails = movie as unknown as MovieDetailsType;
+                            return (
+                              <tr key={movie._id} className="border-b hover:bg-muted/10">
+                                <td className="py-4 px-2">{movieDetails.id || index + 1}</td>
+                                <td className="py-4 px-2 font-medium">
+                                  <div className="flex items-center">
+                                    {movieDetails.thumb_url && (
+                                      <div className="w-8 h-12 mr-2 rounded overflow-hidden">
+                                        <img 
+                                          src={movieDetails.thumb_url} 
+                                          alt={movieDetails.name} 
+                                          className="w-full h-full object-cover"
+                                        />
+                                      </div>
+                                    )}
+                                    <span>{movieDetails.name}</span>
+                                  </div>
+                                </td>
+                                <td className="py-4 px-2 max-w-[200px] truncate">
+                                  {movieDetails.category?.join(", ") || "Uncategorized"}
+                                </td>
+                                <td className="py-4 px-2 max-w-[150px] truncate">
+                                  {movieDetails.country?.join(", ") || "Unknown"}
+                                </td>
+                                <td className="py-4 px-2">
+                                  <Badge variant={movieDetails.tmdb?.type === "movie" ? "default" : "secondary"}>
+                                    {movieDetails.tmdb?.type || "unknown"}
+                                  </Badge>
+                                </td>
+                                <td className="py-4 px-2">{movieDetails.year || "N/A"}</td>
+                                <td className="py-4 px-2">
+                                  <Badge 
+                                    variant={movieDetails.active === false ? "destructive" : "outline"}
+                                    className="flex items-center gap-1"
                                   >
-                                    Edit
-                                  </Button>
-                                  <Button 
-                                    variant="outline" 
-                                    size="sm"
-                                    onClick={() => window.open(`/movie/${movie.slug}`, '_blank')}
-                                  >
-                                    Preview
-                                  </Button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
+                                    {movieDetails.active === false ? (
+                                      <>
+                                        <XCircle className="h-3 w-3" />
+                                        <span>Inactive</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <CheckCircle className="h-3 w-3" />
+                                        <span>Active</span>
+                                      </>
+                                    )}
+                                  </Badge>
+                                </td>
+                                <td className="py-4 px-2 text-center">
+                                  <div className="flex justify-center">
+                                    {movieDetails.isRecommended ? (
+                                      <Star className="h-5 w-5 text-amber-500 fill-amber-500" />
+                                    ) : (
+                                      <Star className="h-5 w-5 text-muted-foreground" />
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="py-4 px-2">
+                                  <div className="flex gap-2">
+                                    <Button 
+                                      variant="outline" 
+                                      size="sm"
+                                      onClick={() => {
+                                        // First set the basic movie data we have
+                                        setCurrentEditMovie(movie as unknown as MovieDetailsType);
+                                        // Set fullscreen edit mode
+                                        setFullScreenEdit(true);
+                                        // Then open the dialog
+                                        setEditDialogOpen(true);
+                                        // And finally fetch the full details
+                                        fetchMovieDetails(movie.slug);
+                                      }}
+                                    >
+                                      Edit
+                                    </Button>
+                                    <Button 
+                                      variant="outline" 
+                                      size="sm"
+                                      onClick={() => window.open(`/movie/${movie.slug}`, '_blank')}
+                                    >
+                                      Preview
+                                    </Button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     )}
@@ -368,28 +544,49 @@ export default function AdminPage() {
                   <div className="flex justify-between items-center mt-6">
                     <div className="text-sm text-muted-foreground">
                       {moviesData?.pagination ? (
-                        `Showing ${(currentPage - 1) * 10 + 1}-${Math.min(currentPage * 10, moviesData.pagination.totalItems)} of ${moviesData.pagination.totalItems} items`
+                        `Showing ${(currentPage - 1) * itemsPerPage + 1}-${Math.min(currentPage * itemsPerPage, moviesData.pagination.totalItems)} of ${moviesData.pagination.totalItems} items`
                       ) : (
                         "Loading..."
                       )}
                     </div>
-                    <div className="flex gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        disabled={currentPage <= 1 || isLoadingMovies}
-                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                      >
-                        Previous
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        disabled={!moviesData?.pagination || currentPage >= moviesData.pagination.totalPages || isLoadingMovies}
-                        onClick={() => setCurrentPage(prev => prev + 1)}
-                      >
-                        Next
-                      </Button>
+                    <div className="flex items-center gap-4">
+                      <div className="text-sm text-muted-foreground">
+                        Page {currentPage} of {moviesData?.pagination?.totalPages || 1}
+                      </div>
+                      <div className="flex gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          disabled={currentPage <= 1 || isLoadingMovies}
+                          onClick={() => setCurrentPage(1)}
+                        >
+                          First
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          disabled={currentPage <= 1 || isLoadingMovies}
+                          onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                        >
+                          Previous
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          disabled={!moviesData?.pagination || currentPage >= moviesData.pagination.totalPages || isLoadingMovies}
+                          onClick={() => setCurrentPage(prev => prev + 1)}
+                        >
+                          Next
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          disabled={!moviesData?.pagination || currentPage >= moviesData.pagination.totalPages || isLoadingMovies}
+                          onClick={() => moviesData?.pagination && setCurrentPage(moviesData.pagination.totalPages)}
+                        >
+                          Last
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </CardContent>
@@ -1385,9 +1582,21 @@ export default function AdminPage() {
       
       {/* Edit Movie Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className={fullScreenEdit ? "max-w-[95vw] h-[90vh] overflow-y-auto" : "sm:max-w-[600px]"}>
           <DialogHeader>
-            <DialogTitle>Edit Movie Information</DialogTitle>
+            <DialogTitle className="text-xl flex items-center justify-between">
+              <span>Edit Movie Information</span>
+              <div>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="ml-2" 
+                  onClick={() => setFullScreenEdit(!fullScreenEdit)}
+                >
+                  {fullScreenEdit ? "Compact View" : "Full Screen"}
+                </Button>
+              </div>
+            </DialogTitle>
             <DialogDescription>
               Make changes to the movie details below. Click save when you're done.
             </DialogDescription>
@@ -1579,7 +1788,7 @@ export default function AdminPage() {
                 <Label htmlFor="status" className="text-right">
                   Status
                 </Label>
-                <Select defaultValue="active">
+                <Select defaultValue={currentEditMovie.active === false ? "inactive" : "active"}>
                   <SelectTrigger className="col-span-3">
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
@@ -1589,6 +1798,24 @@ export default function AdminPage() {
                     <SelectItem value="pending">Pending Review</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+              
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right">
+                  Recommendation
+                </Label>
+                <div className="flex items-center space-x-2 col-span-3">
+                  <Checkbox 
+                    id="movie-recommended" 
+                    checked={currentEditMovie.isRecommended} 
+                  />
+                  <Label htmlFor="movie-recommended" className="cursor-pointer flex items-center">
+                    Mark as Recommended 
+                    {currentEditMovie.isRecommended && (
+                      <Star className="ml-2 h-4 w-4 text-amber-500 fill-amber-500" />
+                    )}
+                  </Label>
+                </div>
               </div>
               
               <div className="grid grid-cols-4 items-center gap-4">
