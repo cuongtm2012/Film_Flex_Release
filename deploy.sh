@@ -85,9 +85,9 @@ After=network.target postgresql.service
 Type=forking
 User=root
 WorkingDirectory=/var/www/filmflex
-ExecStart=/usr/local/bin/pm2 start ecosystem.config.js
-ExecReload=/usr/local/bin/pm2 reload ecosystem.config.js
-ExecStop=/usr/local/bin/pm2 stop ecosystem.config.js
+ExecStart=/usr/bin/pm2 start ecosystem.config.js
+ExecReload=/usr/bin/pm2 reload ecosystem.config.js
+ExecStop=/usr/bin/pm2 stop ecosystem.config.js
 Restart=on-failure
 
 [Install]
@@ -275,6 +275,12 @@ function import_movies {
   # Make sure we're in the app directory
   cd ${APP_PATH}
   
+  # First, check if screen is installed
+  if ! command -v screen &> /dev/null; then
+    echo -e "${YELLOW}Screen is not installed. Installing it now...${NC}"
+    apt-get update && apt-get install -y screen
+  fi
+
   # Create a screen session for the import process
   screen -dmS import bash -c "cd ${APP_PATH} && npx tsx scripts/import.ts 1 2252 > /var/log/filmflex-import.log 2>&1"
   
