@@ -18,22 +18,22 @@ This document provides comprehensive instructions for deploying, maintaining, an
 
 ## Deployment Process
 
-### Initial Setup
+### Getting Started
 
-1. Clone this repository to your local machine:
+1. Clone this repository to your server:
    ```bash
-   git clone https://github.com/yourusername/filmflex.git
-   cd filmflex
+   git clone https://github.com/cuongtm2012/Film_Flex_R.git
+   cd Film_Flex_R
    ```
 
-2. Make the deployment scripts executable:
+2. Make the deployment script executable:
    ```bash
-   chmod +x scripts/*.sh
+   chmod +x deploy.sh
    ```
 
-3. Run the initial deployment script:
+3. Run the initial setup:
    ```bash
-   ./scripts/initial-deploy.sh
+   ./deploy.sh --setup
    ```
 
    This script will:
@@ -43,91 +43,143 @@ This document provides comprehensive instructions for deploying, maintaining, an
    - Create systemd service for automatic startup
    - Deploy the application
 
-### Continuous Deployment
+### All-in-One Deployment Script
 
-For subsequent deployments after making changes to the codebase:
+The `deploy.sh` script handles all deployment operations with a simple command-line interface:
 
-1. Push your changes to GitHub
-2. CI/CD will automatically deploy your changes (if set up)
-3. Or, run the deployment script manually:
-   ```bash
-   ./scripts/deploy.sh
-   ```
+- **Initial Setup**: Set up the server environment and deploy the application
+  ```bash
+  ./deploy.sh --setup
+  ```
+
+- **Deploy/Update Application**: Deploy new code or update existing installation (default action)
+  ```bash
+  ./deploy.sh
+  ```
+  or
+  ```bash
+  ./deploy.sh --deploy
+  ```
+
+- **Import Movies**: Start the movie import process (runs in background)
+  ```bash
+  ./deploy.sh --import
+  ```
+
+- **Create Database Backup**: Manually create a database backup
+  ```bash
+  ./deploy.sh --backup
+  ```
+
+- **Check System Status**: View system, application, and database status
+  ```bash
+  ./deploy.sh --status
+  ```
+
+- **View Help**: See all available options
+  ```bash
+  ./deploy.sh --help
+  ```
 
 ## Configuration
 
 ### Environment Variables
 
-Create a `.env.production` file with the following variables:
+The deployment script automatically creates a `.env` file with the following variables:
 
 ```
 NODE_ENV=production
 PORT=5000
 DATABASE_URL=postgresql://filmflex:FilmFlexPassword@localhost:5432/filmflex
-SESSION_SECRET=your-secure-session-secret
+SESSION_SECRET=generated-secure-secret
 ```
 
-### Database Setup
-
-The database will be automatically set up during initial deployment. If you need to manually set it up:
-
-```bash
-./scripts/db-migration.sh
-```
+You can modify this file manually if needed.
 
 ### SSL Setup
 
 To enable HTTPS with Let's Encrypt (after you have a domain name):
 
 1. Connect your domain to your server's IP
-2. SSH into your server
-3. Run:
+2. On your server, run:
    ```bash
    certbot --nginx -d yourdomain.com
    ```
 
-## Data Import
+3. Then update your Nginx configuration in `/etc/nginx/sites-available/filmflex` to use the SSL configuration from `nginx/filmflex_ssl.conf` (modify domain name as needed).
 
-To import movie data from the external API:
+## Data Management
+
+### Movie Import
+
+The import process runs in a background screen session and can be monitored:
 
 ```bash
-./scripts/import-data.sh
+# Start import
+./deploy.sh --import
+
+# Monitor import progress
+tail -f /var/log/filmflex-import.log
+
+# Attach to the import screen session
+screen -r import
 ```
 
-This will start a background process that will import all 2252 pages of movies. You can monitor progress in the log file.
+### Database Backups
 
-## Maintenance
-
-### Backups
-
-Daily database backups are automatically configured. To manually create a backup:
+Daily database backups are automatically configured. To manage backups:
 
 ```bash
-./scripts/backup-db.sh
+# Create a manual backup
+./deploy.sh --backup
+
+# View recent backups
+ls -lh /var/backups/filmflex/
 ```
 
-### Restoring from Backup
+### Database Restore
 
-To restore the database from a backup:
+To restore from a backup, use a direct PostgreSQL command:
 
 ```bash
-./scripts/restore-backup.sh filmflex_20250505-123045.sql.gz
+# First, stop the application
+pm2 stop filmflex
+
+# Restore from backup
+gunzip -c /var/backups/filmflex/your-backup-file.sql.gz | sudo -u postgres psql filmflex
+
+# Restart the application
+pm2 start filmflex
 ```
 
-### Monitoring
+## Monitoring and Maintenance
 
-To check the status of the application:
+### System Status
+
+Check the system, application, database, and Nginx status:
 
 ```bash
-./scripts/status-check.sh
+./deploy.sh --status
 ```
 
-### Rollback
+### Application Logs
 
-If you need to roll back to a previous version:
+View application logs:
 
 ```bash
-./scripts/rollback.sh commit-hash
+tail -f /var/log/filmflex.log       # General application logs
+tail -f /var/log/filmflex-error.log # Error logs
+```
+
+### Process Management
+
+Manage the application using PM2:
+
+```bash
+pm2 list                # List all processes
+pm2 monit               # Monitor application performance
+pm2 logs filmflex       # View application logs
+pm2 restart filmflex    # Restart the application
 ```
 
 ## CI/CD Setup
@@ -136,50 +188,74 @@ To set up continuous integration and deployment with GitHub Actions:
 
 1. Generate SSH keys for deployment:
    ```bash
-   ./scripts/generate-ssh-key.sh
+   ssh-keygen -t ed25519 -f ~/.ssh/filmflex_deploy_key -N "" -C "filmflex-deploy@github-actions"
    ```
 
-2. Add the following secrets to your GitHub repository:
-   - `SSH_PRIVATE_KEY`: The private key generated in step 1
+2. Add the generated public key to your server's authorized_keys:
+   ```bash
+   cat ~/.ssh/filmflex_deploy_key.pub >> ~/.ssh/authorized_keys
+   ```
+
+3. Add the following secrets to your GitHub repository:
+   - `SSH_PRIVATE_KEY`: The content of the private key file (~/.ssh/filmflex_deploy_key)
    - `SERVER_IP`: Your server's IP address
    - `SSH_USER`: Username (usually 'root')
    - `DATABASE_URL`: Your database connection string
    - `SESSION_SECRET`: Your session secret
 
-3. Push your code to GitHub, and the CI/CD pipeline will automatically deploy changes to the main branch.
+4. The CI/CD workflow will automatically deploy changes to the main branch.
 
 ## Troubleshooting
 
 ### Application Not Starting
 
-Check the application logs:
-```bash
-ssh root@your-server-ip 'tail -f /var/log/filmflex.log'
-```
+1. Check application logs:
+   ```bash
+   tail -f /var/log/filmflex.log
+   tail -f /var/log/filmflex-error.log
+   ```
+
+2. Check if the port is already in use:
+   ```bash
+   netstat -tulpn | grep 5000
+   ```
+
+3. Verify the application process:
+   ```bash
+   pm2 list
+   pm2 logs filmflex
+   ```
 
 ### Database Connection Issues
 
-Verify the database is running:
-```bash
-ssh root@your-server-ip 'systemctl status postgresql'
-```
+1. Verify the database is running:
+   ```bash
+   systemctl status postgresql
+   ```
 
-Check database connection:
-```bash
-ssh root@your-server-ip 'sudo -u postgres psql -c "\l"'
-```
+2. Check database connection:
+   ```bash
+   sudo -u postgres psql -c "\l"
+   ```
+
+3. Verify database credentials match those in your `.env` file.
 
 ### Nginx Issues
 
-Check Nginx configuration:
-```bash
-ssh root@your-server-ip 'nginx -t'
-```
+1. Check Nginx configuration:
+   ```bash
+   nginx -t
+   ```
 
-View Nginx logs:
-```bash
-ssh root@your-server-ip 'tail -f /var/log/nginx/error.log'
-```
+2. View Nginx logs:
+   ```bash
+   tail -f /var/log/nginx/error.log
+   ```
+
+3. Ensure Nginx is running:
+   ```bash
+   systemctl status nginx
+   ```
 
 ## Security Considerations
 
@@ -188,3 +264,5 @@ ssh root@your-server-ip 'tail -f /var/log/nginx/error.log'
 - Use SSH keys instead of passwords for server access
 - Enable firewall with minimal open ports
 - Use HTTPS for all traffic
+- Configure proper Content-Security-Policy headers
+- Regularly review server logs for suspicious activity
