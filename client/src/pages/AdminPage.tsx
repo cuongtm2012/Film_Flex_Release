@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { MovieListResponse } from "@shared/schema";
 
 // This is an extended type for the movie with all fields
@@ -86,6 +86,30 @@ export default function AdminPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [currentEditMovie, setCurrentEditMovie] = useState<MovieDetailsType | null>(null);
+  const [isLoadingMovieDetails, setIsLoadingMovieDetails] = useState(false);
+  
+  // Function to fetch full movie details
+  const fetchMovieDetails = async (slug: string) => {
+    setIsLoadingMovieDetails(true);
+    try {
+      const response = await fetch(`/api/movies/${slug}`);
+      if (!response.ok) {
+        throw new Error("Failed to fetch movie details");
+      }
+      const data = await response.json();
+      if (data.status && data.movie) {
+        setCurrentEditMovie(data.movie);
+      } else {
+        throw new Error("Invalid movie data received");
+      }
+    } catch (error) {
+      console.error("Error fetching movie details:", error);
+      // If we fail to fetch details, don't clear the current movie so 
+      // we at least show what we already have
+    } finally {
+      setIsLoadingMovieDetails(false);
+    }
+  };
 
   // Fetch real movie data
   const { data: moviesData, isLoading: isLoadingMovies, error: moviesError } = useQuery({
@@ -315,8 +339,12 @@ export default function AdminPage() {
                                     variant="outline" 
                                     size="sm"
                                     onClick={() => {
+                                      // First set the basic movie data we have
                                       setCurrentEditMovie(movie as unknown as MovieDetailsType);
+                                      // Then open the dialog
                                       setEditDialogOpen(true);
+                                      // And finally fetch the full details
+                                      fetchMovieDetails(movie.slug);
                                     }}
                                   >
                                     Edit
@@ -1364,7 +1392,12 @@ export default function AdminPage() {
               Make changes to the movie details below. Click save when you're done.
             </DialogDescription>
           </DialogHeader>
-          {currentEditMovie && (
+          {isLoadingMovieDetails ? (
+            <div className="py-8 text-center">
+              <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full mx-auto mb-2"></div>
+              <p className="text-sm text-muted-foreground">Loading movie details...</p>
+            </div>
+          ) : currentEditMovie && (
             <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="movie-title" className="text-right">
@@ -1425,6 +1458,30 @@ export default function AdminPage() {
                   className="col-span-3"
                 />
               </div>
+
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="actors" className="text-right">
+                  Actors
+                </Label>
+                <Input
+                  id="actors"
+                  defaultValue={currentEditMovie.actor?.join(", ") || ""}
+                  placeholder="Actor names (comma separated)"
+                  className="col-span-3"
+                />
+              </div>
+
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="directors" className="text-right">
+                  Directors
+                </Label>
+                <Input
+                  id="directors"
+                  defaultValue={currentEditMovie.director?.join(", ") || ""}
+                  placeholder="Director names (comma separated)"
+                  className="col-span-3"
+                />
+              </div>
               
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="movie-year" className="text-right">
@@ -1471,6 +1528,52 @@ export default function AdminPage() {
                   )}
                 </div>
               </div>
+
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="thumbnail-url" className="text-right">
+                  Thumbnail URL
+                </Label>
+                <div className="col-span-3 flex gap-2">
+                  <Input
+                    id="thumbnail-url"
+                    defaultValue={currentEditMovie.thumb_url || ""}
+                    className="flex-1"
+                  />
+                  {currentEditMovie.thumb_url && (
+                    <div className="w-12 h-16 border rounded overflow-hidden flex-shrink-0">
+                      <img 
+                        src={currentEditMovie.thumb_url} 
+                        alt="Thumbnail" 
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 items-center gap-4">
+                  <Label htmlFor="quality" className="text-right">
+                    Quality
+                  </Label>
+                  <Input
+                    id="quality"
+                    defaultValue={currentEditMovie.quality || ""}
+                    placeholder="HD, FHD, etc."
+                  />
+                </div>
+                
+                <div className="grid grid-cols-2 items-center gap-4">
+                  <Label htmlFor="language" className="text-right">
+                    Language
+                  </Label>
+                  <Input
+                    id="language"
+                    defaultValue={currentEditMovie.lang || ""}
+                    placeholder="VN, EN, etc."
+                  />
+                </div>
+              </div>
               
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="status" className="text-right">
@@ -1512,6 +1615,27 @@ export default function AdminPage() {
                         Latest episode: {currentEditMovie.episodes[currentEditMovie.episodes.length - 1]?.name || "N/A"}
                       </div>
                     )}
+                    {currentEditMovie.episode_current && (
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        Current/Latest: {currentEditMovie.episode_current}
+                      </div>
+                    )}
+                    {currentEditMovie.episode_total && (
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        Total Episodes: {currentEditMovie.episode_total}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-4 items-start gap-4">
+                <Label htmlFor="view-stats" className="text-right pt-2">
+                  View Statistics
+                </Label>
+                <div className="col-span-3">
+                  <div className="text-sm p-3 bg-muted/30 rounded mb-2">
+                    <div className="font-medium">Total Views: {currentEditMovie.view?.toLocaleString() || "0"}</div>
                   </div>
                 </div>
               </div>
@@ -1522,11 +1646,25 @@ export default function AdminPage() {
                 </Label>
                 <div className="col-span-3">
                   <div className="text-xs space-y-1 p-3 bg-muted/30 rounded">
-                    <div>Created: {new Date().toLocaleString()}</div>
-                    <div>Last Updated: {new Date().toLocaleString()}</div>
+                    {currentEditMovie.created?.time ? (
+                      <div>Created: {new Date(currentEditMovie.created.time).toLocaleString()}</div>
+                    ) : (
+                      <div>Created: Not available</div>
+                    )}
+                    {currentEditMovie.modified?.time ? (
+                      <div>Last Updated: {new Date(currentEditMovie.modified.time).toLocaleString()}</div>
+                    ) : (
+                      <div>Last Updated: Not available</div>
+                    )}
                     <div>ID: {currentEditMovie._id}</div>
                     {currentEditMovie.tmdb?.id && (
                       <div>TMDB ID: {currentEditMovie.tmdb.id}</div>
+                    )}
+                    {currentEditMovie.time && (
+                      <div>Duration: {currentEditMovie.time}</div>
+                    )}
+                    {currentEditMovie.is_copyright && (
+                      <div>Copyright: Protected</div>
                     )}
                   </div>
                 </div>
