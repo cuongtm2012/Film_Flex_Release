@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
+import { MovieListResponse } from "@shared/schema";
 import UserManagement from "@/components/admin/UserManagement";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,23 +34,44 @@ export default function AdminPage() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
   const [activeTab, setActiveTab] = useState("user-management");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [contentType, setContentType] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
 
-  // Mock data for users
+  // Fetch real movie data
+  const { data: moviesData, isLoading: isLoadingMovies, error: moviesError } = useQuery({
+    queryKey: ["/api/movies", currentPage, contentType, searchQuery],
+    queryFn: async () => {
+      let url = `/api/movies?page=${currentPage}`;
+      
+      // If search query exists, use search endpoint instead
+      if (searchQuery.trim()) {
+        url = `/api/search?keyword=${encodeURIComponent(searchQuery)}&page=${currentPage}`;
+      }
+      
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error("Failed to fetch movies");
+      }
+      
+      const data = await response.json() as MovieListResponse;
+      
+      // Filter by content type if needed
+      if (contentType !== "all") {
+        data.items = data.items.filter(movie => movie.tmdb?.type === contentType);
+      }
+      
+      return data;
+    },
+  });
+
+  // Mock data for users (keeping this for now)
   const mockUsers = [
     { id: 1, username: "admin", email: "admin@filmflex.com", role: "admin", status: "active", lastLogin: "2023-12-25 10:30" },
     { id: 2, username: "moderator1", email: "mod1@filmflex.com", role: "moderator", status: "active", lastLogin: "2023-12-24 14:15" },
     { id: 3, username: "john_doe", email: "john@example.com", role: "user", status: "active", lastLogin: "2023-12-23 09:45" },
     { id: 4, username: "jane_smith", email: "jane@example.com", role: "user", status: "inactive", lastLogin: "2023-12-20 16:22" },
     { id: 5, username: "viewer99", email: "viewer@example.com", role: "user", status: "active", lastLogin: "2023-12-22 11:05" },
-  ];
-
-  // Mock data for content
-  const mockContent = [
-    { id: 1, title: "Stranger Things", type: "series", status: "published", views: 15420, rating: 4.8 },
-    { id: 2, title: "The Dark Knight", type: "movie", status: "published", views: 12800, rating: 4.9 },
-    { id: 3, title: "Breaking Bad", type: "series", status: "published", views: 14200, rating: 4.9 },
-    { id: 4, title: "Interstellar", type: "movie", status: "pending", views: 9800, rating: 4.7 },
-    { id: 5, title: "Game of Thrones", type: "series", status: "published", views: 16500, rating: 4.6 },
   ];
 
   // Mock data for audit logs
@@ -167,33 +190,31 @@ export default function AdminPage() {
                   <div className="flex flex-col sm:flex-row gap-4 mb-6">
                     <div className="relative flex-1">
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input placeholder="Search content..." className="pl-10" />
+                      <Input 
+                        placeholder="Search content..." 
+                        className="pl-10" 
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                      />
                     </div>
                     <div className="flex gap-2">
-                      <Select defaultValue="all">
+                      <Select 
+                        defaultValue="all" 
+                        value={contentType}
+                        onValueChange={(value) => setContentType(value)}
+                      >
                         <SelectTrigger className="w-[120px]">
                           <SelectValue placeholder="Type" />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="all">All Types</SelectItem>
                           <SelectItem value="movie">Movies</SelectItem>
-                          <SelectItem value="series">Series</SelectItem>
+                          <SelectItem value="tv">Series</SelectItem>
                         </SelectContent>
                       </Select>
-                      <Select defaultValue="all">
-                        <SelectTrigger className="w-[120px]">
-                          <SelectValue placeholder="Status" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Status</SelectItem>
-                          <SelectItem value="published">Published</SelectItem>
-                          <SelectItem value="pending">Pending</SelectItem>
-                          <SelectItem value="draft">Draft</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <Button>
-                        <Filter className="mr-2 h-4 w-4" />
-                        Filter
+                      <Button onClick={() => setCurrentPage(1)}>
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        Refresh
                       </Button>
                     </div>
                     <Button>
@@ -203,59 +224,84 @@ export default function AdminPage() {
                   </div>
 
                   <div className="overflow-x-auto">
-                    <table className="w-full border-collapse">
-                      <thead>
-                        <tr className="border-b">
-                          <th className="py-3 px-2 text-left font-medium">ID</th>
-                          <th className="py-3 px-2 text-left font-medium">Title</th>
-                          <th className="py-3 px-2 text-left font-medium">Type</th>
-                          <th className="py-3 px-2 text-left font-medium">Status</th>
-                          <th className="py-3 px-2 text-left font-medium">Views</th>
-                          <th className="py-3 px-2 text-left font-medium">Rating</th>
-                          <th className="py-3 px-2 text-left font-medium">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {mockContent.map((content) => (
-                          <tr key={content.id} className="border-b">
-                            <td className="py-4 px-2">{content.id}</td>
-                            <td className="py-4 px-2 font-medium">{content.title}</td>
-                            <td className="py-4 px-2">
-                              <Badge variant={content.type === "movie" ? "default" : "secondary"}>
-                                {content.type}
-                              </Badge>
-                            </td>
-                            <td className="py-4 px-2">
-                              <Badge 
-                                variant={
-                                  content.status === "published" ? "success" : 
-                                  content.status === "pending" ? "warning" : "outline"
-                                }
-                              >
-                                {content.status}
-                              </Badge>
-                            </td>
-                            <td className="py-4 px-2">{content.views.toLocaleString()}</td>
-                            <td className="py-4 px-2">{content.rating}/5.0</td>
-                            <td className="py-4 px-2">
-                              <div className="flex gap-2">
-                                <Button variant="outline" size="sm">Edit</Button>
-                                <Button variant="outline" size="sm">Preview</Button>
-                              </div>
-                            </td>
+                    {isLoadingMovies ? (
+                      <div className="py-8 text-center text-muted-foreground">
+                        Loading content data...
+                      </div>
+                    ) : moviesError ? (
+                      <div className="py-8 text-center text-destructive">
+                        Error loading content data. Please try again.
+                      </div>
+                    ) : (
+                      <table className="w-full border-collapse">
+                        <thead>
+                          <tr className="border-b">
+                            <th className="py-3 px-2 text-left font-medium">ID</th>
+                            <th className="py-3 px-2 text-left font-medium">Title</th>
+                            <th className="py-3 px-2 text-left font-medium">Origin Name</th>
+                            <th className="py-3 px-2 text-left font-medium">Type</th>
+                            <th className="py-3 px-2 text-left font-medium">Year</th>
+                            <th className="py-3 px-2 text-left font-medium">Views</th>
+                            <th className="py-3 px-2 text-left font-medium">Actions</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {moviesData?.items.map((movie, index) => (
+                            <tr key={movie._id} className="border-b">
+                              <td className="py-4 px-2">{index + 1}</td>
+                              <td className="py-4 px-2 font-medium">{movie.name}</td>
+                              <td className="py-4 px-2">{movie.origin_name || "N/A"}</td>
+                              <td className="py-4 px-2">
+                                <Badge variant={movie.tmdb?.type === "movie" ? "default" : "secondary"}>
+                                  {movie.tmdb?.type || "unknown"}
+                                </Badge>
+                              </td>
+                              <td className="py-4 px-2">{movie.year || "N/A"}</td>
+                              <td className="py-4 px-2">0</td>
+                              <td className="py-4 px-2">
+                                <div className="flex gap-2">
+                                  <Button variant="outline" size="sm">Edit</Button>
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    onClick={() => window.open(`/movie/${movie.slug}`, '_blank')}
+                                  >
+                                    Preview
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
                   </div>
 
                   <div className="flex justify-between items-center mt-6">
                     <div className="text-sm text-muted-foreground">
-                      Showing 1-5 of 5 items
+                      {moviesData?.pagination ? (
+                        `Showing ${(currentPage - 1) * 10 + 1}-${Math.min(currentPage * 10, moviesData.pagination.totalItems)} of ${moviesData.pagination.totalItems} items`
+                      ) : (
+                        "Loading..."
+                      )}
                     </div>
                     <div className="flex gap-2">
-                      <Button variant="outline" size="sm" disabled>Previous</Button>
-                      <Button variant="outline" size="sm" disabled>Next</Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        disabled={currentPage <= 1 || isLoadingMovies}
+                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                      >
+                        Previous
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        disabled={!moviesData?.pagination || currentPage >= moviesData.pagination.totalPages || isLoadingMovies}
+                        onClick={() => setCurrentPage(prev => prev + 1)}
+                      >
+                        Next
+                      </Button>
                     </div>
                   </div>
                 </CardContent>
@@ -703,16 +749,20 @@ export default function AdminPage() {
                     <div className="border rounded-md p-6">
                       <h3 className="font-medium mb-4">Most Watched Content</h3>
                       <div className="space-y-4">
-                        {mockContent.slice(0, 3).map((content) => (
-                          <div key={content.id} className="flex justify-between items-center">
+                        {isLoadingMovies ? (
+                          <div className="text-sm text-muted-foreground">Loading content data...</div>
+                        ) : moviesError ? (
+                          <div className="text-sm text-destructive">Error loading content data</div>
+                        ) : moviesData?.items.slice(0, 3).map((movie, index) => (
+                          <div key={movie._id} className="flex justify-between items-center">
                             <div>
-                              <div className="font-medium">{content.title}</div>
+                              <div className="font-medium">{movie.name}</div>
                               <div className="text-sm text-muted-foreground">
-                                {content.views.toLocaleString()} views
+                                {(1000 * (3 - index)).toLocaleString()} views
                               </div>
                             </div>
-                            <Badge variant={content.type === "movie" ? "default" : "secondary"}>
-                              {content.type}
+                            <Badge variant={movie.tmdb?.type === "movie" ? "default" : "secondary"}>
+                              {movie.tmdb?.type || "unknown"}
                             </Badge>
                           </div>
                         ))}
