@@ -230,6 +230,33 @@ export default function AdminPage() {
       setIsLoadingMovieDetails(false);
     }
   };
+  
+  // Function to handle saving movie data
+  const handleMovieSave = () => {
+    if (!currentEditMovie) return;
+    
+    // Get form values and create updated movie object
+    // In a real implementation, we would get all form field values here
+    const updatedMovie = {
+      ...currentEditMovie,
+      category: selectedCategories,
+      country: selectedCountries,
+      // Add other form fields here
+    };
+    
+    // Here we would typically call an API to update the movie
+    console.log("Saving movie:", updatedMovie);
+    
+    // In a real implementation, we would make an API call:
+    // fetch(`/api/movies/${currentEditMovie.slug}`, {
+    //   method: 'PUT',
+    //   headers: { 'Content-Type': 'application/json' },
+    //   body: JSON.stringify(updatedMovie)
+    // })
+    
+    // Close the dialog
+    setEditDialogOpen(false);
+  };
 
   // Fetch real movie data
   const { data: moviesData, isLoading: isLoadingMovies, error: moviesError } = useQuery({
@@ -2014,11 +2041,7 @@ export default function AdminPage() {
             <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" onClick={() => {
-              // Here we would typically call an API to update the movie
-              // For now, we'll just close the dialog
-              setEditDialogOpen(false);
-            }}>
+            <Button type="submit" onClick={handleMovieSave}>
               Save Changes
             </Button>
           </DialogFooter>
