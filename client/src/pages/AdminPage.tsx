@@ -7,6 +7,9 @@ import UserManagement from "@/components/admin/UserManagement";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Users,
   Film,
@@ -37,6 +40,8 @@ export default function AdminPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [contentType, setContentType] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [currentEditMovie, setCurrentEditMovie] = useState<any>(null);
 
   // Fetch real movie data
   const { data: moviesData, isLoading: isLoadingMovies, error: moviesError } = useQuery({
@@ -260,7 +265,16 @@ export default function AdminPage() {
                               <td className="py-4 px-2">0</td>
                               <td className="py-4 px-2">
                                 <div className="flex gap-2">
-                                  <Button variant="outline" size="sm">Edit</Button>
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    onClick={() => {
+                                      setCurrentEditMovie(movie);
+                                      setEditDialogOpen(true);
+                                    }}
+                                  >
+                                    Edit
+                                  </Button>
                                   <Button 
                                     variant="outline" 
                                     size="sm"
@@ -1294,6 +1308,100 @@ export default function AdminPage() {
           )}
         </div>
       </div>
+      
+      {/* Edit Movie Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Edit Movie Information</DialogTitle>
+            <DialogDescription>
+              Make changes to the movie details below. Click save when you're done.
+            </DialogDescription>
+          </DialogHeader>
+          {currentEditMovie && (
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="movie-title" className="text-right">
+                  Title
+                </Label>
+                <Input
+                  id="movie-title"
+                  defaultValue={currentEditMovie.name}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="origin-name" className="text-right">
+                  Origin Name
+                </Label>
+                <Input
+                  id="origin-name"
+                  defaultValue={currentEditMovie.origin_name || ""}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="movie-year" className="text-right">
+                  Year
+                </Label>
+                <Input
+                  id="movie-year"
+                  type="number"
+                  defaultValue={currentEditMovie.year || ""}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="content-type" className="text-right">
+                  Content Type
+                </Label>
+                <Select defaultValue={currentEditMovie.tmdb?.type || "movie"}>
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="movie">Movie</SelectItem>
+                    <SelectItem value="tv">TV Series</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="movie-slug" className="text-right">
+                  Slug
+                </Label>
+                <Input
+                  id="movie-slug"
+                  defaultValue={currentEditMovie.slug}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="description" className="text-right">
+                  Description
+                </Label>
+                <Textarea
+                  id="description"
+                  defaultValue={currentEditMovie.content || ""}
+                  className="col-span-3"
+                  rows={5}
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" onClick={() => {
+              // Here we would typically call an API to update the movie
+              // For now, we'll just close the dialog
+              setEditDialogOpen(false);
+            }}>
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
