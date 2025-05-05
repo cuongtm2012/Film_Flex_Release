@@ -1,12 +1,11 @@
-name: CD
+name: CD - Deploy to Production
 
 on:
   workflow_run:
-    workflows: ["CI"]
+    workflows: ["CI - Build and Test"]
+    branches: [main]
     types:
       - completed
-    branches:
-      - main
 
 jobs:
   deploy:
@@ -14,51 +13,38 @@ jobs:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     
     steps:
-    - uses: actions/checkout@v3
-    
-    - name: Download build artifacts
-      uses: dawidd6/action-download-artifact@v2
-      with:
-        workflow: ci.yml
-        workflow_conclusion: success
-        name: dist-folder
-        path: dist
-        
-    - name: Install SSH key
-      uses: shimataro/ssh-key-action@v2
-      with:
-        key: ${{ secrets.SSH_PRIVATE_KEY }}
-        known_hosts: ${{ secrets.SSH_KNOWN_HOSTS }}
-        
-    - name: Deploy to VPS
-      env:
-        SERVER_IP: ${{ secrets.SERVER_IP }}
-        SERVER_USER: ${{ secrets.SERVER_USER }}
-      run: |
-        # Create deployment package
-        mkdir -p deploy
-        cp -r dist deploy/
-        cp -r server deploy/
-        cp -r shared deploy/
-        cp -r client deploy/
-        cp package.json package-lock.json ecosystem.config.cjs deploy.sh deploy/
-        
-        # Create a temporary release directory
-        ssh $SERVER_USER@$SERVER_IP "mkdir -p ~/releases/$(date +%Y%m%d_%H%M%S)"
-        
-        # Copy deployment package
-        rsync -avz --delete deploy/ $SERVER_USER@$SERVER_IP:~/releases/$(date +%Y%m%d_%H%M%S)/
-        
-        # Create symlink for current release
-        ssh $SERVER_USER@$SERVER_IP "ln -sfn ~/releases/$(date +%Y%m%d_%H%M%S) ~/current_release"
-        
-        # Run deploy script
-        ssh $SERVER_USER@$SERVER_IP "cd ~/current_release && chmod +x deploy.sh && ./deploy.sh --deploy"
-        
-    - name: Verify deployment
-      env:
-        SERVER_IP: ${{ secrets.SERVER_IP }}
-        SERVER_USER: ${{ secrets.SERVER_USER }}
-      run: |
-        # Check server status
-        ssh $SERVER_USER@$SERVER_IP "cd ~/current_release && ./deploy.sh --status"
+      - name: Install SSH key
+        uses: shimataro/ssh-key-action@v2
+        with:
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          known_hosts: ${{ secrets.SSH_KNOWN_HOSTS }}
+          if_key_exists: replace
+      
+      - name: Deploy to production server
+        env:
+          SERVER_IP: ${{ secrets.SERVER_IP }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+        run: |
+          ssh $SERVER_USER@$SERVER_IP << 'EOF'
+            cd /var/www/filmflex
+            git pull
+            npm ci --production
+            npm run build
+            
+            # Run database migrations
+            DATABASE_URL="${{ secrets.DATABASE_URL }}" npm run db:push
+            
+            # Restart the application
+            pm2 reload filmflex
+            
+            # Log successful deployment
+            echo "Deployment completed at $(date)" >> /var/log/filmflex-deploy.log
+          EOF
+      
+      - name: Verify deployment
+        env:
+          SERVER_IP: ${{ secrets.SERVER_IP }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+        run: |
+          ssh $SERVER_USER@$SERVER_IP "curl -sSf http://localhost:5000/api/health || exit 1"
+          echo "✅ Deployment verified successfully!"
