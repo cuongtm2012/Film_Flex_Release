@@ -11,5 +11,23 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
-export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+// More robust connection handling
+export const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  // Add max connection attempts and timeout
+  max: 20,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 10000,
+});
+
+// Test connection on startup
+pool.on('error', (err) => {
+  console.error('Unexpected error on idle database client', err);
+  process.exit(-1);
+});
+
+// Handle WebSocket errors for Neon
+neonConfig.wsConnectionTimeoutMillis = 10000;
+
+// Initialize Drizzle with the pool
 export const db = drizzle({ client: pool, schema });
