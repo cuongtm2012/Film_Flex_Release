@@ -3,6 +3,50 @@ import { useAuth } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { MovieListResponse } from "@shared/schema";
+
+// This is an extended type for the movie with all fields
+// We don't need to augment the original type as we're using casting
+
+// Extended type for movie objects with additional fields
+interface MovieDetailsType {
+  _id: string;
+  id: number;
+  name: string;
+  slug: string;
+  origin_name?: string;
+  content?: string;
+  type?: string;
+  status?: string;
+  thumb_url?: string;
+  poster_url?: string;
+  is_copyright?: boolean;
+  sub_docquyen?: boolean;
+  chieurap?: boolean;
+  time?: string;
+  episode_current?: string;
+  episode_total?: string;
+  quality?: string;
+  lang?: string;
+  notify?: string;
+  showtimes?: string;
+  year?: string;
+  view?: number;
+  actor?: string[];
+  director?: string[];
+  category?: string[];
+  country?: string[];
+  episodes?: any[];
+  created?: {
+    time: string;
+  };
+  modified?: {
+    time: string;
+  };
+  tmdb?: {
+    id?: number;
+    type?: string;
+  };
+}
 import UserManagement from "@/components/admin/UserManagement";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -41,7 +85,7 @@ export default function AdminPage() {
   const [contentType, setContentType] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [currentEditMovie, setCurrentEditMovie] = useState<any>(null);
+  const [currentEditMovie, setCurrentEditMovie] = useState<MovieDetailsType | null>(null);
 
   // Fetch real movie data
   const { data: moviesData, isLoading: isLoadingMovies, error: moviesError } = useQuery({
@@ -243,10 +287,10 @@ export default function AdminPage() {
                           <tr className="border-b">
                             <th className="py-3 px-2 text-left font-medium">ID</th>
                             <th className="py-3 px-2 text-left font-medium">Title</th>
-                            <th className="py-3 px-2 text-left font-medium">Origin Name</th>
+                            <th className="py-3 px-2 text-left font-medium">Category</th>
                             <th className="py-3 px-2 text-left font-medium">Type</th>
                             <th className="py-3 px-2 text-left font-medium">Year</th>
-                            <th className="py-3 px-2 text-left font-medium">Views</th>
+                            <th className="py-3 px-2 text-left font-medium">Status</th>
                             <th className="py-3 px-2 text-left font-medium">Actions</th>
                           </tr>
                         </thead>
@@ -255,21 +299,23 @@ export default function AdminPage() {
                             <tr key={movie._id} className="border-b">
                               <td className="py-4 px-2">{index + 1}</td>
                               <td className="py-4 px-2 font-medium">{movie.name}</td>
-                              <td className="py-4 px-2">{movie.origin_name || "N/A"}</td>
+                              <td className="py-4 px-2">{movie.category?.join(", ") || "Uncategorized"}</td>
                               <td className="py-4 px-2">
                                 <Badge variant={movie.tmdb?.type === "movie" ? "default" : "secondary"}>
                                   {movie.tmdb?.type || "unknown"}
                                 </Badge>
                               </td>
                               <td className="py-4 px-2">{movie.year || "N/A"}</td>
-                              <td className="py-4 px-2">0</td>
+                              <td className="py-4 px-2">
+                                <Badge variant="outline">Active</Badge>
+                              </td>
                               <td className="py-4 px-2">
                                 <div className="flex gap-2">
                                   <Button 
                                     variant="outline" 
                                     size="sm"
                                     onClick={() => {
-                                      setCurrentEditMovie(movie);
+                                      setCurrentEditMovie(movie as unknown as MovieDetailsType);
                                       setEditDialogOpen(true);
                                     }}
                                   >
@@ -1319,7 +1365,7 @@ export default function AdminPage() {
             </DialogDescription>
           </DialogHeader>
           {currentEditMovie && (
-            <div className="grid gap-4 py-4">
+            <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="movie-title" className="text-right">
                   Title
@@ -1330,27 +1376,29 @@ export default function AdminPage() {
                   className="col-span-3"
                 />
               </div>
+              
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="origin-name" className="text-right">
-                  Origin Name
+                <Label htmlFor="movie-slug" className="text-right">
+                  Slug
                 </Label>
                 <Input
-                  id="origin-name"
+                  id="movie-slug"
+                  defaultValue={currentEditMovie.slug}
+                  className="col-span-3"
+                />
+              </div>
+              
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="original-title" className="text-right">
+                  Original Title
+                </Label>
+                <Input
+                  id="original-title"
                   defaultValue={currentEditMovie.origin_name || ""}
                   className="col-span-3"
                 />
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="movie-year" className="text-right">
-                  Year
-                </Label>
-                <Input
-                  id="movie-year"
-                  type="number"
-                  defaultValue={currentEditMovie.year || ""}
-                  className="col-span-3"
-                />
-              </div>
+              
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="content-type" className="text-right">
                   Content Type
@@ -1365,16 +1413,81 @@ export default function AdminPage() {
                   </SelectContent>
                 </Select>
               </div>
+              
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="movie-slug" className="text-right">
-                  Slug
+                <Label htmlFor="categories" className="text-right">
+                  Categories
                 </Label>
                 <Input
-                  id="movie-slug"
-                  defaultValue={currentEditMovie.slug}
+                  id="categories"
+                  defaultValue={currentEditMovie.category?.join(", ") || ""}
+                  placeholder="Action, Drama, Comedy (comma separated)"
                   className="col-span-3"
                 />
               </div>
+              
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="movie-year" className="text-right">
+                  Year
+                </Label>
+                <Input
+                  id="movie-year"
+                  type="number"
+                  defaultValue={currentEditMovie.year || ""}
+                  className="col-span-3"
+                />
+              </div>
+              
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="country" className="text-right">
+                  Country
+                </Label>
+                <Input
+                  id="country"
+                  defaultValue={currentEditMovie.country?.join(", ") || ""}
+                  placeholder="Country of origin (comma separated)"
+                  className="col-span-3"
+                />
+              </div>
+              
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="poster-url" className="text-right">
+                  Poster URL
+                </Label>
+                <div className="col-span-3 flex gap-2">
+                  <Input
+                    id="poster-url"
+                    defaultValue={currentEditMovie.poster_url || ""}
+                    className="flex-1"
+                  />
+                  {currentEditMovie.poster_url && (
+                    <div className="w-12 h-16 border rounded overflow-hidden flex-shrink-0">
+                      <img 
+                        src={currentEditMovie.poster_url} 
+                        alt="Poster" 
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="status" className="text-right">
+                  Status
+                </Label>
+                <Select defaultValue="active">
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="inactive">Inactive</SelectItem>
+                    <SelectItem value="pending">Pending Review</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="description" className="text-right">
                   Description
@@ -1385,6 +1498,38 @@ export default function AdminPage() {
                   className="col-span-3"
                   rows={5}
                 />
+              </div>
+              
+              <div className="grid grid-cols-4 items-start gap-4">
+                <Label htmlFor="episode-count" className="text-right pt-2">
+                  Episode Info
+                </Label>
+                <div className="col-span-3">
+                  <div className="text-sm p-3 bg-muted/30 rounded mb-2">
+                    <div className="font-medium">Episode Count: {currentEditMovie.episodes?.length || 0}</div>
+                    {currentEditMovie.episodes && currentEditMovie.episodes.length > 0 && (
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        Latest episode: {currentEditMovie.episodes[currentEditMovie.episodes.length - 1]?.name || "N/A"}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-4 items-start gap-4">
+                <Label htmlFor="metadata" className="text-right pt-2">
+                  Metadata
+                </Label>
+                <div className="col-span-3">
+                  <div className="text-xs space-y-1 p-3 bg-muted/30 rounded">
+                    <div>Created: {new Date().toLocaleString()}</div>
+                    <div>Last Updated: {new Date().toLocaleString()}</div>
+                    <div>ID: {currentEditMovie._id}</div>
+                    {currentEditMovie.tmdb?.id && (
+                      <div>TMDB ID: {currentEditMovie.tmdb.id}</div>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           )}
