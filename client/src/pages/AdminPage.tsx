@@ -80,6 +80,9 @@ import {
   Download,
   RefreshCw,
   ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
   Star,
   SlidersHorizontal,
   CheckCircle,
@@ -397,10 +400,61 @@ export default function AdminPage() {
         <h1 className="text-3xl font-bold">Admin Dashboard</h1>
       </div>
 
+      {/* Mobile tab selector dropdown (visible only on small screens) */}
+      <div className="block md:hidden mb-4">
+        <Select 
+          defaultValue={activeTab} 
+          value={activeTab}
+          onValueChange={setActiveTab}
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Select Section" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="user-management">
+              <div className="flex items-center">
+                <Users className="mr-2 h-4 w-4" />
+                <span>User Management</span>
+              </div>
+            </SelectItem>
+            <SelectItem value="content-management">
+              <div className="flex items-center">
+                <Film className="mr-2 h-4 w-4" />
+                <span>Content Management</span>
+              </div>
+            </SelectItem>
+            <SelectItem value="system-settings">
+              <div className="flex items-center">
+                <Settings className="mr-2 h-4 w-4" />
+                <span>System Settings</span>
+              </div>
+            </SelectItem>
+            <SelectItem value="analytics">
+              <div className="flex items-center">
+                <BarChart3 className="mr-2 h-4 w-4" />
+                <span>Analytics</span>
+              </div>
+            </SelectItem>
+            <SelectItem value="security">
+              <div className="flex items-center">
+                <ShieldCheck className="mr-2 h-4 w-4" />
+                <span>Security</span>
+              </div>
+            </SelectItem>
+            <SelectItem value="audit-logs">
+              <div className="flex items-center">
+                <ClipboardList className="mr-2 h-4 w-4" />
+                <span>Audit Logs</span>
+              </div>
+            </SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
       <div className="grid grid-cols-12 gap-6">
-        {/* Sidebar */}
-        <div className="col-span-12 md:col-span-3 lg:col-span-2">
-          <Card>
+        {/* Sidebar - Hidden on mobile, visible on md screens and up */}
+        <div className="hidden md:block md:col-span-3 lg:col-span-2">
+          <Card className="sticky top-4">
             <CardContent className="p-4">
               <nav className="space-y-2 mt-2">
                 <Button 
@@ -486,20 +540,31 @@ export default function AdminPage() {
                         onChange={(e) => setSearchQuery(e.target.value)}
                       />
                     </div>
-                    <div className="flex gap-2">
-                      <Button variant="outline" onClick={() => {}} className="flex items-center gap-1">
-                        <SlidersHorizontal className="h-4 w-4" />
-                        Filters
-                      </Button>
-                      <Button onClick={() => setCurrentPage(1)}>
-                        <RefreshCw className="mr-2 h-4 w-4" />
-                        Refresh
+                    
+                    {/* Action buttons with better mobile layout */}
+                    <div className="flex flex-wrap gap-2 sm:flex-nowrap">
+                      <div className="flex gap-2 w-full sm:w-auto">
+                        <Button 
+                          variant="outline" 
+                          onClick={() => {}} 
+                          className="flex items-center gap-1 flex-1 sm:flex-none"
+                        >
+                          <SlidersHorizontal className="h-4 w-4" />
+                          <span className="hidden sm:inline">Filters</span>
+                        </Button>
+                        <Button 
+                          onClick={() => setCurrentPage(1)}
+                          className="flex items-center gap-1 flex-1 sm:flex-none"
+                        >
+                          <RefreshCw className="h-4 w-4" />
+                          <span className="hidden sm:inline">Refresh</span>
+                        </Button>
+                      </div>
+                      <Button className="w-full sm:w-auto">
+                        <Plus className="mr-2 h-4 w-4" />
+                        Add Content
                       </Button>
                     </div>
-                    <Button>
-                      <Plus className="mr-2 h-4 w-4" />
-                      Add Content
-                    </Button>
                   </div>
 
                   {/* Advanced Filter Panel */}
@@ -704,31 +769,43 @@ export default function AdminPage() {
                     )}
                   </div>
 
-                  <div className="flex justify-between items-center mt-6">
+                  {/* Responsive pagination controls */}
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0 mt-6">
                     <div className="text-sm text-muted-foreground">
                       {moviesData?.pagination ? (
                         <>
                           {/* Calculate start and end item numbers more accurately */}
-                          Showing {(currentPage - 1) * itemsPerPage + 1}-
-                          {Math.min(
-                            currentPage * itemsPerPage, 
-                            // For accuracy, use items.length for filtered results instead of relying on pagination
-                            (contentType !== "all" || statusFilter !== "all" || recommendedFilter !== "all") 
-                              ? (currentPage - 1) * itemsPerPage + (moviesData?.items?.length || 0)
-                              : moviesData.pagination.totalItems
-                          )} of {moviesData.pagination.totalItems} items
+                          <span className="inline sm:hidden">
+                            P{currentPage}/{
+                              // When filtering is applied, use the recalculated pages
+                              (contentType !== "all" || statusFilter !== "all" || recommendedFilter !== "all")
+                                ? Math.max(Math.ceil((moviesData?.items?.length || 0) / itemsPerPage), 1)
+                                : (moviesData?.pagination?.totalPages || 1)
+                            }
+                          </span>
+                          <span className="hidden sm:inline">
+                            Showing {(currentPage - 1) * itemsPerPage + 1}-
+                            {Math.min(
+                              currentPage * itemsPerPage, 
+                              // For accuracy, use items.length for filtered results instead of relying on pagination
+                              (contentType !== "all" || statusFilter !== "all" || recommendedFilter !== "all") 
+                                ? (currentPage - 1) * itemsPerPage + (moviesData?.items?.length || 0)
+                                : moviesData.pagination.totalItems
+                            )} of {moviesData.pagination.totalItems} items
+                          </span>
                           
                           {/* Display whether we're using filtered counts */}
                           {(contentType !== "all" || statusFilter !== "all" || recommendedFilter !== "all") && (
-                            <span className="ml-1 text-xs font-medium">(Filtered results)</span>
+                            <span className="ml-1 text-xs font-medium">(Filtered)</span>
                           )}
                         </>
                       ) : (
                         "Loading..."
                       )}
                     </div>
-                    <div className="flex items-center gap-4">
-                      <div className="text-sm text-muted-foreground">
+                    
+                    <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 w-full sm:w-auto">
+                      <div className="text-sm text-muted-foreground hidden sm:block">
                         {/* Show a more descriptive page counter with filtering indication */}
                         Page {currentPage} of {
                           // When filtering is applied, use the recalculated pages
@@ -737,22 +814,27 @@ export default function AdminPage() {
                             : (moviesData?.pagination?.totalPages || 1)
                         }
                       </div>
-                      <div className="flex gap-2">
+                      
+                      <div className="flex gap-1 sm:gap-2 w-full sm:w-auto">
                         <Button 
                           variant="outline" 
                           size="sm" 
                           disabled={currentPage <= 1 || isLoadingMovies}
                           onClick={() => setCurrentPage(1)}
+                          className="px-2 sm:px-3 flex-1 sm:flex-none"
                         >
-                          First
+                          <ChevronsLeft className="h-4 w-4 sm:mr-1 sm:h-3 sm:w-3" />
+                          <span className="hidden sm:inline">First</span>
                         </Button>
                         <Button 
                           variant="outline" 
                           size="sm" 
                           disabled={currentPage <= 1 || isLoadingMovies}
                           onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                          className="px-2 sm:px-3 flex-1 sm:flex-none"
                         >
-                          Previous
+                          <ChevronLeft className="h-4 w-4 sm:mr-1 sm:h-3 sm:w-3" />
+                          <span className="hidden sm:inline">Prev</span>
                         </Button>
                         <Button 
                           variant="outline" 
@@ -768,8 +850,10 @@ export default function AdminPage() {
                             )
                           }
                           onClick={() => setCurrentPage(prev => prev + 1)}
+                          className="px-2 sm:px-3 flex-1 sm:flex-none"
                         >
-                          Next
+                          <ChevronRight className="h-4 w-4 sm:mr-1 sm:h-3 sm:w-3" />
+                          <span className="hidden sm:inline">Next</span>
                         </Button>
                         <Button 
                           variant="outline" 
@@ -795,8 +879,10 @@ export default function AdminPage() {
                               setCurrentPage(moviesData.pagination.totalPages);
                             }
                           }}
+                          className="px-2 sm:px-3 flex-1 sm:flex-none"
                         >
-                          Last
+                          <ChevronsRight className="h-4 w-4 sm:mr-1 sm:h-3 sm:w-3" />
+                          <span className="hidden sm:inline">Last</span>
                         </Button>
                       </div>
                     </div>
