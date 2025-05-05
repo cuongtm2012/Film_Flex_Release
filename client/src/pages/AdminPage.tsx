@@ -83,6 +83,107 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { X } from "lucide-react";
+
+// Predefined categories and countries for the multi-select components
+const predefinedCategories = [
+  "Hành Động", "Tình Cảm", "Hài Hước", "Cổ Trang", "Võ Thuật", "Kinh Dị", "Hình Sự", 
+  "Chiến Tranh", "Thể Thao", "Âm Nhạc", "Tâm Lý", "Viễn Tưởng", "Phiêu Lưu", "Khoa Học",
+  "Thần Thoại", "Hoạt Hình", "Gia Đình", "Bí Ẩn", "Học Đường", "Kinh Điển"
+];
+
+const predefinedCountries = [
+  "Trung Quốc", "Hàn Quốc", "Việt Nam", "Mỹ", "Thái Lan", "Hồng Kông", "Nhật Bản", 
+  "Ấn Độ", "Đài Loan", "Pháp", "Anh", "Canada", "Đức", "Nga", "Úc", "Brazil", "Malaysia", 
+  "Indonesia", "Philippines", "Singapore"
+];
+
+// Component for multi-select tags
+interface MultiSelectProps {
+  options: string[];
+  selectedValues: string[];
+  onChange: (values: string[]) => void;
+  placeholder?: string;
+}
+
+function MultiSelectTags({ options, selectedValues, onChange, placeholder = "Select options..." }: MultiSelectProps) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button 
+          variant="outline" 
+          role="combobox" 
+          aria-expanded={open} 
+          className="w-full justify-between h-auto min-h-10 py-2"
+        >
+          {selectedValues.length > 0 ? (
+            <div className="flex flex-wrap gap-1">
+              {selectedValues.map((value) => (
+                <Badge 
+                  key={value} 
+                  variant="secondary"
+                  className="flex items-center gap-1 max-w-[150px] truncate"
+                >
+                  {value}
+                  <button
+                    className="ml-1 rounded-full outline-none focus:outline-none"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onChange(selectedValues.filter((v) => v !== value));
+                    }}
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              ))}
+            </div>
+          ) : (
+            <span className="text-muted-foreground">{placeholder}</span>
+          )}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-full p-0" align="start">
+        <Command>
+          <CommandInput placeholder="Search options..." />
+          <CommandEmpty>No options found.</CommandEmpty>
+          <CommandList>
+            <ScrollArea className="h-[200px]">
+              <CommandGroup>
+                {options.map((option) => {
+                  const isSelected = selectedValues.includes(option);
+                  return (
+                    <CommandItem
+                      key={option}
+                      value={option}
+                      onSelect={() => {
+                        onChange(
+                          isSelected
+                            ? selectedValues.filter((value) => value !== option)
+                            : [...selectedValues, option]
+                        );
+                      }}
+                    >
+                      <Checkbox
+                        checked={isSelected}
+                        className="mr-2"
+                      />
+                      {option}
+                    </CommandItem>
+                  );
+                })}
+              </CommandGroup>
+            </ScrollArea>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 export default function AdminPage() {
   const { user } = useAuth();
@@ -99,6 +200,10 @@ export default function AdminPage() {
   const [fullScreenEdit, setFullScreenEdit] = useState(false);
   const [currentEditMovie, setCurrentEditMovie] = useState<MovieDetailsType | null>(null);
   const [isLoadingMovieDetails, setIsLoadingMovieDetails] = useState(false);
+  
+  // State for multi-select values in edit dialog
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedCountries, setSelectedCountries] = useState<string[]>([]);
   
   // Function to fetch full movie details
   const fetchMovieDetails = async (slug: string) => {
