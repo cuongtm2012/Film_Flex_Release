@@ -7,6 +7,16 @@ import { MovieListResponse } from "@shared/schema";
 // This is an extended type for the movie with all fields
 // We don't need to augment the original type as we're using casting
 
+// Define type for category and country objects
+interface CategoryObject {
+  id?: string | number;
+  name: string;
+  slug?: string;
+  [key: string]: any; // For any other properties
+}
+
+type CategoryType = string | CategoryObject;
+
 // Extended type for movie objects with additional fields
 interface MovieDetailsType {
   _id: string;
@@ -31,10 +41,10 @@ interface MovieDetailsType {
   showtimes?: string;
   year?: string;
   view?: number;
-  actor?: string[];
-  director?: string[];
-  category?: string[];
-  country?: string[];
+  actor?: CategoryType[];
+  director?: CategoryType[];
+  category?: CategoryType[];
+  country?: CategoryType[];
   episodes?: any[];
   isRecommended?: boolean;
   active?: boolean;
@@ -215,10 +225,23 @@ export default function AdminPage() {
       }
       const data = await response.json();
       if (data.status && data.movie) {
+        console.log("Movie data:", data.movie);
+        console.log("Category type:", Array.isArray(data.movie.category), typeof data.movie.category?.[0]);
+        console.log("Country type:", Array.isArray(data.movie.country), typeof data.movie.country?.[0]);
+        
         setCurrentEditMovie(data.movie);
-        // Update the multi-select components with the movie data
-        setSelectedCategories(data.movie.category || []);
-        setSelectedCountries(data.movie.country || []);
+        
+        // Ensure we're working with arrays of strings for our multi-select
+        const categories = Array.isArray(data.movie.category) 
+          ? data.movie.category.map((cat: any) => typeof cat === 'string' ? cat : (cat.name || String(cat)))
+          : [];
+        
+        const countries = Array.isArray(data.movie.country)
+          ? data.movie.country.map((country: any) => typeof country === 'string' ? country : (country.name || String(country)))
+          : [];
+        
+        setSelectedCategories(categories);
+        setSelectedCountries(countries);
       } else {
         throw new Error("Invalid movie data received");
       }
@@ -235,6 +258,9 @@ export default function AdminPage() {
   const handleMovieSave = () => {
     if (!currentEditMovie) return;
     
+    // Convert string category/country values back to objects if needed for the API
+    // This depends on what format the backend expects
+    
     // Get form values and create updated movie object
     // In a real implementation, we would get all form field values here
     const updatedMovie = {
@@ -245,7 +271,7 @@ export default function AdminPage() {
     };
     
     // Here we would typically call an API to update the movie
-    console.log("Saving movie:", updatedMovie);
+    console.log("Saving movie with processed data:", updatedMovie);
     
     // In a real implementation, we would make an API call:
     // fetch(`/api/movies/${currentEditMovie.slug}`, {
@@ -256,6 +282,9 @@ export default function AdminPage() {
     
     // Close the dialog
     setEditDialogOpen(false);
+    
+    // Show a toast or notification
+    // toast({ title: "Success", description: "Movie updated successfully" });
   };
 
   // Fetch real movie data
