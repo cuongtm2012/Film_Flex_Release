@@ -1,244 +1,177 @@
 # FilmFlex Deployment Guide
 
-This document provides comprehensive instructions for deploying and maintaining the FilmFlex application on a production server.
+This document provides instructions for deploying, managing, and troubleshooting the FilmFlex application in a production environment.
 
-## Table of Contents
+## System Requirements
 
-- [Prerequisites](#prerequisites)
-- [All-in-One Deployment](#all-in-one-deployment)
-- [Automated CI/CD Deployment](#automated-cicd-deployment)
-- [Database Management](#database-management)
-- [Monitoring and Maintenance](#monitoring-and-maintenance)
-- [Troubleshooting](#troubleshooting)
-- [Security Considerations](#security-considerations)
+- **Operating System**: Ubuntu 22.04 LTS or later
+- **Node.js**: v16.x or later
+- **PostgreSQL**: v14.x or later
+- **Memory**: At least 2GB RAM
+- **Storage**: At least 10GB free disk space
 
-## Prerequisites
+## Deployment Steps
 
-- VPS with at least 2GB RAM (Ubuntu 22.04 LTS recommended)
-- Domain name (optional but recommended)
-- SSH access to the server
-- Git repository with the FilmFlex application code
-- PostgreSQL database
+### 1. Initial Setup
 
-## All-in-One Deployment
-
-FilmFlex now includes a comprehensive all-in-one deployment script (`deploy-filmflex.sh`) that handles everything from initial server setup to database migrations.
-
-### First-Time Server Setup
-
-1. SSH into your server
-2. Clone the repository:
-   ```bash
-   git clone https://github.com/yourusername/filmflex.git filmflex
-   cd filmflex
-   ```
-3. Make the deployment script executable:
-   ```bash
-   chmod +x deploy-filmflex.sh
-   ```
-4. Run the setup command:
-   ```bash
-   ./deploy-filmflex.sh --setup
-   ```
-
-This will:
-- Install all required dependencies (Node.js, PM2, PostgreSQL, Nginx, etc.)
-- Configure PostgreSQL with password authentication
-- Create the database user and database
-- Set up application environment variables
-- Configure Nginx as a reverse proxy
-- Set up automatic database backups
-- Deploy and start the application
-
-### Updating Existing Installation
-
-To update an existing installation:
+Clone the repository and navigate to the deployment scripts:
 
 ```bash
-# Pull latest changes
-git pull
-
-# Deploy the update
-./deploy-filmflex.sh --deploy
+git clone https://github.com/yourusername/filmflex.git Film_Flex_Release
+cd Film_Flex_Release/scripts/deployment
 ```
 
-### Database Setup Only
+### 2. Deploy the Application
 
-If you just need to set up or fix the database:
+Run the deployment script as root:
 
 ```bash
-./deploy-filmflex.sh --db-only
+sudo ./deploy-filmflex.sh
 ```
 
-This will:
-- Configure PostgreSQL authentication to use passwords instead of peer authentication
-- Create the database user and database if they don't exist
-- Run database migrations to create tables
+This script will:
+- Create necessary directories
+- Install dependencies
+- Build the application
+- Configure PM2 for process management
+- Set up systemd service for auto-restart
+- Start the application
 
-### Other Commands
+### 3. Check Deployment Status
+
+You can check the status of your deployment with:
 
 ```bash
-# Check status of all services
-./deploy-filmflex.sh --status
-
-# Create a database backup
-./deploy-filmflex.sh --backup
-
-# Start the movie import process
-./deploy-filmflex.sh --import
-
-# Show help and available commands
-./deploy-filmflex.sh --help
+sudo ./deploy-filmflex.sh status
 ```
 
-## Automated CI/CD Deployment
+This will show:
+- Application directory status
+- PM2 process status
+- Log directory status
+- Environment file status
+- Database connection status
 
-FilmFlex supports automated deployment through GitHub Actions:
+### 4. Environment Configuration
 
-### Setting up GitHub Secrets
+The application expects the following environment variables in the `.env` file located at `/var/www/filmflex/.env`:
 
-For CI/CD to work, add these secrets to your GitHub repository:
-
-- `SSH_PRIVATE_KEY`: SSH private key to access your server
-- `SSH_KNOWN_HOSTS`: SSH known hosts entry for your server
-- `SERVER_IP`: Your server's IP address
-- `SERVER_USER`: The SSH user (typically 'root')
-
-To get the SSH known hosts value:
-```bash
-ssh-keyscan -H YOUR_SERVER_IP
+```
+NODE_ENV=production
+PORT=5000
+DATABASE_URL=postgresql://filmflex:filmflex2024@localhost:5432/filmflex
+PGUSER=filmflex
+PGPASSWORD=filmflex2024
+PGDATABASE=filmflex
+PGHOST=localhost
+PGPORT=5432
+SESSION_SECRET=your-secret-key-here
 ```
 
-## Database Management
+Make sure to update these values according to your environment.
 
-### PostgreSQL Authentication
+## Application Management
 
-The deployment script automatically configures PostgreSQL to use password authentication (md5) instead of peer authentication, which avoids common connection issues.
+### Starting the Application
 
-### Database Connection String
-
-The default database connection string format is:
-```
-postgresql://filmflex:filmflex2024@localhost:5432/filmflex
-```
-
-This uses simpler credentials without special characters to avoid connection issues.
-
-### Database Migrations
-
-The `--deploy` and `--db-only` commands automatically run database migrations using:
-```bash
-npm run db:push
-```
-
-### Database Backups
-
-The system creates daily backups at 2 AM in `/var/backups/filmflex/`.
-
-Manually create a backup with:
-```bash
-./deploy-filmflex.sh --backup
-```
-
-## Monitoring and Maintenance
-
-### Checking System Status
+If the application is not running, start it with:
 
 ```bash
-./deploy-filmflex.sh --status
+cd /var/www/filmflex
+pm2 start ecosystem.config.cjs
 ```
 
-This provides comprehensive information about:
-- System resources (memory, disk)
-- Application status
-- Database status
-- Recent logs
-- Database size and tables
-- Recent backups
-
-### Viewing Logs Directly
+### Stopping the Application
 
 ```bash
-# Application output logs
-tail -f /var/log/filmflex-out.log
+pm2 stop filmflex
+```
 
-# Application error logs
-tail -f /var/log/filmflex-error.log
+### Restarting the Application
 
-# PM2 logs
+```bash
+pm2 restart filmflex
+```
+
+### Viewing Logs
+
+Application logs are stored in:
+- Error logs: `/var/log/filmflex/error.log`
+- Output logs: `/var/log/filmflex/out.log`
+
+You can view the logs in real-time with:
+
+```bash
+# View all logs
 pm2 logs filmflex
+
+# View only error logs
+pm2 logs filmflex --err
+
+# View only output logs
+pm2 logs filmflex --out
 ```
 
 ## Troubleshooting
 
 ### Database Connection Issues
 
-If you experience database connection problems:
+If you encounter database connection issues:
 
-1. Check authentication settings:
+1. Verify the database credentials in the `.env` file
+2. Check if PostgreSQL service is running: `systemctl status postgresql`
+3. Test the database connection manually:
    ```bash
-   sudo nano /etc/postgresql/*/main/pg_hba.conf
-   ```
-   Make sure "peer" is changed to "md5" for all connection types.
-
-2. Restart PostgreSQL:
-   ```bash
-   sudo systemctl restart postgresql
-   ```
-
-3. Verify connection with password:
-   ```bash
-   PGPASSWORD=filmflex2024 psql -h localhost -U filmflex -d filmflex -c "SELECT NOW();"
-   ```
-
-4. Fix environment variables:
-   ```bash
-   # Update connection string in .env
-   echo "DATABASE_URL='postgresql://filmflex:filmflex2024@localhost:5432/filmflex'" > /var/www/filmflex/.env
-   
-   # Restart application
-   pm2 restart all --update-env
+   PGPASSWORD=your_password psql -h localhost -U filmflex -d filmflex -c '\conninfo'
    ```
 
 ### Application Not Starting
 
-If the application won't start:
+If the application fails to start:
 
-1. Check PM2 processes:
-   ```bash
-   pm2 list
-   pm2 logs
-   ```
+1. Check the error logs: `cat /var/log/filmflex/error.log`
+2. Verify that all dependencies are installed: `cd /var/www/filmflex && npm install`
+3. Ensure the build process completed successfully: `cd /var/www/filmflex && npm run build`
+4. Check PM2 status: `pm2 list`
 
-2. Verify database tables exist:
-   ```bash
-   PGPASSWORD=filmflex2024 psql -h localhost -U filmflex -d filmflex -c "\dt"
-   ```
+### Port Conflicts
 
-3. If tables don't exist, run migrations:
-   ```bash
-   cd /var/www/filmflex
-   npm run db:push
-   ```
+If port 5000 is already in use:
 
-4. Reset and restart:
-   ```bash
-   pm2 delete all
-   cd /var/www/filmflex
-   pm2 start ecosystem.config.js
-   pm2 save
-   ```
+1. Change the port in the `.env` file
+2. Update the `PORT` environment variable in `ecosystem.config.cjs`
+3. Restart the application: `pm2 restart filmflex`
 
-## Security Considerations
+## Maintenance
 
-- The default database password is set to `filmflex2024`. Change this in production.
-- Nginx is configured with common security headers.
-- Consider enabling SSL with Let's Encrypt:
-  ```bash
-  sudo certbot --nginx -d yourdomain.com
-  ```
-- Database backups are stored with restricted permissions (600).
-- For increased security, consider:
-  - Setting up a firewall with UFW
-  - Disabling root SSH login
-  - Using SSH key authentication only
+### Updating the Application
+
+To update the application:
+
+1. Pull the latest changes: `cd /var/www/filmflex && git pull`
+2. Run the deployment script: `sudo /var/www/filmflex/scripts/deployment/deploy-filmflex.sh`
+
+### Backing Up the Database
+
+Regularly back up the PostgreSQL database:
+
+```bash
+pg_dump -h localhost -U filmflex -d filmflex > /backup/filmflex_$(date +%Y%m%d).sql
+```
+
+### Monitoring System Resources
+
+Monitor system resource usage:
+
+```bash
+# Memory usage
+pm2 monit
+
+# Disk usage
+df -h /var/www/filmflex
+df -h /var/log/filmflex
+```
+
+## Support
+
+If you encounter issues that cannot be resolved using this guide, please contact the development team at support@filmflex.example.com.
