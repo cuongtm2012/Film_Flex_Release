@@ -29,8 +29,8 @@ const logPrefix = `[${timestamp}] [DATA-IMPORT]`;
 // Configuration
 const API_BASE_URL = 'https://phimapi.com';
 const MOVIE_LIST_ENDPOINT = '/danh-sach/phim-moi-cap-nhat';
-const MOVIE_PAGE_SIZE = 50;
-const MAX_PAGES = 1; // Focus on page 1 for newest movies
+let MOVIE_PAGE_SIZE = 50; // Changed from const to let so it can be modified
+let MAX_PAGES = 1; // Focus on page 1 for newest movies
 
 // Parse command line arguments
 const args = process.argv.slice(2);
