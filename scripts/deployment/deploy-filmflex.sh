@@ -1,746 +1,224 @@
 #!/bin/bash
-# FilmFlex All-in-One Deployment Script
-# This script handles the entire deployment process for FilmFlex
-set -e
 
-# Configuration
-APP_NAME="filmflex"
-APP_PATH="/var/www/filmflex"
-ENV_FILE=".env"
-DB_USER="filmflex"
-DB_PASSWORD="filmflex2024" # Using simple password without special characters
-DB_NAME="filmflex"
-DB_URL="postgresql://${DB_USER}:${DB_PASSWORD}@localhost:5432/${DB_NAME}"
+# FilmFlex Deployment Script
+# This script automates the deployment process for the FilmFlex application
+# It handles application setup, environment validation, build, and restart
 
-# Colors for output
+set -e  # Exit immediately if a command exits with a non-zero status
+
+# Define log file and directories
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_DIR="/var/www/filmflex"
+LOG_DIR="/var/log/filmflex"
+TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S")
+
+# Create log directory if it doesn't exist
+mkdir -p $LOG_DIR
+
+# Colors for output formatting
 GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
 RED='\033[0;31m'
+YELLOW='\033[0;33m'
 NC='\033[0m' # No Color
 
-# Function to display usage information
-function show_usage {
-  echo -e "${YELLOW}FilmFlex All-in-One Deployment Script${NC}"
-  echo -e "Usage: ./deploy-filmflex.sh [OPTION]"
-  echo -e "Options:"
-  echo -e "  --setup      Perform initial server setup (install dependencies, create database, etc.)"
-  echo -e "  --deploy     Deploy or update the application (default if no option provided)"
-  echo -e "  --restart    Restart the application without full redeployment"
-  echo -e "  --db-only    Setup database only (create tables, fix authentication)"
-  echo -e "  --import     Start movie import process"
-  echo -e "  --backup     Create a database backup"
-  echo -e "  --status     Check server and application status"
-  echo -e "  --help       Display this help message"
-  echo -e "\nExamples:"
-  echo -e "  ./deploy-filmflex.sh --setup    # First-time setup"
-  echo -e "  ./deploy-filmflex.sh            # Deploy/update application"
-  echo -e "  ./deploy-filmflex.sh --restart  # Restart without redeploying"
-}
-
-# Function to check if command exists
-function command_exists {
-  command -v "$1" >/dev/null 2>&1
-}
-
 # Function to log messages
-function log {
-  echo -e "${YELLOW}$(date '+%Y-%m-%d %H:%M:%S') - $1${NC}"
+log() {
+  echo -e "${TIMESTAMP} - $1"
 }
 
 # Function to log success messages
-function log_success {
-  echo -e "${GREEN}$(date '+%Y-%m-%d %H:%M:%S') - $1${NC}"
+log_success() {
+  echo -e "${TIMESTAMP} - ${GREEN}$1${NC}"
 }
 
 # Function to log error messages
-function log_error {
-  echo -e "${RED}$(date '+%Y-%m-%d %H:%M:%S') - $1${NC}"
+log_error() {
+  echo -e "${TIMESTAMP} - ${RED}$1${NC}"
 }
 
-# Function for initial server setup
-function setup_server {
-  log "===== PERFORMING INITIAL SERVER SETUP ====="
+# Function to log warning messages
+log_warning() {
+  echo -e "${TIMESTAMP} - ${YELLOW}$1${NC}"
+}
+
+# Function to check if command exists
+command_exists() {
+  command -v "$1" >/dev/null 2>&1
+}
+
+# Check if script is run as root
+if [ "$EUID" -ne 0 ]; then
+  log_error "This script must be run as root"
+  exit 1
+fi
+
+# Display status information
+if [ "$1" == "status" ]; then
+  log "FilmFlex deployment status:"
   
-  # Update system packages
-  log "Updating system packages..."
-  apt update && apt upgrade -y || {
-    log_error "Failed to update packages but continuing..."
-  }
-  
-  # Install required packages
-  log "Installing required packages..."
-  apt install -y curl git nginx certbot python3-certbot-nginx postgresql postgresql-contrib build-essential screen rsync nano || {
-    log_error "Failed to install some packages but continuing..."
-  }
-  
-  # Install Node.js and npm (LTS version)
-  log "Installing Node.js and npm..."
-  if ! command_exists node; then
-    curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-    apt install -y nodejs
+  # Check if application directory exists
+  if [ -d "$APP_DIR" ]; then
+    log_success "Application directory: OK"
   else
-    log "Node.js is already installed. Version: $(node -v)"
+    log_error "Application directory: NOT FOUND"
   fi
   
-  # Install PM2 globally
+  # Check if PM2 is running the application
+  if command_exists pm2; then
+    if pm2 list | grep -q "filmflex"; then
+      log_success "PM2 process: RUNNING"
+      pm2 list | grep "filmflex"
+    else
+      log_error "PM2 process: NOT RUNNING"
+    fi
+  else
+    log_error "PM2: NOT INSTALLED"
+  fi
+  
+  # Check if log directory exists
+  if [ -d "$LOG_DIR" ]; then
+    log_success "Log directory: OK"
+  else
+    log_error "Log directory: NOT FOUND"
+  fi
+  
+  # Check if environment file exists
+  if [ -f "$APP_DIR/.env" ]; then
+    log_success "Environment file: OK"
+  else
+    log_error "Environment file: NOT FOUND"
+  fi
+  
+  # Check if database is accessible
+  if grep -q "DATABASE_URL" "$APP_DIR/.env"; then
+    log_success "Database configuration: FOUND"
+    
+    # Source the environment variables from .env
+    export $(grep -v '^#' "$APP_DIR/.env" | xargs)
+    
+    # Try to connect to the database
+    if command_exists psql; then
+      if PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" -c '\q' 2>/dev/null; then
+        log_success "Database connection: OK"
+      else
+        log_error "Database connection: FAILED"
+      fi
+    else
+      log_warning "PostgreSQL client not installed, skipping database connection check"
+    fi
+  else
+    log_error "Database configuration: NOT FOUND"
+  fi
+  
+  exit 0
+fi
+
+# Main deployment logic
+log "Starting FilmFlex deployment..."
+
+# Create application directory if it doesn't exist
+if [ ! -d "$APP_DIR" ]; then
+  log "Creating application directory..."
+  mkdir -p "$APP_DIR"
+fi
+
+# Create log directory if it doesn't exist
+if [ ! -d "$LOG_DIR" ]; then
+  log "Creating log directory..."
+  mkdir -p "$LOG_DIR"
+fi
+
+# Navigate to application directory
+cd "$APP_DIR" || { log_error "Failed to change to application directory"; exit 1; }
+
+# Check for required dependencies
+if ! command_exists node; then
+  log_error "Node.js is not installed. Please install Node.js first."
+  exit 1
+fi
+
+if ! command_exists npm; then
+  log_error "npm is not installed. Please install npm first."
+  exit 1
+fi
+
+if ! command_exists pm2; then
   log "Installing PM2..."
-  if ! command_exists pm2; then
-    npm install -g pm2
-  else
-    log "PM2 is already installed. Version: $(pm2 -v)"
-  fi
-  
-  # Set up application directory
-  log "Setting up application directory..."
-  mkdir -p ${APP_PATH}
-  mkdir -p /var/log/filmflex
-  mkdir -p /var/log/filmflex/app
-  mkdir -p /var/log/filmflex/error
-  mkdir -p /var/log/filmflex/out
-  
-  # Set up Nginx
-  log "Setting up Nginx..."
-  if systemctl is-active --quiet nginx; then
-    log "Nginx is already running"
-  else
-    systemctl enable nginx
-    systemctl start nginx
-  fi
-  
-  # Setup database
-  setup_database
-  
-  # Set up PM2 to start on boot
-  log "Setting up PM2 to start on boot..."
-  pm2 startup
+  npm install -g pm2 || { log_error "Failed to install PM2"; exit 1; }
+fi
 
-  # Create systemd service for the application
-  log "Creating systemd service..."
-  cat > /etc/systemd/system/filmflex.service << 'SERVICE'
-[Unit]
-Description=FilmFlex Application
-After=network.target postgresql.service
-
-[Service]
-Type=forking
-User=root
-WorkingDirectory=/var/www/filmflex
-ExecStart=/usr/bin/pm2 start ecosystem.config.js
-ExecReload=/usr/bin/pm2 reload ecosystem.config.js
-ExecStop=/usr/bin/pm2 stop ecosystem.config.js
-PIDFile=/root/.pm2/pm2.pid
-Restart=on-failure
-
-[Install]
-WantedBy=multi-user.target
-SERVICE
-  
-  # Reload systemd
-  systemctl daemon-reload
-  systemctl enable filmflex.service
-  
-  # Create environment file if it doesn't exist
-  if [ ! -f "${ENV_FILE}" ]; then
-    log "Creating environment file..."
-    
-    # Check if env.example exists
-    if [ -f "scripts/deployment/env.example" ]; then
-      log "Using template from scripts/deployment/env.example..."
-      cp scripts/deployment/env.example ${ENV_FILE}
-      
-      # Update critical values in the copied file
-      sed -i "s|DATABASE_URL=postgresql://username:password@localhost:5432/filmflex|DATABASE_URL=${DB_URL}|g" ${ENV_FILE}
-      sed -i "s|PGUSER=filmflex|PGUSER=${DB_USER}|g" ${ENV_FILE}
-      sed -i "s|PGPASSWORD=secure_password_here|PGPASSWORD=${DB_PASSWORD}|g" ${ENV_FILE}
-      sed -i "s|PGDATABASE=filmflex|PGDATABASE=${DB_NAME}|g" ${ENV_FILE}
-      
-      # Generate a secure session secret
-      RANDOM_SECRET=$(openssl rand -hex 32)
-      sed -i "s|SESSION_SECRET=change_this_to_a_long_random_string|SESSION_SECRET=${RANDOM_SECRET}|g" ${ENV_FILE}
-      
-      log "Environment file created from template and updated with secure values."
-    else
-      # Fallback to basic .env if template doesn't exist
-      cat > ${ENV_FILE} << EOF
-NODE_ENV=production
-PORT=5000
-DATABASE_URL=${DB_URL}
-PGUSER=${DB_USER}
-PGPASSWORD=${DB_PASSWORD}
-PGDATABASE=${DB_NAME}
-PGHOST=localhost
-PGPORT=5432
-SESSION_SECRET=$(openssl rand -hex 32)
-EOF
-      log "Basic environment file created. For more options see scripts/deployment/ENVIRONMENT.md"
-    fi
-  fi
-  
-  # Setup Nginx configuration
-  setup_nginx
-  
-  # Setup database backup script
-  setup_backup_script
-  
-  # Create ecosystem.config.js if it doesn't exist
-  update_ecosystem_config
-  
-  log_success "Server setup completed successfully!"
-}
-
-# Function to setup PostgreSQL database
-function setup_database {
-  log "===== SETTING UP POSTGRESQL DATABASE ====="
-
-  # Check if PostgreSQL is running
-  if ! systemctl is-active --quiet postgresql; then
-    log "Starting PostgreSQL service..."
-    systemctl start postgresql
-  fi
-  
-  # Configure PostgreSQL for password authentication
-  log "Configuring PostgreSQL authentication..."
-  
-  # Find PostgreSQL version
-  PG_VERSION=$(ls -1 /etc/postgresql/ 2>/dev/null | head -n 1)
-  if [ -z "$PG_VERSION" ]; then
-    log_error "PostgreSQL installation not found. Make sure PostgreSQL is installed."
-    return 1
-  fi
-  
-  PG_HBA_FILE="/etc/postgresql/${PG_VERSION}/main/pg_hba.conf"
-  if [ -f "$PG_HBA_FILE" ]; then
-    # Make a backup of the original file
-    cp "${PG_HBA_FILE}" "${PG_HBA_FILE}.bak"
-    
-    # Update authentication method from peer to md5
-    log "Updating PostgreSQL authentication method from peer to md5..."
-    sed -i 's/peer/md5/g' "${PG_HBA_FILE}"
-    
-    # Restart PostgreSQL to apply changes
-    log "Restarting PostgreSQL to apply changes..."
-    systemctl restart postgresql
-  else
-    log_error "PostgreSQL HBA config file not found at ${PG_HBA_FILE}"
-    log "Will continue without changing PostgreSQL authentication"
-  fi
-  
-  # Create database user and database
-  log "Creating database user and database..."
-  sudo -u postgres psql -c "DO \$\$
-BEGIN
-  IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '${DB_USER}') THEN
-    CREATE USER ${DB_USER} WITH PASSWORD '${DB_PASSWORD}';
-  END IF;
-END
-\$\$;" || log_error "Failed to create user but continuing..."
-
-  sudo -u postgres psql -c "ALTER USER ${DB_USER} WITH CREATEDB;" || log_error "Failed to grant CREATEDB but continuing..."
-  
-  # Check if database exists, if not create it
-  if ! sudo -u postgres psql -lqt | cut -d \| -f 1 | grep -qw "${DB_NAME}"; then
-    log "Creating database ${DB_NAME}..."
-    sudo -u postgres psql -c "CREATE DATABASE ${DB_NAME} OWNER ${DB_USER};" || log_error "Failed to create database but continuing..."
-  else
-    log "Database ${DB_NAME} already exists"
-  fi
-  
-  sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE ${DB_NAME} TO ${DB_USER};" || log_error "Failed to grant privileges but continuing..."
-  
-  # Test database connection
-  log "Testing database connection..."
-  if PGPASSWORD="${DB_PASSWORD}" psql -h localhost -U "${DB_USER}" -d "${DB_NAME}" -c "SELECT version();" >/dev/null 2>&1; then
-    log_success "Database connection successful!"
-  else
-    log_error "Database connection test failed."
-  fi
-}
-
-# Function to run database migrations
-function run_migrations {
-  log "===== RUNNING DATABASE MIGRATIONS ====="
-  
-  # Change to application directory
-  cd ${APP_PATH}
-  
-  # Run migrations
-  export DATABASE_URL="${DB_URL}"
-  log "Running database migrations with db:push..."
-  
-  if npm run db:push; then
-    log_success "Database migrations completed successfully!"
-  else
-    log_error "Failed to run database migrations."
-    
-    # Check if tables exist anyway
-    log "Checking if tables exist in the database..."
-    TABLE_COUNT=$(PGPASSWORD="${DB_PASSWORD}" psql -h localhost -U "${DB_USER}" -d "${DB_NAME}" -t -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';" | xargs)
-    if [ "$TABLE_COUNT" -gt 0 ]; then
-      log "Found ${TABLE_COUNT} tables in the database. Schema might be partially created."
-    else
-      log_error "No tables found in the database. Application will likely not work properly."
-    fi
-  fi
-  
-  # List created tables
-  log "Tables in database:"
-  PGPASSWORD="${DB_PASSWORD}" psql -h localhost -U "${DB_USER}" -d "${DB_NAME}" -c "\dt"
-}
-
-# Function to setup Nginx
-function setup_nginx {
-  log "===== SETTING UP NGINX ====="
-  
-  # Create Nginx configuration
-  log "Creating Nginx configuration..."
-  cat > /etc/nginx/sites-available/filmflex << 'NGINX'
-server {
-    listen 80;
-    server_name localhost;
-
-    location / {
-        proxy_pass http://localhost:5000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    # Increase client body size for file uploads
-    client_max_body_size 20M;
-
-    # Enable compression for faster loading
-    gzip on;
-    gzip_comp_level 5;
-    gzip_min_length 256;
-    gzip_proxied any;
-    gzip_vary on;
-    gzip_types
-        application/javascript
-        application/json
-        application/xml
-        application/xml+rss
-        image/svg+xml
-        text/css
-        text/javascript
-        text/plain
-        text/xml;
-    
-    # Security headers
-    add_header X-Frame-Options "SAMEORIGIN";
-    add_header X-XSS-Protection "1; mode=block";
-    add_header X-Content-Type-Options "nosniff";
-    add_header Referrer-Policy "strict-origin-when-cross-origin";
-}
-NGINX
-  
-  # Enable site
-  if [ ! -f "/etc/nginx/sites-enabled/filmflex" ]; then
-    ln -s /etc/nginx/sites-available/filmflex /etc/nginx/sites-enabled/
-  fi
-  
-  # Test Nginx configuration
-  if nginx -t; then
-    systemctl restart nginx
-    log_success "Nginx configuration updated and restarted successfully!"
-  else
-    log_error "Nginx configuration test failed. Please check the Nginx error log."
-  fi
-}
-
-# Function to setup backup script
-function setup_backup_script {
-  log "===== SETTING UP DATABASE BACKUP SCRIPT ====="
-  
-  # Create backup directory
-  mkdir -p /var/backups/filmflex
-  mkdir -p /etc/filmflex/scripts
-  
-  # Create backup script
-  log "Creating backup script..."
-  cat > /etc/filmflex/scripts/backup-db.sh << 'BACKUP'
-#!/bin/bash
-# FilmFlex database backup script
-set -e
-
-# Configuration
-DB_NAME="filmflex"
-DB_USER="filmflex"
-BACKUP_DIR="/var/backups/filmflex"
-BACKUP_COUNT=7  # Number of daily backups to keep
-
-# Timestamp for the backup file
-TIMESTAMP=$(date +"%Y%m%d-%H%M%S")
-BACKUP_FILE="${BACKUP_DIR}/${DB_NAME}_${TIMESTAMP}.sql.gz"
-
-# Create backup directory if it doesn't exist
-mkdir -p $BACKUP_DIR
-
-# Perform database backup
-echo "Creating database backup: ${BACKUP_FILE}"
-pg_dump -U $DB_USER $DB_NAME | gzip > $BACKUP_FILE
-
-# Set appropriate permissions
-chmod 600 $BACKUP_FILE
-
-# Delete old backups (keep only the latest BACKUP_COUNT backups)
-echo "Cleaning up old backups, keeping last $BACKUP_COUNT backups"
-ls -tp $BACKUP_DIR/*.sql.gz 2>/dev/null | grep -v '/$' | tail -n +$((BACKUP_COUNT+1)) | xargs -I {} rm -- {} 2>/dev/null || true
-
-echo "Backup completed: $BACKUP_FILE"
-BACKUP
-  
-  chmod +x /etc/filmflex/scripts/backup-db.sh
-  
-  # Create cron job for daily backups at 2 AM
-  log "Setting up daily backup cron job..."
-  (crontab -l 2>/dev/null || true; echo "0 2 * * * /etc/filmflex/scripts/backup-db.sh > /var/log/filmflex-backup.log 2>&1") | crontab -
-  
-  log_success "Backup script set up successfully!"
-}
-
-# Function to update ecosystem config
-function update_ecosystem_config {
-  log "===== UPDATING ECOSYSTEM CONFIG ====="
-  
-  # Create or update ecosystem.config.js
-  log "Creating/updating ecosystem.config.js..."
-  cat > ${APP_PATH}/ecosystem.config.js << EOF
+# Create or update ecosystem.config.cjs
+log "Creating/updating PM2 ecosystem config..."
+cat > "$APP_DIR/ecosystem.config.cjs" << EOF
 module.exports = {
   apps: [
     {
-      name: "${APP_NAME}",
-      script: "./dist/index.js",
-      // Define only essential environment variables here
-      // All other variables will be loaded from .env file
-      env: {
-        NODE_ENV: "production"
-      },
+      name: "filmflex",
+      script: "dist/index.js",
       instances: "max",
       exec_mode: "cluster",
       watch: false,
-      merge_logs: true,
-      log_file: "/var/log/filmflex/app.log",
+      env: {
+        NODE_ENV: "production",
+        PORT: 5000
+      },
+      log_date_format: "YYYY-MM-DD HH:mm:ss",
       error_file: "/var/log/filmflex/error.log",
       out_file: "/var/log/filmflex/out.log",
-      time: true,
-      max_memory_restart: "1G",
-      autorestart: true
+      merge_logs: true,
+      max_memory_restart: "500M"
     }
   ]
 };
 EOF
-  
-  # Create or update .env file
-  log "Creating/updating .env file in ${APP_PATH}..."
-  
-  # Check if template env.example exists
-  if [ -f "${APP_PATH}/scripts/deployment/env.example" ]; then
-    log "Using template from scripts/deployment/env.example..."
-    cp ${APP_PATH}/scripts/deployment/env.example ${APP_PATH}/.env
-    
-    # Update critical values in the copied file
-    sed -i "s|DATABASE_URL=postgresql://username:password@localhost:5432/filmflex|DATABASE_URL=${DB_URL}|g" ${APP_PATH}/.env
-    sed -i "s|PGUSER=filmflex|PGUSER=${DB_USER}|g" ${APP_PATH}/.env
-    sed -i "s|PGPASSWORD=secure_password_here|PGPASSWORD=${DB_PASSWORD}|g" ${APP_PATH}/.env
-    sed -i "s|PGDATABASE=filmflex|PGDATABASE=${DB_NAME}|g" ${APP_PATH}/.env
-    
-    # Generate a secure session secret
-    RANDOM_SECRET=$(openssl rand -hex 32)
-    sed -i "s|SESSION_SECRET=change_this_to_a_long_random_string|SESSION_SECRET=${RANDOM_SECRET}|g" ${APP_PATH}/.env
-    
-    log "Environment file created from template and updated with secure values."
-  else
-    # Fallback to basic .env if template doesn't exist
-    cat > ${APP_PATH}/.env << EOF
+
+# Check for environment file
+if [ ! -f "$APP_DIR/.env" ]; then
+  log_warning "Environment file not found. Creating a sample .env file..."
+  cat > "$APP_DIR/.env" << EOF
 NODE_ENV=production
 PORT=5000
-DATABASE_URL=${DB_URL}
-PGUSER=${DB_USER}
-PGPASSWORD=${DB_PASSWORD}
-PGDATABASE=${DB_NAME}
+DATABASE_URL=postgresql://filmflex:filmflex2024@localhost:5432/filmflex
+PGUSER=filmflex
+PGPASSWORD=filmflex2024
+PGDATABASE=filmflex
 PGHOST=localhost
 PGPORT=5432
-SESSION_SECRET=$(openssl rand -hex 32)
+SESSION_SECRET=your-secret-key-here
 EOF
-    log "Basic environment file created. For more options, see scripts/deployment/ENVIRONMENT.md"
-  fi
-  
-  log_success "Ecosystem config updated successfully!"
-}
-
-# Function to restart the application
-function restart_app {
-  log "===== RESTARTING APPLICATION ====="
-  
-  # Change to application directory
-  cd ${APP_PATH}
-  
-  # First, ensure we have a proper .env file - this is critical for operation
-  log "Checking environment file..."
-  if [ ! -f "${APP_PATH}/.env" ] || [ $(grep -c "SESSION_SECRET" "${APP_PATH}/.env") -eq 0 ]; then
-    log "Creating/updating comprehensive .env file in ${APP_PATH}..."
-    
-    # Always attempt to create a complete .env file with all necessary variables
-    if [ -f "${APP_PATH}/scripts/deployment/env.example" ]; then
-      log "Using template from scripts/deployment/env.example..."
-      cp "${APP_PATH}/scripts/deployment/env.example" "${APP_PATH}/.env"
-      
-      # Update critical values in the copied file
-      sed -i "s|DATABASE_URL=postgresql://username:password@localhost:5432/filmflex|DATABASE_URL=${DB_URL}|g" "${APP_PATH}/.env"
-      sed -i "s|PGUSER=filmflex|PGUSER=${DB_USER}|g" "${APP_PATH}/.env"
-      sed -i "s|PGPASSWORD=secure_password_here|PGPASSWORD=${DB_PASSWORD}|g" "${APP_PATH}/.env"
-      sed -i "s|PGDATABASE=filmflex|PGDATABASE=${DB_NAME}|g" "${APP_PATH}/.env"
-      
-      # Generate a secure session secret
-      RANDOM_SECRET=$(openssl rand -hex 32)
-      sed -i "s|SESSION_SECRET=change_this_to_a_long_random_string|SESSION_SECRET=${RANDOM_SECRET}|g" "${APP_PATH}/.env"
-      
-      log "Environment file created from template and updated with secure values."
-    else
-      # Fallback if template doesn't exist
-      log "No template found. Creating basic .env file..."
-      cat > "${APP_PATH}/.env" << EOF
-NODE_ENV=production
-PORT=5000
-DATABASE_URL=${DB_URL}
-PGUSER=${DB_USER}
-PGPASSWORD=${DB_PASSWORD}
-PGDATABASE=${DB_NAME}
-PGHOST=localhost
-PGPORT=5432
-SESSION_SECRET=$(openssl rand -hex 32)
-EOF
-      log "Basic environment file created."
-    fi
-  else
-    log "Existing .env file found. Checking for required variables..."
-    # Ensure database settings are correct
-    if grep -q "DATABASE_URL" "${APP_PATH}/.env"; then
-      log "Updating DATABASE_URL in .env file..."
-      sed -i "s|DATABASE_URL=.*|DATABASE_URL=${DB_URL}|g" "${APP_PATH}/.env"
-    else
-      echo "DATABASE_URL=${DB_URL}" >> "${APP_PATH}/.env"
-    fi
-    
-    # Add SESSION_SECRET if missing
-    if ! grep -q "SESSION_SECRET" "${APP_PATH}/.env"; then
-      log "Adding SESSION_SECRET to .env file..."
-      echo "SESSION_SECRET=$(openssl rand -hex 32)" >> "${APP_PATH}/.env"
-    fi
-  fi
-  
-  # Check for any additional environment file updates from ENV_FILE
-  if [ -f "${ENV_FILE}" ] && [ "${ENV_FILE}" != "${APP_PATH}/.env" ]; then
-    log "Updating environment file from ${ENV_FILE}..."
-    cp "${ENV_FILE}" "${APP_PATH}/.env"
-  fi
-  
-  # Stop and start the application using PM2
-  log "Restarting the application with PM2..."
-  pm2 reload ${APP_NAME} || pm2 restart ${APP_NAME} || {
-    log "Failed to restart with reload/restart, trying to delete and start..."
-    pm2 delete ${APP_NAME} >/dev/null 2>&1 || true
-    pm2 start ecosystem.config.js
-  }
-  pm2 save
-  
-  # Also restart using systemd for consistency
-  log "Restarting systemd service..."
-  systemctl restart filmflex.service || true
-  
-  log_success "Application restarted successfully!"
-  echo -e "${YELLOW}Your FilmFlex application is now accessible at:${NC}"
-  echo -e "  http://localhost:5000"
-  echo -e "  http://$(hostname -I | awk '{print $1}' | head -n1):5000"
-}
-
-# Function to deploy the application
-function deploy_app {
-  log "===== DEPLOYING APPLICATION ====="
-  
-  # Make sure we have current directory copied to app path
-  log "Copying application files..."
-  mkdir -p ${APP_PATH}
-  rsync -a --exclude 'node_modules' --exclude '.git' ./ ${APP_PATH}/
-  
-  # Copy environment file
-  if [ -f "${ENV_FILE}" ]; then
-    cp ${ENV_FILE} ${APP_PATH}/.env
-  fi
-  
-  # Install dependencies and build
-  log "Installing dependencies and building the application..."
-  cd ${APP_PATH}
-  npm ci || npm install
-  npm run build
-  
-  # Update ecosystem config
-  update_ecosystem_config
-  
-  # Run database migrations
-  run_migrations
-  
-  # Start or restart the application
-  log "Starting/restarting the application..."
-  pm2 delete ${APP_NAME} >/dev/null 2>&1 || true
-  pm2 start ecosystem.config.js
-  pm2 save
-  
-  # Make sure PM2 will start on boot
-  log "Setting up PM2 to start on boot..."
-  pm2 startup
-  
-  # For systemd control
-  log "Updating systemd service..."
-  systemctl daemon-reload
-  systemctl restart filmflex.service || true
-  
-  log_success "Application deployed successfully!"
-  echo -e "${YELLOW}Your FilmFlex application is now accessible at:${NC}"
-  echo -e "  http://localhost:5000"
-  echo -e "  http://$(hostname -I | awk '{print $1}' | head -n1):5000"
-}
-
-# Function to import movies
-function import_movies {
-  log "===== STARTING MOVIE IMPORT PROCESS ====="
-  
-  # Make sure we're in the app directory
-  cd ${APP_PATH}
-  
-  # First, check if screen is installed
-  if ! command_exists screen; then
-    log "Screen is not installed. Installing it now..."
-    apt-get update && apt-get install -y screen
-  fi
-
-  # Create a screen session for the import process
-  screen -dmS import bash -c "cd ${APP_PATH} && npx tsx scripts/import.ts 1 2252 > /var/log/filmflex-import.log 2>&1"
-  
-  log_success "Import process started in a screen session."
-  echo -e "${YELLOW}This process will run in the background and may take several hours.${NC}"
-  echo -e "${YELLOW}You can check the progress by running:${NC}"
-  echo -e "  tail -f /var/log/filmflex-import.log"
-  echo -e "${YELLOW}To attach to the screen session:${NC}"
-  echo -e "  screen -r import"
-}
-
-# Function to create a database backup
-function backup_database {
-  log "===== CREATING DATABASE BACKUP ====="
-  
-  if [ -f "/etc/filmflex/scripts/backup-db.sh" ]; then
-    /etc/filmflex/scripts/backup-db.sh
-  else
-    setup_backup_script
-    /etc/filmflex/scripts/backup-db.sh
-  fi
-  
-  log_success "Backup completed successfully!"
-  echo -e "${YELLOW}Backup files are stored in /var/backups/filmflex/${NC}"
-}
-
-# Function to check system status
-function check_status {
-  log "===== SYSTEM STATUS ====="
-  
-  echo -e "${YELLOW}System Uptime:${NC}"
-  uptime
-  
-  echo -e "\n${YELLOW}Memory Usage:${NC}"
-  free -h
-  
-  echo -e "\n${YELLOW}Disk Usage:${NC}"
-  df -h | grep /dev/
-  
-  echo -e "\n${YELLOW}Application Status:${NC}"
-  systemctl status filmflex.service 2>/dev/null || echo "Service not found"
-  
-  echo -e "\n${YELLOW}PM2 Process Status:${NC}"
-  pm2 list
-  
-  echo -e "\n${YELLOW}Nginx Status:${NC}"
-  systemctl status nginx | head -n 5
-  
-  echo -e "\n${YELLOW}Recent Application Logs:${NC}"
-  if [ -f "/var/log/filmflex/out.log" ]; then
-    tail -n 20 /var/log/filmflex/out.log
-  elif [ -f "/var/log/filmflex-out.log" ]; then
-    tail -n 20 /var/log/filmflex-out.log
-  else
-    echo "No logs found"
-  fi
-  
-  echo -e "\n${YELLOW}Recent Error Logs:${NC}"
-  if [ -f "/var/log/filmflex/error.log" ]; then
-    tail -n 20 /var/log/filmflex/error.log
-  elif [ -f "/var/log/filmflex-error.log" ]; then
-    tail -n 20 /var/log/filmflex-error.log
-  else
-    echo "No logs found"
-  fi
-  
-  echo -e "\n${YELLOW}Database Status:${NC}"
-  systemctl status postgresql | head -n 5
-  
-  echo -e "\n${YELLOW}Database Size:${NC}"
-  sudo -u postgres psql -c "SELECT pg_size_pretty(pg_database_size('${DB_NAME}'));" 2>/dev/null || echo "Database not found"
-  
-  echo -e "\n${YELLOW}Recent Backups:${NC}"
-  ls -lh /var/backups/filmflex/ 2>/dev/null | tail -n 5 || echo "No backups found"
-  
-  echo -e "\n${YELLOW}Database Tables:${NC}"
-  PGPASSWORD="${DB_PASSWORD}" psql -h localhost -U "${DB_USER}" -d "${DB_NAME}" -c "\dt" 2>/dev/null || echo "Failed to list tables"
-  
-  echo -e "\n${YELLOW}Application Health Check:${NC}"
-  curl -s http://localhost:5000/api/health 2>/dev/null || echo "Application not responding to health check"
-}
-
-# Parse command-line arguments
-if [ $# -eq 0 ]; then
-  # Default action: deploy the application
-  deploy_app
-else
-  case "$1" in
-    --setup)
-      setup_server
-      deploy_app
-      ;;
-    --deploy)
-      deploy_app
-      ;;
-    --restart)
-      restart_app
-      ;;
-    --db-only)
-      setup_database
-      run_migrations
-      ;;
-    --import)
-      import_movies
-      ;;
-    --backup)
-      backup_database
-      ;;
-    --status)
-      check_status
-      ;;
-    --help)
-      show_usage
-      ;;
-    *)
-      echo -e "${RED}Unknown option: $1${NC}"
-      show_usage
-      exit 1
-      ;;
-  esac
+  log_warning "Please update the environment variables in .env file with your actual values."
 fi
 
-# Display success message
-log_success "Deployment script completed successfully!"
-echo -e "${YELLOW}For more information on managing your FilmFlex deployment, see DEPLOYMENT.md${NC}"
+# Install dependencies
+log "Installing dependencies..."
+npm install || { log_error "Failed to install dependencies"; exit 1; }
+
+# Build the application
+log "Building application..."
+npm run build || { log_error "Failed to build application"; exit 1; }
+
+# Setup systemd service for PM2
+log "Setting up systemd service..."
+pm2 startup systemd || log_warning "Failed to set up PM2 startup hook"
+
+# Start or restart the application with PM2
+if pm2 list | grep -q "filmflex"; then
+  log "Restarting application..."
+  pm2 restart filmflex || { log_error "Failed to restart application"; exit 1; }
+else
+  log "Starting application..."
+  pm2 start ecosystem.config.cjs || { log_error "Failed to start application"; exit 1; }
+fi
+
+# Save PM2 process list
+pm2 save || log_warning "Failed to save PM2 process list"
+
+# Get IP addresses for display
+PUBLIC_IP=$(hostname -I | awk '{print $1}')
+
+log_success "Application deployed successfully!"
+log "Your FilmFlex application is now accessible at:"
+log "  http://localhost:5000"
+log "  http://$PUBLIC_IP:5000"
+log "Deployment script completed successfully!"
+log "For more information on managing your FilmFlex deployment, see DEPLOYMENT.md"
