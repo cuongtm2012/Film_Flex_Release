@@ -29,10 +29,17 @@ const MAX_PAGES = 1; // Focus on page 1 for newest movies
 // Parse command line arguments
 const args = process.argv.slice(2);
 const FORCE_DEEP_SCAN = args.includes('--deep-scan');
+const TEST_MODE = args.includes('--test-mode');
 
 // Set this to true on weekends or specific times to check deeper pages
 const CHECK_DEEPER_PAGES = FORCE_DEEP_SCAN || false;
 const DEEPER_PAGES_MAX = 5; // How many pages to check when doing a deep scan
+
+// If in test mode, override settings
+if (TEST_MODE) {
+  console.log(`${logPrefix} Running in TEST MODE - No database changes will be made`);
+  MAX_PAGES = 1;
+}
 
 /**
  * Setup database connection
@@ -161,20 +168,32 @@ async function processAndSaveMovies(items, pool) {
   
   console.log(`${logPrefix} Processing ${items.length} movies...`);
   
-  for (const item of items) {
+  // In test mode, only process the first item to verify API connectivity
+  const itemsToProcess = TEST_MODE ? items.slice(0, 1) : items;
+  
+  if (TEST_MODE) {
+    console.log(`${logPrefix} TEST MODE: Only processing first movie as a test`);
+  }
+  
+  for (const item of itemsToProcess) {
     try {
       // Check if movie already exists using raw SQL
-      const existingQuery = {
-        text: 'SELECT COUNT(*) as count FROM movies WHERE slug = $1',
-        values: [item.slug]
-      };
-      
-      const existingResult = await pool.query(existingQuery);
-      const count = parseInt(existingResult.rows[0].count, 10);
-      
-      if (count > 0) {
-        existingCount++;
-        continue;
+      if (!TEST_MODE) {
+        const existingQuery = {
+          text: 'SELECT COUNT(*) as count FROM movies WHERE slug = $1',
+          values: [item.slug]
+        };
+        
+        const existingResult = await pool.query(existingQuery);
+        const count = parseInt(existingResult.rows[0].count, 10);
+        
+        if (count > 0) {
+          existingCount++;
+          continue;
+        }
+      } else {
+        // In test mode, simulate checking for existing movie
+        console.log(`${logPrefix} TEST MODE: Checking if movie '${item.slug}' exists (simulated)`);
       }
       
       // Fetch detailed movie information
@@ -189,22 +208,33 @@ async function processAndSaveMovies(items, pool) {
       // Convert to model and save to database using SQL
       const movie = convertToMovieModel(movieDetail);
       
-      // Create SQL insert query for movie
-      const columns = Object.keys(movie).join(', ');
-      const placeholders = Object.keys(movie).map((_, index) => `$${index + 1}`).join(', ');
-      const values = Object.values(movie);
-      
-      const insertQuery = {
-        text: `INSERT INTO movies (${columns}) VALUES (${placeholders})`,
-        values: values
-      };
-      
-      await pool.query(insertQuery);
+      if (!TEST_MODE) {
+        // Create SQL insert query for movie
+        const columns = Object.keys(movie).join(', ');
+        const placeholders = Object.keys(movie).map((_, index) => `$${index + 1}`).join(', ');
+        const values = Object.values(movie);
+        
+        const insertQuery = {
+          text: `INSERT INTO movies (${columns}) VALUES (${placeholders})`,
+          values: values
+        };
+        
+        await pool.query(insertQuery);
+      } else {
+        // In test mode, print what would have been inserted
+        console.log(`${logPrefix} TEST MODE: Would insert movie '${movie.name}' (${movie.slug})`);
+        // Print a sample of movie fields to verify data parsing
+        console.log(`${logPrefix} TEST MODE: Sample data - ID: ${movie.movie_id}, Type: ${movie.type}, Year: ${movie.year}`);
+      }
       
       // Log message for series
       if (movieDetail.movie?.type === 'series' && movieDetail.episodes) {
         console.log(`${logPrefix} Movie '${movie.name}' is a series with ${movieDetail.episodes.length} server(s) of episodes`);
-        console.log(`${logPrefix} Episodes will be imported through the API routes`);
+        if (!TEST_MODE) {
+          console.log(`${logPrefix} Episodes will be imported through the API routes`);
+        } else {
+          console.log(`${logPrefix} TEST MODE: Episodes would be imported through the API routes`);
+        }
       }
       
       savedCount++;
@@ -214,7 +244,11 @@ async function processAndSaveMovies(items, pool) {
     }
   }
   
-  console.log(`${logPrefix} Processed ${items.length} movies: ${savedCount} saved, ${existingCount} existing, ${failedCount} failed`);
+  if (TEST_MODE) {
+    console.log(`${logPrefix} TEST MODE: Processed ${itemsToProcess.length} movies for testing`);
+  } else {
+    console.log(`${logPrefix} Processed ${items.length} movies: ${savedCount} saved, ${existingCount} existing, ${failedCount} failed`);
+  }
 }
 
 /**
