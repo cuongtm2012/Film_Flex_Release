@@ -92,6 +92,8 @@ FilmFlex includes a comprehensive deployment system:
 ./deploy.sh --db-only
 ```
 
+The `deploy.sh` script is a wrapper that calls the main deployment script in `scripts/deployment/deploy-filmflex.sh`. This approach maintains backward compatibility while keeping our codebase organized.
+
 For detailed deployment instructions, check the [Deployment Guide](scripts/deployment/README.md).
 
 ## Data Management
