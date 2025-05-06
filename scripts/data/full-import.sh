@@ -27,6 +27,14 @@ BREAK_MINUTES=60
 # Make sure log directory exists
 mkdir -p "$LOG_DIR"
 
+# Check if jq is installed (needed for JSON processing)
+if ! command -v jq &> /dev/null; then
+  echo -e "${RED}Error: This script requires 'jq' for JSON processing${NC}"
+  echo -e "${YELLOW}Please install jq with:${NC}"
+  echo -e "  apt-get update && apt-get install -y jq"
+  exit 1
+fi
+
 # Check if the batch import script exists and is executable
 if [ ! -f "$BATCH_SCRIPT" ]; then
   echo -e "${RED}Error: Batch import script not found at ${BATCH_SCRIPT}${NC}"
@@ -44,7 +52,8 @@ echo -e "${NC}"
 # Calculate the number of batches needed
 TOTAL_BATCHES=$(( (TOTAL_PAGES + BATCH_SIZE - 1) / BATCH_SIZE ))
 
-echo -e "${GREEN}Starting full database import of ${TOTAL_PAGES} pages (approx. ${TOTAL_PAGES * 10} movies)${NC}"
+APPROX_MOVIES=$((TOTAL_PAGES * 10))
+echo -e "${GREEN}Starting full database import of ${TOTAL_PAGES} pages (approx. ${APPROX_MOVIES} movies)${NC}"
 echo -e "${GREEN}Will process ${TOTAL_BATCHES} batches of ${BATCH_SIZE} pages each${NC}"
 echo -e "${GREEN}Taking a ${BREAK_MINUTES}-minute break between batches${NC}"
 echo
@@ -136,7 +145,7 @@ echo
 echo -e "${GREEN}==== Import Summary ====${NC}"
 echo -e "${GREEN}Total batches: $TOTAL_BATCHES${NC}"
 echo -e "${GREEN}Pages processed: $TOTAL_PAGES${NC}"
-echo -e "${GREEN}Approximate movies: $((TOTAL_PAGES * 10))${NC}"
+echo -e "${GREEN}Approximate movies: ${APPROX_MOVIES}${NC}"
 echo -e "${BLUE}Full log file: $FULL_IMPORT_LOG${NC}"
 echo -e "${BLUE}Progress tracking: $PROGRESS_FILE${NC}"
 echo
