@@ -73,16 +73,13 @@ filmflex/
 │   ├── data/           # Data import scripts
 │   ├── maintenance/    # Maintenance scripts
 │   └── tests/          # Test scripts
-├── tests/              # Test suite
-├── deploy.sh           # Deployment wrapper script 
-├── run-tests.sh        # Testing wrapper script
-└── run-import.sh       # Data import wrapper script
+└── tests/              # Test suite
 ```
 
-The project follows a consistent organization pattern:
-- Main implementation scripts are located in subdirectories in the `scripts/` folder
-- Wrapper scripts in the root directory provide easy access to common functions
+The project follows a clean organization pattern:
+- All scripts are organized in subdirectories by purpose in the `scripts/` folder
 - Each script category has its own README with detailed documentation
+- Scripts are referenced directly from their location (e.g., `./scripts/deployment/deploy-filmflex.sh`)
 
 ## Deployment
 
@@ -90,16 +87,14 @@ FilmFlex includes a comprehensive deployment system:
 
 ```bash
 # First-time setup
-./deploy.sh --setup
+./scripts/deployment/deploy-filmflex.sh --setup
 
 # Deploy or update application
-./deploy.sh
+./scripts/deployment/deploy-filmflex.sh
 
 # Run database setup only
-./deploy.sh --db-only
+./scripts/deployment/deploy-filmflex.sh --db-only
 ```
-
-The `deploy.sh` script is a wrapper that calls the main deployment script in `scripts/deployment/deploy-filmflex.sh`. This approach maintains backward compatibility while keeping our codebase organized.
 
 For detailed deployment instructions, check the [Deployment Guide](scripts/deployment/README.md).
 
@@ -108,14 +103,12 @@ For detailed deployment instructions, check the [Deployment Guide](scripts/deplo
 Import movie data from external API:
 
 ```bash
-# Using the dedicated import script (recommended)
-./run-import.sh
+# Run data import script directly
+./scripts/data/import.ts
 
 # Alternative: using deployment script with import flag
-./deploy.sh --import
+./scripts/deployment/deploy-filmflex.sh --import
 ```
-
-The import script provides an interactive interface to specify options like start/end page and whether to run in the background.
 
 For more information, see the [Data Management Guide](scripts/data/README.md).
 
@@ -124,8 +117,8 @@ For more information, see the [Data Management Guide](scripts/data/README.md).
 Run the test suite:
 
 ```bash
-# Using the dedicated test runner script (recommended)
-./run-tests.sh
+# Run all tests with the test runner
+./scripts/tests/run_all_tests.sh
 
 # Using npm scripts
 npm test                # Run all tests
@@ -133,8 +126,6 @@ npm run test:client     # Run frontend tests
 npm run test:server     # Run backend tests
 npm run cypress:run     # Run E2E tests with Cypress
 ```
-
-The test runner script provides detailed output formatting and comprehensive reporting.
 
 For more information, see the [Testing Guide](scripts/tests/README.md).
 
@@ -144,13 +135,13 @@ Regular maintenance tasks:
 
 ```bash
 # Check system status
-./deploy.sh --status
+./scripts/deployment/deploy-filmflex.sh --status
 
 # Reset admin user
-./deploy.sh --reset-admin
+./scripts/maintenance/reset_admin.ts
 
 # Optimize database
-./deploy.sh --db-optimize
+./scripts/deployment/deploy-filmflex.sh --db-optimize
 ```
 
 For more details, see the [Maintenance Guide](scripts/maintenance/README.md).

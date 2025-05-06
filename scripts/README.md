@@ -49,58 +49,59 @@ scripts/
 
 ```bash
 # Deploy or update application
-./scripts/deployment/deploy-filmflex.sh
+./deployment/deploy-filmflex.sh
 ```
 
 ### Data Management
 
 ```bash
-# Import movie data
-./scripts/deployment/deploy-filmflex.sh --import
+# Import movie data with TypeScript directly
+npx tsx ./data/import.ts [start_page] [end_page]
+
+# Alternatively, with the deployment script
+./deployment/deploy-filmflex.sh --import
 ```
 
 ### Testing
 
 ```bash
-# Run all tests
-./scripts/tests/run_tests.sh
+# Run all tests with detailed output
+./tests/run_all_tests.sh
 ```
 
 ### Maintenance
 
 ```bash
-# Reset admin user
-./scripts/deployment/deploy-filmflex.sh --reset-admin
+# Reset admin user with TypeScript directly
+npx tsx ./maintenance/reset_admin.ts
+
+# Alternatively, with the deployment script
+./deployment/deploy-filmflex.sh --reset-admin
 ```
 
-## Root Wrapper Scripts
+## Script Organization
 
-For convenience and backward compatibility, several wrapper scripts are available at the root of the project:
+All scripts are organized in subdirectories based on their purpose:
 
 ```bash
-# Deployment script
-./deploy.sh [options]
+# Deployment
+./deployment/deploy-filmflex.sh [options]
 
-# Test runner
-./run-tests.sh [options]
+# Testing
+./tests/run_all_tests.sh
 
 # Data import
-./run-import.sh
+./data/import.ts [start_page] [end_page]
+
+# Maintenance
+./maintenance/reset_admin.ts
 ```
 
-These root-level scripts are thin wrappers that call the actual implementation scripts in their respective directories. This approach:
+This clean organization keeps the codebase easy to navigate and maintain:
 
-1. Maintains backward compatibility with existing CI/CD pipelines
-2. Provides easy access to common functions from the project root
-3. Keeps implementation details organized in the scripts/ directory
-
-### How Wrapper Scripts Work
-
-Each wrapper script:
-1. Determines the project root directory
-2. Checks if the target script exists
-3. Passes all arguments to the actual implementation script
-4. Returns the same exit code as the implementation script
+1. All scripts for a specific function are in their respective directories
+2. Each directory has a README with detailed documentation
+3. Scripts are clearly named and well-documented internally
 
 ## Contributing
 
