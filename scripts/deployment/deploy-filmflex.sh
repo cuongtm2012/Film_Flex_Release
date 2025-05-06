@@ -92,6 +92,9 @@ function setup_server {
   log "Setting up application directory..."
   mkdir -p ${APP_PATH}
   mkdir -p /var/log/filmflex
+  mkdir -p /var/log/filmflex/app
+  mkdir -p /var/log/filmflex/error
+  mkdir -p /var/log/filmflex/out
   
   # Set up Nginx
   log "Setting up Nginx..."
@@ -137,12 +140,38 @@ SERVICE
   # Create environment file if it doesn't exist
   if [ ! -f "${ENV_FILE}" ]; then
     log "Creating environment file..."
-    cat > ${ENV_FILE} << EOF
+    
+    # Check if env.example exists
+    if [ -f "scripts/deployment/env.example" ]; then
+      log "Using template from scripts/deployment/env.example..."
+      cp scripts/deployment/env.example ${ENV_FILE}
+      
+      # Update critical values in the copied file
+      sed -i "s|DATABASE_URL=postgresql://username:password@localhost:5432/filmflex|DATABASE_URL=${DB_URL}|g" ${ENV_FILE}
+      sed -i "s|PGUSER=filmflex|PGUSER=${DB_USER}|g" ${ENV_FILE}
+      sed -i "s|PGPASSWORD=secure_password_here|PGPASSWORD=${DB_PASSWORD}|g" ${ENV_FILE}
+      sed -i "s|PGDATABASE=filmflex|PGDATABASE=${DB_NAME}|g" ${ENV_FILE}
+      
+      # Generate a secure session secret
+      RANDOM_SECRET=$(openssl rand -hex 32)
+      sed -i "s|SESSION_SECRET=change_this_to_a_long_random_string|SESSION_SECRET=${RANDOM_SECRET}|g" ${ENV_FILE}
+      
+      log "Environment file created from template and updated with secure values."
+    else
+      # Fallback to basic .env if template doesn't exist
+      cat > ${ENV_FILE} << EOF
 NODE_ENV=production
 PORT=5000
 DATABASE_URL=${DB_URL}
+PGUSER=${DB_USER}
+PGPASSWORD=${DB_PASSWORD}
+PGDATABASE=${DB_NAME}
+PGHOST=localhost
+PGPORT=5432
 SESSION_SECRET=$(openssl rand -hex 32)
 EOF
+      log "Basic environment file created. For more options see scripts/deployment/ENVIRONMENT.md"
+    fi
   fi
   
   # Setup Nginx configuration
@@ -384,18 +413,18 @@ module.exports = {
     {
       name: "${APP_NAME}",
       script: "./dist/index.js",
+      // Define only essential environment variables here
+      // All other variables will be loaded from .env file
       env: {
-        NODE_ENV: "production",
-        PORT: 5000,
-        DATABASE_URL: "${DB_URL}"
+        NODE_ENV: "production"
       },
       instances: "max",
       exec_mode: "cluster",
       watch: false,
       merge_logs: true,
-      log_file: "/var/log/filmflex.log",
-      error_file: "/var/log/filmflex-error.log",
-      out_file: "/var/log/filmflex-out.log",
+      log_file: "/var/log/filmflex/app.log",
+      error_file: "/var/log/filmflex/error.log",
+      out_file: "/var/log/filmflex/out.log",
       time: true,
       max_memory_restart: "1G",
       autorestart: true
@@ -405,13 +434,39 @@ module.exports = {
 EOF
   
   # Create or update .env file
-  log "Creating/updating .env file..."
-  cat > ${APP_PATH}/.env << EOF
+  log "Creating/updating .env file in ${APP_PATH}..."
+  
+  # Check if template env.example exists
+  if [ -f "${APP_PATH}/scripts/deployment/env.example" ]; then
+    log "Using template from scripts/deployment/env.example..."
+    cp ${APP_PATH}/scripts/deployment/env.example ${APP_PATH}/.env
+    
+    # Update critical values in the copied file
+    sed -i "s|DATABASE_URL=postgresql://username:password@localhost:5432/filmflex|DATABASE_URL=${DB_URL}|g" ${APP_PATH}/.env
+    sed -i "s|PGUSER=filmflex|PGUSER=${DB_USER}|g" ${APP_PATH}/.env
+    sed -i "s|PGPASSWORD=secure_password_here|PGPASSWORD=${DB_PASSWORD}|g" ${APP_PATH}/.env
+    sed -i "s|PGDATABASE=filmflex|PGDATABASE=${DB_NAME}|g" ${APP_PATH}/.env
+    
+    # Generate a secure session secret
+    RANDOM_SECRET=$(openssl rand -hex 32)
+    sed -i "s|SESSION_SECRET=change_this_to_a_long_random_string|SESSION_SECRET=${RANDOM_SECRET}|g" ${APP_PATH}/.env
+    
+    log "Environment file created from template and updated with secure values."
+  else
+    # Fallback to basic .env if template doesn't exist
+    cat > ${APP_PATH}/.env << EOF
 NODE_ENV=production
 PORT=5000
 DATABASE_URL=${DB_URL}
+PGUSER=${DB_USER}
+PGPASSWORD=${DB_PASSWORD}
+PGDATABASE=${DB_NAME}
+PGHOST=localhost
+PGPORT=5432
 SESSION_SECRET=$(openssl rand -hex 32)
 EOF
+    log "Basic environment file created. For more options, see scripts/deployment/ENVIRONMENT.md"
+  fi
   
   log_success "Ecosystem config updated successfully!"
 }
