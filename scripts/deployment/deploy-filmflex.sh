@@ -480,10 +480,64 @@ function restart_app {
   # Change to application directory
   cd ${APP_PATH}
   
-  # Check for environment file updates
+  # First, ensure we have a proper .env file - this is critical for operation
+  log "Checking environment file..."
+  if [ ! -f "${APP_PATH}/.env" ] || [ $(grep -c "SESSION_SECRET" "${APP_PATH}/.env") -eq 0 ]; then
+    log "Creating/updating comprehensive .env file in ${APP_PATH}..."
+    
+    # Always attempt to create a complete .env file with all necessary variables
+    if [ -f "${APP_PATH}/scripts/deployment/env.example" ]; then
+      log "Using template from scripts/deployment/env.example..."
+      cp "${APP_PATH}/scripts/deployment/env.example" "${APP_PATH}/.env"
+      
+      # Update critical values in the copied file
+      sed -i "s|DATABASE_URL=postgresql://username:password@localhost:5432/filmflex|DATABASE_URL=${DB_URL}|g" "${APP_PATH}/.env"
+      sed -i "s|PGUSER=filmflex|PGUSER=${DB_USER}|g" "${APP_PATH}/.env"
+      sed -i "s|PGPASSWORD=secure_password_here|PGPASSWORD=${DB_PASSWORD}|g" "${APP_PATH}/.env"
+      sed -i "s|PGDATABASE=filmflex|PGDATABASE=${DB_NAME}|g" "${APP_PATH}/.env"
+      
+      # Generate a secure session secret
+      RANDOM_SECRET=$(openssl rand -hex 32)
+      sed -i "s|SESSION_SECRET=change_this_to_a_long_random_string|SESSION_SECRET=${RANDOM_SECRET}|g" "${APP_PATH}/.env"
+      
+      log "Environment file created from template and updated with secure values."
+    else
+      # Fallback if template doesn't exist
+      log "No template found. Creating basic .env file..."
+      cat > "${APP_PATH}/.env" << EOF
+NODE_ENV=production
+PORT=5000
+DATABASE_URL=${DB_URL}
+PGUSER=${DB_USER}
+PGPASSWORD=${DB_PASSWORD}
+PGDATABASE=${DB_NAME}
+PGHOST=localhost
+PGPORT=5432
+SESSION_SECRET=$(openssl rand -hex 32)
+EOF
+      log "Basic environment file created."
+    fi
+  else
+    log "Existing .env file found. Checking for required variables..."
+    # Ensure database settings are correct
+    if grep -q "DATABASE_URL" "${APP_PATH}/.env"; then
+      log "Updating DATABASE_URL in .env file..."
+      sed -i "s|DATABASE_URL=.*|DATABASE_URL=${DB_URL}|g" "${APP_PATH}/.env"
+    else
+      echo "DATABASE_URL=${DB_URL}" >> "${APP_PATH}/.env"
+    fi
+    
+    # Add SESSION_SECRET if missing
+    if ! grep -q "SESSION_SECRET" "${APP_PATH}/.env"; then
+      log "Adding SESSION_SECRET to .env file..."
+      echo "SESSION_SECRET=$(openssl rand -hex 32)" >> "${APP_PATH}/.env"
+    fi
+  fi
+  
+  # Check for any additional environment file updates from ENV_FILE
   if [ -f "${ENV_FILE}" ] && [ "${ENV_FILE}" != "${APP_PATH}/.env" ]; then
     log "Updating environment file from ${ENV_FILE}..."
-    cp ${ENV_FILE} ${APP_PATH}/.env
+    cp "${ENV_FILE}" "${APP_PATH}/.env"
   fi
   
   # Stop and start the application using PM2
@@ -614,10 +668,22 @@ function check_status {
   systemctl status nginx | head -n 5
   
   echo -e "\n${YELLOW}Recent Application Logs:${NC}"
-  tail -n 20 /var/log/filmflex-out.log 2>/dev/null || echo "No logs found"
+  if [ -f "/var/log/filmflex/out.log" ]; then
+    tail -n 20 /var/log/filmflex/out.log
+  elif [ -f "/var/log/filmflex-out.log" ]; then
+    tail -n 20 /var/log/filmflex-out.log
+  else
+    echo "No logs found"
+  fi
   
   echo -e "\n${YELLOW}Recent Error Logs:${NC}"
-  tail -n 20 /var/log/filmflex-error.log 2>/dev/null || echo "No logs found"
+  if [ -f "/var/log/filmflex/error.log" ]; then
+    tail -n 20 /var/log/filmflex/error.log
+  elif [ -f "/var/log/filmflex-error.log" ]; then
+    tail -n 20 /var/log/filmflex-error.log
+  else
+    echo "No logs found"
+  fi
   
   echo -e "\n${YELLOW}Database Status:${NC}"
   systemctl status postgresql | head -n 5
