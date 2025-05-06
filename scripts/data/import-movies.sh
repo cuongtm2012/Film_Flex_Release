@@ -9,7 +9,7 @@ set -e
 # Define variables
 APP_DIR="/var/www/filmflex"
 LOG_DIR="/var/log/filmflex"
-SCRIPT_NAME="import-movies.js"
+SCRIPT_NAME="import-movies-sql.js"
 LOG_FILE="${LOG_DIR}/data-import.log"
 DATE=$(date '+%Y-%m-%d %H:%M:%S')
 
@@ -19,8 +19,17 @@ mkdir -p "$LOG_DIR"
 # Print start message
 echo "[$DATE] Starting FilmFlex movie data import..." | tee -a "$LOG_FILE"
 
+# Make sure the required packages are installed
+if ! npm list -g node-fetch > /dev/null 2>&1; then
+  echo "[$DATE] Installing required packages..." | tee -a "$LOG_FILE"
+  npm install -g node-fetch dotenv pg
+fi
+
 # Change to application directory
 cd "$APP_DIR"
+
+# Make sure the script is executable
+chmod +x "$APP_DIR/scripts/data/${SCRIPT_NAME}"
 
 # Run the import script
 echo "[$DATE] Running import script..." | tee -a "$LOG_FILE"
