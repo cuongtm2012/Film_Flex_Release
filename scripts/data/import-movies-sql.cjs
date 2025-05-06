@@ -30,15 +30,39 @@ const MAX_PAGES = 1; // Focus on page 1 for newest movies
 const args = process.argv.slice(2);
 const FORCE_DEEP_SCAN = args.includes('--deep-scan');
 const TEST_MODE = args.includes('--test-mode');
+const SINGLE_PAGE_MODE = args.includes('--single-page');
+
+// Parse page number and size if in single page mode
+let SINGLE_PAGE_NUM = 1;
+let SINGLE_PAGE_SIZE = 10;
+
+if (SINGLE_PAGE_MODE) {
+  // Find page number parameter
+  const pageNumArg = args.find(arg => arg.startsWith('--page-num='));
+  if (pageNumArg) {
+    SINGLE_PAGE_NUM = parseInt(pageNumArg.split('=')[1], 10) || 1;
+  }
+  
+  // Find page size parameter
+  const pageSizeArg = args.find(arg => arg.startsWith('--page-size='));
+  if (pageSizeArg) {
+    SINGLE_PAGE_SIZE = parseInt(pageSizeArg.split('=')[1], 10) || 10;
+  }
+}
 
 // Set this to true on weekends or specific times to check deeper pages
 const CHECK_DEEPER_PAGES = FORCE_DEEP_SCAN || false;
 const DEEPER_PAGES_MAX = 5; // How many pages to check when doing a deep scan
 
-// If in test mode, override settings
+// Override settings based on mode
 if (TEST_MODE) {
   console.log(`${logPrefix} Running in TEST MODE - No database changes will be made`);
   MAX_PAGES = 1;
+}
+
+if (SINGLE_PAGE_MODE) {
+  console.log(`${logPrefix} Running in SINGLE PAGE MODE - Only importing page ${SINGLE_PAGE_NUM} with size ${SINGLE_PAGE_SIZE}`);
+  MOVIE_PAGE_SIZE = SINGLE_PAGE_SIZE;
 }
 
 /**
@@ -333,30 +357,41 @@ async function main() {
       console.warn(`${logPrefix} Movies table might not exist, continuing anyway`);
     }
     
-    // Check if we should do a deep scan
-    const today = new Date();
-    const isWeekend = [0, 6].includes(today.getDay()); // 0 = Sunday, 6 = Saturday
-    const shouldCheckDeeperPages = CHECK_DEEPER_PAGES || isWeekend;
-    const pagesToCheck = shouldCheckDeeperPages ? DEEPER_PAGES_MAX : MAX_PAGES;
-    
-    if (shouldCheckDeeperPages) {
-      console.log(`${logPrefix} Performing deep scan of ${pagesToCheck} pages...`);
-    } else {
-      console.log(`${logPrefix} Performing quick scan of ${pagesToCheck} pages...`);
-    }
-    
-    // Always start with page 1 (newest content)
-    for (let page = 1; page <= pagesToCheck; page++) {
-      // Fetch movie list
-      const movieList = await fetchMovieList(page, MOVIE_PAGE_SIZE);
+    // Handle single page mode
+    if (SINGLE_PAGE_MODE) {
+      console.log(`${logPrefix} Processing single page ${SINGLE_PAGE_NUM} with size ${SINGLE_PAGE_SIZE}`);
       
-      // Process and save movies
+      // Fetch and process just the one page
+      const movieList = await fetchMovieList(SINGLE_PAGE_NUM, SINGLE_PAGE_SIZE);
       await processAndSaveMovies(movieList.items, pool);
       
-      // If we're checking multiple pages, add a small delay to avoid hammering the API
-      if (page < pagesToCheck && pagesToCheck > 1) {
-        console.log(`${logPrefix} Waiting 2 seconds before fetching next page...`);
-        await new Promise(resolve => setTimeout(resolve, 2000));
+      console.log(`${logPrefix} Completed processing page ${SINGLE_PAGE_NUM}`);
+    } else {
+      // Regular mode (deep scan or quick scan)
+      const today = new Date();
+      const isWeekend = [0, 6].includes(today.getDay()); // 0 = Sunday, 6 = Saturday
+      const shouldCheckDeeperPages = CHECK_DEEPER_PAGES || isWeekend;
+      const pagesToCheck = shouldCheckDeeperPages ? DEEPER_PAGES_MAX : MAX_PAGES;
+      
+      if (shouldCheckDeeperPages) {
+        console.log(`${logPrefix} Performing deep scan of ${pagesToCheck} pages...`);
+      } else {
+        console.log(`${logPrefix} Performing quick scan of ${pagesToCheck} pages...`);
+      }
+      
+      // Process multiple pages
+      for (let page = 1; page <= pagesToCheck; page++) {
+        // Fetch movie list
+        const movieList = await fetchMovieList(page, MOVIE_PAGE_SIZE);
+        
+        // Process and save movies
+        await processAndSaveMovies(movieList.items, pool);
+        
+        // If we're checking multiple pages, add a small delay to avoid hammering the API
+        if (page < pagesToCheck && pagesToCheck > 1) {
+          console.log(`${logPrefix} Waiting 2 seconds before fetching next page...`);
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
       }
     }
     

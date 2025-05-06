@@ -8,6 +8,9 @@ This directory contains scripts for importing movie data from an external API (p
 - `import-movies.sh` - Bash wrapper script for running the import script in development/production environments
 - `setup-cron.sh` - Script to set up a cron job for automated data import on the production server
 - `force-deep-scan.sh` - Interactive script to force a deep scan of multiple pages for new content
+- `batch-import.sh` - Advanced script for importing large batches of pages from the API
+- `full-import.sh` - Automated script for importing the entire database (22,557+ movies) in 100-page batches with 1-hour breaks between batches
+- `IMPORT_PLAN.md` - Strategic plan for importing the full database (22,557+ movies over 2,256 pages)
 
 ## Data Import Strategy
 
@@ -44,6 +47,18 @@ bash scripts/data/import-movies.sh --deep-scan
 
 # Run interactive deep scan
 bash scripts/data/force-deep-scan.sh
+
+# Import a specific batch of pages (useful for large imports)
+bash scripts/data/batch-import.sh --start-page 1 --end-page 100
+
+# Import with custom delay between pages (to avoid API rate limits)
+bash scripts/data/batch-import.sh --start-page 101 --end-page 200 --delay 5
+
+# See the full import plan for importing all 2,256 pages (22,557+ movies)
+cat scripts/data/IMPORT_PLAN.md
+
+# Import the ENTIRE database with 1-hour breaks between 100-page batches
+bash scripts/data/full-import.sh
 ```
 
 ### Production Deployment
