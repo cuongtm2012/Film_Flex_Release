@@ -308,6 +308,7 @@ function convertToEpisodeModels(movieDetail, movieDbId) {
     for (const episode of server.server_data) {
       episodes.push({
         movie_id: movieDbId, // Using the database ID, not the external ID
+        movie_slug: movie.slug, // Add movie_slug explicitly
         server_name: server.server_name,
         name: episode.name,
         slug: episode.slug,
