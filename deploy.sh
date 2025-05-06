@@ -7,7 +7,7 @@ APP_NAME="filmflex"
 APP_PATH="/var/www/filmflex"
 ENV_FILE=".env"
 DB_USER="filmflex"
-DB_PASSWORD="FilmFlexPassword"
+DB_PASSWORD="filmflex2024" # Updated password without special characters
 DB_NAME="filmflex"
 
 # Colors for output
