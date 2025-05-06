@@ -1,0 +1,35 @@
+root@lightnode:/var/www/filmflex# cd /var/www/filmflex
+psql -U filmflex -d filmflex -c "\d movies"
+Password for user filmflex: 
+                                         Table "public.movies"
+   Column    |            Type             | Collation | Nullable |              Default               
+-------------+-----------------------------+-----------+----------+------------------------------------
+ id          | integer                     |           | not null | nextval('movies_id_seq'::regclass)
+ movie_id    | text                        |           | not null | 
+ slug        | text                        |           | not null | 
+ name        | text                        |           | not null | 
+ origin_name | text                        |           |          | 
+ poster_url  | text                        |           |          | 
+ thumb_url   | text                        |           |          | 
+ year        | integer                     |           |          | 
+ type        | text                        |           |          | 
+ quality     | text                        |           |          | 
+ lang        | text                        |           |          | 
+ time        | text                        |           |          | 
+ view        | integer                     |           |          | 0
+ description | text                        |           |          | 
+ status      | text                        |           |          | 
+ trailer_url | text                        |           |          | 
+ categories  | jsonb                       |           |          | '[]'::jsonb
+ countries   | jsonb                       |           |          | '[]'::jsonb
+ actors      | text                        |           |          | 
+ directors   | text                        |           |          | 
+ modified_at | timestamp without time zone |           | not null | now()
+Indexes:
+    "movies_pkey" PRIMARY KEY, btree (id)
+    "movies_movie_id_unique" UNIQUE CONSTRAINT, btree (movie_id)
+    "movies_slug_unique" UNIQUE CONSTRAINT, btree (slug)
+Referenced by:
+    TABLE "content_performance" CONSTRAINT "content_performance_movie_id_movies_id_fk" FOREIGN KEY (movie_id) REFERENCES movies(id) ON DELETE CASCADE
+
+root@lightnode:/var/www/filmflex# 

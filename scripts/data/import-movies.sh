@@ -7,9 +7,10 @@
 set -e
 
 # Define variables
-APP_DIR="/var/www/filmflex"
-LOG_DIR="/var/log/filmflex"
-SCRIPT_NAME="import-movies-sql.js"
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+APP_DIR="$( cd "$SCRIPT_DIR/../.." && pwd )"
+LOG_DIR="$APP_DIR/log"
+SCRIPT_NAME="import-movies-sql.cjs"
 LOG_FILE="${LOG_DIR}/data-import.log"
 DATE=$(date '+%Y-%m-%d %H:%M:%S')
 
@@ -19,21 +20,21 @@ mkdir -p "$LOG_DIR"
 # Print start message
 echo "[$DATE] Starting FilmFlex movie data import..." | tee -a "$LOG_FILE"
 
-# Make sure the required packages are installed
-if ! npm list -g node-fetch > /dev/null 2>&1; then
+# Ensure npm dependencies are installed
+if ! npm list axios dotenv pg > /dev/null 2>&1; then
   echo "[$DATE] Installing required packages..." | tee -a "$LOG_FILE"
-  npm install -g node-fetch dotenv pg
+  npm install axios dotenv pg
 fi
 
 # Change to application directory
 cd "$APP_DIR"
 
 # Make sure the script is executable
-chmod +x "$APP_DIR/scripts/data/${SCRIPT_NAME}"
+chmod +x "$SCRIPT_DIR/${SCRIPT_NAME}"
 
 # Run the import script
 echo "[$DATE] Running import script..." | tee -a "$LOG_FILE"
-NODE_ENV=production node "$APP_DIR/scripts/data/${SCRIPT_NAME}" 2>&1 | tee -a "$LOG_FILE"
+NODE_ENV=development node "$SCRIPT_DIR/${SCRIPT_NAME}" 2>&1 | tee -a "$LOG_FILE"
 
 # Check if the script executed successfully
 if [ $? -eq 0 ]; then
