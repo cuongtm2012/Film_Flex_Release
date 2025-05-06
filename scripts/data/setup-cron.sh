@@ -10,15 +10,25 @@ set -e
 APP_DIR="/var/www/filmflex"
 CRON_FILE="/etc/cron.d/filmflex-data-import"
 USER="root"  # User to run the cron job as
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 # Print start message
 echo "Setting up FilmFlex cron jobs..."
 
+# Make scripts executable
+echo "Making scripts executable..."
+chmod +x $SCRIPT_DIR/*.sh $SCRIPT_DIR/*.cjs
+
 # Create cron job file
+echo "Creating cron job entry..."
 cat > $CRON_FILE << EOF
 # FilmFlex Data Import Cron Jobs
-# Run movie data import twice daily at 6 AM and 6 PM
-0 6,18 * * * $USER cd $APP_DIR && bash $APP_DIR/scripts/data/import-movies.sh
+# Run normal movie data import twice daily at 6 AM and 6 PM (page 1 only)
+0 6,18 * * 0-5 $USER cd $APP_DIR && bash $APP_DIR/scripts/data/import-movies.sh
+
+# Run a deep scan every Saturday
+# This will automatically scan multiple pages to ensure all new content is captured
+0 6,18 * * 6 $USER cd $APP_DIR && bash $APP_DIR/scripts/data/import-movies.sh --deep-scan
 
 # Keep an empty line at the end of the file
 EOF
@@ -30,9 +40,17 @@ chmod 644 $CRON_FILE
 systemctl restart cron
 
 # Print completion message
-echo "FilmFlex cron jobs have been set up successfully!"
-echo "Movie data will be automatically imported at 6 AM and 6 PM daily."
-echo "Cron job configuration is stored at: $CRON_FILE"
+echo "Cron job successfully created at $CRON_FILE"
+echo "Movies will be imported at 6:00 AM and 6:00 PM daily"
+
+# Ask if user wants to run the import now
+read -p "Do you want to run the data import now? (y/n) " -n 1 -r
+echo
+if [[ $REPLY =~ ^[Yy]$ ]]; then
+  echo "Running data import now..."
+  cd $APP_DIR
+  bash $SCRIPT_DIR/import-movies.sh
+fi
 
 # Exit with success
 exit 0

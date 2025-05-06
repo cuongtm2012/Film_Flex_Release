@@ -21,10 +21,18 @@ const timestamp = new Date().toISOString();
 const logPrefix = `[${timestamp}] [DATA-IMPORT]`;
 
 // Configuration
-const API_BASE_URL = 'https://ophim1.com';
+const API_BASE_URL = 'https://phimapi.com';
 const MOVIE_LIST_ENDPOINT = '/danh-sach/phim-moi-cap-nhat';
 const MOVIE_PAGE_SIZE = 50;
-const MAX_PAGES = 5; // Adjust as needed
+const MAX_PAGES = 1; // Focus on page 1 for newest movies
+
+// Parse command line arguments
+const args = process.argv.slice(2);
+const FORCE_DEEP_SCAN = args.includes('--deep-scan');
+
+// Set this to true on weekends or specific times to check deeper pages
+const CHECK_DEEPER_PAGES = FORCE_DEEP_SCAN || false;
+const DEEPER_PAGES_MAX = 5; // How many pages to check when doing a deep scan
 
 /**
  * Setup database connection
@@ -291,13 +299,31 @@ async function main() {
       console.warn(`${logPrefix} Movies table might not exist, continuing anyway`);
     }
     
-    // We'll fetch first 5 pages of movies (adjust as needed)
-    for (let page = 1; page <= MAX_PAGES; page++) {
+    // Check if we should do a deep scan
+    const today = new Date();
+    const isWeekend = [0, 6].includes(today.getDay()); // 0 = Sunday, 6 = Saturday
+    const shouldCheckDeeperPages = CHECK_DEEPER_PAGES || isWeekend;
+    const pagesToCheck = shouldCheckDeeperPages ? DEEPER_PAGES_MAX : MAX_PAGES;
+    
+    if (shouldCheckDeeperPages) {
+      console.log(`${logPrefix} Performing deep scan of ${pagesToCheck} pages...`);
+    } else {
+      console.log(`${logPrefix} Performing quick scan of ${pagesToCheck} pages...`);
+    }
+    
+    // Always start with page 1 (newest content)
+    for (let page = 1; page <= pagesToCheck; page++) {
       // Fetch movie list
       const movieList = await fetchMovieList(page, MOVIE_PAGE_SIZE);
       
       // Process and save movies
       await processAndSaveMovies(movieList.items, pool);
+      
+      // If we're checking multiple pages, add a small delay to avoid hammering the API
+      if (page < pagesToCheck && pagesToCheck > 1) {
+        console.log(`${logPrefix} Waiting 2 seconds before fetching next page...`);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
     }
     
     console.log(`${logPrefix} Movie data import completed successfully`);
