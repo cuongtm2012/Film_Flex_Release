@@ -25,6 +25,7 @@ function show_usage {
   echo -e "Options:"
   echo -e "  --setup      Perform initial server setup (install dependencies, create database, etc.)"
   echo -e "  --deploy     Deploy or update the application (default if no option provided)"
+  echo -e "  --restart    Restart the application without full redeployment"
   echo -e "  --db-only    Setup database only (create tables, fix authentication)"
   echo -e "  --import     Start movie import process"
   echo -e "  --backup     Create a database backup"
@@ -33,6 +34,7 @@ function show_usage {
   echo -e "\nExamples:"
   echo -e "  ./deploy-filmflex.sh --setup    # First-time setup"
   echo -e "  ./deploy-filmflex.sh            # Deploy/update application"
+  echo -e "  ./deploy-filmflex.sh --restart  # Restart without redeploying"
 }
 
 # Function to check if command exists
@@ -471,6 +473,38 @@ EOF
   log_success "Ecosystem config updated successfully!"
 }
 
+# Function to restart the application
+function restart_app {
+  log "===== RESTARTING APPLICATION ====="
+  
+  # Change to application directory
+  cd ${APP_PATH}
+  
+  # Check for environment file updates
+  if [ -f "${ENV_FILE}" ] && [ "${ENV_FILE}" != "${APP_PATH}/.env" ]; then
+    log "Updating environment file from ${ENV_FILE}..."
+    cp ${ENV_FILE} ${APP_PATH}/.env
+  fi
+  
+  # Stop and start the application using PM2
+  log "Restarting the application with PM2..."
+  pm2 reload ${APP_NAME} || pm2 restart ${APP_NAME} || {
+    log "Failed to restart with reload/restart, trying to delete and start..."
+    pm2 delete ${APP_NAME} >/dev/null 2>&1 || true
+    pm2 start ecosystem.config.js
+  }
+  pm2 save
+  
+  # Also restart using systemd for consistency
+  log "Restarting systemd service..."
+  systemctl restart filmflex.service || true
+  
+  log_success "Application restarted successfully!"
+  echo -e "${YELLOW}Your FilmFlex application is now accessible at:${NC}"
+  echo -e "  http://localhost:5000"
+  echo -e "  http://$(hostname -I | awk '{print $1}' | head -n1):5000"
+}
+
 # Function to deploy the application
 function deploy_app {
   log "===== DEPLOYING APPLICATION ====="
@@ -613,6 +647,9 @@ else
       ;;
     --deploy)
       deploy_app
+      ;;
+    --restart)
+      restart_app
       ;;
     --db-only)
       setup_database

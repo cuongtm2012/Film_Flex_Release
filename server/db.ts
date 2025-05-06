@@ -1,9 +1,12 @@
-import { Pool, neonConfig } from '@neondatabase/serverless';
-import { drizzle } from 'drizzle-orm/neon-serverless';
-import ws from "ws";
+import { Pool } from 'pg'; // Use regular pg for local connections
+import { drizzle } from 'drizzle-orm/node-postgres'; // Standard PostgreSQL driver for Node.js
 import * as schema from "@shared/schema";
 
-neonConfig.webSocketConstructor = ws;
+// Import these only for Neon cloud deployments
+// import { Pool as NeonPool, neonConfig } from '@neondatabase/serverless';
+// import { drizzle as neonDrizzle } from 'drizzle-orm/neon-serverless';
+// import ws from "ws";
+// neonConfig.webSocketConstructor = ws;
 
 if (!process.env.DATABASE_URL) {
   throw new Error(

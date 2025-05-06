@@ -1,0 +1,142 @@
+root@lightnode:~# ./Film_Flex_Release/scripts/deployment/deploy-filmflex.sh --status
+2025-05-06 13:06:40 - ===== SYSTEM STATUS =====
+System Uptime:
+ 13:06:40 up 18:54,  2 users,  load average: 0.01, 0.02, 0.00
+
+Memory Usage:
+               total        used        free      shared  buff/cache   available
+Mem:           3.8Gi       576Mi       575Mi        17Mi       2.7Gi       3.0Gi
+Swap:             0B          0B          0B
+
+Disk Usage:
+/dev/vda2        50G  7.8G   43G  16% /
+tmpfs           2.0G   28K  2.0G   1% /dev/shm
+
+Application Status:
+× filmflex.service - FilmFlex Application
+     Loaded: loaded (/etc/systemd/system/filmflex.service; enabled; vendor preset: enabled)
+     Active: failed (Result: protocol) since Tue 2025-05-06 10:51:05 CST; 2h 15min ago
+    Process: 40631 ExecStart=/usr/bin/pm2 start ecosystem.config.cjs (code=exited, status=0/SUCCESS)
+        CPU: 344ms
+
+May 06 10:51:05 lightnode systemd[1]: Failed to start FilmFlex Application.
+May 06 10:51:05 lightnode systemd[1]: filmflex.service: Scheduled restart job, restart counter is at 6.
+May 06 10:51:05 lightnode systemd[1]: Stopped FilmFlex Application.
+May 06 10:51:05 lightnode systemd[1]: filmflex.service: Start request repeated too quickly.
+May 06 10:51:05 lightnode systemd[1]: filmflex.service: Failed with result 'protocol'.
+May 06 10:51:05 lightnode systemd[1]: Failed to start FilmFlex Application.
+Service not found
+
+PM2 Process Status:
+┌────┬────────────────────┬──────────┬──────┬───────────┬──────────┬──────────┐
+│ id │ name               │ mode     │ ↺    │ status    │ cpu      │ memory   │
+├────┼────────────────────┼──────────┼──────┼───────────┼──────────┼──────────┤
+│ 0  │ filmflex           │ cluster  │ 9    │ online    │ 0%       │ 92.5mb   │
+│ 1  │ filmflex           │ cluster  │ 9    │ online    │ 0%       │ 85.7mb   │
+└────┴────────────────────┴──────────┴──────┴───────────┴──────────┴──────────┘
+
+Nginx Status:
+● nginx.service - A high performance web server and a reverse proxy server
+     Loaded: loaded (/lib/systemd/system/nginx.service; enabled; vendor preset: enabled)
+     Active: active (running) since Mon 2025-05-05 18:33:22 CST; 18h ago
+       Docs: man:nginx(8)
+   Main PID: 9765 (nginx)
+
+Recent Application Logs:
+2025-05-06T13:03:27: Fetching page 2 from external API
+2025-05-06T13:03:27: Fetching page 3 from external API
+2025-05-06T13:03:27: Fetching page 4 from external API
+2025-05-06T13:03:27: Fetching page 5 from external API
+2025-05-06T13:03:29: Successfully fetched page 1 with 10 items
+2025-05-06T13:03:30: Successfully fetched page 5 with 10 items
+2025-05-06T13:03:30: Successfully fetched page 3 with 10 items
+2025-05-06T13:03:30: Successfully fetched page 4 with 10 items
+2025-05-06T13:03:30: Successfully fetched page 2 with 10 items
+2025-05-06T13:03:30: Combined 50 items from 5 pages
+2025-05-06T13:03:30: Pagination: Total items: 22545, Total pages: 451, Current page: 1
+2025-05-06T13:03:30: Returning 50 items for page 1
+2025-05-06T13:03:30: Processed 50 movies: 0 saved, 0 existing, 50 failed
+2025-05-06T13:03:30: Encountered 50 errors while saving movies
+2025-05-06T13:03:30: 1:03:30 PM [express] GET /api/movies 500 in 2776ms :: {"message":"Failed to fetch movies","error":"[…
+2025-05-06T13:03:33: 1:03:33 PM [express] GET /api/movies 500 in 6ms :: {"message":"Failed to fetch movies","error":"[obj…
+2025-05-06T13:03:33: 1:03:33 PM [express] GET /api/user 401 in 1ms :: {"message":"Not authenticated"}
+2025-05-06T13:03:51: 1:03:51 PM [express] POST /api/login 500 in 6ms :: {"message":"connect ECONNREFUSED 127.0.0.1:443"}
+2025-05-06T13:03:59: 1:03:59 PM [express] GET /api/user 401 in 2ms :: {"message":"Not authenticated"}
+2025-05-06T13:06:00: 1:06:00 PM [express] GET /api/health 200 in 3ms
+
+Recent Error Logs:
+    [Symbol(shapeMode)]: false,
+    [Symbol(kCapture)]: false
+  },
+  [Symbol(kType)]: 'error',
+  [Symbol(kError)]: Error: connect ECONNREFUSED 127.0.0.1:443
+      at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1611:16) {
+    errno: -111,
+    code: 'ECONNREFUSED',
+    syscall: 'connect',
+    address: '127.0.0.1',
+    port: 443
+  },
+  [Symbol(kMessage)]: 'connect ECONNREFUSED 127.0.0.1:443'
+}
+2025-05-06T13:03:51: Error: connect ECONNREFUSED 127.0.0.1:443
+    at file:///var/www/filmflex/node_modules/@neondatabase/serverless/index.mjs:1345:74
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async NeonPreparedQuery.execute (file:///var/www/filmflex/node_modules/drizzle-orm/neon-serverless/session.js:76:20)
+    at async DatabaseStorage.getUserByUsername (file:///var/www/filmflex/dist/index.js:491:20)
+    at async Strategy._verify (file:///var/www/filmflex/dist/index.js:1642:22)
+
+Database Status:
+● postgresql.service - PostgreSQL RDBMS
+     Loaded: loaded (/lib/systemd/system/postgresql.service; enabled; vendor preset: enabled)
+     Active: active (exited) since Tue 2025-05-06 11:41:03 CST; 1h 25min ago
+    Process: 59327 ExecStart=/bin/true (code=exited, status=0/SUCCESS)
+   Main PID: 59327 (code=exited, status=0/SUCCESS)
+
+Database Size:
+Password for user postgres:
+Database not found
+
+Recent Backups:
+total 4.0K
+-rw------- 1 root root 20 May  5 18:19 filmflex_20250505-181906.sql.gz
+
+Database Tables:
+                List of relations
+ Schema |        Name         | Type  |  Owner
+--------+---------------------+-------+----------
+ public | analytics_events    | table | filmflex
+ public | api_keys            | table | filmflex
+ public | api_requests        | table | filmflex
+ public | audit_logs          | table | filmflex
+ public | comments            | table | filmflex
+ public | content_approvals   | table | filmflex
+ public | content_performance | table | filmflex
+ public | episodes            | table | filmflex
+ public | movies              | table | filmflex
+ public | permissions         | table | filmflex
+ public | role_permissions    | table | filmflex
+ public | roles               | table | filmflex
+ public | users               | table | filmflex
+ public | view_history        | table | filmflex
+ public | watchlist           | table | filmflex
+(15 rows)
+
+
+Application Health Check:
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+    <script type="module" crossorigin src="/assets/index-DjUPru3R.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-BqfWuDaE.css">
+  </head>
+  <body>
+    <div id="root"></div>
+    <!-- This is a replit script which adds a banner on the top of the page when opened in development mode outside the replit environment -->
+    <script type="text/javascript" src="https://replit.com/public/js/replit-dev-banner.js"></script>
+  </body>
+</html>2025-05-06 13:06:44 - Deployment script completed successfully!
+For more information on managing your FilmFlex deployment, see DEPLOYMENT.md
+root@lightnode:~#
