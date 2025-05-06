@@ -82,15 +82,10 @@ pool.on('error', (err) => {
   }
 });
 
-// Configure WebSocket connection parameters
-// Note: Using any type assertion to bypass type checking
-// as these properties might be available in newer versions
-try {
-  (neonConfig as any).wsConnectionTimeoutMillis = 10000;
-  (neonConfig as any).wsConnectionRetryAttempts = 3;
-} catch (e) {
-  console.warn('Unable to set Neon WebSocket config parameters:', e);
-}
+// WebSocket connection configuration parameters
+// NOTE: Custom properties may not exist in current type definitions,
+// as these might be added in future versions or undocumented features
+// We're removing these to avoid TypeScript errors while maintaining stability
 
 // Initialize Drizzle with the pool
 export const db = drizzle({ client: pool, schema });

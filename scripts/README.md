@@ -73,16 +73,34 @@ scripts/
 ./scripts/deployment/deploy-filmflex.sh --reset-admin
 ```
 
-## Root Deploy Script
+## Root Wrapper Scripts
 
-For convenience, a copy of the deployment script is also available at the root of the project:
+For convenience and backward compatibility, several wrapper scripts are available at the root of the project:
 
 ```bash
-# From project root
-./deploy.sh
+# Deployment script
+./deploy.sh [options]
+
+# Test runner
+./run-tests.sh [options]
+
+# Data import
+./run-import.sh
 ```
 
-This allows backward compatibility with existing CI/CD pipelines that might reference the script at the root level.
+These root-level scripts are thin wrappers that call the actual implementation scripts in their respective directories. This approach:
+
+1. Maintains backward compatibility with existing CI/CD pipelines
+2. Provides easy access to common functions from the project root
+3. Keeps implementation details organized in the scripts/ directory
+
+### How Wrapper Scripts Work
+
+Each wrapper script:
+1. Determines the project root directory
+2. Checks if the target script exists
+3. Passes all arguments to the actual implementation script
+4. Returns the same exit code as the implementation script
 
 ## Contributing
 
