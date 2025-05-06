@@ -1,0 +1,162 @@
+TABASE_URL must be set. Did you forget to provision a database?
+    at file:///var/www/filmflex/dist/index.js:428:9
+    at ModuleJob.run (node:internal/modules/esm/module_job:263:25)
+    at async ModuleLoader.import (node:internal/modules/esm/loader:540:24)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)
+
+Node.js v20.19.1
+root@lightnode:/var/www/filmflex# cat server/index.ts 
+import express, { type Request, Response, NextFunction } from "express";
+import { registerRoutes } from "./routes";
+import { setupVite, serveStatic, log } from "./vite";
+
+const app = express();
+app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
+
+app.use((req, res, next) => {
+  const start = Date.now();
+  const path = req.path;
+  let capturedJsonResponse: Record<string, any> | undefined = undefined;
+
+  const originalResJson = res.json;
+  res.json = function (bodyJson, ...args) {
+    capturedJsonResponse = bodyJson;
+    return originalResJson.apply(res, [bodyJson, ...args]);
+  };
+
+  res.on("finish", () => {
+    const duration = Date.now() - start;
+    if (path.startsWith("/api")) {
+      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
+      if (capturedJsonResponse) {
+        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
+      }
+
+      if (logLine.length > 80) {
+        logLine = logLine.slice(0, 79) + "…";
+      }
+
+      log(logLine);
+    }
+  });
+
+  next();
+});
+
+(async () => {
+  const server = await registerRoutes(app);
+
+  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+    const status = err.status || err.statusCode || 500;
+    const message = err.message || "Internal Server Error";
+
+    res.status(status).json({ message });
+    throw err;
+  });
+
+  // importantly only setup vite in development and after
+  // setting up all the other routes so the catch-all route
+  // doesn't interfere with the other routes
+  if (app.get("env") === "development") {
+    await setupVite(app, server);
+  } else {
+    serveStatic(app);
+  }
+
+  // ALWAYS serve the app on port 5000
+  // this serves both the API and the client.
+  // It is the only port that is not firewalled.
+  const port = 5000;
+  server.listen({
+    port,
+    host: "0.0.0.0",
+    reusePort: true,
+  }, () => {
+    log(`serving on port ${port}`);
+  });
+})();
+root@lightnode:/var/www/filmflex# cat dist/index.js | head -50
+var __defProp = Object.defineProperty;
+var __export = (target, all) => {
+  for (var name in all)
+    __defProp(target, name, { get: all[name], enumerable: true });
+};
+
+// server/index.ts
+import express2 from "express";
+
+// server/routes.ts
+import { createServer } from "http";
+
+// shared/schema.ts
+var schema_exports = {};
+__export(schema_exports, {
+  ActivityType: () => ActivityType,
+  ApiKeyStatus: () => ApiKeyStatus,
+  ContentStatus: () => ContentStatus,
+  UserRole: () => UserRole,
+  UserStatus: () => UserStatus,
+  analyticsEvents: () => analyticsEvents,
+  analyticsEventsRelations: () => analyticsEventsRelations,
+  apiKeys: () => apiKeys,
+  apiKeysRelations: () => apiKeysRelations,
+  apiRequests: () => apiRequests,
+  apiRequestsRelations: () => apiRequestsRelations,
+  auditLogs: () => auditLogs,
+  auditLogsRelations: () => auditLogsRelations,
+  comments: () => comments,
+  commentsRelations: () => commentsRelations,
+  contentApprovals: () => contentApprovals,
+  contentApprovalsRelations: () => contentApprovalsRelations,
+  contentPerformance: () => contentPerformance,
+  contentPerformanceRelations: () => contentPerformanceRelations,
+  episodes: () => episodes,
+  episodesRelations: () => episodesRelations,
+  insertAnalyticsEventSchema: () => insertAnalyticsEventSchema,
+  insertApiKeySchema: () => insertApiKeySchema,
+  insertApiRequestSchema: () => insertApiRequestSchema,
+  insertAuditLogSchema: () => insertAuditLogSchema,
+  insertCommentSchema: () => insertCommentSchema,
+  insertContentApprovalSchema: () => insertContentApprovalSchema,
+  insertContentPerformanceSchema: () => insertContentPerformanceSchema,
+  insertEpisodeSchema: () => insertEpisodeSchema,
+  insertMovieSchema: () => insertMovieSchema,
+  insertPermissionSchema: () => insertPermissionSchema,
+  insertRolePermissionSchema: () => insertRolePermissionSchema,
+  insertRoleSchema: () => insertRoleSchema,
+  insertUserSchema: () => insertUserSchema,
+  insertViewHistorySchema: () => insertViewHistorySchema,
+root@lightnode:/var/www/filmflex# ip addr
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 scope host lo
+       valid_lft forever preferred_lft forever
+    inet6 ::1/128 scope host 
+       valid_lft forever preferred_lft forever
+2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP group default qlen 1000
+    link/ether 52:54:04:3b:58:0b brd ff:ff:ff:ff:ff:ff
+    altname enp0s3
+    altname ens3
+    inet 10.25.59.165/24 brd 10.25.59.255 scope global dynamic noprefixroute eth0
+       valid_lft 315260081sec preferred_lft 315260081sec
+    inet6 fe80::cae7:56aa:4258:bf7b/64 scope link noprefixroute 
+       valid_lft forever preferred_lft forever
+3: eth1: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP group default qlen 1000
+    link/ether 52:54:8f:98:3f:cc brd ff:ff:ff:ff:ff:ff
+    altname enp0s4
+    altname ens4
+    inet 38.54.115.156/24 brd 38.54.115.255 scope global dynamic noprefixroute eth1
+       valid_lft 315260081sec preferred_lft 315260081sec
+    inet6 fe80::f2b8:2933:ff8d:f50e/64 scope link noprefixroute 
+       valid_lft forever preferred_lft forever
+4: docker0: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc noqueue state DOWN group default 
+    link/ether 7a:5c:f1:ad:60:54 brd ff:ff:ff:ff:ff:ff
+    inet 172.17.0.1/16 brd 172.17.255.255 scope global docker0
+       valid_lft forever preferred_lft forever
+root@lightnode:/var/www/filmflex# ps aux | grep node
+root         295  0.0  0.0      0     0 ?        I<   May05   0:00 [xfs-inodegc/vda]
+root      171543  0.2  1.2 1025680 50344 ?       Sl   21:50   0:01 node /var/www/filmflex/start-filmflex.sh
+root      171550  0.2  1.2 1025636 52012 ?       Sl   21:50   0:01 node /var/www/filmflex/start-filmflex.sh
+root      172199  0.0  0.0   4028  2116 pts/2    S+   22:00   0:00 grep --color=auto node
+root@lightnode:/var/www/filmflex# 

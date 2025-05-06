@@ -1,0 +1,77 @@
+tnode:~/Film_Flex_Release/scripts/deployment# ./deploy-filmflex.sh --status
+2025-05-06 22:07:23 - ===== SYSTEM STATUS =====
+System Uptime:
+ 22:07:23 up 1 day,  3:54,  3 users,  load average: 0.04, 0.05, 0.02
+
+Memory Usage:
+               total        used        free      shared  buff/cache   available
+Mem:           3.8Gi       538Mi       599Mi        17Mi       2.7Gi       3.0Gi
+Swap:             0B          0B          0B
+
+Disk Usage:
+/dev/vda2        50G  7.8G   43G  16% /
+tmpfs           2.0G   28K  2.0G   1% /dev/shm
+
+Application Status:
+● filmflex.service - FilmFlex Application
+     Loaded: loaded (/etc/systemd/system/filmflex.service; enabled; vendor preset: enabled)
+     Active: active (exited) since Tue 2025-05-06 21:48:45 CST; 18min ago
+   Main PID: 171431 (code=exited, status=0/SUCCESS)
+        CPU: 327ms
+
+May 06 21:48:45 lightnode systemd[1]: Started FilmFlex Application.
+May 06 21:48:45 lightnode pm2[171431]: [PM2][WARN] Applications filmflex not running, starting...
+May 06 21:48:46 lightnode pm2[171431]: [PM2] App [filmflex] launched (2 instances)
+May 06 21:48:46 lightnode pm2[171431]: ┌────┬─────────────┬─────────────┬─────────┬─────────┬──────────┬────────┬──────┬───────────┬──────────┬──────────┬──────────┬──────────┐
+May 06 21:48:46 lightnode pm2[171431]: │ id │ name        │ namespace   │ version │ mode    │ pid      │ uptime │ ↺    │ status    │ cpu      │ mem      │ user     │ watching │
+May 06 21:48:46 lightnode pm2[171431]: ├────┼─────────────┼─────────────┼─────────┼─────────┼──────────┼────────┼──────┼───────────┼──────────┼──────────┼──────────┼──────────┤
+May 06 21:48:46 lightnode pm2[171431]: │ 0  │ filmflex    │ default     │ 1.0.0   │ cluster │ 171438   │ 0s     │ 0    │ online    │ 0%       │ 47.4mb   │ root     │ disabled │
+May 06 21:48:46 lightnode pm2[171431]: │ 1  │ filmflex    │ default     │ 1.0.0   │ cluster │ 171445   │ 0s     │ 0    │ online    │ 0%       │ 38.2mb   │ root     │ disabled │
+May 06 21:48:46 lightnode pm2[171431]: └────┴─────────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┴──────────┴──────────┘
+
+PM2 Process Status:
+┌────┬────────────────────┬──────────┬──────┬───────────┬──────────┬──────────┐
+│ id │ name               │ mode     │ ↺    │ status    │ cpu      │ memory   │
+├────┼────────────────────┼──────────┼──────┼───────────┼──────────┼──────────┤
+│ 0  │ filmflex           │ fork     │ 0    │ online    │ 0%       │ 101.2mb  │
+└────┴────────────────────┴──────────┴──────┴───────────┴──────────┴──────────┘
+
+Nginx Status:
+● nginx.service - A high performance web server and a reverse proxy server
+     Loaded: loaded (/lib/systemd/system/nginx.service; enabled; vendor preset: enabled)
+     Active: active (running) since Mon 2025-05-05 18:33:22 CST; 1 day 3h ago
+       Docs: man:nginx(8)
+   Main PID: 9765 (nginx)
+
+Recent Application Logs:
+2025-05-06T21:48:47: 9:48:47 PM [express] serving on port 5000
+2025-05-06T21:48:47: 9:48:47 PM [express] serving on port 5000
+
+Recent Error Logs:
+    at defaultLoad (node:internal/modules/esm/load:145:22)
+    at async ModuleLoader.loadAndTranslate (node:internal/modules/esm/loader:477:45)
+    at async ModuleJob._link (node:internal/modules/esm/module_job:110:19)
+You have triggered an unhandledRejection, you may have forgotten to catch a Promise rejection:
+TypeError [ERR_UNKNOWN_FILE_EXTENSION]: Unknown file extension ".sh" for /var/www/filmflex/start-filmflex.sh
+    at Object.getFileProtocolModuleFormat [as file:] (node:internal/modules/esm/get_format:189:9)
+    at defaultGetFormat (node:internal/modules/esm/get_format:232:36)
+    at defaultLoad (node:internal/modules/esm/load:145:22)
+    at async ModuleLoader.loadAndTranslate (node:internal/modules/esm/loader:477:45)
+    at async ModuleJob._link (node:internal/modules/esm/module_job:110:19)
+2025-05-06T22:01:54: ReferenceError: require is not defined in ES module scope, you can use import instead
+2025-05-06T22:01:54: This file is being treated as an ES module because it has a '.js' file extension and '/var/www/filmflex/package.json' contains "type": "module". To treat it as a CommonJS script, rename it to use the '.cjs' file extension.
+2025-05-06T22:01:54:     at file:///var/www/filmflex/start.js:2:1
+2025-05-06T22:01:54:     at ModuleJob.run (node:internal/modules/esm/module_job:263:25)
+2025-05-06T22:01:54:     at async ModuleLoader.import (node:internal/modules/esm/loader:540:24)
+2025-05-06T22:05:54: ReferenceError: require is not defined in ES module scope, you can use import instead
+2025-05-06T22:05:54: This file is being treated as an ES module because it has a '.js' file extension and '/var/www/filmflex/package.json' contains "type": "module". To treat it as a CommonJS script, rename it to use the '.cjs' file extension.
+2025-05-06T22:05:54:     at file:///var/www/filmflex/start.js:2:1
+2025-05-06T22:05:54:     at ModuleJob.run (node:internal/modules/esm/module_job:263:25)
+2025-05-06T22:05:54:     at async ModuleLoader.import (node:internal/modules/esm/loader:540:24)
+
+Database Status:
+● postgresql.service - PostgreSQL RDBMS
+     Loaded: loaded (/lib/systemd/system/postgresql.service; enabled; vendor preset: enabled)
+     Active: active (exited) since Tue 2025-05-06 11:41:03 CST; 10h ago
+   Main PID: 59327 (code=exited, status=0/SUCCESS)
+        CPU: 2ms

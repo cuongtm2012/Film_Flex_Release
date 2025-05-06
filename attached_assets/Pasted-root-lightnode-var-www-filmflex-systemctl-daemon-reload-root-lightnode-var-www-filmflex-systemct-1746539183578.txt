@@ -1,0 +1,31 @@
+root@lightnode:/var/www/filmflex# systemctl daemon-reload
+root@lightnode:/var/www/filmflex# systemctl restart filmflex.service
+Job for filmflex.service failed because the service did not take the steps required by its unit configuration.
+See "systemctl status filmflex.service" and "journalctl -xeu filmflex.service" for details.
+root@lightnode:/var/www/filmflex# systemctl restart filmflex.service
+Job for filmflex.service failed because the service did not take the steps required by its unit configuration.
+See "systemctl status filmflex.service" and "journalctl -xeu filmflex.service" for details.
+root@lightnode:/var/www/filmflex# systemctl restart filmflex.service
+Job for filmflex.service failed because the service did not take the steps required by its unit configuration.
+See "systemctl status filmflex.service" and "journalctl -xeu filmflex.service" for details.
+root@lightnode:/var/www/filmflex# systemctl restart filmflex.service
+Job for filmflex.service failed because the service did not take the steps required by its unit configuration.
+See "systemctl status filmflex.service" and "journalctl -xeu filmflex.service" for details.
+root@lightnode:/var/www/filmflex# systemctl status filmflex.service
+× filmflex.service - FilmFlex Application
+     Loaded: loaded (/etc/systemd/system/filmflex.service; enabled; vendor preset: enabled)
+     Active: failed (Result: protocol) since Tue 2025-05-06 21:45:58 CST; 11s ago
+    Process: 171301 ExecStart=/usr/bin/pm2 start ecosystem.config.cjs (code=exited, status=0/SUCCESS)
+        CPU: 344ms
+
+May 06 21:45:58 lightnode systemd[1]: Stopped FilmFlex Application.
+May 06 21:45:58 lightnode systemd[1]: filmflex.service: Start request repeated too quickly.
+May 06 21:45:58 lightnode systemd[1]: filmflex.service: Failed with result 'protocol'.
+May 06 21:45:58 lightnode systemd[1]: Failed to start FilmFlex Application.
+May 06 21:45:58 lightnode systemd[1]: filmflex.service: Start request repeated too quickly.
+May 06 21:45:58 lightnode systemd[1]: filmflex.service: Failed with result 'protocol'.
+May 06 21:45:58 lightnode systemd[1]: Failed to start FilmFlex Application.
+May 06 21:46:00 lightnode systemd[1]: filmflex.service: Start request repeated too quickly.
+May 06 21:46:00 lightnode systemd[1]: filmflex.service: Failed with result 'protocol'.
+May 06 21:46:00 lightnode systemd[1]: Failed to start FilmFlex Application.
+root@lightnode:/var/www/filmflex# 
