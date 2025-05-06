@@ -2,21 +2,19 @@ module.exports = {
   apps: [
     {
       name: "filmflex",
-      script: "./dist/index.js",
+      script: "dist/index.js",
+      instances: "max",
+      exec_mode: "cluster",
+      watch: false,
       env: {
         NODE_ENV: "production",
         PORT: 5000
       },
-      instances: "max",
-      exec_mode: "cluster",
-      watch: false,
-      merge_logs: true,
-      log_file: "/var/log/filmflex/app.log",
+      log_date_format: "YYYY-MM-DD HH:mm:ss",
       error_file: "/var/log/filmflex/error.log",
       out_file: "/var/log/filmflex/out.log",
-      time: true,
-      max_memory_restart: "1G",
-      autorestart: true
+      merge_logs: true,
+      max_memory_restart: "500M"
     }
   ]
 };
