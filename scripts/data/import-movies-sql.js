@@ -1,26 +1,20 @@
 #!/usr/bin/env node
 
 /**
- * FilmFlex Movie Data Import Script
+ * FilmFlex Movie Data Import Script (SQL Version)
  * 
- * This script fetches the latest movie data from the API and imports it into the database.
- * It's designed to be run as a scheduled task via cron or similar.
+ * This script fetches the latest movie data from the API and imports it into the database
+ * using direct SQL queries instead of relying on the schema.
  */
 
-// Load environment variables from .env file
-import * as dotenv from 'dotenv';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import fetch from 'node-fetch';
-import { Pool } from 'pg';
-import { drizzle } from 'drizzle-orm/node-postgres';
-
-// Get the directory name of current module
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
 // Load environment variables
-dotenv.config({ path: path.resolve('/var/www/filmflex/.env') });
+const dotenv = require('dotenv');
+const path = require('path');
+const fetch = require('node-fetch');
+const { Pool } = require('pg');
+
+// Load environment variables from .env file
+dotenv.config({ path: '/var/www/filmflex/.env' });
 
 // Create timestamp for logging
 const timestamp = new Date().toISOString();
@@ -152,7 +146,7 @@ async function fetchMovieDetail(slug) {
 /**
  * Process and save movies to database
  */
-async function processAndSaveMovies(items, db) {
+async function processAndSaveMovies(items, pool) {
   let savedCount = 0;
   let existingCount = 0;
   let failedCount = 0;
@@ -161,15 +155,16 @@ async function processAndSaveMovies(items, db) {
   
   for (const item of items) {
     try {
-      // Check if movie already exists using raw SQL query
-      const queryResult = await db.execute({
-        query: 'SELECT * FROM movies WHERE slug = $1 LIMIT 1',
+      // Check if movie already exists using raw SQL
+      const existingQuery = {
+        text: 'SELECT COUNT(*) as count FROM movies WHERE slug = $1',
         values: [item.slug]
-      });
+      };
       
-      const existingMovies = queryResult.rows || [];
+      const existingResult = await pool.query(existingQuery);
+      const count = parseInt(existingResult.rows[0].count, 10);
       
-      if (existingMovies.length > 0) {
+      if (count > 0) {
         existingCount++;
         continue;
       }
@@ -183,18 +178,20 @@ async function processAndSaveMovies(items, db) {
         continue;
       }
       
-      // Convert to model and save to database using raw SQL
+      // Convert to model and save to database using SQL
       const movie = convertToMovieModel(movieDetail);
       
-      // Create columns and placeholders for the SQL INSERT statement
+      // Create SQL insert query for movie
       const columns = Object.keys(movie).join(', ');
       const placeholders = Object.keys(movie).map((_, index) => `$${index + 1}`).join(', ');
       const values = Object.values(movie);
       
-      await db.execute({
-        query: `INSERT INTO movies (${columns}) VALUES (${placeholders})`,
+      const insertQuery = {
+        text: `INSERT INTO movies (${columns}) VALUES (${placeholders})`,
         values: values
-      });
+      };
+      
+      await pool.query(insertQuery);
       
       // If it's a series, process episodes
       if (movieDetail.movie?.type === 'series' && movieDetail.episodes) {
@@ -205,10 +202,16 @@ async function processAndSaveMovies(items, db) {
           const episodePlaceholders = Object.keys(episode).map((_, index) => `$${index + 1}`).join(', ');
           const episodeValues = Object.values(episode);
           
-          await db.execute({
-            query: `INSERT INTO episodes (${episodeColumns}) VALUES (${episodePlaceholders})`,
+          const episodeInsertQuery = {
+            text: `INSERT INTO episodes (${episodeColumns}) VALUES (${episodePlaceholders})`,
             values: episodeValues
-          });
+          };
+          
+          try {
+            await pool.query(episodeInsertQuery);
+          } catch (episodeError) {
+            console.error(`${logPrefix} Error inserting episode for movie ${item.slug}:`, episodeError);
+          }
         }
       }
       
@@ -301,34 +304,13 @@ async function main() {
     // Setup database
     const pool = setupDatabase();
     
-    // Import schema directly from shared folder
-    // We'll use a synchronous import here since the schema might be in a different format
-    const fs = await import('fs');
-    const path = await import('path');
-    const { exec } = await import('child_process');
-    
-    // Since we can't easily import the schema directly, we'll create a simple wrapper
-    const schemaObj = {
-      movies: {
-        name: 'movies'
-      },
-      episodes: {
-        name: 'episodes'
-      }
-    };
-    
-    console.log(`${logPrefix} Using simplified schema for database operations`);
-    
-    // Create drizzle instance with our schema
-    const db = drizzle({ client: pool, schema: schemaObj });
-    
     // We'll fetch first 5 pages of movies (adjust as needed)
     for (let page = 1; page <= MAX_PAGES; page++) {
       // Fetch movie list
       const movieList = await fetchMovieList(page, MOVIE_PAGE_SIZE);
       
       // Process and save movies
-      await processAndSaveMovies(movieList.items, db);
+      await processAndSaveMovies(movieList.items, pool);
     }
     
     console.log(`${logPrefix} Movie data import completed successfully`);
