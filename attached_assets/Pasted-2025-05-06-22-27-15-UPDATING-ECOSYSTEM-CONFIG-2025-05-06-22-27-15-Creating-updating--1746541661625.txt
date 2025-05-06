@@ -1,0 +1,98 @@
+2025-05-06 22:27:15 - ===== UPDATING ECOSYSTEM CONFIG =====
+2025-05-06 22:27:15 - Creating/updating ecosystem.config.cjs...
+2025-05-06 22:27:15 - Creating/updating .env file in /var/www/filmflex...
+2025-05-06 22:27:15 - Basic environment file created. For more options, see scripts/deployment/ENVIRONMENT.md
+2025-05-06 22:27:15 - Ecosystem config updated successfully!
+2025-05-06 22:27:15 - ===== RUNNING DATABASE MIGRATIONS =====
+2025-05-06 22:27:15 - Running database migrations with db:push...
+
+> rest-express@1.0.0 db:push
+> drizzle-kit push
+
+No config path provided, using default 'drizzle.config.ts'
+Reading config file '/var/www/filmflex/drizzle.config.ts'
+Using 'pg' driver for database querying
+[✓] Pulling schema from database...
+[i] No changes detected
+2025-05-06 22:27:17 - Database migrations completed successfully!
+2025-05-06 22:27:17 - Tables in database:
+                List of relations
+ Schema |        Name         | Type  |  Owner   
+--------+---------------------+-------+----------
+ public | analytics_events    | table | filmflex
+ public | api_keys            | table | filmflex
+ public | api_requests        | table | filmflex
+ public | audit_logs          | table | filmflex
+ public | comments            | table | filmflex
+ public | content_approvals   | table | filmflex
+ public | content_performance | table | filmflex
+ public | episodes            | table | filmflex
+ public | movies              | table | filmflex
+ public | permissions         | table | filmflex
+ public | role_permissions    | table | filmflex
+ public | roles               | table | filmflex
+ public | users               | table | filmflex
+ public | view_history        | table | filmflex
+ public | watchlist           | table | filmflex
+(15 rows)
+
+2025-05-06 22:27:17 - Starting/restarting the application...
+[PM2][WARN] Applications filmflex not running, starting...
+[PM2] App [filmflex] launched (2 instances)
+┌────┬────────────────────┬──────────┬──────┬───────────┬──────────┬──────────┐
+│ id │ name               │ mode     │ ↺    │ status    │ cpu      │ memory   │
+├────┼────────────────────┼──────────┼──────┼───────────┼──────────┼──────────┤
+│ 0  │ filmflex           │ cluster  │ 0    │ online    │ 0%       │ 46.5mb   │
+│ 1  │ filmflex           │ cluster  │ 0    │ online    │ 0%       │ 38.1mb   │
+└────┴────────────────────┴──────────┴──────┴───────────┴──────────┴──────────┘
+[PM2] Saving current process list...
+[PM2] Successfully saved in /root/.pm2/dump.pm2
+2025-05-06 22:27:18 - Setting up PM2 to start on boot...
+[PM2] Init System found: systemd
+Platform systemd
+Template
+[Unit]
+Description=PM2 process manager
+Documentation=https://pm2.keymetrics.io/
+After=network.target
+
+[Service]
+Type=forking
+User=root
+LimitNOFILE=infinity
+LimitNPROC=infinity
+LimitCORE=infinity
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin
+Environment=PM2_HOME=/root/.pm2
+PIDFile=/root/.pm2/pm2.pid
+Restart=on-failure
+
+ExecStart=/usr/lib/node_modules/pm2/bin/pm2 resurrect
+ExecReload=/usr/lib/node_modules/pm2/bin/pm2 reload all
+ExecStop=/usr/lib/node_modules/pm2/bin/pm2 kill
+
+[Install]
+WantedBy=multi-user.target
+
+Target path
+/etc/systemd/system/pm2-root.service
+Command list
+[ 'systemctl enable pm2-root' ]
+[PM2] Writing init configuration in /etc/systemd/system/pm2-root.service
+[PM2] Making script booting at startup...
+[PM2] [-] Executing: systemctl enable pm2-root...
+[PM2] [v] Command successfully executed.
++---------------------------------------+
+[PM2] Freeze a process list on reboot via:
+$ pm2 save
+
+[PM2] Remove init script via:
+$ pm2 unstartup systemd
+2025-05-06 22:27:19 - Updating systemd service...
+2025-05-06 22:27:21 - Application deployed successfully!
+Your FilmFlex application is now accessible at:
+  http://localhost:5000
+  http://10.25.59.165:5000
+2025-05-06 22:27:21 - Deployment script completed successfully!
+For more information on managing your FilmFlex deployment, see DEPLOYMENT.md
+root@lightnode:~/Film_Flex_Release/scripts/deployment# 

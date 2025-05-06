@@ -1,0 +1,161 @@
+cd ~/Film_Flex_Release
+
+# If the file doesn't exist yet, create it
+cat > ecosystem.config.cjs << EOF
+module.exports = {
+  apps: [
+    {
+      name: "filmflex",
+      script: "./dist/index.js",
+      env: {
+        NODE_ENV: "production",
+        PORT: 5000
+      },
+      instances: "max",
+      exec_mode: "cluster",
+      watch: false,
+      merge_logs: true,
+      log_file: "/var/log/filmflex/app.log",
+      error_file: "/var/log/filmflex/error.log",
+      out_file: "/var/log/filmflex/out.log",
+      time: true,
+      max_memory_restart: "1G",
+      autorestart: true
+    }
+  ]
+};
+EOF
+root@lightnode:~/Film_Flex_Release# # Make sure you're in the right directory
+cd ~/Film_Flex_Release
+
+# Stop any existing instances
+pm2 delete filmflex
+
+# Start with the new configuration
+pm2 start ecosystem.config.cjs
+
+# Save the PM2 configuration so it persists across server restarts
+pm2 save
+[PM2] Applying action deleteProcessId on app [filmflex](ids: [ 0 ])
+[PM2] [filmflex](0) ✓
+┌────┬────────────────────┬──────────┬──────┬───────────┬──────────┬──────────┐
+│ id │ name               │ mode     │ ↺    │ status    │ cpu      │ memory   │
+└────┴────────────────────┴──────────┴──────┴───────────┴──────────┴──────────┘
+[PM2][WARN] Applications filmflex not running, starting...
+[PM2] App [filmflex] launched (2 instances)
+┌────┬────────────────────┬──────────┬──────┬───────────┬──────────┬──────────┐
+│ id │ name               │ mode     │ ↺    │ status    │ cpu      │ memory   │
+├────┼────────────────────┼──────────┼──────┼───────────┼──────────┼──────────┤
+│ 0  │ filmflex           │ cluster  │ 0    │ online    │ 0%       │ 46.2mb   │
+│ 1  │ filmflex           │ cluster  │ 0    │ online    │ 0%       │ 38.2mb   │
+└────┴────────────────────┴──────────┴──────┴───────────┴──────────┴──────────┘
+[PM2] Saving current process list...
+[PM2] Successfully saved in /root/.pm2/dump.pm2
+root@lightnode:~/Film_Flex_Release# cd ~/Film_Flex_Release/scripts/deployment/
+./deploy-filmflex.sh
+2025-05-06 22:22:10 - ===== DEPLOYING APPLICATION =====
+2025-05-06 22:22:10 - Copying application files...
+2025-05-06 22:22:10 - Installing dependencies and building the application...
+npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+npm warn deprecated @esbuild-kit/esm-loader@2.6.5: Merged into tsx: https://tsx.is
+npm warn deprecated rimraf@2.5.4: Rimraf versions prior to v4 are no longer supported
+npm warn deprecated @esbuild-kit/core-utils@3.3.2: Merged into tsx: https://tsx.is
+npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+npm warn deprecated glob@8.1.0: Glob versions prior to v9 are no longer supported
+npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+npm warn deprecated node-domexception@1.0.0: Use your platform's native DOMException instead
+
+added 1151 packages, and audited 1152 packages in 23s
+
+155 packages are looking for funding
+  run `npm fund` for details
+
+7 moderate severity vulnerabilities
+
+To address issues that do not require attention, run:
+  npm audit fix
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+
+Run `npm audit` for details.
+
+> rest-express@1.0.0 build
+> vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist
+
+vite v5.4.14 building for production...
+transforming (3) src/main.tsxBrowserslist: browsers data (caniuse-lite) is 7 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+✓ 2536 modules transformed.
+../dist/public/index.html                     0.63 kB │ gzip:   0.38 kB
+../dist/public/assets/index-BqfWuDaE.css     90.98 kB │ gzip:  15.95 kB
+../dist/public/assets/index-DjUPru3R.js   1,085.58 kB │ gzip: 291.99 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 17.52s
+
+  dist/index.js  98.2kb
+
+⚡ Done in 24ms
+2025-05-06 22:22:52 - ===== UPDATING ECOSYSTEM CONFIG =====
+2025-05-06 22:22:52 - Creating/updating ecosystem.config.js...
+2025-05-06 22:22:52 - Creating/updating .env file in /var/www/filmflex...
+2025-05-06 22:22:52 - Basic environment file created. For more options, see scripts/deployment/ENVIRONMENT.md
+2025-05-06 22:22:52 - Ecosystem config updated successfully!
+2025-05-06 22:22:52 - ===== RUNNING DATABASE MIGRATIONS =====
+2025-05-06 22:22:52 - Running database migrations with db:push...
+
+> rest-express@1.0.0 db:push
+> drizzle-kit push
+
+No config path provided, using default 'drizzle.config.ts'
+Reading config file '/var/www/filmflex/drizzle.config.ts'
+Using 'pg' driver for database querying
+[✓] Pulling schema from database...
+[i] No changes detected
+2025-05-06 22:22:54 - Database migrations completed successfully!
+2025-05-06 22:22:54 - Tables in database:
+                List of relations
+ Schema |        Name         | Type  |  Owner   
+--------+---------------------+-------+----------
+ public | analytics_events    | table | filmflex
+ public | api_keys            | table | filmflex
+ public | api_requests        | table | filmflex
+ public | audit_logs          | table | filmflex
+ public | comments            | table | filmflex
+ public | content_approvals   | table | filmflex
+ public | content_performance | table | filmflex
+ public | episodes            | table | filmflex
+ public | movies              | table | filmflex
+ public | permissions         | table | filmflex
+ public | role_permissions    | table | filmflex
+ public | roles               | table | filmflex
+ public | users               | table | filmflex
+ public | view_history        | table | filmflex
+ public | watchlist           | table | filmflex
+(15 rows)
+
+2025-05-06 22:22:54 - Starting/restarting the application...
+[PM2][ERROR] File ecosystem.config.js malformated
+ReferenceError: module is not defined
+    at file:///var/www/filmflex/ecosystem.config.js:1:1
+    at ModuleJobSync.runSync (node:internal/modules/esm/module_job:387:35)
+    at ModuleLoader.importSyncForRequire (node:internal/modules/esm/loader:323:47)
+    at loadESMFromCJS (node:internal/modules/cjs/loader:1371:24)
+    at Module._compile (node:internal/modules/cjs/loader:1511:5)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1572:16)
+    at Module.load (node:internal/modules/cjs/loader:1275:32)
+    at Module._load (node:internal/modules/cjs/loader:1096:12)
+    at Module.require (node:internal/modules/cjs/loader:1298:19)
+    at require (node:internal/modules/helpers:182:18)
+root@lightnode:~/Film_Flex_Release/scripts/deployment# 
