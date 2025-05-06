@@ -10,15 +10,16 @@ The scripts are organized into these categories:
 scripts/
 ├── deployment/   # Deployment and server setup scripts
 │   ├── deploy-filmflex.sh  # All-in-one deployment script
-│   ├── DEPLOYMENT.md       # Original deployment guide
+│   ├── env.example         # Example environment variables
 │   └── README.md           # Comprehensive deployment guide
 │
 ├── data/         # Data import and management scripts
-│   ├── import.ts             # Movie import script
-│   ├── clear_movie_data.ts   # Script to clear movie data
-│   ├── import_progress.json  # Import progress tracking
-│   ├── IMPORT_GUIDE.md       # Original import guide
-│   └── README.md             # Comprehensive data management guide
+│   ├── import-movies-sql.cjs  # Main movie import script (CommonJS)
+│   ├── import-movies.sh       # Import wrapper script for development/production
+│   ├── force-deep-scan.sh     # Interactive script for manual deep imports
+│   ├── setup-cron.sh          # Script to set up scheduled imports
+│   ├── import_progress.json   # Import progress tracking
+│   └── README.md              # Comprehensive data management guide
 │
 ├── maintenance/  # User management and maintenance scripts
 │   ├── reset_admin.ts  # Script to reset admin credentials
@@ -28,10 +29,8 @@ scripts/
     ├── comprehensive-test-runner.js  # Main test runner
     ├── run-admin-tests.js            # Admin panel tests
     ├── run-all-tests.js              # All tests
-    ├── run_all_tests.js              # Alternative test runner
     ├── run-real-tests.js             # Tests against real components
     ├── run-test-demo.js              # Demo test runner
-    ├── run_tests.sh                  # Test shell script
     ├── test-profile-image.js         # Profile image tests
     └── README.md                     # Testing guide
 ```
@@ -55,28 +54,37 @@ scripts/
 ### Data Management
 
 ```bash
-# Import movie data with TypeScript directly
-npx tsx ./data/import.ts [start_page] [end_page]
+# Import movie data (regular scan - page 1 only)
+bash scripts/data/import-movies.sh
 
-# Alternatively, with the deployment script
-./deployment/deploy-filmflex.sh --import
+# Import movie data with deep scan (multiple pages)
+bash scripts/data/import-movies.sh --deep-scan
+
+# Interactive deep scan with custom page count
+bash scripts/data/force-deep-scan.sh
+
+# Set up scheduled imports (cron job)
+bash scripts/data/setup-cron.sh
 ```
 
 ### Testing
 
 ```bash
-# Run all tests with detailed output
-./tests/run_all_tests.sh
+# Run all tests
+node scripts/tests/run-all-tests.js
+
+# Run comprehensive test suite
+node scripts/tests/comprehensive-test-runner.js
 ```
 
 ### Maintenance
 
 ```bash
 # Reset admin user with TypeScript directly
-npx tsx ./maintenance/reset_admin.ts
+npx tsx scripts/maintenance/reset_admin.ts
 
-# Alternatively, with the deployment script
-./deployment/deploy-filmflex.sh --reset-admin
+# Deployment maintenance
+bash scripts/deployment/deploy-filmflex.sh [options]
 ```
 
 ## Script Organization

@@ -1,0 +1,57 @@
+lmFlex movie data import failed" | tee -a "$LOG_FILE"
+chmod +x scripts/data/import-movies.sh
+root@lightnode:/var/www/filmflex# # Update the cron job
+sudo bash scripts/data/setup-cron.sh
+Making scripts executable...
+Creating cron job entry...
+Cron job successfully created at /etc/cron.d/filmflex-data-import
+Movies will be imported at 6:00 AM and 6:00 PM daily
+Do you want to run the data import now? (y/n)
+y
+Running data import now...
+[2025-05-07 02:58:41] Starting FilmFlex movie data import...
+[2025-05-07 02:58:41] Installing required packages...
+
+changed 38 packages in 5s
+
+7 packages are looking for funding
+  run `npm fund` for details
+[2025-05-07 02:58:41] Running import script...
+[2025-05-06T18:58:46.467Z] [DATA-IMPORT] Starting movie data import...
+[2025-05-06T18:58:46.467Z] [DATA-IMPORT] Fetching movie list for page 1 with limit 50
+[2025-05-06T18:58:46.467Z] [DATA-IMPORT] Need to fetch 5 pages starting from external API page 1
+[2025-05-06T18:58:46.467Z] [DATA-IMPORT] Successfully fetched page 1 with 24 items
+[2025-05-06T18:58:46.467Z] [DATA-IMPORT] Successfully fetched page 2 with 24 items
+[2025-05-06T18:58:46.467Z] [DATA-IMPORT] Successfully fetched page 3 with 24 items
+[2025-05-06T18:58:46.467Z] [DATA-IMPORT] Successfully fetched page 4 with 24 items
+[2025-05-06T18:58:46.467Z] [DATA-IMPORT] Successfully fetched page 5 with 24 items
+[2025-05-06T18:58:46.467Z] [DATA-IMPORT] Combined 120 items from 5 pages
+[2025-05-06T18:58:46.467Z] [DATA-IMPORT] Pagination: Total items: unknown, Total pages: unknown, Current page: 1
+[2025-05-06T18:58:46.467Z] [DATA-IMPORT] Returning 50 items for page 1
+[2025-05-06T18:58:46.467Z] [DATA-IMPORT] Processing 50 movies...
+[2025-05-06T18:58:46.467Z] [DATA-IMPORT] Error processing movie mua-xuan-tuoi-tre: column "movieid" of relation "movies" does not exist
+[2025-05-06T18:58:46.467Z] [DATA-IMPORT] Error processing movie dajal-dem-lua-doi: column "movieid" of relation "movies" does not exist
+[2025-05-06T18:58:46.467Z] [DATA-IMPORT] Error processing movie bang-thuong-giai-te: column "movieid" of relation "movies" does not exist
+[2025-05-06T18:58:46.467Z] [DATA-IMPORT] Error processing movie thuong-lan-quyet: column "movieid" of relation "movies" does not exist
+[2025-05-06T18:58:46.467Z] [DATA-IMPORT] Error processing movie bao-hiem-ly-hon: column "movieid" of relation "movies" does not exist
+[2025-05-06T18:58:46.467Z] [DATA-IMPORT] Error processing movie toi-la-trieu-giap-de-phan-2: column "movieid" of relation "movies" does not exist
+[2025-05-06T18:58:46.467Z] [DATA-IMPORT] Error processing movie phu-nhan: column "movieid" of relation "movies" does not exist
+[2025-05-06T18:58:46.467Z] [DATA-IMPORT] Error processing movie hon-nhan-tinh-diem: column "movieid" of relation "movies" does not exist
+[2025-05-06T18:58:46.467Z] [DATA-IMPORT] Error processing movie tha-thi-thien-ha-tranh-thien-ha: column "movieid" of relation "movies" does not exist
+[2025-05-06T18:58:46.467Z] [DATA-IMPORT] Error processing movie nhat-ky-tu-do-cua-toi: column "movieid" of relation "movies" does not exist
+[2025-05-06T18:58:46.467Z] [DATA-IMPORT] Error processing movie ancient-earth-dinosaurs-of-the-frozen-continent: column "movieid" of relation "movies" does not exist
+[2025-05-06T18:58:46.467Z] [DATA-IMPORT] Error processing movie ke-sat-nhan-dua-tre-co-the-chet: column "movieid" of relation "movies" does not exist
+[2025-05-06T18:58:46.467Z] [DATA-IMPORT] Error processing movie senden-daha-guzel: column "movieid" of relation "movies" does not exist
+[2025-05-06T18:58:46.467Z] [DATA-IMPORT] Error processing movie nu-chinh-dien-sau-lam-moi-theo: column "movieid" of relation "movies" does not exist
+[2025-05-06T18:58:46.467Z] [DATA-IMPORT] Error processing movie nam-ngay-o-trung-tam-y-te-memorial: column "movieid" of relation "movies" does not exist
+[2025-05-06T18:58:46.467Z] [DATA-IMPORT] Error processing movie thu-ky-bach-ngay-nao-cung-muon-tu-chuc: column "movieid" of relation "movies" does not exist
+[2025-05-06T18:58:46.467Z] [DATA-IMPORT] Error processing movie tieu-hong-nuong-cua-yeu-hoang-dai-nhan: column "movieid" of relation "movies" does not exist
+[2025-05-06T18:58:46.467Z] [DATA-IMPORT] Error processing movie big-dragon-the-series: column "movieid" of relation "movies" does not exist
+[2025-05-06T18:58:46.467Z] [DATA-IMPORT] Error processing movie ngay-mai-la-hom-nay: column "movieid" of relation "movies" does not exist
+[2025-05-06T18:58:46.467Z] [DATA-IMPORT] Error processing movie armageddon-time: column "movieid" of relation "movies" does not exist
+[2025-05-06T18:58:46.467Z] [DATA-IMPORT] Error processing movie chao-mung-den-voi-lop-hoc-de-cao-thuc-luc-2: column "movieid" of relation "movies" does not exist
+[2025-05-06T18:58:46.467Z] [DATA-IMPORT] Error processing movie em-la-nguoi-ly-tuong: column "movieid" of relation "movies" does not exist
+[2025-05-06T18:58:46.467Z] [DATA-IMPORT] Error processing movie andor: column "movieid" of relation "movies" does not exist
+[2025-05-06T18:58:46.467Z] [DATA-IMPORT] Error processing movie duc-vong-nu-gioi: column "movieid" of relation "movies" does not exist
+^C
+root@lightnode:/var/www/filmflex# 
