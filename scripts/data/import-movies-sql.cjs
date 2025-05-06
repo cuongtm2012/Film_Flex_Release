@@ -7,14 +7,20 @@
  * using direct SQL queries instead of relying on the schema.
  */
 
-// Load environment variables
-const dotenv = require('dotenv');
+// Load dependencies
 const path = require('path');
 const axios = require('axios');
 const { Pool } = require('pg');
 
-// Load environment variables from .env file
-dotenv.config();
+// Try to load dotenv, but don't fail if it's not installed
+try {
+  const dotenv = require('dotenv');
+  dotenv.config();
+  console.log('Loaded environment variables from .env file');
+} catch (error) {
+  console.log('dotenv package not found, using existing environment variables');
+  // Continue anyway, as environment variables might be set directly on the system
+}
 
 // Create timestamp for logging
 const timestamp = new Date().toISOString();
