@@ -1,6 +1,7 @@
 #!/bin/bash
-# FilmFlex All-in-One Deployment Script
-# This script handles the entire deployment process for FilmFlex
+# FilmFlex Master Deployment Script
+# This comprehensive script handles the entire deployment process for FilmFlex
+# including server setup, database management, monitoring, and maintenance
 set -e
 
 # Configuration
@@ -11,28 +12,42 @@ DB_USER="filmflex"
 DB_PASSWORD="filmflex2024" # Using simple password without special characters
 DB_NAME="filmflex"
 DB_URL="postgresql://${DB_USER}:${DB_PASSWORD}@localhost:5432/${DB_NAME}"
+SSH_USER="root"
+SSH_HOST="38.54.115.156" # Change this to your server's IP address
 
 # Colors for output
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
+BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Function to display usage information
 function show_usage {
-  echo -e "${YELLOW}FilmFlex All-in-One Deployment Script${NC}"
+  echo -e "${BLUE}FilmFlex Master Deployment Script${NC}"
   echo -e "Usage: ./deploy-filmflex.sh [OPTION]"
   echo -e "Options:"
-  echo -e "  --setup      Perform initial server setup (install dependencies, create database, etc.)"
-  echo -e "  --deploy     Deploy or update the application (default if no option provided)"
-  echo -e "  --db-only    Setup database only (create tables, fix authentication)"
-  echo -e "  --import     Start movie import process"
-  echo -e "  --backup     Create a database backup"
-  echo -e "  --status     Check server and application status"
-  echo -e "  --help       Display this help message"
+  echo -e "  --setup              Perform initial server setup (install dependencies, create database, etc.)"
+  echo -e "  --deploy             Deploy or update the application (default if no option provided)"
+  echo -e "  --db-only            Setup database only (create tables, fix authentication)"
+  echo -e "  --import             Start movie import process"
+  echo -e "  --backup             Create a database backup"
+  echo -e "  --restore=FILE       Restore database from backup file"
+  echo -e "  --rollback           Rollback to previous deployment"
+  echo -e "  --logs [option]      Check application logs (--app, --error, --nginx, --all, --tail, --filter=X)"
+  echo -e "  --db-status          Show database status and statistics"
+  echo -e "  --db-optimize        Optimize database (vacuum analyze)"
+  echo -e "  --reset-admin        Reset admin user password"
+  echo -e "  --clear-data         Clear movie data (caution: destructive operation)"
+  echo -e "  --status             Check server and application status"
+  echo -e "  --generate-ssh-key   Generate SSH key for CI/CD deployment"
+  echo -e "  --nginx-setup        Configure Nginx only"
+  echo -e "  --ssl                Set up SSL with Let's Encrypt"
+  echo -e "  --help               Display this help message"
   echo -e "\nExamples:"
   echo -e "  ./deploy-filmflex.sh --setup    # First-time setup"
   echo -e "  ./deploy-filmflex.sh            # Deploy/update application"
+  echo -e "  ./deploy-filmflex.sh --logs --error # Show error logs"
 }
 
 # Function to check if command exists
@@ -321,6 +336,55 @@ NGINX
   fi
 }
 
+# Function to setup SSL with Let's Encrypt
+function setup_ssl {
+  log "===== SETTING UP SSL WITH LET'S ENCRYPT ====="
+  
+  # Check if certbot is installed
+  if ! command_exists certbot; then
+    log "Installing certbot..."
+    apt-get update
+    apt-get install -y certbot python3-certbot-nginx
+  fi
+  
+  # Ask for domain name
+  read -p "Enter your domain name (e.g., filmflex.com): " DOMAIN_NAME
+  
+  if [ -z "$DOMAIN_NAME" ]; then
+    log_error "Domain name cannot be empty."
+    return 1
+  fi
+  
+  # Update Nginx configuration with domain name
+  sed -i "s/server_name localhost;/server_name ${DOMAIN_NAME} www.${DOMAIN_NAME};/" /etc/nginx/sites-available/filmflex
+  
+  # Test Nginx configuration
+  if ! nginx -t; then
+    log_error "Nginx configuration test failed. Please check the configuration."
+    return 1
+  fi
+  
+  # Reload Nginx
+  systemctl reload nginx
+  
+  # Run certbot
+  log "Running certbot to obtain SSL certificate..."
+  certbot --nginx -d $DOMAIN_NAME -d www.$DOMAIN_NAME --non-interactive --agree-tos --email admin@$DOMAIN_NAME
+  
+  if [ $? -eq 0 ]; then
+    log_success "SSL certificate installed successfully!"
+  else
+    log_error "Failed to obtain SSL certificate."
+    return 1
+  fi
+  
+  # Test renewal
+  log "Testing certificate renewal..."
+  certbot renew --dry-run
+  
+  log_success "SSL setup completed!"
+}
+
 # Function to setup backup script
 function setup_backup_script {
   log "===== SETTING UP DATABASE BACKUP SCRIPT ====="
@@ -333,7 +397,7 @@ function setup_backup_script {
   log "Creating backup script..."
   cat > /etc/filmflex/scripts/backup-db.sh << 'BACKUP'
 #!/bin/bash
-# FilmFlex database backup script
+# Database backup script for FilmFlex
 set -e
 
 # Configuration
@@ -370,6 +434,52 @@ BACKUP
   (crontab -l 2>/dev/null || true; echo "0 2 * * * /etc/filmflex/scripts/backup-db.sh > /var/log/filmflex-backup.log 2>&1") | crontab -
   
   log_success "Backup script set up successfully!"
+}
+
+# Function to restore database from backup
+function restore_database {
+  local BACKUP_FILE=$1
+  
+  log "===== RESTORING DATABASE FROM BACKUP ====="
+  
+  if [ -z "$BACKUP_FILE" ]; then
+    log_error "Backup file path not specified."
+    echo -e "Available backups:"
+    ls -la /var/backups/filmflex/
+    return 1
+  fi
+  
+  if [ ! -f "$BACKUP_FILE" ]; then
+    log_error "Backup file not found: $BACKUP_FILE"
+    return 1
+  fi
+  
+  log "Stopping the application..."
+  pm2 stop filmflex || true
+  
+  log "Creating backup before restoration..."
+  backup_database
+  
+  log "Restoring database from $BACKUP_FILE..."
+  
+  if [[ "$BACKUP_FILE" == *.gz ]]; then
+    # Gunzip the file and pipe to psql
+    gunzip -c "$BACKUP_FILE" | PGPASSWORD="${DB_PASSWORD}" psql -h localhost -U "${DB_USER}" -d "${DB_NAME}"
+  else
+    # Plain SQL file
+    PGPASSWORD="${DB_PASSWORD}" psql -h localhost -U "${DB_USER}" -d "${DB_NAME}" < "$BACKUP_FILE"
+  fi
+  
+  if [ $? -eq 0 ]; then
+    log_success "Database restored successfully!"
+  else
+    log_error "Failed to restore database."
+  fi
+  
+  log "Starting the application..."
+  pm2 start filmflex || pm2 start ecosystem.config.js
+  
+  log_success "Database restoration completed!"
 }
 
 # Function to update ecosystem config
@@ -420,8 +530,20 @@ EOF
 function deploy_app {
   log "===== DEPLOYING APPLICATION ====="
   
+  # Create a backup before deployment
+  log "Creating pre-deployment backup..."
+  backup_database
+  
   # Make sure we have current directory copied to app path
   log "Copying application files..."
+  
+  # Create deployment backup for rollback
+  if [ -d "${APP_PATH}" ]; then
+    log "Creating deployment backup for potential rollback..."
+    mkdir -p "${APP_PATH}_backup_$(date +%Y%m%d%H%M%S)"
+    cp -r "${APP_PATH}" "${APP_PATH}_backup_$(date +%Y%m%d%H%M%S)"
+  fi
+  
   mkdir -p ${APP_PATH}
   rsync -a --exclude 'node_modules' --exclude '.git' ./ ${APP_PATH}/
   
@@ -463,6 +585,40 @@ function deploy_app {
   echo -e "  http://$(hostname -I | awk '{print $1}' | head -n1):5000"
 }
 
+# Function to rollback to previous deployment
+function rollback_deployment {
+  log "===== ROLLING BACK DEPLOYMENT ====="
+  
+  # Find the latest backup
+  LATEST_BACKUP=$(find / -maxdepth 1 -name "${APP_PATH}_backup_*" | sort -r | head -n 1)
+  
+  if [ -z "$LATEST_BACKUP" ]; then
+    log_error "No backup found for rollback."
+    return 1
+  fi
+  
+  log "Found backup: $LATEST_BACKUP"
+  
+  # Stop the application
+  log "Stopping the application..."
+  pm2 stop filmflex || true
+  
+  # Backup the current deployment just in case
+  log "Backing up current deployment..."
+  mv ${APP_PATH} ${APP_PATH}_failed_$(date +%Y%m%d%H%M%S)
+  
+  # Restore from backup
+  log "Restoring from backup..."
+  cp -r $LATEST_BACKUP ${APP_PATH}
+  
+  # Start the application
+  log "Starting the application..."
+  cd ${APP_PATH}
+  pm2 start ecosystem.config.js
+  
+  log_success "Rollback completed successfully!"
+}
+
 # Function to import movies
 function import_movies {
   log "===== STARTING MOVIE IMPORT PROCESS ====="
@@ -476,8 +632,18 @@ function import_movies {
     apt-get update && apt-get install -y screen
   fi
 
+  # Start the import process
+  log "Starting import process..."
+  
+  # Ask for import parameters
+  read -p "Enter start page (default: 1): " START_PAGE
+  START_PAGE=${START_PAGE:-1}
+  
+  read -p "Enter end page (default: 20): " END_PAGE
+  END_PAGE=${END_PAGE:-20}
+  
   # Create a screen session for the import process
-  screen -dmS import bash -c "cd ${APP_PATH} && npx tsx scripts/import.ts 1 2252 > /var/log/filmflex-import.log 2>&1"
+  screen -dmS import bash -c "cd ${APP_PATH} && npx tsx scripts/import.ts ${START_PAGE} ${END_PAGE} > /var/log/filmflex-import.log 2>&1"
   
   log_success "Import process started in a screen session."
   echo -e "${YELLOW}This process will run in the background and may take several hours.${NC}"
@@ -485,6 +651,41 @@ function import_movies {
   echo -e "  tail -f /var/log/filmflex-import.log"
   echo -e "${YELLOW}To attach to the screen session:${NC}"
   echo -e "  screen -r import"
+}
+
+# Function to reset admin user
+function reset_admin {
+  log "===== RESETTING ADMIN USER ====="
+  
+  # Run the admin reset script
+  cd ${APP_PATH}
+  npx tsx scripts/reset_admin.ts
+  
+  log_success "Admin user reset completed!"
+}
+
+# Function to clear movie data
+function clear_movie_data {
+  log "===== CLEARING MOVIE DATA ====="
+  
+  # Confirm this destructive action
+  read -p "Are you sure you want to clear all movie data? This cannot be undone. (y/N): " CONFIRM
+  CONFIRM=${CONFIRM:-N}
+  
+  if [[ "$CONFIRM" != "y" && "$CONFIRM" != "Y" ]]; then
+    log "Operation cancelled."
+    return 0
+  fi
+  
+  # Create backup before clearing data
+  log "Creating backup before clearing data..."
+  backup_database
+  
+  # Run the clear movie data script
+  cd ${APP_PATH}
+  npx tsx scripts/clear_movie_data.ts
+  
+  log_success "Movie data cleared successfully!"
 }
 
 # Function to create a database backup
@@ -500,6 +701,146 @@ function backup_database {
   
   log_success "Backup completed successfully!"
   echo -e "${YELLOW}Backup files are stored in /var/backups/filmflex/${NC}"
+}
+
+# Function to check application logs
+function check_logs {
+  log "===== CHECKING APPLICATION LOGS ====="
+  
+  local LOG_OPTION="$1"
+  
+  case "$LOG_OPTION" in
+    --app)
+      log "Application Logs:"
+      tail -n 50 /var/log/filmflex-out.log
+      ;;
+    --error)
+      log "Error Logs:"
+      tail -n 50 /var/log/filmflex-error.log
+      ;;
+    --nginx)
+      log "Nginx Access Logs:"
+      tail -n 20 /var/log/nginx/access.log
+      
+      log "Nginx Error Logs:"
+      tail -n 20 /var/log/nginx/error.log
+      ;;
+    --all)
+      log "Application Logs:"
+      tail -n 20 /var/log/filmflex-out.log
+      
+      log "Error Logs:"
+      tail -n 20 /var/log/filmflex-error.log
+      
+      log "Nginx Access Logs:"
+      tail -n 10 /var/log/nginx/access.log
+      
+      log "Nginx Error Logs:"
+      tail -n 10 /var/log/nginx/error.log
+      ;;
+    --tail)
+      log "Following application logs in real-time (Ctrl+C to exit):"
+      tail -f /var/log/filmflex-out.log
+      ;;
+    --filter=*)
+      local KEYWORD="${LOG_OPTION#*=}"
+      log "Filtered logs for '$KEYWORD':"
+      grep -i "$KEYWORD" /var/log/filmflex-out.log | tail -n 100
+      
+      log "Filtered error logs for '$KEYWORD':"
+      grep -i "$KEYWORD" /var/log/filmflex-error.log | tail -n 100
+      ;;
+    *)
+      log "Application Logs:"
+      tail -n 20 /var/log/filmflex-out.log
+      ;;
+  esac
+}
+
+# Function to check database status
+function check_db_status {
+  log "===== DATABASE STATUS ====="
+  
+  # Database version
+  log "PostgreSQL Version:"
+  sudo -u postgres psql -c "SELECT version();"
+  
+  # Database size
+  log "Database Size:"
+  sudo -u postgres psql -c "SELECT pg_size_pretty(pg_database_size('${DB_NAME}'));"
+  
+  # Table counts
+  log "Table Row Counts:"
+  PGPASSWORD="${DB_PASSWORD}" psql -h localhost -U "${DB_USER}" -d "${DB_NAME}" -c "
+    SELECT 
+      relname as table_name,
+      n_live_tup as row_count,
+      pg_size_pretty(pg_total_relation_size(relid)) as table_size
+    FROM pg_stat_user_tables
+    ORDER BY n_live_tup DESC;
+  "
+  
+  # Cache hit ratio
+  log "Cache Hit Ratio:"
+  sudo -u postgres psql -c "SELECT 
+    round(100 * sum(heap_blks_hit) / (sum(heap_blks_hit) + sum(heap_blks_read)), 2) as cache_hit_ratio 
+    FROM pg_statio_user_tables;"
+  
+  # Active connections
+  log "Active Connections:"
+  sudo -u postgres psql -c "SELECT count(*) FROM pg_stat_activity WHERE datname='${DB_NAME}';"
+  
+  log_success "Database status check completed!"
+}
+
+# Function to optimize database
+function optimize_database {
+  log "===== OPTIMIZING DATABASE ====="
+  
+  # Vacuum analyze
+  log "Running VACUUM ANALYZE..."
+  sudo -u postgres psql -d ${DB_NAME} -c "VACUUM ANALYZE;"
+  
+  # Reindex
+  log "Reindexing database..."
+  sudo -u postgres psql -d ${DB_NAME} -c "REINDEX DATABASE ${DB_NAME};"
+  
+  log_success "Database optimization completed!"
+}
+
+# Function to generate SSH key for CI/CD
+function generate_ssh_key {
+  log "===== GENERATING SSH KEY FOR CI/CD ====="
+  
+  # Create .ssh directory if it doesn't exist
+  mkdir -p ~/.ssh
+  chmod 700 ~/.ssh
+  
+  # Generate SSH key
+  log "Generating SSH key..."
+  ssh-keygen -t rsa -b 4096 -f ~/.ssh/filmflex_deploy -N ""
+  
+  # Display public key
+  log "SSH key generated successfully!"
+  echo -e "${YELLOW}Add the following public key to your GitHub repository secrets as SSH_PRIVATE_KEY:${NC}"
+  cat ~/.ssh/filmflex_deploy.pub
+  
+  # Display private key
+  echo -e "${YELLOW}Add the following private key to your GitHub repository secrets as SSH_PRIVATE_KEY (copy carefully):${NC}"
+  cat ~/.ssh/filmflex_deploy
+  
+  # Add key to authorized_keys
+  log "Adding key to authorized_keys..."
+  cat ~/.ssh/filmflex_deploy.pub >> ~/.ssh/authorized_keys
+  chmod 600 ~/.ssh/authorized_keys
+  
+  # Generate known hosts entry
+  log "Generating known hosts entry..."
+  SSH_KNOWN_HOSTS=$(ssh-keyscan -H localhost 2>/dev/null)
+  echo -e "${YELLOW}Add the following to your GitHub repository secrets as SSH_KNOWN_HOSTS:${NC}"
+  echo "$SSH_KNOWN_HOSTS"
+  
+  log_success "SSH key setup completed!"
 }
 
 # Function to check system status
@@ -544,6 +885,12 @@ function check_status {
   
   echo -e "\n${YELLOW}Application Health Check:${NC}"
   curl -s http://localhost:5000/api/health 2>/dev/null || echo "Application not responding to health check"
+  
+  echo -e "\n${YELLOW}Node.js Version:${NC}"
+  node -v
+  
+  echo -e "\n${YELLOW}NPM Version:${NC}"
+  npm -v
 }
 
 # Parse command-line arguments
@@ -569,8 +916,43 @@ else
     --backup)
       backup_database
       ;;
+    --restore=*)
+      BACKUP_FILE="${1#*=}"
+      restore_database "$BACKUP_FILE"
+      ;;
+    --rollback)
+      rollback_deployment
+      ;;
+    --logs)
+      if [ $# -gt 1 ]; then
+        check_logs "$2"
+      else
+        check_logs "--all"
+      fi
+      ;;
+    --db-status)
+      check_db_status
+      ;;
+    --db-optimize)
+      optimize_database
+      ;;
+    --reset-admin)
+      reset_admin
+      ;;
+    --clear-data)
+      clear_movie_data
+      ;;
     --status)
       check_status
+      ;;
+    --generate-ssh-key)
+      generate_ssh_key
+      ;;
+    --nginx-setup)
+      setup_nginx
+      ;;
+    --ssl)
+      setup_ssl
       ;;
     --help)
       show_usage
@@ -584,5 +966,5 @@ else
 fi
 
 # Display success message
-log_success "Deployment script completed successfully!"
+log_success "Script execution completed successfully!"
 echo -e "${YELLOW}For more information on managing your FilmFlex deployment, see DEPLOYMENT.md${NC}"
