@@ -1,93 +1,86 @@
-# FilmFlex Environment Variables Guide
+# FilmFlex Environment Configuration Guide
 
-This guide explains how to set up environment variables for different deployment environments.
+This document provides detailed information about all environment variables that can be used to configure the FilmFlex application.
 
-## Production Environment Variables
+## Basic Configuration
 
-For production deployment, you need to set up environment variables to configure the application. These variables control database connections, security settings, and application behavior.
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `NODE_ENV` | `production` | Application environment. Set to `production` for optimized performance. |
+| `PORT` | `5000` | The port on which the application will run. |
 
-### Setting Up Environment Variables
+## Database Configuration
 
-1. Copy the example environment file:
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DATABASE_URL` | - | PostgreSQL connection string in the format `postgresql://user:password@host:port/database`. |
+| `PGUSER` | `filmflex` | PostgreSQL username. |
+| `PGPASSWORD` | - | PostgreSQL password. |
+| `PGDATABASE` | `filmflex` | PostgreSQL database name. |
+| `PGHOST` | `localhost` | PostgreSQL host. |
+| `PGPORT` | `5432` | PostgreSQL port. |
+
+## Security Settings
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SESSION_SECRET` | - | Secret used for session encryption. Should be a long, random string. |
+| `COOKIE_SECURE` | `true` | If set to `true`, cookies will only be sent over HTTPS. |
+| `COOKIE_HTTP_ONLY` | `true` | If set to `true`, cookies will not be accessible via JavaScript. |
+| `COOKIE_MAX_AGE` | `604800000` | Cookie expiration time in milliseconds (default: 1 week). |
+
+## Logging Configuration
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `LOG_LEVEL` | `info` | Minimum level of logs to output. Possible values: `error`, `warn`, `info`, `http`, `verbose`, `debug`, `silly`. |
+| `LOG_FILE` | `/var/log/filmflex/app.log` | Path to the log file. |
+| `ERROR_LOG_FILE` | `/var/log/filmflex/error.log` | Path to the error log file. |
+
+## Performance Settings
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DB_POOL_SIZE` | `20` | Maximum number of database connections in the pool. |
+| `DB_CONNECTION_TIMEOUT` | `10000` | Database connection timeout in milliseconds. |
+| `DB_IDLE_TIMEOUT` | `30000` | Database idle timeout in milliseconds. |
+| `NODE_CLUSTER_INSTANCES` | `max` | Number of Node.js instances to run in cluster mode. Set to `max` to use all available CPUs. |
+
+## Feature Flags
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ENABLE_USER_REGISTRATION` | `true` | If set to `false`, new user registration will be disabled. |
+| `ENABLE_ADMIN_PANEL` | `true` | If set to `false`, the admin panel will be disabled. |
+| `ENABLE_API_RATE_LIMITING` | `true` | If set to `true`, API rate limiting will be enabled. |
+| `API_RATE_LIMIT` | `100` | Maximum number of API requests per minute per IP. |
+| `CACHE_TTL` | `300` | Cache time-to-live in seconds (default: 5 minutes). |
+
+## Advanced Settings
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `TRUST_PROXY` | `true` | If set to `true`, the application will trust the `X-Forwarded-For` header from the proxy. Should be set to `true` when behind a reverse proxy like Nginx. |
+
+## Usage in Deployment
+
+The deployment script (`deploy-filmflex.sh`) will automatically create the `.env` file with these settings. You can customize the values by:
+
+1. Creating a custom `.env` file and passing it to the deployment script:
    ```bash
-   cp scripts/deployment/env.example .env
+   ./deploy-filmflex.sh --env=/path/to/custom/.env
    ```
 
-2. Edit the `.env` file with your production values:
+2. Editing the values directly in `scripts/deployment/env.example` before deployment.
+
+3. Updating the values after deployment by editing `/var/www/filmflex/.env` and restarting the application:
    ```bash
-   nano .env
+   ./deploy-filmflex.sh --restart
    ```
 
-3. Make sure to change all sensitive values, especially:
-   - `DATABASE_URL` and all PostgreSQL connection variables
-   - `SESSION_SECRET` (use a strong random string)
-   - `ADMIN_PASSWORD` (set a secure password)
+## Security Considerations
 
-### Critical Variables to Customize
-
-| Variable | Description | Recommendation |
-|----------|-------------|----------------|
-| `DATABASE_URL` | PostgreSQL connection string | Update with your actual database credentials |
-| `SESSION_SECRET` | Secret for session encryption | Generate a random string (32+ characters) |
-| `ADMIN_PASSWORD` | Initial admin password | Use a strong password (12+ characters) |
-| `PGPASSWORD` | PostgreSQL password | Match your database setup |
-
-### Security Best Practices
-
-1. **Never commit `.env` files to version control**
-2. **Use different values in each environment** (development, staging, production)
-3. **Regularly rotate sensitive credentials** (every 90 days)
-4. **Use environment-specific secrets management** in CI/CD pipelines
-
-## Managing Environment Variables in CI/CD
-
-For GitHub Actions and other CI/CD pipelines, store environment variables as secrets:
-
-1. Go to your GitHub repository
-2. Navigate to Settings > Secrets and variables > Actions
-3. Add each environment variable as a repository secret
-4. Reference them in your workflow files:
-   ```yaml
-   env:
-     DATABASE_URL: ${{ secrets.DATABASE_URL }}
-     SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
-   ```
-
-## Additional Environment Configuration
-
-For advanced deployment scenarios:
-
-### Load Balancing
-
-If deploying behind a load balancer, add:
-```
-TRUST_PROXY=true
-```
-
-### Redis for Session Storage
-
-For scalable deployments with multiple server instances:
-```
-REDIS_URL=redis://username:password@host:port
-SESSION_STORE=redis
-```
-
-### External Services
-
-If integrating with external APIs:
-```
-TMDB_API_KEY=your_api_key
-PAYMENT_GATEWAY_KEY=your_payment_key
-```
-
-## Troubleshooting
-
-If you encounter environment-related issues:
-
-1. Verify all required variables are set
-2. Check for typos in variable names
-3. Ensure values don't contain unescaped special characters
-4. Validate database connection string format
-5. Check file permissions on the `.env` file (should be readable by the application user)
-
-For additional help, consult the logging output for environment-related errors.
+- Never commit `.env` files with real credentials to version control.
+- Use a strong, unique `SESSION_SECRET` in production.
+- Consider using a password manager to generate secure passwords.
+- Regularly rotate API keys and secrets.
