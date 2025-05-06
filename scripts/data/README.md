@@ -1,139 +1,62 @@
-# FilmFlex Data Management Guide
+# FilmFlex Data Import Scripts
 
-This document provides instructions for importing and managing data in the FilmFlex application.
+This directory contains scripts for importing movie data from an external API into the FilmFlex database.
 
-## Table of Contents
+## Files
 
-- [Movie Import Process](#movie-import-process)
-- [Import Options](#import-options)
-- [Monitoring Import Progress](#monitoring-import-progress)
-- [Data Management](#data-management)
-- [Troubleshooting](#troubleshooting)
+- `import-movies-sql.cjs` - The main CommonJS script that fetches movie data from the API and imports it into the database
+- `import-movies.sh` - Bash wrapper script for running the import script in a development environment
+- `production-import-movies.sh` - Bash wrapper script for running the import script in a production environment
+- `setup-cron.sh` - Script to set up a cron job for automated data import on the production server
 
-## Movie Import Process
+## Development Testing
 
-FilmFlex uses an external API to import movie data. The import process is handled by the `import.ts` script in this directory.
-
-### Quick Start
-
-The simplest way to start the import process is using the deployment script:
+To test the data import functionality in development:
 
 ```bash
-./deploy.sh --import
+# Make scripts executable
+chmod +x scripts/data/*.sh scripts/data/*.cjs
+
+# Run the import script
+bash scripts/data/import-movies.sh
+```
+
+## Production Deployment
+
+To deploy these scripts to the production server:
+
+```bash
+# Make the deployment script executable
+chmod +x scripts/deployment/update-filmflex-import.sh
+
+# Run the deployment script
+bash scripts/deployment/update-filmflex-import.sh
 ```
 
 This will:
-1. Prompt you for start and end page numbers
-2. Start a background process in a screen session
-3. Log output to `/var/log/filmflex-import.log`
+1. Copy the import scripts to the production server
+2. Make them executable
+3. Set up a cron job to run the import automatically twice a day (6 AM and 6 PM)
 
-### Manual Import
+## Cron Job Details
 
-For more control, you can run the import script directly:
+The cron job is configured to run the data import script twice daily:
+- At 6:00 AM (to get new content released overnight)
+- At 6:00 PM (to get content released during the day)
 
-```bash
-# Navigate to the application directory
-cd /var/www/filmflex
+The cron job configuration is stored at `/etc/cron.d/filmflex-data-import` on the production server.
 
-# Run import for pages 1-20
-npx tsx scripts/data/import.ts 1 20
+## Logs
 
-# Resume from last saved position
-npx tsx scripts/data/import.ts --resume
-```
+Import script logs are stored in the following locations:
+- Development: `[project_root]/log/data-import.log`
+- Production: `/var/log/filmflex/data-import.log`
 
-## Import Options
+## Database Schema Notes
 
-The import script supports several options:
+The script is designed to work with the following database tables:
+- `movies` - Stores movie metadata
+- `episodes` - Stores episode data for TV series
 
-- `start_page`: The first page to import (default: 1)
-- `end_page`: The last page to import (default: 2252, which is all available movies)
-- `--resume`: Resume from the last saved position
-
-## Monitoring Import Progress
-
-The import process saves progress information in `import_progress.json`. This allows you to:
-
-- Resume imports if they're interrupted
-- Track which pages have been successfully imported
-
-To check import progress:
-
-```bash
-# View the progress file
-cat scripts/data/import_progress.json
-
-# Follow the import log in real-time
-tail -f /var/log/filmflex-import.log
-```
-
-## Data Management
-
-### Clearing Movie Data
-
-If you need to clear all movie data (for example, to start fresh):
-
-```bash
-# Using the deployment script
-./deploy.sh --clear-data
-
-# Or directly
-npx tsx scripts/data/clear_movie_data.ts
-```
-
-**Warning**: This is a destructive operation and will delete all movie data from the database.
-
-### Verifying Imported Data
-
-To check how many movies have been imported:
-
-```bash
-# Using the deployment script
-./deploy.sh --db-status
-
-# Or directly with SQL
-PGPASSWORD=filmflex2024 psql -h localhost -U filmflex -d filmflex -c "SELECT COUNT(*) FROM movies;"
-```
-
-## Troubleshooting
-
-### Import Process Gets Stuck
-
-If the import process appears to get stuck:
-
-1. Check if it's still running:
-   ```bash
-   ps aux | grep import
-   ```
-
-2. If needed, kill and restart:
-   ```bash
-   kill <process_id>
-   ./deploy.sh --import
-   ```
-
-3. You can also try resuming from where it left off:
-   ```bash
-   npx tsx scripts/data/import.ts --resume
-   ```
-
-### API Rate Limiting
-
-If you encounter API rate limiting:
-
-1. The import script has built-in retry logic and will pause when rate limited
-2. You can modify the delay by editing `scripts/data/import.ts` and changing the `DELAY_BETWEEN_REQUESTS` value
-
-### Database Connection Issues
-
-If the import fails due to database connection issues:
-
-1. Verify database connection:
-   ```bash
-   ./deploy.sh --db-status
-   ```
-
-2. Fix database configuration if needed:
-   ```bash
-   ./deploy.sh --db-only
-   ```
+The script will only import new movies that don't already exist in the database, based on the `slug` field.
+For TV series, episode data will be imported through the API routes when accessing the series details.

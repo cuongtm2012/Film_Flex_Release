@@ -193,61 +193,10 @@ async function processAndSaveMovies(items, pool) {
       
       await pool.query(insertQuery);
       
-      // If it's a series, process episodes
+      // Log message for series
       if (movieDetail.movie?.type === 'series' && movieDetail.episodes) {
-        // Get the movie's id from the database
-        const getMovieIdQuery = {
-          text: 'SELECT id FROM movies WHERE movie_id = $1',
-          values: [movie.movie_id]
-        };
-        
-        const movieIdResult = await pool.query(getMovieIdQuery);
-        
-        if (movieIdResult.rows.length > 0) {
-          const movieDbId = movieIdResult.rows[0].id;
-          const episodeModels = convertToEpisodeModels(movieDetail, movieDbId);
-          
-          for (const episode of episodeModels) {
-            // Check if episode table exists and get its structure
-            try {
-              const episodeTableQuery = {
-                text: `SELECT column_name FROM information_schema.columns 
-                       WHERE table_name = 'episodes' ORDER BY ordinal_position`
-              };
-              
-              const episodeTableResult = await pool.query(episodeTableQuery);
-              
-              if (episodeTableResult.rows.length > 0) {
-                // Build query based on actual columns
-                const episodeColumns = [];
-                const episodeValues = [];
-                
-                episodeTableResult.rows.forEach(row => {
-                  const columnName = row.column_name;
-                  if (columnName in episode && columnName !== 'id') {
-                    episodeColumns.push(columnName);
-                    episodeValues.push(episode[columnName]);
-                  }
-                });
-                
-                if (episodeColumns.length > 0) {
-                  const episodePlaceholders = episodeColumns.map((_, index) => `$${index + 1}`).join(', ');
-                  
-                  const episodeInsertQuery = {
-                    text: `INSERT INTO episodes (${episodeColumns.join(', ')}) VALUES (${episodePlaceholders})`,
-                    values: episodeValues
-                  };
-                  
-                  await pool.query(episodeInsertQuery);
-                }
-              } else {
-                console.warn(`${logPrefix} Episodes table not found, skipping episode insert`);
-              }
-            } catch (episodeTableError) {
-              console.error(`${logPrefix} Error getting episodes table structure:`, episodeTableError.message);
-            }
-          }
-        }
+        console.log(`${logPrefix} Movie '${movie.name}' is a series with ${movieDetail.episodes.length} server(s) of episodes`);
+        console.log(`${logPrefix} Episodes will be imported through the API routes`);
       }
       
       savedCount++;
