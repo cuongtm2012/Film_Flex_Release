@@ -82,7 +82,21 @@ fetch_movie_list() {
   local page=$1
   local url="${API_BASE_URL}${MOVIE_LIST_ENDPOINT}?page=${page}"
   echo -e "${BLUE}Fetching movie list from ${url}${NC}"
-  curl -s "$url"
+  
+  # Add user agent and other headers to mimic a browser
+  local response=$(curl -s "$url" \
+    -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36" \
+    -H "Accept: application/json" \
+    -H "Referer: ${API_BASE_URL}" \
+    -H "Connection: keep-alive")
+  
+  # Check if the response is valid JSON
+  if echo "$response" | jq -e . >/dev/null 2>&1; then
+    echo "$response"
+  else
+    echo -e "${RED}Invalid JSON response. API might be rate limiting or down${NC}"
+    echo "{\"items\":[]}" # Return empty array as fallback
+  fi
 }
 
 # Function to fetch movie details from API
@@ -90,13 +104,56 @@ fetch_movie_detail() {
   local slug=$1
   local url="${API_BASE_URL}/phim/${slug}"
   echo -e "${BLUE}Fetching movie details from ${url}${NC}"
-  curl -s "$url"
+  
+  # Add user agent and other headers to mimic a browser
+  local response=$(curl -s "$url" \
+    -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36" \
+    -H "Accept: application/json" \
+    -H "Referer: ${API_BASE_URL}" \
+    -H "Connection: keep-alive")
+  
+  # Check if the response is valid JSON
+  if echo "$response" | jq -e . >/dev/null 2>&1; then
+    echo "$response"
+  else
+    echo -e "${RED}Invalid JSON response for movie ${slug}. API might be rate limiting or down${NC}"
+    echo "{\"movie\":{}}" # Return empty object as fallback
+  fi
+}
+
+# Extract database connection parameters
+parse_db_url() {
+  # Extract components from DATABASE_URL
+  local DB_URL="$DATABASE_URL"
+  DB_USER=$(echo "$DB_URL" | sed -n 's/.*:\/\/\([^:]*\):.*/\1/p')
+  DB_PASSWORD=$(echo "$DB_URL" | sed -n 's/.*:\/\/[^:]*:\([^@]*\)@.*/\1/p')
+  DB_HOST=$(echo "$DB_URL" | sed -n 's/.*@\([^:]*\):.*/\1/p')
+  DB_PORT=$(echo "$DB_URL" | sed -n 's/.*@[^:]*:\([0-9]*\)\/.*/\1/p')
+  DB_NAME=$(echo "$DB_URL" | sed -n 's/.*\/\([^?]*\).*/\1/p')
+  
+  echo "DB parameters: host=$DB_HOST, port=$DB_PORT, user=$DB_USER, db=$DB_NAME" >> "$IMPORT_LOG"
 }
 
 # Function to check if movie exists in database
 movie_exists() {
   local slug=$1
-  local count=$(PGPASSWORD="${DATABASE_URL##*:}" psql -h "${DATABASE_URL#*@*:}" -p "${DATABASE_URL##*:}" -U "${DATABASE_URL#*//}" -d "${DATABASE_URL##*/}" -t -c "SELECT COUNT(*) FROM movies WHERE slug = '$slug'")
+  
+  # Parse database URL if not already done
+  if [ -z "$DB_USER" ]; then
+    parse_db_url
+  fi
+  
+  local count=$(PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -t -c "SELECT COUNT(*) FROM movies WHERE slug = '$slug'" 2>/dev/null)
+  
+  # Check if command was successful
+  if [ $? -ne 0 ]; then
+    echo -e "${RED}Failed to connect to database. Please check your DATABASE_URL${NC}"
+    return 1
+  fi
+  
+  # Trim whitespace
+  count=$(echo "$count" | tr -d ' ')
+  
   if [ "$count" -gt 0 ]; then
     return 0
   else
@@ -138,8 +195,13 @@ import_movie() {
   local categories=$(echo "$movie_data" | jq -r '.movie.category')
   local countries=$(echo "$movie_data" | jq -r '.movie.country')
   
+  # Parse database URL if not already done
+  if [ -z "$DB_USER" ]; then
+    parse_db_url
+  fi
+  
   # Insert movie into database
-  PGPASSWORD="${DATABASE_URL##*:}" psql -h "${DATABASE_URL#*@*:}" -p "${DATABASE_URL##*:}" -U "${DATABASE_URL#*//}" -d "${DATABASE_URL##*/}" -c "
+  PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c "
     INSERT INTO movies (
       movie_id, name, origin_name, description, type, status, 
       thumb_url, poster_url, trailer_url, time, quality, lang, 
@@ -149,7 +211,13 @@ import_movie() {
       '$thumb_url', '$poster_url', '$trailer_url', '$time', '$quality', '$lang',
       '$slug', '$year', '$view', '$actors', '$directors', '$categories', '$countries'
     )
-  "
+  " 2>/dev/null
+  
+  # Check if insertion was successful
+  if [ $? -ne 0 ]; then
+    echo -e "${RED}Failed to insert movie $slug into database${NC}"
+    return 1
+  fi
   
   echo -e "${GREEN}Successfully imported movie: $name${NC}"
   return 0
