@@ -115,6 +115,14 @@ fi
 # Make sure log directory exists
 mkdir -p "$LOG_DIR"
 
+# Check if jq is installed (needed for JSON processing)
+if ! command -v jq &> /dev/null; then
+  echo -e "${RED}Error: This script requires 'jq' for JSON processing${NC}"
+  echo -e "${YELLOW}Please install jq with:${NC}"
+  echo -e "  apt-get update && apt-get install -y jq"
+  exit 1
+fi
+
 # Print start message
 echo -e "${GREEN}Starting batch import of movies from pages ${START_PAGE} to ${END_PAGE}${NC}"
 echo "[$DATE] Starting batch import of movies from pages ${START_PAGE} to ${END_PAGE}" >> "$BATCH_LOG_FILE"
