@@ -14,11 +14,17 @@ if (!process.env.DATABASE_URL) {
 // Parse and validate connection string to avoid password format issues
 function getValidConnectionString() {
   try {
+    // Make sure DATABASE_URL is defined
+    const dbUrl = process.env.DATABASE_URL || '';
+    if (!dbUrl) {
+      throw new Error("DATABASE_URL is not defined");
+    }
+
     // Handle special characters in password for direct connection strings
-    if (process.env.DATABASE_URL.includes('@')) {
+    if (dbUrl.includes('@')) {
       // Extract user, password, host, port, and database
       const regex = /postgresql:\/\/([^:]+):([^@]+)@([^:]+):(\d+)\/(.+)/;
-      const match = process.env.DATABASE_URL.match(regex);
+      const match = dbUrl.match(regex);
       
       if (match) {
         const [_, user, password, host, port, database] = match;
@@ -30,22 +36,22 @@ function getValidConnectionString() {
     
     // If the above parsing fails, try URL parsing
     try {
-      const url = new URL(process.env.DATABASE_URL);
+      const url = new URL(dbUrl);
       if (url.password) {
         // Ensure password is properly encoded
         url.password = encodeURIComponent(url.password);
         return url.toString();
       }
-    } catch (urlError) {
+    } catch (urlError: any) {
       console.warn("Failed to parse DATABASE_URL as URL:", urlError.message);
     }
     
     // If all parsing attempts fail, use the original string
     console.log("Using original DATABASE_URL");
-    return process.env.DATABASE_URL;
+    return dbUrl;
   } catch (error) {
     console.error("Error processing DATABASE_URL:", error);
-    return process.env.DATABASE_URL;
+    return process.env.DATABASE_URL || '';
   }
 }
 
