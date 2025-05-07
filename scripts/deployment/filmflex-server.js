@@ -34,7 +34,32 @@ if (process.env.DATABASE_URL) {
 app.use(express.json());
 
 // Serve static files from the React build
-app.use(express.static(path.join(__dirname, '../client/dist')));
+const staticPath = path.join(__dirname, '../client/dist');
+console.log(`Static files path: ${staticPath}`);
+console.log(`Does path exist: ${fs.existsSync(staticPath)}`);
+
+// Try alternate paths if standard path doesn't exist
+const alternatePaths = [
+  '../client/dist',
+  './client/dist',
+  '../dist',
+  './dist'
+];
+
+let foundPath = staticPath;
+if (!fs.existsSync(staticPath)) {
+  for (const altPath of alternatePaths) {
+    const fullPath = path.join(__dirname, altPath);
+    console.log(`Trying alternate path: ${fullPath}`);
+    if (fs.existsSync(fullPath)) {
+      foundPath = fullPath;
+      console.log(`Found valid path: ${foundPath}`);
+      break;
+    }
+  }
+}
+
+app.use(express.static(foundPath));
 
 // API Routes
 app.get('/api/health', (req, res) => {
@@ -137,7 +162,59 @@ app.get('/api/movies/:slug', async (req, res) => {
 
 // Handle all other routes by serving the React app
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../client/dist/index.html'));
+  const indexPath = path.join(foundPath, 'index.html');
+  
+  if (fs.existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    // Generate a simple fallback page if index.html doesn't exist
+    console.log(`Index file not found at ${indexPath}, serving fallback page`);
+    res.send(`
+      <!DOCTYPE html>
+      <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>FilmFlex</title>
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              text-align: center;
+              padding: 50px;
+              background: #1a1a1a;
+              color: #fff;
+            }
+            h1 { color: #e50914; }
+            .message {
+              background: rgba(0,0,0,0.5);
+              padding: 20px;
+              border-radius: 5px;
+              max-width: 600px;
+              margin: 0 auto;
+            }
+            .api-status {
+              margin-top: 30px;
+              padding: 10px;
+              background: #333;
+              border-radius: 4px;
+              display: inline-block;
+            }
+          </style>
+        </head>
+        <body>
+          <h1>FilmFlex</h1>
+          <div class="message">
+            <h2>Backend API is running</h2>
+            <p>The FilmFlex API server is running successfully, but we couldn't find the frontend files.</p>
+            <p>Please check the deployment process to ensure the frontend was built correctly.</p>
+          </div>
+          <div class="api-status">
+            API Status: Online | Server Time: ${new Date().toISOString()}
+          </div>
+        </body>
+      </html>
+    `);
+  }
 });
 
 // Start server
