@@ -9,8 +9,8 @@ import { Loader2 } from "lucide-react";
 export default function Home() {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedCategory, setSelectedCategory] = useState("all");
-  const [sortBy, setSortBy] = useState("latest");
-  const [limit, setLimit] = useState(50); // Default to 50 items per page per requirements
+  const [sortBy, setSortBy] = useState("modified");
+  const [limit, setLimit] = useState(48); // Default to 48 items per page
 
   // Determine the API endpoint based on category selection
   // When using '/api/categories/all', the server will automatically redirect to '/api/movies'

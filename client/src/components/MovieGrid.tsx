@@ -66,13 +66,14 @@ export default function MovieGrid({
           <div className="flex items-center gap-2">
             <span className="text-muted-foreground text-sm">Sort by:</span>
             <Select
-              defaultValue="latest"
+              defaultValue="modified"
               onValueChange={onSortChange}
             >
               <SelectTrigger className="bg-muted text-white w-[180px]">
                 <SelectValue placeholder="Sort by" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="modified">Recently Updated</SelectItem>
                 <SelectItem value="latest">Latest Added</SelectItem>
                 <SelectItem value="popular">Most Popular</SelectItem>
                 <SelectItem value="rating">Highest Rated</SelectItem>
