@@ -27,6 +27,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import {
   Select,
   SelectContent,
@@ -501,37 +502,67 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
               </div>
             )}
             
-            {/* Mobile Episodes Grid - Only visible on mobile and tablet */}
+            {/* Mobile Episodes Horizontal Scroll - Only visible on mobile and tablet */}
             {!isSingleEpisode() && (
               <div className="lg:hidden mb-4">
-                <h4 className="text-sm font-semibold mb-2">Episodes:</h4>
-                <div className="grid grid-cols-3 xs:grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2 p-1">
-                  {getCurrentEpisodeList().map((episode, index) => {
-                    // Extract episode number for display
-                    const episodeName = episode.name;
-                    let episodeNumber = index + 1;
-                    const episodeNumberMatch = episodeName.match(/\d+/);
-                    if (episodeNumberMatch) {
-                      episodeNumber = parseInt(episodeNumberMatch[0]);
-                    }
-                    
-                    return (
-                      <Button
-                        key={episode.slug}
-                        variant={selectedEpisode === episode.slug ? "default" : "outline"}
-                        size="sm"
-                        className={`h-7 xs:h-8 px-1 xs:px-2 text-xs ${
-                          selectedEpisode === episode.slug 
-                            ? "bg-primary text-white" 
-                            : "bg-card/30 hover:bg-card/50"
-                        }`}
-                        onClick={() => handleEpisodeSelect(episode.slug)}
-                      >
-                        Ep {episodeNumber}
-                      </Button>
-                    );
-                  })}
+                <div className="flex justify-between items-center mb-2">
+                  <h4 className="text-sm font-semibold">Episodes:</h4>
+                  <span className="text-xs text-muted-foreground">
+                    {getCurrentEpisodeList().length} episodes
+                  </span>
                 </div>
+                
+                <ScrollArea className="w-full">
+                  <div className="flex space-x-2 pb-2 snap-x">
+                    {getCurrentEpisodeList().map((episode, index) => {
+                      // Extract episode number for display
+                      const episodeName = episode.name;
+                      let episodeNumber = index + 1;
+                      const episodeNumberMatch = episodeName.match(/\d+/);
+                      if (episodeNumberMatch) {
+                        episodeNumber = parseInt(episodeNumberMatch[0]);
+                      }
+                      
+                      // Format episode name for tooltip
+                      const displayName = episode.name.replace(/^Tập|Episode\s*/i, '').trim();
+                      
+                      return (
+                        <div key={episode.slug} className="flex-shrink-0 snap-start">
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant={selectedEpisode === episode.slug ? "default" : "outline"}
+                                  size="sm"
+                                  className={`h-9 w-11 sm:w-12 px-0 text-xs ${
+                                    selectedEpisode === episode.slug 
+                                      ? "bg-primary text-white border-2 border-primary-foreground shadow-[0_0_10px_rgba(var(--primary-rgb),0.5)]" 
+                                      : "bg-card/30 hover:bg-card/50"
+                                  }`}
+                                  onClick={() => handleEpisodeSelect(episode.slug)}
+                                  disabled={isEpisodeSwitching || (isEpisodeLoading && selectedEpisode !== episode.slug)}
+                                >
+                                  {isEpisodeSwitching && selectedEpisode === episode.slug ? (
+                                    <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+                                  ) : (
+                                    <span>{episodeNumber}</span>
+                                  )}
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="max-w-[150px]">
+                                <div className="text-xs">
+                                  <div className="font-semibold">Episode {episodeNumber}</div>
+                                  <div className="text-muted-foreground mt-1 truncate">{displayName}</div>
+                                </div>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <ScrollBar orientation="horizontal" />
+                </ScrollArea>
               </div>
             )}
           </div>

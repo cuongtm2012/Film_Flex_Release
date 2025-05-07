@@ -53,11 +53,14 @@ export default function EpisodeList({
   if (isLoading) {
     return (
       <div className="mb-6">
-        <h4 className="text-lg font-bold mb-3">Episodes</h4>
+        <div className="flex justify-between items-center mb-3">
+          <h4 className="text-lg font-bold">Episodes</h4>
+          <div className="h-5 w-28 bg-gray-700 rounded animate-pulse"></div>
+        </div>
         <ScrollArea className="w-full">
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-3">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="h-16 bg-gray-700 rounded animate-pulse"></div>
+          <div className="flex space-x-2 pb-2">
+            {[...Array(10)].map((_, i) => (
+              <div key={i} className="h-10 w-12 flex-shrink-0 bg-gray-700 rounded animate-pulse"></div>
             ))}
           </div>
           <ScrollBar orientation="horizontal" />
@@ -96,7 +99,7 @@ export default function EpisodeList({
               
               <CollapsibleContent>
                 <ScrollArea className="w-full pb-2">
-                  <div className="flex flex-nowrap gap-2">
+                  <div className="flex space-x-2 pb-2 snap-x md:grid md:grid-cols-8 md:gap-2 md:space-x-0 lg:grid-cols-10">
                     {seasonEpisodes.map((episode, index) => {
                       // Extract episode name or number for display
                       const episodeName = episode.name;
@@ -107,20 +110,21 @@ export default function EpisodeList({
                       }
                       
                       return (
-                        <Button
-                          key={episode.slug}
-                          variant={activeEpisode === episode.slug ? "default" : "outline"}
-                          className={`min-w-[3.5rem] md:min-w-[5rem] p-3 rounded text-center transition flex-shrink-0 touch-manipulation ${
-                            activeEpisode === episode.slug ? "bg-primary hover:bg-primary/90" : "bg-muted hover:bg-primary/80"
-                          }`}
-                          onClick={() => onSelectEpisode(episode.slug)}
-                        >
-                          <span className="block font-medium">{episodeNumber}</span>
-                        </Button>
+                        <div key={episode.slug} className="flex-shrink-0 snap-start md:snap-align-none md:flex-shrink">
+                          <Button
+                            variant={activeEpisode === episode.slug ? "default" : "outline"}
+                            className={`h-10 w-12 sm:w-14 md:w-full md:h-12 px-0 sm:px-1 md:px-2 rounded text-center transition touch-manipulation ${
+                              activeEpisode === episode.slug ? "bg-primary hover:bg-primary/90 text-white border-2 border-primary/50 shadow-[0_0_10px_rgba(var(--primary-rgb),0.4)]" : "bg-muted hover:bg-primary/20"
+                            }`}
+                            onClick={() => onSelectEpisode(episode.slug)}
+                          >
+                            <span className="block font-medium text-xs md:text-sm">{episodeNumber}</span>
+                          </Button>
+                        </div>
                       );
                     })}
                   </div>
-                  <ScrollBar orientation="horizontal" />
+                  <ScrollBar orientation="horizontal" className="md:hidden" />
                 </ScrollArea>
               </CollapsibleContent>
             </Collapsible>
@@ -158,7 +162,7 @@ export default function EpisodeList({
         
         <CollapsibleContent className="w-full">
           <ScrollArea className="w-full">
-            <div className="flex flex-nowrap gap-2 pb-2 md:grid md:grid-cols-10 md:flex-wrap">
+            <div className="flex space-x-2 pb-2 snap-x md:grid md:grid-cols-8 md:gap-2 md:space-x-0 lg:grid-cols-10">
               {episodes.map((episode, index) => {
                 // Extract episode name or number for display
                 const episodeName = episode.name;
@@ -169,16 +173,17 @@ export default function EpisodeList({
                 }
                 
                 return (
-                  <Button
-                    key={episode.slug}
-                    variant={activeEpisode === episode.slug ? "default" : "outline"}
-                    className={`min-w-[3.5rem] md:min-w-0 p-3 rounded text-center transition flex-shrink-0 touch-manipulation ${
-                      activeEpisode === episode.slug ? "bg-primary hover:bg-primary/90" : "bg-muted hover:bg-primary/80"
-                    }`}
-                    onClick={() => onSelectEpisode(episode.slug)}
-                  >
-                    <span className="block font-medium">{episodeNumber}</span>
-                  </Button>
+                  <div key={episode.slug} className="flex-shrink-0 snap-start md:snap-align-none md:flex-shrink">
+                    <Button
+                      variant={activeEpisode === episode.slug ? "default" : "outline"}
+                      className={`h-10 w-12 sm:w-14 md:w-full md:h-12 px-0 sm:px-1 md:px-2 rounded text-center transition touch-manipulation ${
+                        activeEpisode === episode.slug ? "bg-primary hover:bg-primary/90 text-white border-2 border-primary/50 shadow-[0_0_10px_rgba(var(--primary-rgb),0.4)]" : "bg-muted hover:bg-primary/20"
+                      }`}
+                      onClick={() => onSelectEpisode(episode.slug)}
+                    >
+                      <span className="block font-medium text-xs md:text-sm">{episodeNumber}</span>
+                    </Button>
+                  </div>
                 );
               })}
             </div>
