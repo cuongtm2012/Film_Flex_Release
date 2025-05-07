@@ -87,7 +87,7 @@ app.get('/api/movies', async (req, res) => {
 
     const moviesQuery = `
       SELECT * FROM movies
-      ORDER BY "modifiedAt" DESC
+      ORDER BY modified_at DESC
       LIMIT $1 OFFSET $2
     `;
     
