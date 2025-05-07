@@ -20,8 +20,10 @@ import {
   Cookie,
   CheckSquare,
   ShieldAlert,
-  ArrowUp, // Added for scroll to top button
-  ChevronUp
+  ArrowUp,
+  ChevronUp,
+  ChevronDown,
+  X
 } from "lucide-react";
 
 // Helper component for footer links
@@ -69,6 +71,33 @@ const FooterLink = ({
         </div>
       </Link>
     </li>
+  );
+};
+
+// Collapsible footer section for mobile
+interface FooterSectionProps {
+  title: string;
+  children: React.ReactNode;
+}
+
+const FooterSection = ({ title, children }: FooterSectionProps) => {
+  const [isOpen, setIsOpen] = useState(false);
+  
+  return (
+    <div className="border-b border-gray-800 md:border-none pb-3 md:pb-0">
+      <div 
+        className="flex items-center justify-between cursor-pointer md:cursor-default"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <h3 className="text-lg font-bold mb-2 md:mb-4">{title}</h3>
+        <button className="md:hidden" aria-label={isOpen ? "Collapse section" : "Expand section"}>
+          {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        </button>
+      </div>
+      <div className={`${isOpen ? 'block' : 'hidden'} md:block`}>
+        {children}
+      </div>
+    </div>
   );
 };
 
@@ -132,18 +161,17 @@ const Footer = () => {
         </div>
 
         {/* Footer navigation sections */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8">
-          {/* Browse section */}
-          <div>
-            <h3 className="text-lg font-bold mb-4">Browse</h3>
-            <ul className="space-y-2">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-8">
+          {/* Browse section - with fewer links for mobile */}
+          <FooterSection title="Browse">
+            <ul className="space-y-2 mb-4 md:mb-0">
               <FooterLink 
                 href="/movies" 
                 icon={<Film className="h-4 w-4 mr-2" />}
                 isScrollTop={true}
                 onScrollTop={scrollToTop}
               >
-                Movies <ChevronUp className="inline-block h-3 w-3 ml-1 text-primary" />
+                Movies
               </FooterLink>
               <FooterLink href="/tv" icon={<Tv className="h-4 w-4 mr-2" />}>
                 TV Shows
@@ -154,24 +182,17 @@ const Footer = () => {
               <FooterLink href="/top-rated" icon={<Star className="h-4 w-4 mr-2" />}>
                 Top Rated
               </FooterLink>
-              <FooterLink href="/genres" icon={<List className="h-4 w-4 mr-2" />}>
-                Genres
-              </FooterLink>
             </ul>
-          </div>
+          </FooterSection>
 
-          {/* Help section */}
-          <div>
-            <h3 className="text-lg font-bold mb-4">Help</h3>
-            <ul className="space-y-2">
+          {/* Help section - with fewer links for mobile */}
+          <FooterSection title="Help">
+            <ul className="space-y-2 mb-4 md:mb-0">
               <FooterLink href="/account" icon={<HelpCircle className="h-4 w-4 mr-2" />}>
                 Account
               </FooterLink>
               <FooterLink href="/how-to-watch" icon={<Monitor className="h-4 w-4 mr-2" />}>
                 How to Watch
-              </FooterLink>
-              <FooterLink href="/devices" icon={<Monitor className="h-4 w-4 mr-2" />}>
-                Devices
               </FooterLink>
               <FooterLink href="/faqs" icon={<FileText className="h-4 w-4 mr-2" />}>
                 FAQs
@@ -180,33 +201,25 @@ const Footer = () => {
                 Contact Us
               </FooterLink>
             </ul>
-          </div>
+          </FooterSection>
 
-          {/* About section */}
-          <div>
-            <h3 className="text-lg font-bold mb-4">About</h3>
-            <ul className="space-y-2">
+          {/* About section - with fewer links for mobile */}
+          <FooterSection title="About">
+            <ul className="space-y-2 mb-4 md:mb-0">
               <FooterLink href="/about" icon={<Info className="h-4 w-4 mr-2" />}>
                 About Us
               </FooterLink>
               <FooterLink href="/careers" icon={<Briefcase className="h-4 w-4 mr-2" />}>
                 Careers
               </FooterLink>
-              <FooterLink href="/press" icon={<Newspaper className="h-4 w-4 mr-2" />}>
-                Press
-              </FooterLink>
               <FooterLink href="/blog" icon={<BookOpen className="h-4 w-4 mr-2" />}>
                 Blog
               </FooterLink>
-              <FooterLink href="/partners" icon={<Users className="h-4 w-4 mr-2" />}>
-                Partners
-              </FooterLink>
             </ul>
-          </div>
+          </FooterSection>
 
-          {/* Legal section */}
-          <div>
-            <h3 className="text-lg font-bold mb-4">Legal</h3>
+          {/* Legal section - with fewer links for mobile */}
+          <FooterSection title="Legal">
             <ul className="space-y-2">
               <FooterLink href="/terms" icon={<FileTerminal className="h-4 w-4 mr-2" />}>
                 Terms of Use
@@ -217,19 +230,13 @@ const Footer = () => {
               <FooterLink href="/cookie-policy" icon={<Cookie className="h-4 w-4 mr-2" />}>
                 Cookie Policy
               </FooterLink>
-              <FooterLink href="/content-guidelines" icon={<CheckSquare className="h-4 w-4 mr-2" />}>
-                Content Guidelines
-              </FooterLink>
-              <FooterLink href="/dmca" icon={<ShieldAlert className="h-4 w-4 mr-2" />}>
-                DMCA
-              </FooterLink>
             </ul>
-          </div>
+          </FooterSection>
         </div>
 
-        {/* Bottom copyright section */}
-        <div className="border-t border-gray-800 mt-10 pt-6 text-center text-gray-400">
-          <div className="flex justify-center mb-4">
+        {/* Bottom copyright section - more compact */}
+        <div className="border-t border-gray-800 mt-6 pt-4 text-center text-gray-400">
+          <div className="flex justify-center mb-3">
             <button 
               onClick={scrollToTop}
               className="flex items-center text-gray-300 hover:text-primary transition-colors duration-200"
@@ -239,9 +246,9 @@ const Footer = () => {
               <span>Back to Top</span>
             </button>
           </div>
-          <p>© {new Date().getFullYear()} FilmFlex. All rights reserved.</p>
-          <p className="mt-2 text-xs">
-            FilmFlex is a fictional streaming service created for demonstration purposes. Any resemblance to real services is coincidental.
+          <p className="text-sm">© {new Date().getFullYear()} FilmFlex. All rights reserved.</p>
+          <p className="mt-1 text-xs">
+            For demonstration purposes only.
           </p>
         </div>
       </div>
