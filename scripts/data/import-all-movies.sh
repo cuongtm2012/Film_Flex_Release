@@ -83,18 +83,30 @@ fetch_movie_list() {
   local url="${API_BASE_URL}${MOVIE_LIST_ENDPOINT}?page=${page}"
   echo -e "${BLUE}Fetching movie list from ${url}${NC}"
   
-  # Add user agent and other headers to mimic a browser
-  local response=$(curl -s "$url" \
+  # Create a temporary file for response
+  local temp_file=$(mktemp)
+  
+  # Add user agent and other headers to mimic a browser - save to temp file
+  curl -s "$url" \
     -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36" \
     -H "Accept: application/json" \
     -H "Referer: ${API_BASE_URL}" \
-    -H "Connection: keep-alive")
+    -H "Connection: keep-alive" > "$temp_file"
   
-  # Check if the response is valid JSON
-  if echo "$response" | jq -e . >/dev/null 2>&1; then
-    echo "$response"
+  # Check file size for debugging
+  local file_size=$(stat -c %s "$temp_file")
+  echo -e "${BLUE}Received response of $file_size bytes${NC}"
+  
+  # Validate JSON before processing
+  if jq -e . "$temp_file" >/dev/null 2>&1; then
+    cat "$temp_file"
+    rm "$temp_file"
   else
     echo -e "${RED}Invalid JSON response. API might be rate limiting or down${NC}"
+    # Save problematic response for debugging
+    cp "$temp_file" "${SCRIPT_DIR}/failed_response_page_${page}.txt"
+    echo -e "${RED}Saved problematic response to ${SCRIPT_DIR}/failed_response_page_${page}.txt${NC}"
+    rm "$temp_file"
     echo "{\"items\":[]}" # Return empty array as fallback
   fi
 }
@@ -105,18 +117,30 @@ fetch_movie_detail() {
   local url="${API_BASE_URL}/phim/${slug}"
   echo -e "${BLUE}Fetching movie details from ${url}${NC}"
   
-  # Add user agent and other headers to mimic a browser
-  local response=$(curl -s "$url" \
+  # Create a temporary file for response
+  local temp_file=$(mktemp)
+  
+  # Add user agent and other headers to mimic a browser - save to temp file
+  curl -s "$url" \
     -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36" \
     -H "Accept: application/json" \
     -H "Referer: ${API_BASE_URL}" \
-    -H "Connection: keep-alive")
+    -H "Connection: keep-alive" > "$temp_file"
   
-  # Check if the response is valid JSON
-  if echo "$response" | jq -e . >/dev/null 2>&1; then
-    echo "$response"
+  # Check file size for debugging
+  local file_size=$(stat -c %s "$temp_file")
+  echo -e "${BLUE}Received movie detail response of $file_size bytes${NC}"
+  
+  # Validate JSON before processing
+  if jq -e . "$temp_file" >/dev/null 2>&1; then
+    cat "$temp_file"
+    rm "$temp_file"
   else
     echo -e "${RED}Invalid JSON response for movie ${slug}. API might be rate limiting or down${NC}"
+    # Save problematic response for debugging
+    cp "$temp_file" "${SCRIPT_DIR}/failed_response_movie_${slug}.txt"
+    echo -e "${RED}Saved problematic response to ${SCRIPT_DIR}/failed_response_movie_${slug}.txt${NC}"
+    rm "$temp_file"
     echo "{\"movie\":{}}" # Return empty object as fallback
   fi
 }
