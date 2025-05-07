@@ -6,6 +6,7 @@ interface VideoPlayerProps {
   embedUrl: string;
   isLoading?: boolean;
   onError?: (error: Error) => void;
+  autoFocus?: boolean; // Add autoFocus prop
 }
 
 export default function VideoPlayer({ embedUrl, isLoading = false, onError }: VideoPlayerProps) {
