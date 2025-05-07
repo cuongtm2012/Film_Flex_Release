@@ -1,121 +1,40 @@
-# FilmFlex Scripts Overview
+# FilmFlex Deployment Script
 
-This directory contains all the scripts, tools, and guides for managing the FilmFlex application.
+This folder contains scripts for managing the FilmFlex application deployment.
 
-## Directory Structure
+## Deployment Script
 
-The scripts are organized into these categories:
+The `deploy.sh` script is a comprehensive tool for updating the production environment with the latest changes from the repository.
 
-```
-scripts/
-├── deployment/   # Deployment and server setup scripts
-│   ├── deploy-filmflex.sh  # All-in-one deployment script
-│   ├── env.example         # Example environment variables
-│   └── README.md           # Comprehensive deployment guide
-│
-├── data/         # Data import and management scripts
-│   ├── import-movies-sql.cjs  # Main movie import script (CommonJS)
-│   ├── import-movies.sh       # Import wrapper script for development/production
-│   ├── force-deep-scan.sh     # Interactive script for manual deep imports
-│   ├── setup-cron.sh          # Script to set up scheduled imports
-│   ├── import_progress.json   # Import progress tracking
-│   └── README.md              # Comprehensive data management guide
-│
-├── maintenance/  # User management and maintenance scripts
-│   ├── reset_admin.ts  # Script to reset admin credentials
-│   └── README.md       # Maintenance guide
-│
-└── tests/        # Testing scripts
-    ├── comprehensive-test-runner.js  # Main test runner
-    ├── run-admin-tests.js            # Admin panel tests
-    ├── run-all-tests.js              # All tests
-    ├── run-real-tests.js             # Tests against real components
-    ├── run-test-demo.js              # Demo test runner
-    ├── test-profile-image.js         # Profile image tests
-    └── README.md                     # Testing guide
-```
+### Usage on Production Server
 
-## Quick Links
-
-- [Deployment Guide](deployment/README.md) - How to deploy and configure FilmFlex
-- [Data Management Guide](data/README.md) - How to import and manage movie data
-- [Maintenance Guide](maintenance/README.md) - Routine maintenance tasks
-- [Testing Guide](tests/README.md) - How to run and write tests
-
-## Common Tasks
-
-### Deployment
+1. Make sure your local changes are committed and pushed to the repository
+2. Connect to the production server
+3. Navigate to the FilmFlex directory
+4. Run the deployment script:
 
 ```bash
-# Deploy or update application
-./deployment/deploy-filmflex.sh
+cd /var/www/filmflex
+./scripts/deploy.sh
 ```
 
-### Data Management
+### What the Script Does
 
-```bash
-# Import movie data (regular scan - page 1 only)
-bash scripts/data/import-movies.sh
+The script performs the following steps automatically:
 
-# Import movie data with deep scan (multiple pages)
-bash scripts/data/import-movies.sh --deep-scan
+1. Pulls the latest code from the Git repository
+2. Installs any new dependencies
+3. Builds the application with the latest changes
+4. Sets the correct file permissions for the web server
+5. Clears any caches
+6. Restarts the application using PM2
+7. Verifies the application status
 
-# Interactive deep scan with custom page count
-bash scripts/data/force-deep-scan.sh
+### Troubleshooting
 
-# Set up scheduled imports (cron job)
-bash scripts/data/setup-cron.sh
-```
+If you still don't see your changes after running the script:
 
-### Testing
-
-```bash
-# Run all tests
-node scripts/tests/run-all-tests.js
-
-# Run comprehensive test suite
-node scripts/tests/comprehensive-test-runner.js
-```
-
-### Maintenance
-
-```bash
-# Reset admin user with TypeScript directly
-npx tsx scripts/maintenance/reset_admin.ts
-
-# Deployment maintenance
-bash scripts/deployment/deploy-filmflex.sh [options]
-```
-
-## Script Organization
-
-All scripts are organized in subdirectories based on their purpose:
-
-```bash
-# Deployment
-./deployment/deploy-filmflex.sh [options]
-
-# Testing
-./tests/run_all_tests.sh
-
-# Data import
-./data/import.ts [start_page] [end_page]
-
-# Maintenance
-./maintenance/reset_admin.ts
-```
-
-This clean organization keeps the codebase easy to navigate and maintain:
-
-1. All scripts for a specific function are in their respective directories
-2. Each directory has a README with detailed documentation
-3. Scripts are clearly named and well-documented internally
-
-## Contributing
-
-When adding new scripts:
-
-1. Place them in the appropriate category directory
-2. Update the corresponding README file
-3. Make sure the script is executable (`chmod +x script_name.sh`)
-4. Add documentation for your script
+1. Check the PM2 logs for errors: `pm2 logs filmflex`
+2. Verify Nginx configuration: `nginx -t` and restart if needed: `systemctl restart nginx`
+3. Clear your browser cache or try an incognito/private window
+4. If needed, perform a complete restart: `pm2 stop filmflex && pm2 start filmflex`
