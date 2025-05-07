@@ -73,7 +73,7 @@ export default function MovieGrid({
                 <SelectValue placeholder="Sort by" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="modified">Recently Added/Updated</SelectItem>
+                <SelectItem value="modified">Recently Updated</SelectItem>
                 <SelectItem value="popular">Most Popular</SelectItem>
                 <SelectItem value="rating">Highest Rated</SelectItem>
                 <SelectItem value="year">Release Year</SelectItem>
