@@ -25,8 +25,9 @@ These scripts are designed for a specific deployment scenario:
 ```bash
 cd ~/Film_Flex_Release
 git pull  # Pull latest changes
-chmod +x scripts/deployment/final-deploy.sh
+chmod +x scripts/deployment/final-deploy.sh scripts/deployment/frontend-build.sh
 sudo ./scripts/deployment/final-deploy.sh
+sudo ./scripts/deployment/frontend-build.sh
 ```
 
 ### Diagnostic and Troubleshooting
