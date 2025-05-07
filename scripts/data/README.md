@@ -1,114 +1,145 @@
 # FilmFlex Data Import Scripts
 
-This directory contains scripts for importing movie data from an external API (phimapi.com) into the FilmFlex database.
+This directory contains scripts for importing movie data from the phimapi.com API into the FilmFlex database.
 
-## Files
+## Script Overview
 
-- `import-movies-sql.cjs` - The main CommonJS script that fetches movie data from the API and imports it into the database
-- `import-movies.sh` - Bash wrapper script for running the import script in development/production environments
-- `setup-cron.sh` - Script to set up a cron job for automated data import on the production server
-- `force-deep-scan.sh` - Interactive script to force a deep scan of multiple pages for new content
-- `batch-import.sh` - Advanced script for importing large batches of pages from the API
-- `full-import.sh` - Automated script for importing the entire database (22,557+ movies) in 100-page batches with 1-hour breaks between batches
-- `IMPORT_PLAN.md` - Strategic plan for importing the full database (22,557+ movies over 2,256 pages)
+### Import Scripts
 
-## Data Import Strategy
+| Script | Description |
+|--------|-------------|
+| `import-movies.sh` | Base import script for daily updates of new movies |
+| `import-movies-sql.cjs` | Core Node.js script that handles API requests and database operations |
+| `import-all-movies-node.sh` | Complete database import script using Node.js with batch processing |
+| `import-all-movies-resumable.sh` | Enhanced import script with robust resume functionality |
+| `import-range.sh` | Targeted import of a specific range of pages |
 
-The import system is optimized to focus on efficiency:
+### Import Options
 
-1. **Regular Imports** (Daily except Saturday):
-   - Checks only page 1 of the API
-   - Focuses on newest content which appears on the first page
-   - Runs twice daily at 6 AM and 6 PM
+Each script provides different options for importing movie data:
 
-2. **Deep Scans** (Saturdays only):
-   - Checks multiple pages (5 by default)
-   - Ensures we don't miss any content
-   - Runs twice daily at 6 AM and 6 PM
+- **Daily Updates**: Import only the latest movies (1-5 pages)
+- **Deep Scan**: Import more pages to catch missed movies (default on Saturdays)
+- **Full Import**: Import the entire movie catalog (22,557+ movies)
+- **Range Import**: Import specific pages of movies
+- **Resumable Import**: Import with the ability to pause and resume
 
-3. **Manual Deep Scans**:
-   - Can be triggered using the `force-deep-scan.sh` script
-   - Allows specifying the number of pages to scan
-   - Use when you need to update content after database changes
+## Usage Instructions
 
-## Usage
+### Basic Import (Latest Movies)
 
-### Development Testing
+For daily updates to import only the newest movies:
 
 ```bash
-# Make scripts executable
-chmod +x scripts/data/*.sh scripts/data/*.cjs
-
-# Run regular import
+# Run the standard import script
+cd /var/www/filmflex
 bash scripts/data/import-movies.sh
 
-# Run deep scan
+# For a deeper scan that checks more pages
 bash scripts/data/import-movies.sh --deep-scan
-
-# Run interactive deep scan
-bash scripts/data/force-deep-scan.sh
-
-# Import a specific batch of pages (useful for large imports)
-bash scripts/data/batch-import.sh --start-page 1 --end-page 100
-
-# Import with custom delay between pages (to avoid API rate limits)
-bash scripts/data/batch-import.sh --start-page 101 --end-page 200 --delay 5
-
-# See the full import plan for importing all 2,256 pages (22,557+ movies)
-cat scripts/data/IMPORT_PLAN.md
-
-# Import the ENTIRE database with 1-hour breaks between 100-page batches
-bash scripts/data/full-import.sh
 ```
 
-### Production Deployment
+### Complete Database Import
+
+To import the entire movie catalog (22,557+ movies across 2,256 pages):
 
 ```bash
-# Copy the scripts to the production server
-scp scripts/data/*.cjs scripts/data/*.sh root@38.54.115.156:/var/www/filmflex/scripts/data/
+# Run the resumable import script (recommended)
+cd /var/www/filmflex
+bash scripts/data/import-all-movies-resumable.sh
 
-# SSH to the server and set up the cron job
-ssh root@38.54.115.156 "cd /var/www/filmflex && chmod +x scripts/data/*.sh scripts/data/*.cjs && bash scripts/data/setup-cron.sh"
+# Alternative: use the basic complete import script
+bash scripts/data/import-all-movies-node.sh
 ```
 
-## Cron Job Details
+> **Warning**: The complete import process will take multiple days to finish and uses significant server resources.
 
-The cron job is configured with two separate entries:
+### Targeted Range Import
 
+To import a specific range of pages:
+
+```bash
+cd /var/www/filmflex
+scripts/data/import-range.sh
+# You will be prompted to enter start and end page numbers
 ```
-# Normal import (page 1 only) - Every day except Saturday
-0 6,18 * * 0-5 root cd /var/www/filmflex && bash /var/www/filmflex/scripts/data/import-movies.sh
 
-# Deep scan (multiple pages) - Only on Saturdays
-0 6,18 * * 6 root cd /var/www/filmflex && bash /var/www/filmflex/scripts/data/import-movies.sh --deep-scan
+### Resumable Import
+
+The most robust import method with pause/resume capability:
+
+```bash
+cd /var/www/filmflex
+bash scripts/data/import-all-movies-resumable.sh
 ```
 
-## Logs
+If the import is interrupted:
+1. Run the same command again
+2. Select option 1 to resume from where it left off
+3. The script will skip already imported pages
 
-Import script logs are stored in:
-- Development: `[project_root]/log/data-import.log`
-- Production: `/var/log/filmflex/data-import.log`
+#### Resume Options
 
-View logs with: `tail -f /var/log/filmflex/data-import.log`
+The resumable script offers multiple options:
+1. **Resume from last position**: Continue from where the script was interrupted
+2. **Start over**: Begin a fresh import from page 1
+3. **Start from a specific point**: Choose a specific batch and page to start from
 
-## Database Schema Notes
+## Implementation Details
 
-The script works with:
-- `movies` - Stores movie metadata using snake_case column names (movie_id, description, etc.)
-- `episodes` - Stores episode data for TV series
+### Batch Processing
 
-The script only imports new movies that don't already exist in the database (based on the `slug` field).
+The complete import scripts use a batch processing approach:
+- Each batch processes 100 pages (approximately 1,000 movies)
+- Takes a 60-minute break between batches to prevent API rate limiting
+- Saves progress after each page/batch for resumability
+
+### Progress Tracking
+
+Progress is tracked in two JSON files:
+- `complete_import_progress.json`: Overall progress information
+- `import_detailed_progress.json`: Detailed record of completed pages
+
+### Logs
+
+The import scripts generate detailed logs:
+- Main log: `log/complete-node-import.log`
+- Standard import log: `log/data-import.log`
 
 ## Troubleshooting
 
-### CommonJS vs ES Module Issues
+### Common Issues
 
-If you see errors like `require is not defined in ES module scope`:
-1. Make sure the file extension is `.cjs` (not `.js`)
-2. Check that scripts reference the `.cjs` extension
+1. **API Rate Limiting**
+   - Symptom: "Error fetching movie list" or empty responses
+   - Solution: Decrease import speed by increasing the delay between requests
 
-### Database Schema Issues
+2. **Database Connection Errors**
+   - Symptom: "Failed to connect to database"
+   - Solution: Verify database credentials in the .env file
 
-If you see errors like `column "xyz" of relation "movies" does not exist`:
-1. Check the schema: `psql -U filmflex -d filmflex -c "\d movies"`
-2. Update the script to use the correct column names (snake_case: `movie_id`, not `movieId`)
+3. **Import Stops Unexpectedly**
+   - Solution: Use the resumable import script which can recover from interruptions
+
+### Checking Import Status
+
+To check the status of an ongoing or completed import:
+
+```bash
+# View progress tracking file
+cat scripts/data/complete_import_progress.json
+
+# Check the import log
+tail -f log/complete-node-import.log
+```
+
+## Automated Imports
+
+FilmFlex has a daily import scheduled via cron at 2:00 AM:
+
+```
+# In /etc/cron.d/filmflex-data-import
+0 2 * * * root bash /var/www/filmflex/scripts/data/import-movies.sh >> /var/log/filmflex/cron-import.log 2>&1
+```
+
+This ensures the database stays up-to-date with the latest movies without manual intervention.

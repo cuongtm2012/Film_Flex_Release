@@ -1,26 +1,37 @@
 # FilmFlex
 
-A comprehensive movie streaming platform optimized for seamless deployment and sophisticated database management across multiple hosting environments.
+A comprehensive movie streaming platform with advanced data synchronization capabilities and sophisticated content management for movie enthusiasts.
 
 ## Features
 
-- Modern React frontend with responsive design
-- NeonDB PostgreSQL for scalable data storage
-- Full user authentication and role management
-- Admin panel for content and user management
-- Advanced movie search and filtering
-- Watchlist and favorites functionality
-- Comprehensive testing with Cypress
+- **Content Management**
+  - 22,557+ movies from professional API source
+  - Automated daily content updates
+  - Full movie details with episodes, recommendations, and metadata
+  - Multiple language support
+  
+- **User Experience**
+  - Modern, responsive design across all devices
+  - Advanced search with filters and categories
+  - Personalized recommendations
+  - User watchlists and viewing history
+  - User comments and interaction
+
+- **System Architecture**
+  - Robust data import system with resume capabilities
+  - Role-based access control (admin, moderator, user)
+  - Multi-domain support with automatic SSL
+  - Performance optimized for high traffic loads
 
 ## Tech Stack
 
-- **Frontend**: React, TailwindCSS, shadcn/ui
+- **Frontend**: React, TailwindCSS, shadcn/ui components
 - **Backend**: Node.js, Express
-- **Database**: PostgreSQL (NeonDB)
-- **ORM**: Drizzle ORM
-- **Authentication**: Passport.js with session-based auth
-- **Testing**: Jest, Cypress
-- **Deployment**: PM2, Nginx
+- **Database**: PostgreSQL with Neon serverless
+- **ORM**: Drizzle ORM with type-safe schemas
+- **Authentication**: Passport.js with role-based permissions
+- **Testing**: Cypress for E2E testing
+- **Deployment**: PM2, Nginx, GitHub Actions
 
 ## Getting Started
 
@@ -81,12 +92,14 @@ The project follows a clean organization pattern:
 - Each script category has its own README with detailed documentation
 - Scripts are referenced directly from their location (e.g., `./scripts/deployment/deploy-filmflex.sh`)
 
-## Deployment
+## Deployment and Configuration
+
+### Application Deployment
 
 FilmFlex includes a comprehensive deployment system:
 
 ```bash
-# First-time setup
+# First-time setup on a new server
 ./scripts/deployment/deploy-filmflex.sh --setup
 
 # Deploy or update application
@@ -96,21 +109,54 @@ FilmFlex includes a comprehensive deployment system:
 ./scripts/deployment/deploy-filmflex.sh --db-only
 ```
 
-For detailed deployment instructions, check the [Deployment Guide](scripts/deployment/README.md).
+### Domain Configuration
+
+FilmFlex supports multiple domains with automated SSL setup:
+
+```bash
+# Set up a new domain on your server
+bash scripts/domain/setup-domain.sh example.com
+
+# Configure DNS settings for GoDaddy domains
+node scripts/domain/configure-godaddy-dns.js example.com 38.54.115.156
+
+# Check DNS propagation and set up SSL certificates
+bash scripts/domain/check-dns-setup-ssl.sh example.com
+```
+
+The domain scripts fully automate the process of:
+- Setting up Nginx configuration 
+- Configuring DNS records (via GoDaddy API)
+- Installing SSL certificates with Let's Encrypt
+- Configuring automatic renewal
+
+For detailed instructions, check the [Deployment Guide](scripts/deployment/README.md) and [Domain Configuration Guide](scripts/domain/README.md).
 
 ## Data Management
 
-Import movie data from external API:
+Import movie data from the external API:
 
 ```bash
-# Run data import script directly
-./scripts/data/import.ts
+# Daily import (latest movies only)
+bash scripts/data/import-movies.sh
 
-# Alternative: using deployment script with import flag
-./scripts/deployment/deploy-filmflex.sh --import
+# Deep scan (more thorough import)
+bash scripts/data/import-movies.sh --deep-scan
+
+# Complete database import with resume capability
+bash scripts/data/import-all-movies-resumable.sh
+
+# Import specific page range
+bash scripts/data/import-range.sh
 ```
 
-For more information, see the [Data Management Guide](scripts/data/README.md).
+The FilmFlex system supports multiple import methods depending on your needs:
+
+- **Daily Updates**: Automatically run via cron job every day
+- **Full Import**: One-time import of the entire movie database (22,557+ movies)
+- **Resumable Import**: Can be safely interrupted and resumed later
+
+For detailed documentation, see the [Data Management Guide](scripts/data/README.md).
 
 ## Testing
 
