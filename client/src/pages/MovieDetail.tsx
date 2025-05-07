@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRoute, Link } from "wouter";
 import { 
@@ -97,6 +97,20 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
       setIsContentExpanded(!isLongContent);
     }
   }, [movieDetail]);
+  
+  // Auto-focus on video player when navigating to movie detail page on mobile
+  useEffect(() => {
+    // This will run when the page loads and when currentlyPlaying changes
+    const isMobile = window.innerWidth <= 768; // iPhone XR width is 414px
+    const videoPlayerElement = document.getElementById('video-player');
+    
+    if (isMobile && videoPlayerElement && selectedEpisode) {
+      // Short delay to ensure the player has rendered
+      setTimeout(() => {
+        videoPlayerElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 300);
+    }
+  }, [selectedEpisode, currentlyPlaying]); // Dependency on both episode selection and playing status
   
   // Fetch recommendations
   const {
