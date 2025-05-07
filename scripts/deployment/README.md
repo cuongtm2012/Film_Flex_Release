@@ -1,165 +1,40 @@
-# FilmFlex Deployment Guide
+# FilmFlex Deployment Script
 
-This document provides a comprehensive guide to deploying and maintaining the FilmFlex application.
+This folder contains scripts for managing the FilmFlex application deployment.
 
-## Table of Contents
+## Deployment Script
 
-- [Directory Structure](#directory-structure)
-- [One-Command Deployment](#one-command-deployment)
-- [Common Tasks](#common-tasks)
-- [Database Management](#database-management)
-- [Logging and Monitoring](#logging-and-monitoring)
-- [Troubleshooting](#troubleshooting)
+The `deploy.sh` script is a comprehensive tool for updating the production environment with the latest changes from the repository.
 
-## Directory Structure
+### Usage on Production Server
 
-The FilmFlex repository has been organized into these categories:
-
-```
-scripts/
-├── deployment/   # Deployment and server setup scripts
-├── data/         # Data import and management scripts
-├── maintenance/  # User management and maintenance scripts
-└── tests/        # Testing scripts
-```
-
-## One-Command Deployment
-
-The `deploy-filmflex.sh` script is an all-in-one deployment solution that handles:
-
-- Initial server setup
-- Database configuration
-- Application deployment
-- Monitoring and maintenance
-
-### Basic Usage
+1. Make sure your local changes are committed and pushed to the repository
+2. Connect to the production server
+3. Navigate to the FilmFlex directory
+4. Run the deployment script:
 
 ```bash
-# Initial server setup (first time)
-./deploy.sh --setup
-
-# Deploy or update application
-./deploy.sh
-
-# Database setup only
-./deploy.sh --db-only
+cd /var/www/filmflex
+./scripts/deployment/deploy.sh
 ```
 
-### Complete Command Reference
+### What the Script Does
 
-```bash
-# View all available commands
-./deploy.sh --help
-```
+The script performs the following steps automatically:
 
-## Common Tasks
+1. Pulls the latest code from the Git repository
+2. Installs any new dependencies
+3. Builds the application with the latest changes
+4. Sets the correct file permissions for the web server
+5. Clears any caches
+6. Restarts the application using PM2
+7. Verifies the application status
 
-### Importing Movies
+### Troubleshooting
 
-```bash
-# Start the movie import process
-./deploy.sh --import
-```
+If you still don't see your changes after running the script:
 
-### Viewing Logs
-
-```bash
-# View application logs
-./deploy.sh --logs --app
-
-# View error logs
-./deploy.sh --logs --error
-
-# Follow logs in real-time
-./deploy.sh --logs --tail
-
-# Filter logs for specific content
-./deploy.sh --logs --filter="error message"
-```
-
-### Database Backup and Restore
-
-```bash
-# Create a backup
-./deploy.sh --backup
-
-# Restore from backup
-./deploy.sh --restore=/var/backups/filmflex/filmflex_20250505-120000.sql.gz
-```
-
-### SSL Setup
-
-```bash
-# Configure SSL with Let's Encrypt
-./deploy.sh --ssl
-```
-
-## Database Management
-
-### Optimization
-
-```bash
-# Check database status
-./deploy.sh --db-status
-
-# Optimize database
-./deploy.sh --db-optimize
-```
-
-### Admin Reset
-
-```bash
-# Reset admin user credentials
-./deploy.sh --reset-admin
-```
-
-## Logging and Monitoring
-
-### System Status
-
-```bash
-# Check overall system status
-./deploy.sh --status
-```
-
-This command shows:
-- System resources (memory, disk)
-- Application status
-- Database status
-- Recent logs
-- Database size and tables
-
-## Troubleshooting
-
-### Database Connection Issues
-
-If you experience database connection problems:
-
-1. Run the database setup command:
-   ```bash
-   ./deploy.sh --db-only
-   ```
-
-2. Verify connection:
-   ```bash
-   PGPASSWORD=filmflex2024 psql -h localhost -U filmflex -d filmflex -c "SELECT NOW();"
-   ```
-
-### Application Not Starting
-
-If the application fails to start:
-
-1. Check logs:
-   ```bash
-   ./deploy.sh --logs --error
-   ```
-
-2. Try restarting:
-   ```bash
-   ./deploy.sh --deploy
-   ```
-
-3. Check if rollback is necessary:
-   ```bash
-   ./deploy.sh --rollback
-   ```
+1. Check the PM2 logs for errors: `pm2 logs filmflex`
+2. Verify Nginx configuration: `nginx -t` and restart if needed: `systemctl restart nginx`
+3. Clear your browser cache or try an incognito/private window
+4. If needed, perform a complete restart: `pm2 stop filmflex && pm2 start filmflex`
