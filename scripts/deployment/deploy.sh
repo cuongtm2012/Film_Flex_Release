@@ -126,8 +126,39 @@ echo "   - Using Node.js at: $node_path"
 cat > "$DEPLOY_DIR/start.sh" << EOL
 #!/bin/bash
 export PATH="$PATH:/usr/local/bin:/usr/bin"
+export NODE_ENV=production
 cd "$DEPLOY_DIR"
-$node_path server/index.js
+
+# Setup error logging
+mkdir -p /var/log/filmflex
+exec > >(tee -a "/var/log/filmflex/filmflex-\$(date +%Y%m%d).log")
+exec 2>&1
+
+echo "Starting FilmFlex application at \$(date)"
+echo "Using Node.js: $node_path"
+echo "Database URL: \${DATABASE_URL:0:25}..."
+
+# Try to transpile the TypeScript code just in case
+if command -v npx; then
+  echo "Transpiling TypeScript..."
+  npx tsc || echo "TypeScript compilation failed, but continuing..."
+fi
+
+# Start the server
+if [ -f "server/index.js" ]; then
+  echo "Starting from server/index.js..."
+  $node_path server/index.js
+else
+  echo "Starting with tsx..."
+  # Try to use tsx if available, otherwise fall back to node directly on the TS file
+  if command -v npx; then
+    echo "Using npx tsx..."
+    npx tsx server/index.ts
+  else
+    echo "Fallback to direct node..."
+    $node_path server/index.ts
+  fi
+fi
 EOL
 chmod +x "$DEPLOY_DIR/start.sh"
 
