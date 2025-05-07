@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import HeroSection from "@/components/HeroSection";
 import CategoryFilter from "@/components/CategoryFilter";
@@ -11,6 +11,7 @@ export default function Home() {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [sortBy, setSortBy] = useState("modified");
   const [limit, setLimit] = useState(48); // Default to 48 items per page
+  const movieGridRef = useRef<HTMLDivElement>(null);
 
   // Determine the API endpoint based on category selection
   // When using '/api/categories/all', the server will automatically redirect to '/api/movies'
@@ -79,6 +80,16 @@ export default function Home() {
     setSortBy(value);
     setCurrentPage(1);
   };
+  
+  // Handle mobile sort toggle button - scroll to movie grid
+  const handleSortToggle = () => {
+    // This will be used by the CategoryFilter to show the mobile sort UI
+    if (movieGridRef.current) {
+      setTimeout(() => {
+        movieGridRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 100); 
+    }
+  };
 
   // Handle error state
   if (isMoviesError) {
@@ -107,19 +118,22 @@ export default function Home() {
         selectedCategory={selectedCategory}
         onSelectCategory={handleCategorySelect}
         isLoading={isMoviesLoading}
+        onSortToggle={handleSortToggle}
       />
       
-      <MovieGrid
-        title="Movies & TV Shows"
-        movies={moviesData?.items || []}
-        currentPage={currentPage}
-        totalPages={moviesData?.pagination?.totalPages || 1}
-        totalItems={moviesData?.pagination?.totalItems || 0}
-        itemsPerPage={limit}
-        onPageChange={handlePageChange}
-        onSortChange={handleSortChange}
-        isLoading={isMoviesLoading}
-      />
+      <div ref={movieGridRef}>
+        <MovieGrid
+          title="Movies & TV Shows"
+          movies={moviesData?.items || []}
+          currentPage={currentPage}
+          totalPages={moviesData?.pagination?.totalPages || 1}
+          totalItems={moviesData?.pagination?.totalItems || 0}
+          itemsPerPage={limit}
+          onPageChange={handlePageChange}
+          onSortChange={handleSortChange}
+          isLoading={isMoviesLoading}
+        />
+      </div>
     </>
   );
 }
