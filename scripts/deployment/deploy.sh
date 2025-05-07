@@ -177,9 +177,11 @@ fi
 EOL
 chmod +x "$DEPLOY_DIR/start.sh"
 
-# Copy the improved fallback server
+# Copy the improved fallback server and production server
 cp "$SOURCE_DIR/scripts/deployment/simple-server.js" "$DEPLOY_DIR/simple-server.js"
+cp "$SOURCE_DIR/scripts/deployment/start-prod.js" "$DEPLOY_DIR/start-prod.js"
 chmod +x "$DEPLOY_DIR/simple-server.js"
+chmod +x "$DEPLOY_DIR/start-prod.js"
 
 # Step 7: Restart the application
 echo "8. Restarting the application with PM2..."
@@ -192,17 +194,18 @@ if pm2 list | grep -q "filmflex"; then
   pm2 delete filmflex
 fi
 
-# Start the application with PM2
+# Start the application with PM2 (try production-specific server first)
 echo "   - Starting application with PM2..."
-# Skip ecosystem.config.js due to ESM/CJS issues and use start.sh directly
-echo "   - Using direct start.sh method..."
-pm2 start "$DEPLOY_DIR/start.sh" --name filmflex
+echo "   - Using production server..."
+pm2 start "$DEPLOY_DIR/start-prod.js" --name filmflex
 
-# Try fallback if start.sh fails
-echo "   - Setting up fallback..."
-if ! pm2 list | grep -q "filmflex"; then
-  echo "   - First attempt failed, trying fallback..."
-  pm2 start "$DEPLOY_DIR/index.js" --name filmflex
+# Check if process started successfully
+sleep 3
+if ! pm2 list | grep -q "online" | grep -q "filmflex"; then
+  echo "   - Production server failed, trying fallback script..."
+  pm2 stop filmflex
+  pm2 delete filmflex
+  pm2 start "$DEPLOY_DIR/simple-server.js" --name filmflex
 fi
 
 # Save PM2 configuration
