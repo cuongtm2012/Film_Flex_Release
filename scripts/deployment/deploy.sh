@@ -117,7 +117,13 @@ fi
 # Step 6: Install production dependencies
 echo "7. Installing production dependencies..."
 cd "$DEPLOY_DIR"
+# Install production dependencies
 npm i
+
+# Also install dev dependencies needed for build process
+echo "   - Installing additional build dependencies..."
+npm i --save-dev @vitejs/plugin-react vite tsx ts-node
+
 # Add a check for Node.js executable path
 node_path=$(which node)
 echo "   - Using Node.js at: $node_path"
@@ -171,31 +177,9 @@ fi
 EOL
 chmod +x "$DEPLOY_DIR/start.sh"
 
-# Also create a fallback vanilla JS version in case the TS version fails
-cat > "$DEPLOY_DIR/index.js" << EOL
-// Simple Express server for fallback
-const express = require('express');
-const { join } = require('path');
-const app = express();
-const PORT = process.env.PORT || 5000;
-
-// Serve static files
-app.use(express.static(join(__dirname, 'client/dist')));
-
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', message: 'Server is running (fallback version)' });
-});
-
-// Serve the SPA for all other routes
-app.get('*', (req, res) => {
-  res.sendFile(join(__dirname, 'client/dist/index.html'));
-});
-
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(\`Fallback server running on port \${PORT}\`);
-});
-EOL
+# Copy the improved fallback server
+cp "$SOURCE_DIR/scripts/deployment/simple-server.js" "$DEPLOY_DIR/simple-server.js"
+chmod +x "$DEPLOY_DIR/simple-server.js"
 
 # Step 7: Restart the application
 echo "8. Restarting the application with PM2..."
