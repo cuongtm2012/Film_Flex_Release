@@ -73,16 +73,26 @@ app.get('/api/health', (req, res) => {
 
 // Simple movie listing API
 app.get('/api/movies', async (req, res) => {
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 48;
+
   if (!pool) {
-    return res.status(503).json({
-      status: false,
-      message: 'Database connection not available'
+    console.log('Database not available, returning maintenance message');
+    return res.json({
+      status: true,
+      maintenance: true,
+      message: 'Site is under maintenance. Please check back soon.',
+      items: [],
+      pagination: {
+        totalItems: 0,
+        totalPages: 1,
+        currentPage: page,
+        limit
+      }
     });
   }
 
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 48;
     const offset = (page - 1) * limit;
 
     const moviesQuery = `
@@ -113,25 +123,45 @@ app.get('/api/movies', async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching movies:', error);
-    res.status(500).json({
-      status: false,
-      message: `Error fetching movies: ${error.message}`
+    // Instead of returning error, return empty results in maintenance mode
+    res.json({
+      status: true,
+      maintenance: true,
+      message: 'Site is under maintenance. Please check back soon.',
+      error: error.message,
+      items: [],
+      pagination: {
+        totalItems: 0,
+        totalPages: 1,
+        currentPage: page,
+        limit
+      }
     });
   }
 });
 
 // Movie detail API
 app.get('/api/movies/:slug', async (req, res) => {
+  const { slug } = req.params;
+
   if (!pool) {
-    return res.status(503).json({
-      status: false,
-      message: 'Database connection not available'
+    console.log(`Database not available, returning maintenance message for movie: ${slug}`);
+    return res.json({
+      status: true,
+      maintenance: true,
+      message: 'Site is under maintenance. Please check back soon.',
+      item: {
+        id: 0,
+        title: 'Maintenance Mode',
+        slug: slug,
+        description: 'The movie database is currently undergoing maintenance. Please check back soon.',
+        poster: '',
+        modified_at: new Date().toISOString()
+      }
     });
   }
 
   try {
-    const { slug } = req.params;
-    
     const query = `
       SELECT * FROM movies
       WHERE slug = $1
@@ -153,9 +183,20 @@ app.get('/api/movies/:slug', async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching movie detail:', error);
-    res.status(500).json({
-      status: false,
-      message: `Error fetching movie: ${error.message}`
+    // Return maintenance mode response instead of error
+    res.json({
+      status: true,
+      maintenance: true,
+      message: 'Site is under maintenance. Please check back soon.',
+      error: error.message,
+      item: {
+        id: 0,
+        title: 'Maintenance Mode',
+        slug: slug,
+        description: 'The movie database is currently undergoing maintenance. Please check back soon.',
+        poster: '',
+        modified_at: new Date().toISOString()
+      }
     });
   }
 });
@@ -214,6 +255,90 @@ app.get('*', (req, res) => {
         </body>
       </html>
     `);
+  }
+});
+
+// Episodes API
+app.get('/api/movies/:slug/episodes', async (req, res) => {
+  const { slug } = req.params;
+  
+  if (!pool) {
+    console.log(`Database not available, returning maintenance message for episodes of movie: ${slug}`);
+    return res.json({
+      status: true,
+      maintenance: true,
+      message: 'Site is under maintenance. Please check back soon.',
+      episodes: []
+    });
+  }
+  
+  try {
+    // Return empty episodes list during maintenance
+    res.json({
+      status: true,
+      maintenance: true,
+      message: 'Site is under maintenance. Please check back soon.',
+      episodes: []
+    });
+  } catch (error) {
+    console.error(`Error fetching episodes for ${slug}:`, error);
+    res.json({
+      status: true,
+      maintenance: true,
+      message: 'Site is under maintenance. Please check back soon.',
+      episodes: []
+    });
+  }
+});
+
+// Categories API
+app.get('/api/categories/:slug', async (req, res) => {
+  const { slug } = req.params;
+  
+  if (!pool) {
+    console.log(`Database not available, returning maintenance message for category: ${slug}`);
+    return res.json({
+      status: true,
+      maintenance: true,
+      message: 'Site is under maintenance. Please check back soon.',
+      items: [],
+      pagination: {
+        totalItems: 0,
+        totalPages: 1,
+        currentPage: 1,
+        limit: 48
+      }
+    });
+  }
+  
+  try {
+    // Return empty category during maintenance
+    res.json({
+      status: true,
+      maintenance: true,
+      message: 'Site is under maintenance. Please check back soon.',
+      items: [],
+      pagination: {
+        totalItems: 0,
+        totalPages: 1,
+        currentPage: 1,
+        limit: 48
+      }
+    });
+  } catch (error) {
+    console.error(`Error fetching category ${slug}:`, error);
+    res.json({
+      status: true,
+      maintenance: true,
+      message: 'Site is under maintenance. Please check back soon.',
+      items: [],
+      pagination: {
+        totalItems: 0,
+        totalPages: 1,
+        currentPage: 1,
+        limit: 48
+      }
+    });
   }
 });
 
