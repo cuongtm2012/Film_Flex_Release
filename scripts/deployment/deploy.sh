@@ -138,29 +138,64 @@ echo "Starting FilmFlex application at \$(date)"
 echo "Using Node.js: $node_path"
 echo "Database URL: \${DATABASE_URL:0:25}..."
 
-# Try to transpile the TypeScript code just in case
-if command -v npx; then
-  echo "Transpiling TypeScript..."
-  npx tsc || echo "TypeScript compilation failed, but continuing..."
-fi
+# Install any missing dependencies that might be causing issues
+echo "Checking for tsx..."
+npm list tsx || npm install -g tsx
 
-# Start the server
+# Try to transpile the TypeScript code just in case
+echo "Transpiling TypeScript..."
+npx tsc || echo "TypeScript compilation failed, but continuing..."
+
+# Try multiple startup methods
+echo "Trying to start server with tsx..."
+echo "Server directory contents:"
+ls -la server/
+
+# Try a few different ways to start the application
 if [ -f "server/index.js" ]; then
   echo "Starting from server/index.js..."
   $node_path server/index.js
+elif command -v tsx &>/dev/null; then
+  echo "Using tsx..."
+  tsx server/index.ts
+elif command -v npx &>/dev/null; then
+  echo "Using npx tsx..."
+  # First try to install tsx globally if it's not already
+  npm install -g tsx || echo "Failed to install tsx globally"
+  npx tsx server/index.ts
 else
-  echo "Starting with tsx..."
-  # Try to use tsx if available, otherwise fall back to node directly on the TS file
-  if command -v npx; then
-    echo "Using npx tsx..."
-    npx tsx server/index.ts
-  else
-    echo "Fallback to direct node..."
-    $node_path server/index.ts
-  fi
+  echo "Using direct node on TypeScript file..."
+  echo "Warning: This may not work without TypeScript transpilation"
+  $node_path -r ts-node/register server/index.ts
 fi
 EOL
 chmod +x "$DEPLOY_DIR/start.sh"
+
+# Also create a fallback vanilla JS version in case the TS version fails
+cat > "$DEPLOY_DIR/index.js" << EOL
+// Simple Express server for fallback
+const express = require('express');
+const { join } = require('path');
+const app = express();
+const PORT = process.env.PORT || 5000;
+
+// Serve static files
+app.use(express.static(join(__dirname, 'client/dist')));
+
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', message: 'Server is running (fallback version)' });
+});
+
+// Serve the SPA for all other routes
+app.get('*', (req, res) => {
+  res.sendFile(join(__dirname, 'client/dist/index.html'));
+});
+
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(\`Fallback server running on port \${PORT}\`);
+});
+EOL
 
 # Step 7: Restart the application
 echo "8. Restarting the application with PM2..."
@@ -175,11 +210,15 @@ fi
 
 # Start the application with PM2
 echo "   - Starting application with PM2..."
-if [ -f "$DEPLOY_DIR/ecosystem.config.js" ]; then
-  pm2 start ecosystem.config.js
-else
-  # Fallback to direct start if no ecosystem file
-  pm2 start "$DEPLOY_DIR/start.sh" --name filmflex
+# Skip ecosystem.config.js due to ESM/CJS issues and use start.sh directly
+echo "   - Using direct start.sh method..."
+pm2 start "$DEPLOY_DIR/start.sh" --name filmflex
+
+# Try fallback if start.sh fails
+echo "   - Setting up fallback..."
+if ! pm2 list | grep -q "filmflex"; then
+  echo "   - First attempt failed, trying fallback..."
+  pm2 start "$DEPLOY_DIR/index.js" --name filmflex
 fi
 
 # Save PM2 configuration

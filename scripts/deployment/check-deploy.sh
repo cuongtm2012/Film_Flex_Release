@@ -51,23 +51,57 @@ fi
 # Check for application logs
 echo "5. Checking for recent application logs..."
 if [ -d "$LOG_DIR" ]; then
-  echo "   Recent logs (last 5 lines):"
+  echo "   Recent logs (last 20 lines):"
   ls -la $LOG_DIR
   for log in $(find $LOG_DIR -type f -name "*.log" | head -1); do
     echo "   === $log ==="
-    tail -5 $log
+    tail -20 $log
   done
 else
   echo "   ✗ Log directory not found"
+  echo "   Checking PM2 logs instead:"
+  pm2 logs --lines 20 filmflex
+fi
+
+# Check for fallback.js existence
+echo "6. Checking fallback file..."
+if [ -f "$DEPLOY_DIR/index.js" ]; then
+  echo "   ✓ Fallback file exists"
+else
+  echo "   ✗ Fallback file not found"
+fi
+
+# Check nginx upstream configuration
+echo "7. Checking Nginx upstream..."
+if grep -r "localhost:5000" /etc/nginx/sites-available/; then
+  echo "   ✓ Nginx upstream configuration found"
+else
+  echo "   ✗ Nginx upstream configuration not found"
+  echo "   Recommended upstream configuration:"
+  echo "   location / {"
+  echo "     proxy_pass http://localhost:5000;"
+  echo "     proxy_http_version 1.1;"
+  echo "     proxy_set_header Upgrade \$http_upgrade;"
+  echo "     proxy_set_header Connection 'upgrade';"
+  echo "     proxy_set_header Host \$host;"
+  echo "     proxy_cache_bypass \$http_upgrade;"
+  echo "   }"
 fi
 
 # Check Node.js and npm versions
-echo "6. Checking Node.js and npm versions..."
+echo "8. Checking Node.js and npm versions..."
 node -v
 npm -v
 
+# Check if npm packages are installed
+echo "9. Checking for required npm packages..."
+cd $DEPLOY_DIR
+npm list express
+npm list tsx
+npm list ts-node
+
 # Check file permissions
-echo "7. Checking file permissions..."
+echo "10. Checking file permissions..."
 ls -la $DEPLOY_DIR/client/dist | head -5
 ls -la $DEPLOY_DIR/start.sh 2>/dev/null || echo "   ✗ start.sh not found"
 
