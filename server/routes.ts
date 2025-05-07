@@ -56,9 +56,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/movies", async (req: Request, res: Response) => {
     try {
       const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 50; // Default to 50 per page per requirements
+      const limit = parseInt(req.query.limit as string) || 48; // Default to 48 per page
       const category = req.query.category as string || 'all';
-      const sortBy = req.query.sort as string || 'latest'; // Default sort by latest
+      const sortBy = req.query.sort as string || 'modified'; // Default sort by modified time
       
       let movieListData;
       
@@ -333,7 +333,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Ensure no trailing spaces in the search keyword
       const keyword = (req.query.q as string || "").trim();
       const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 50; // Default to 50 items per page
+      const limit = parseInt(req.query.limit as string) || 48; // Default to 48 items per page
       
       console.log(`Searching for "${keyword}" in page ${page} with limit ${limit}`);
       
@@ -371,7 +371,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error searching movies:", error);
       // Return empty results with proper status instead of error
       const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 50;
+      const limit = parseInt(req.query.limit as string) || 48;
       
       res.json({
         status: true,
@@ -391,8 +391,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { slug } = req.params;
       const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 50; // Default to 50 items per page
-      const sortBy = req.query.sort as string || 'latest'; // Default sort by latest
+      const limit = parseInt(req.query.limit as string) || 48; // Default to 48 items per page
+      const sortBy = req.query.sort as string || 'modified'; // Default sort by modified time
       
       console.log(`Handling category request for ${slug}, page ${page}, limit ${limit}, sort ${sortBy}`);
       
@@ -517,8 +517,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { slug } = req.params;
       const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 50;
-      const sortBy = req.query.sort as string || 'latest'; // Default sort by latest
+      const limit = parseInt(req.query.limit as string) || 48;
+      const sortBy = req.query.sort as string || 'modified'; // Default sort by modified time
       
       console.log(`Handling country request for ${slug}, page ${page}, limit ${limit}, sort ${sortBy}`);
       
