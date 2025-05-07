@@ -177,11 +177,15 @@ fi
 EOL
 chmod +x "$DEPLOY_DIR/start.sh"
 
-# Copy the improved fallback server and production server
+# Copy the production servers and direct run script
 cp "$SOURCE_DIR/scripts/deployment/simple-server.js" "$DEPLOY_DIR/simple-server.js"
 cp "$SOURCE_DIR/scripts/deployment/start-prod.js" "$DEPLOY_DIR/start-prod.js"
+cp "$SOURCE_DIR/scripts/deployment/filmflex-server.js" "$DEPLOY_DIR/filmflex-server.js"
+cp "$SOURCE_DIR/scripts/deployment/direct-run.sh" "$DEPLOY_DIR/direct-run.sh"
 chmod +x "$DEPLOY_DIR/simple-server.js"
 chmod +x "$DEPLOY_DIR/start-prod.js"
+chmod +x "$DEPLOY_DIR/filmflex-server.js"
+chmod +x "$DEPLOY_DIR/direct-run.sh"
 
 # Step 7: Restart the application
 echo "8. Restarting the application with PM2..."
