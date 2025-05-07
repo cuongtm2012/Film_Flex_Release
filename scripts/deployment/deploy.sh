@@ -198,18 +198,35 @@ if pm2 list | grep -q "filmflex"; then
   pm2 delete filmflex
 fi
 
-# Start the application with PM2 (try production-specific server first)
+# Install required dependencies if needed
+echo "   - Installing required production dependencies..."
+cd "$DEPLOY_DIR"
+npm list express pg || npm install express pg
+
+# Start the application with PM2 (try custom server directly)
 echo "   - Starting application with PM2..."
-echo "   - Using production server..."
-pm2 start "$DEPLOY_DIR/start-prod.js" --name filmflex
+echo "   - Using FilmFlex production server..."
+pm2 start "$DEPLOY_DIR/filmflex-server.js" --name filmflex
 
 # Check if process started successfully
-sleep 3
+sleep 5
 if ! pm2 list | grep -q "online" | grep -q "filmflex"; then
   echo "   - Production server failed, trying fallback script..."
   pm2 stop filmflex
   pm2 delete filmflex
-  pm2 start "$DEPLOY_DIR/simple-server.js" --name filmflex
+  
+  # Try direct run script next
+  echo "   - Trying direct run method..."
+  pm2 start "$DEPLOY_DIR/direct-run.sh" --name filmflex --interpreter bash
+  
+  # Last resort - simple server
+  sleep 5
+  if ! pm2 list | grep -q "online" | grep -q "filmflex"; then
+    echo "   - Direct run failed, trying simple server..."
+    pm2 stop filmflex
+    pm2 delete filmflex
+    pm2 start "$DEPLOY_DIR/simple-server.js" --name filmflex
+  fi
 fi
 
 # Save PM2 configuration
