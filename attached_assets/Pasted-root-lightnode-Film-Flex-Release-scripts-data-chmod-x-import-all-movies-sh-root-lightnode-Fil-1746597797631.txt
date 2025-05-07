@@ -1,0 +1,64 @@
+root@lightnode:~/Film_Flex_Release/scripts/data# chmod +x import-all-movies.sh
+root@lightnode:~/Film_Flex_Release/scripts/data# ./import-all-movies.sh
+
+==============================================
+    FilmFlex Complete Database Import Script
+==============================================
+
+Starting complete database import of 2256 pages (approx. 22560 movies)
+Will process 23 batches of 100 pages each
+Taking a 60-minute break between batches
+
+WARNING: This will attempt to import ALL 2256 pages (22,557+ movies).
+The process will take multiple days to complete and use significant resources.
+Are you absolutely sure you want to continue? (yes/no) yes
+
+Start from batch number (1-23, default: 1): 1
+Checking for required packages...
+Database connection parameters parsed
+[2025-05-07 14:02:38] BATCH 1/23: Importing pages 1 to 100
+Processing page 1
+parse error: Invalid numeric literal at line 1, column 2
+Found  movies on page 1
+Completed processing page 1
+Waiting 3 seconds before next page...
+Processing page 2
+parse error: Invalid numeric literal at line 1, column 2
+Found  movies on page 2
+Completed processing page 2
+Waiting 3 seconds before next page...
+Processing page 3
+^C
+root@lightnode:~/Film_Flex_Release/scripts/data# ^C
+root@lightnode:~/Film_Flex_Release/scripts/data# ./import-all-movies.sh
+
+==============================================
+    FilmFlex Complete Database Import Script
+==============================================
+
+Starting complete database import of 2256 pages (approx. 22560 movies)
+Will process 23 batches of 100 pages each
+Taking a 60-minute break between batches
+
+WARNING: This will attempt to import ALL 2256 pages (22,557+ movies).
+The process will take multiple days to complete and use significant resources.
+Are you absolutely sure you want to continue? (yes/no) yes
+
+Start from batch number (1-23, default: 1): 2
+Checking for required packages...
+Database connection parameters parsed
+[2025-05-07 14:02:55] BATCH 2/23: Importing pages 101 to 200
+Processing page 101
+parse error: Invalid numeric literal at line 1, column 2
+Found  movies on page 101
+Completed processing page 101
+Waiting 3 seconds before next page...
+Processing page 102
+parse error: Invalid numeric literal at line 1, column 2
+Found  movies on page 102
+Completed processing page 102
+Waiting 3 seconds before next page...
+Processing page 103
+^C
+root@lightnode:~/Film_Flex_Release/scripts/data# ^C
+root@lightnode:~/Film_Flex_Release/scripts/data#
