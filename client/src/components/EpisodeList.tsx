@@ -57,14 +57,11 @@ export default function EpisodeList({
           <h4 className="text-lg font-bold">Episodes</h4>
           <div className="h-5 w-28 bg-gray-700 rounded animate-pulse"></div>
         </div>
-        <ScrollArea className="w-full">
-          <div className="flex space-x-2 pb-2">
-            {[...Array(10)].map((_, i) => (
-              <div key={i} className="h-10 w-12 flex-shrink-0 bg-gray-700 rounded animate-pulse"></div>
-            ))}
-          </div>
-          <ScrollBar orientation="horizontal" />
-        </ScrollArea>
+        <div className="flex flex-wrap gap-2">
+          {[...Array(12)].map((_, i) => (
+            <div key={i} className="h-11 w-11 sm:h-12 sm:w-12 bg-gray-700 rounded animate-pulse"></div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -99,7 +96,7 @@ export default function EpisodeList({
               
               <CollapsibleContent>
                 <ScrollArea className="w-full pb-2">
-                  <div className="flex space-x-2 pb-2 snap-x md:grid md:grid-cols-8 md:gap-2 md:space-x-0 lg:grid-cols-10">
+                  <div className="flex flex-wrap gap-2">
                     {seasonEpisodes.map((episode, index) => {
                       // Extract episode name or number for display
                       const episodeName = episode.name;
@@ -109,22 +106,40 @@ export default function EpisodeList({
                         episodeNumber = parseInt(episodeNumberMatch[0]);
                       }
                       
+                      // Format episode name for tooltip
+                      const displayName = episode.name.replace(/^Tập|Episode\s*/i, '').trim();
+                      
                       return (
-                        <div key={episode.slug} className="flex-shrink-0 snap-start md:snap-align-none md:flex-shrink">
-                          <Button
-                            variant={activeEpisode === episode.slug ? "default" : "outline"}
-                            className={`h-10 w-12 sm:w-14 md:w-full md:h-12 px-0 sm:px-1 md:px-2 rounded text-center transition touch-manipulation ${
-                              activeEpisode === episode.slug ? "bg-primary hover:bg-primary/90 text-white border-2 border-primary/50 shadow-[0_0_10px_rgba(var(--primary-rgb),0.4)]" : "bg-muted hover:bg-primary/20"
-                            }`}
-                            onClick={() => onSelectEpisode(episode.slug)}
-                          >
-                            <span className="block font-medium text-xs md:text-sm">{episodeNumber}</span>
-                          </Button>
-                        </div>
+                        <TooltipProvider key={episode.slug}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant={activeEpisode === episode.slug ? "default" : "outline"}
+                                className={`h-11 w-11 sm:h-12 sm:w-12 px-0 rounded text-center transition relative ${
+                                  activeEpisode === episode.slug 
+                                    ? "bg-primary hover:bg-primary/90 text-white border-2 border-primary/50 shadow-[0_0_10px_rgba(var(--primary-rgb),0.4)]" 
+                                    : "bg-muted hover:bg-primary/20"
+                                }`}
+                                onClick={() => onSelectEpisode(episode.slug)}
+                              >
+                                <span className="block font-medium text-sm">{episodeNumber}</span>
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-[200px]">
+                              <div className="text-xs">
+                                <div className="font-semibold">{displayName || `Episode ${episodeNumber}`}</div>
+                                {episode.filename && (
+                                  <div className="text-muted-foreground mt-1">
+                                    {episode.filename}
+                                  </div>
+                                )}
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       );
                     })}
                   </div>
-                  <ScrollBar orientation="horizontal" className="md:hidden" />
                 </ScrollArea>
               </CollapsibleContent>
             </Collapsible>
@@ -162,7 +177,7 @@ export default function EpisodeList({
         
         <CollapsibleContent className="w-full">
           <ScrollArea className="w-full">
-            <div className="flex space-x-2 pb-2 snap-x md:grid md:grid-cols-8 md:gap-2 md:space-x-0 lg:grid-cols-10">
+            <div className="flex flex-wrap gap-2">
               {episodes.map((episode, index) => {
                 // Extract episode name or number for display
                 const episodeName = episode.name;
@@ -172,22 +187,40 @@ export default function EpisodeList({
                   episodeNumber = parseInt(episodeNumberMatch[0]);
                 }
                 
+                // Format episode name for tooltip
+                const displayName = episode.name.replace(/^Tập|Episode\s*/i, '').trim();
+                
                 return (
-                  <div key={episode.slug} className="flex-shrink-0 snap-start md:snap-align-none md:flex-shrink">
-                    <Button
-                      variant={activeEpisode === episode.slug ? "default" : "outline"}
-                      className={`h-10 w-12 sm:w-14 md:w-full md:h-12 px-0 sm:px-1 md:px-2 rounded text-center transition touch-manipulation ${
-                        activeEpisode === episode.slug ? "bg-primary hover:bg-primary/90 text-white border-2 border-primary/50 shadow-[0_0_10px_rgba(var(--primary-rgb),0.4)]" : "bg-muted hover:bg-primary/20"
-                      }`}
-                      onClick={() => onSelectEpisode(episode.slug)}
-                    >
-                      <span className="block font-medium text-xs md:text-sm">{episodeNumber}</span>
-                    </Button>
-                  </div>
+                  <TooltipProvider key={episode.slug}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant={activeEpisode === episode.slug ? "default" : "outline"}
+                          className={`h-11 w-11 sm:h-12 sm:w-12 px-0 rounded text-center transition relative ${
+                            activeEpisode === episode.slug 
+                              ? "bg-primary hover:bg-primary/90 text-white border-2 border-primary/50 shadow-[0_0_10px_rgba(var(--primary-rgb),0.4)]" 
+                              : "bg-muted hover:bg-primary/20"
+                          }`}
+                          onClick={() => onSelectEpisode(episode.slug)}
+                        >
+                          <span className="block font-medium text-sm">{episodeNumber}</span>
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-[200px]">
+                        <div className="text-xs">
+                          <div className="font-semibold">{displayName || `Episode ${episodeNumber}`}</div>
+                          {episode.filename && (
+                            <div className="text-muted-foreground mt-1">
+                              {episode.filename}
+                            </div>
+                          )}
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 );
               })}
             </div>
-            <ScrollBar orientation="horizontal" className="md:hidden" />
           </ScrollArea>
         </CollapsibleContent>
       </Collapsible>
