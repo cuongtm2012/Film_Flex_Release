@@ -915,31 +915,22 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
               </div>
               
               {isRecommendationsLoading ? (
-                // Loading placeholders for side recommendations
-                <div className="grid grid-cols-2 lg:grid-cols-1 gap-4">
-                  {Array(3).fill(0).map((_, i) => (
+                // Loading placeholders for recommendations
+                <div className="grid grid-cols-2 gap-4">
+                  {Array(4).fill(0).map((_, i) => (
                     <div key={i} className="animate-pulse">
-                      <div className="aspect-[2/1] bg-gray-800 rounded mb-2"></div>
+                      <div className="aspect-[16/9] bg-gray-800 rounded mb-2"></div>
                       <div className="h-4 bg-gray-800 rounded w-3/4 mb-2"></div>
                       <div className="h-3 bg-gray-800 rounded w-1/2"></div>
                     </div>
                   ))}
                 </div>
               ) : recommendationsData?.items && recommendationsData.items.length > 0 ? (
-                // Horizontal scroll on mobile, grid on desktop
-                <div className="md:grid md:grid-cols-1 lg:grid-cols-1 xl:grid-cols-2 md:gap-3">
-                  <div className="flex overflow-x-auto space-x-3 pb-4 md:hidden snap-x">
-                    {recommendationsData.items.slice(0, 6).map((movie) => (
-                      <div key={movie.slug} className="flex-shrink-0 w-36 snap-start">
-                        <RecommendedMovieCard movie={movie} size="small" />
-                      </div>
-                    ))}
-                  </div>
-                  <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-3">
-                    {recommendationsData.items.slice(0, 6).map((movie) => (
-                      <RecommendedMovieCard key={movie.slug} movie={movie} size="small" />
-                    ))}
-                  </div>
+                // Grid layout for all screen sizes
+                <div className="grid grid-cols-2 gap-4">
+                  {recommendationsData.items.slice(0, 6).map((movie) => (
+                    <RecommendedMovieCard key={movie.slug} movie={movie} size="small" />
+                  ))}
                 </div>
               ) : (
                 // No recommendations found
