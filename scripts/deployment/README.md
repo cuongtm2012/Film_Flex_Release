@@ -1,56 +1,72 @@
-# FilmFlex Deployment Script
+# FilmFlex Deployment Scripts
 
-This folder contains scripts for managing the FilmFlex application deployment.
+This folder contains scripts for managing the FilmFlex application deployment process.
 
-## Deployment Script
+## Available Scripts
 
-The `deploy.sh` script is a comprehensive tool for updating the production environment with the latest changes from the source code repository.
+| Script | Description |
+|--------|-------------|
+| `final-deploy.sh` | **RECOMMENDED**: Latest deployment script that fixes ES module compatibility issues |
+| `check-deploy.sh` | Diagnoses server issues and provides troubleshooting information |
+| `deploy.sh` | Standard deployment script (use `final-deploy.sh` instead) |
+| `filmflex-server.cjs` | Production server using CommonJS format |
 
-### Server Setup
+## Server Setup
 
-This script is designed for a specific deployment scenario:
+These scripts are designed for a specific deployment scenario:
 - Source code is in `~/Film_Flex_Release` (Git repository)
 - Production deployment is in `/var/www/filmflex` (Live website)
+- Domain configured with Nginx at `phimgg.com`
 
-### Usage on Production Server
+## Usage on Production Server
 
-1. Make sure your local changes are committed and pushed to the repository
-2. Connect to the production server
-3. Run the deployment script:
+### Standard Deployment (Recommended)
 
 ```bash
 cd ~/Film_Flex_Release
-git pull  # Pull latest changes including this script
-chmod +x scripts/deployment/deploy.sh
-./scripts/deployment/deploy.sh
+git pull  # Pull latest changes
+chmod +x scripts/deployment/final-deploy.sh
+sudo ./scripts/deployment/final-deploy.sh
 ```
 
-### What the Script Does
+### Diagnostic and Troubleshooting
 
-The script performs the following steps automatically:
+```bash
+cd ~/Film_Flex_Release
+chmod +x scripts/deployment/check-deploy.sh
+./scripts/deployment/check-deploy.sh
+```
 
-1. Updates the source code in `~/Film_Flex_Release`
-2. Builds the application in the source directory
-3. Creates a backup of critical files in the production directory
-4. Copies the built application and server files to `/var/www/filmflex`
-5. Preserves important data like log files and import progress
-6. Sets the correct file permissions
-7. Installs production dependencies
-8. Restarts the application using PM2
-9. Verifies the application status
+## What the Deployment Script Does
 
-### Important Notes
+The deployment scripts perform these key steps:
 
-- The script preserves the existing `.env` file in the production directory
-- It also preserves the `scripts/data` directory which contains import progress
-- Logs and other critical data are backed up before deployment
+1. Stop any existing PM2 processes
+2. Properly configure package.json and environment
+3. Copy production server files to `/var/www/filmflex`
+4. Install required dependencies
+5. Start the server with PM2
+6. Verify the application status
+7. Reload Nginx configuration
 
-### Troubleshooting
+## Troubleshooting
 
-If you still don't see your changes after running the script:
+If you encounter issues after deployment:
 
-1. Check the PM2 logs for errors: `pm2 logs filmflex`
-2. Verify Nginx configuration: `nginx -t` and restart if needed: `systemctl restart nginx`
-3. Check for errors in the deployment process: `tail -100 /var/log/filmflex/deployment.log`
-4. Clear your browser cache or try an incognito/private window
-5. If needed, perform a complete restart: `pm2 stop filmflex && pm2 start filmflex`
+1. Run the diagnostic script: `./scripts/deployment/check-deploy.sh`
+2. Check PM2 logs: `pm2 logs filmflex`
+3. Verify server is running: `curl http://localhost:5000/api/health`
+4. Check Nginx configuration: `nginx -t`
+5. Restart Nginx if needed: `systemctl restart nginx`
+6. Clear browser cache or try in incognito mode
+
+## Running the Server Manually
+
+If all automated methods fail, you can run the server directly:
+
+```bash
+cd /var/www/filmflex
+export NODE_ENV=production
+export DATABASE_URL=postgresql://filmflex:filmflex2024@localhost:5432/filmflex
+node filmflex-server.cjs
+```
