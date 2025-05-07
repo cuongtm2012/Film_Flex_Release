@@ -251,7 +251,9 @@ export class MemStorage implements IStorage {
     // Apply sorting based on parameter
     switch (sortBy) {
       case 'latest':
+      case 'modified':
         // Sort by most recent modified time (newest first)
+        // Both latest and modified use the same sorting logic
         allMovies.sort((a, b) => b.modifiedAt.getTime() - a.modifiedAt.getTime());
         break;
       case 'popular':
@@ -415,7 +417,9 @@ export class MemStorage implements IStorage {
     // Apply sorting based on parameter
     switch (sortBy) {
       case 'latest':
+      case 'modified':
         // Sort by most recent modified time (newest first)
+        // Both latest and modified use the same sorting logic
         matchingMovies.sort((a, b) => b.modifiedAt.getTime() - a.modifiedAt.getTime());
         break;
       case 'popular':
