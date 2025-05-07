@@ -538,10 +538,32 @@ export function CommentSection({
           )}
         </div>
       ) : (
-        <div className="text-center py-12 border border-dashed border-gray-800 rounded-lg">
+        <div className="text-center py-6 border border-dashed border-gray-800 rounded-lg">
           <MessageCircle className="h-10 w-10 text-muted-foreground mx-auto mb-3 opacity-30" />
-          <p className="text-muted-foreground font-medium">No comments yet. Start the conversation!</p>
-          <p className="text-xs text-muted-foreground mt-1">Share your thoughts on this movie.</p>
+          <p className="text-muted-foreground font-medium">No comments yet. Be the first to share your thoughts!</p>
+          
+          {user ? (
+            <div className="max-w-md mx-auto mt-4">
+              <Button 
+                variant="outline" 
+                className="flex items-center gap-2 mx-auto border-dashed border-primary/40 hover:border-primary"
+                onClick={() => {
+                  // Focus on the comment textarea
+                  const textarea = document.querySelector('textarea[name="content"]') as HTMLTextAreaElement;
+                  if (textarea) {
+                    textarea.focus();
+                    // Scroll to textarea
+                    textarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  }
+                }}
+              >
+                <MessageCircle className="h-4 w-4" />
+                Write your first comment
+              </Button>
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground mt-3">Please log in to comment</p>
+          )}
         </div>
       )}
       
