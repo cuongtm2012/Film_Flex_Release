@@ -1,38 +1,117 @@
 #!/bin/bash
 
 # FilmFlex Deployment Script
+# This script handles deployment from the source repository to the production directory
 # Usage: ./scripts/deployment/deploy.sh
+
+# Configuration
+SOURCE_DIR="${HOME}/Film_Flex_Release"
+DEPLOY_DIR="/var/www/filmflex"
+BACKUP_DIR="${DEPLOY_DIR}/backups/$(date +%Y%m%d_%H%M%S)"
 
 echo "===== FilmFlex Deployment Script ====="
 echo "Starting deployment process..."
 
-# Step 1: Get the latest code
-echo "1. Pulling latest changes from git repository..."
+# Step 1: Update the source code repository
+echo "1. Updating source code repository..."
+cd "$SOURCE_DIR"
 git pull
 
-# Step 2: Install dependencies (if needed)
-echo "2. Checking and installing dependencies..."
+# Step 2: Install dependencies and build in source directory
+echo "2. Installing dependencies in source directory..."
+cd "$SOURCE_DIR"
 npm install
 
-# Step 3: Build the application
-echo "3. Building the application..."
+echo "3. Building the application in source directory..."
 npm run build
 
-# Step 4: Set correct permissions
-echo "4. Setting file permissions..."
-chown -R www-data:www-data client/dist
-chmod -R 755 client/dist
+# Step 3: Create backup of current deployment (optional)
+echo "4. Creating backup of current deployment..."
+mkdir -p "$BACKUP_DIR"
+if [ -d "$DEPLOY_DIR" ]; then
+  # Only backup important files, not node_modules or large directories
+  cp -r "$DEPLOY_DIR"/.env "$BACKUP_DIR"/ 2>/dev/null || true
+  mkdir -p "$BACKUP_DIR/log"
+  cp -r "$DEPLOY_DIR"/log/* "$BACKUP_DIR/log/" 2>/dev/null || true
+  
+  # Backup scripts/data directory which contains import progress
+  mkdir -p "$BACKUP_DIR/scripts/data"
+  cp -r "$DEPLOY_DIR"/scripts/data/* "$BACKUP_DIR/scripts/data/" 2>/dev/null || true
+fi
 
-# Step 5: Clear any caches
-echo "5. Clearing application caches..."
-rm -rf .cache/* || true
+# Step 4: Deploy client build and server files
+echo "5. Deploying to production directory..."
 
-# Step 6: Restart the application
-echo "6. Restarting the application with PM2..."
-pm2 restart filmflex
+# Copy client build
+echo "   - Copying client build files..."
+mkdir -p "$DEPLOY_DIR/client/dist"
+cp -r "$SOURCE_DIR/client/dist"/* "$DEPLOY_DIR/client/dist/"
 
-# Step 7: Verify the application status
-echo "7. Verifying the application status..."
+# Copy server files
+echo "   - Copying server files..."
+mkdir -p "$DEPLOY_DIR/server"
+cp -r "$SOURCE_DIR/server"/* "$DEPLOY_DIR/server/"
+
+# Copy shared files
+echo "   - Copying shared files..."
+mkdir -p "$DEPLOY_DIR/shared"
+cp -r "$SOURCE_DIR/shared"/* "$DEPLOY_DIR/shared/"
+
+# Copy scripts directory (preserving data subdirectory)
+echo "   - Copying scripts directory (preserving data)..."
+mkdir -p "$DEPLOY_DIR/scripts"
+# Temporarily move data directory if it exists
+if [ -d "$DEPLOY_DIR/scripts/data" ]; then
+  mv "$DEPLOY_DIR/scripts/data" "$DEPLOY_DIR/scripts/data_temp"
+fi
+cp -r "$SOURCE_DIR/scripts"/* "$DEPLOY_DIR/scripts/"
+# Move data directory back
+if [ -d "$DEPLOY_DIR/scripts/data_temp" ]; then
+  # If both exist, merge them
+  if [ -d "$DEPLOY_DIR/scripts/data" ]; then
+    cp -r "$DEPLOY_DIR/scripts/data_temp"/* "$DEPLOY_DIR/scripts/data/"
+  else
+    mv "$DEPLOY_DIR/scripts/data_temp" "$DEPLOY_DIR/scripts/data"
+  fi
+fi
+
+# Copy root configuration files
+echo "   - Copying configuration files..."
+cp "$SOURCE_DIR/package.json" "$DEPLOY_DIR/"
+cp "$SOURCE_DIR/package-lock.json" "$DEPLOY_DIR/"
+cp "$SOURCE_DIR/tsconfig.json" "$DEPLOY_DIR/"
+cp "$SOURCE_DIR/vite.config.ts" "$DEPLOY_DIR/"
+cp "$SOURCE_DIR/tailwind.config.ts" "$DEPLOY_DIR/"
+cp "$SOURCE_DIR/postcss.config.js" "$DEPLOY_DIR/"
+cp "$SOURCE_DIR/drizzle.config.ts" "$DEPLOY_DIR/"
+
+# Do not copy .env file if it already exists in the deploy directory
+if [ ! -f "$DEPLOY_DIR/.env" ]; then
+  cp "$SOURCE_DIR/.env" "$DEPLOY_DIR/" 2>/dev/null || true
+  echo "   - Warning: No .env file found. Make sure to create one in $DEPLOY_DIR"
+else
+  echo "   - Preserving existing .env file."
+fi
+
+# Step 5: Update permissions
+echo "6. Setting file permissions..."
+chown -R www-data:www-data "$DEPLOY_DIR"
+chmod -R 755 "$DEPLOY_DIR/client/dist"
+chmod +x "$DEPLOY_DIR/scripts/deployment/deploy.sh"
+chmod +x "$DEPLOY_DIR/scripts/data/"*.sh 2>/dev/null || true
+
+# Step 6: Install production dependencies
+echo "7. Installing production dependencies..."
+cd "$DEPLOY_DIR"
+npm ci --only=production
+
+# Step 7: Restart the application
+echo "8. Restarting the application with PM2..."
+cd "$DEPLOY_DIR"
+pm2 restart filmflex || pm2 start ecosystem.config.js
+
+# Step 8: Verify the application status
+echo "9. Verifying the application status..."
 pm2 status filmflex
 
 echo "===== Deployment Complete ====="
