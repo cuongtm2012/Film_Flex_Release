@@ -1,6 +1,6 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Filter, SlidersHorizontal } from "lucide-react";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
 export interface Category {
@@ -14,14 +14,30 @@ interface CategoryFilterProps {
   selectedCategory?: string;
   onSelectCategory: (categorySlug: string) => void;
   isLoading?: boolean;
+  onSortToggle?: () => void;
 }
 
 export default function CategoryFilter({ 
   categories, 
   selectedCategory,
   onSelectCategory,
-  isLoading = false 
+  isLoading = false,
+  onSortToggle
 }: CategoryFilterProps) {
+  const [isSticky, setIsSticky] = useState(false);
+  
+  // Handle scroll to apply sticky behavior
+  useEffect(() => {
+    const handleScroll = () => {
+      const offset = window.scrollY;
+      // Make sticky after hero section (adjust value as needed)
+      setIsSticky(offset > 400);
+    };
+    
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
   // Default categories based on the actual API format according to the data provided
   const defaultCategories = [
     { id: "all", name: "All", slug: "all" },
@@ -40,9 +56,13 @@ export default function CategoryFilter({
 
   const displayCategories = categories.length > 0 ? categories : defaultCategories;
 
+  const stickyClasses = isSticky 
+    ? "fixed top-0 left-0 right-0 z-40 bg-black/95 shadow-md backdrop-blur-sm transition-all duration-300 ease-in-out py-3 border-b border-gray-800" 
+    : "py-6";
+
   if (isLoading) {
     return (
-      <section className="py-6 container mx-auto px-4">
+      <section className={`${stickyClasses} container mx-auto px-4`}>
         <div className="flex items-center justify-between mb-4">
           <div className="h-7 w-40 bg-gray-700 rounded animate-pulse"></div>
           <div className="h-5 w-24 bg-gray-700 rounded animate-pulse"></div>
@@ -61,13 +81,31 @@ export default function CategoryFilter({
   }
 
   return (
-    <section className="py-6 container mx-auto px-4">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-bold">Browse by Category</h2>
-        <Button variant="ghost" className="text-muted-foreground hover:text-white transition">
-          <span>See All</span>
-          <ChevronRight className="ml-2 h-4 w-4" />
-        </Button>
+    <section className={`${stickyClasses} container mx-auto px-4`}>
+      <div className="flex items-center justify-between mb-3 md:mb-4">
+        <h2 className="text-lg md:text-xl font-bold">Browse by Category</h2>
+        
+        <div className="flex items-center gap-2">
+          {onSortToggle && (
+            <Button 
+              onClick={onSortToggle}
+              variant="outline" 
+              size="sm"
+              className="flex items-center gap-1 rounded-full text-sm px-4 py-1 md:hidden border border-gray-600"
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5" />
+              <span>Sort</span>
+            </Button>
+          )}
+          
+          <Button 
+            variant="ghost" 
+            className="text-muted-foreground hover:text-white transition hidden md:flex"
+          >
+            <span>See All</span>
+            <ChevronRight className="ml-2 h-4 w-4" />
+          </Button>
+        </div>
       </div>
       
       <ScrollArea className="w-full whitespace-nowrap">
@@ -76,8 +114,10 @@ export default function CategoryFilter({
             <Button
               key={category.id}
               variant="outline"
-              className={`category-pill whitespace-nowrap px-4 py-2 rounded-full text-sm font-medium transition ${
-                selectedCategory === category.slug ? "bg-primary text-white" : "bg-muted hover:bg-primary/80"
+              className={`category-pill whitespace-nowrap px-4 py-2 rounded-full text-sm font-medium transition touch-manipulation ${
+                selectedCategory === category.slug 
+                  ? "bg-primary text-white border-primary" 
+                  : "bg-muted hover:bg-primary/80 border border-gray-700"
               }`}
               onClick={() => onSelectCategory(category.slug)}
             >
@@ -87,6 +127,9 @@ export default function CategoryFilter({
         </div>
         <ScrollBar orientation="horizontal" />
       </ScrollArea>
+      
+      {/* Phantom spacer that appears when filter becomes sticky */}
+      {isSticky && <div className="h-20 md:h-28"></div>}
     </section>
   );
 }
