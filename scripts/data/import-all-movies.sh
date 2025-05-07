@@ -77,6 +77,23 @@ if ! command -v jq &> /dev/null; then
   apt-get update && apt-get install -y jq curl
 fi
 
+# Extract database connection parameters
+parse_db_url() {
+  # Extract components from DATABASE_URL
+  local DB_URL="$DATABASE_URL"
+  DB_USER=$(echo "$DB_URL" | sed -n 's/.*:\/\/\([^:]*\):.*/\1/p')
+  DB_PASSWORD=$(echo "$DB_URL" | sed -n 's/.*:\/\/[^:]*:\([^@]*\)@.*/\1/p')
+  DB_HOST=$(echo "$DB_URL" | sed -n 's/.*@\([^:]*\):.*/\1/p')
+  DB_PORT=$(echo "$DB_URL" | sed -n 's/.*@[^:]*:\([0-9]*\)\/.*/\1/p')
+  DB_NAME=$(echo "$DB_URL" | sed -n 's/.*\/\([^?]*\).*/\1/p')
+  
+  echo "DB parameters: host=$DB_HOST, port=$DB_PORT, user=$DB_USER, db=$DB_NAME" >> "$IMPORT_LOG"
+}
+
+# Parse database URL early
+parse_db_url
+echo -e "${GREEN}Database connection parameters parsed${NC}"
+
 # Function to fetch movie list from API
 fetch_movie_list() {
   local page=$1
@@ -143,19 +160,6 @@ fetch_movie_detail() {
     rm "$temp_file"
     echo "{\"movie\":{}}" # Return empty object as fallback
   fi
-}
-
-# Extract database connection parameters
-parse_db_url() {
-  # Extract components from DATABASE_URL
-  local DB_URL="$DATABASE_URL"
-  DB_USER=$(echo "$DB_URL" | sed -n 's/.*:\/\/\([^:]*\):.*/\1/p')
-  DB_PASSWORD=$(echo "$DB_URL" | sed -n 's/.*:\/\/[^:]*:\([^@]*\)@.*/\1/p')
-  DB_HOST=$(echo "$DB_URL" | sed -n 's/.*@\([^:]*\):.*/\1/p')
-  DB_PORT=$(echo "$DB_URL" | sed -n 's/.*@[^:]*:\([0-9]*\)\/.*/\1/p')
-  DB_NAME=$(echo "$DB_URL" | sed -n 's/.*\/\([^?]*\).*/\1/p')
-  
-  echo "DB parameters: host=$DB_HOST, port=$DB_PORT, user=$DB_USER, db=$DB_NAME" >> "$IMPORT_LOG"
 }
 
 # Function to check if movie exists in database
