@@ -14,8 +14,6 @@ Go to your GitHub repository settings, select "Secrets and variables" → "Actio
 | `SERVER_USER` | The SSH username for your server (e.g., root) |
 | `SSH_PASSWORD` | The SSH password for your server |
 | `DATABASE_URL` | Your PostgreSQL connection string (e.g., postgresql://filmflex:filmflex2024@localhost:5432/filmflex) |
-| `TELEGRAM_TOKEN` | (Optional) Telegram bot token for deployment notifications |
-| `TELEGRAM_TO` | (Optional) Telegram chat ID to receive notifications |
 
 ### 2. Verify Repository Structure
 
@@ -44,7 +42,6 @@ This is the main deployment workflow that includes:
 2. Uploading the necessary files to the production server
 3. Running the deployment script
 4. Verifying the deployment
-5. Sending a notification upon completion
 
 #### Deployment Modes
 
