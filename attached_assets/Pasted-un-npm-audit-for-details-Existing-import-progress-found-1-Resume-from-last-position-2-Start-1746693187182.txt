@@ -1,0 +1,88 @@
+un `npm audit` for details.
+Existing import progress found.
+1) Resume from last position
+2) Start over from the beginning
+3) Start from a specific batch/page
+Select an option (1-3): 1
+Found existing progress: Completed 1/23 batches
+Ready to resume from batch 2, page 166
+The import process will now begin. Press Ctrl+C at any time to safely pause the import.
+You can resume the import later by running this script again and selecting 'Resume'.
+Starting import from batch 2, page 166
+
+Press Enter to start the import process...
+[2025-05-08 16:31:07] BATCH 2/23: Importing pages 166 to 200
+Processing page 166
+Loaded environment variables from .env file
+[2025-05-08T08:31:08.219Z] [DATA-IMPORT] Running in SINGLE PAGE MODE - Only importing page 166 with size 10
+[2025-05-08T08:31:08.219Z] [DATA-IMPORT] Starting movie data import...
+[2025-05-08T08:31:08.219Z] [DATA-IMPORT] Movies table exists
+[2025-05-08T08:31:08.219Z] [DATA-IMPORT] Processing single page 166 with size 10
+[2025-05-08T08:31:08.219Z] [DATA-IMPORT] Fetching movie list for page 166 with limit 10
+[2025-05-08T08:31:08.219Z] [DATA-IMPORT] Need to fetch 1 pages starting from external API page 166
+[2025-05-08T08:31:08.219Z] [DATA-IMPORT] Successfully fetched page 166 with 10 items
+[2025-05-08T08:31:08.219Z] [DATA-IMPORT] Combined 10 items from 1 pages
+[2025-05-08T08:31:08.219Z] [DATA-IMPORT] Pagination: Total items: unknown, Total pages: unknown, Current page: 166
+[2025-05-08T08:31:08.219Z] [DATA-IMPORT] Returning 10 items for page 166
+[2025-05-08T08:31:08.219Z] [DATA-IMPORT] Processing 10 movies...
+[2025-05-08T08:31:08.219Z] [DATA-IMPORT] Error processing movie tran-khong-lo: column "name" of relation "movies" does not exist
+[2025-05-08T08:31:08.219Z] [DATA-IMPORT] Error processing movie tokusou-sentai-dekaranger-20th-fireball-booster: column "name" of relation "movies" does not exist
+[2025-05-08T08:31:08.219Z] [DATA-IMPORT] Error processing movie sau-tran-chien: column "name" of relation "movies" does not exist
+[2025-05-08T08:31:08.219Z] [DATA-IMPORT] Error processing movie quy-ong-hoan-hao-2024: column "name" of relation "movies" does not exist
+[2025-05-08T08:31:08.219Z] [DATA-IMPORT] Error processing movie phi-vu-tien-ban: column "name" of relation "movies" does not exist
+[2025-05-08T08:31:08.219Z] [DATA-IMPORT] Error processing movie nhat-ban: column "name" of relation "movies" does not exist
+^C
+Import interrupted. To resume, run the script again and select resume.
+root@lightnode:~/Film_Flex_Release/scripts/data# ./import-all-movies-resumable.sh
+
+======================================================
+  FilmFlex Complete Database Import Script (Resumable)
+======================================================
+
+Checking for required packages...
+Installing required packages locally...
+
+up to date, audited 1153 packages in 5s
+
+155 packages are looking for funding
+  run `npm fund` for details
+
+7 moderate severity vulnerabilities
+
+To address issues that do not require attention, run:
+  npm audit fix
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+
+Run `npm audit` for details.
+Existing import progress found.
+1) Resume from last position
+2) Start over from the beginning
+3) Start from a specific batch/page
+Select an option (1-3): 2
+Starting a new import process...
+The import process will now begin. Press Ctrl+C at any time to safely pause the import.
+You can resume the import later by running this script again and selecting 'Resume'.
+Starting import from batch 1, page 1
+
+Press Enter to start the import process...
+[2025-05-08 16:32:48] BATCH 1/23: Importing pages 1 to 100
+Processing page 1
+Loaded environment variables from .env file
+[2025-05-08T08:32:48.847Z] [DATA-IMPORT] Running in SINGLE PAGE MODE - Only importing page 1 with size 10
+[2025-05-08T08:32:48.847Z] [DATA-IMPORT] Starting movie data import...
+[2025-05-08T08:32:48.847Z] [DATA-IMPORT] Movies table exists
+[2025-05-08T08:32:48.847Z] [DATA-IMPORT] Processing single page 1 with size 10
+[2025-05-08T08:32:48.847Z] [DATA-IMPORT] Fetching movie list for page 1 with limit 10
+[2025-05-08T08:32:48.847Z] [DATA-IMPORT] Need to fetch 1 pages starting from external API page 1
+[2025-05-08T08:32:48.847Z] [DATA-IMPORT] Successfully fetched page 1 with 10 items
+[2025-05-08T08:32:48.847Z] [DATA-IMPORT] Combined 10 items from 1 pages
+[2025-05-08T08:32:48.847Z] [DATA-IMPORT] Pagination: Total items: unknown, Total pages: unknown, Current page: 1
+[2025-05-08T08:32:48.847Z] [DATA-IMPORT] Returning 10 items for page 1
+[2025-05-08T08:32:48.847Z] [DATA-IMPORT] Processing 10 movies...
+[2025-05-08T08:32:48.847Z] [DATA-IMPORT] Error processing movie diem-bung-no: column "name" of relation "movies" does not exist
+[2025-05-08T08:32:48.847Z] [DATA-IMPORT] Error processing movie dan-lac-3: column "name" of relation "movies" does not exist
+^C
+Import interrupted. To resume, run the script again and select resume.
+root@lightnode:~/Film_Flex_Release/scripts/data#
