@@ -97,7 +97,7 @@ jobs:
           tar -czf filmflex-release.tar.gz filmflex-release
 
       - name: Deploy to server
-        uses: appleboy/ssh-action@v0.1.10
+        uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.SERVER_IP }}
           username: ${{ secrets.SERVER_USER }}
@@ -120,7 +120,7 @@ jobs:
             echo "Starting deployment at $(date)" >> /var/log/filmflex/github-deploy.log
 
       - name: Upload and extract files
-        uses: appleboy/scp-action@v0.1.4
+        uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SERVER_IP }}
           username: ${{ secrets.SERVER_USER }}
@@ -129,7 +129,7 @@ jobs:
           target: "~"
 
       - name: Run deployment script
-        uses: appleboy/ssh-action@v0.1.10
+        uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.SERVER_IP }}
           username: ${{ secrets.SERVER_USER }}
@@ -173,7 +173,7 @@ jobs:
             fi
 
       - name: Verify deployment
-        uses: appleboy/ssh-action@v0.1.10
+        uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.SERVER_IP }}
           username: ${{ secrets.SERVER_USER }}
