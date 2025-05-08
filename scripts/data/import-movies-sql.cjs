@@ -9,8 +9,16 @@
 
 // Load dependencies
 const path = require('path');
-const axios = require('axios');
 const { Pool } = require('pg');
+
+// Try to load axios with better error handling
+let axios;
+try {
+  axios = require('axios');
+} catch (error) {
+  console.error(`ERROR: axios module not found. Please run 'npm install axios' first.`);
+  process.exit(1);
+}
 
 // Try to load dotenv, but don't fail if it's not installed
 try {
@@ -27,7 +35,7 @@ const timestamp = new Date().toISOString();
 const logPrefix = `[${timestamp}] [DATA-IMPORT]`;
 
 // Configuration
-const API_BASE_URL = 'https://ophim1.com';
+const API_BASE_URL = 'https://phimapi.com';  // Updated API URL
 const MOVIE_LIST_ENDPOINT = '/danh-sach/phim-moi-cap-nhat';
 let MOVIE_PAGE_SIZE = 50; // Changed from const to let so it can be modified
 let MAX_PAGES = 1; // Focus on page 1 for newest movies
@@ -56,9 +64,17 @@ if (SINGLE_PAGE_MODE) {
   }
 }
 
+// Find max pages parameter (new)
+let userMaxPages = 0;
+const maxPagesArg = args.find(arg => arg.startsWith('--max-pages='));
+if (maxPagesArg) {
+  userMaxPages = parseInt(maxPagesArg.split('=')[1], 10) || 0;
+  console.log(`${logPrefix} User specified max pages: ${userMaxPages}`);
+}
+
 // Set this to true on weekends or specific times to check deeper pages
 const CHECK_DEEPER_PAGES = FORCE_DEEP_SCAN || false;
-const DEEPER_PAGES_MAX = 5; // How many pages to check when doing a deep scan
+const DEEPER_PAGES_MAX = userMaxPages > 0 ? userMaxPages : 5; // Use user value or default to 5
 
 // Override settings based on mode
 if (TEST_MODE) {
@@ -69,6 +85,12 @@ if (TEST_MODE) {
 if (SINGLE_PAGE_MODE) {
   console.log(`${logPrefix} Running in SINGLE PAGE MODE - Only importing page ${SINGLE_PAGE_NUM} with size ${SINGLE_PAGE_SIZE}`);
   MOVIE_PAGE_SIZE = SINGLE_PAGE_SIZE;
+}
+
+// Override MAX_PAGES if user specified a value
+if (userMaxPages > 0) {
+  MAX_PAGES = userMaxPages;
+  console.log(`${logPrefix} Using user-specified MAX_PAGES = ${MAX_PAGES}`);
 }
 
 /**
