@@ -24,10 +24,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
@@ -45,21 +45,21 @@ jobs:
         run: npm test || echo "Some tests failed but continuing deployment"
 
       - name: Upload client build
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: client-dist
           path: client/dist/
           retention-days: 1
 
       - name: Upload deployment scripts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: deployment-scripts
           path: scripts/deployment/
           retention-days: 1
 
       - name: Upload data scripts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: data-scripts
           path: scripts/data/
@@ -71,19 +71,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download client build
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: client-dist
           path: client-dist
 
       - name: Download deployment scripts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: deployment-scripts
           path: deployment-scripts
 
       - name: Download data scripts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: data-scripts
           path: data-scripts
