@@ -274,14 +274,14 @@ async function processAndSaveMovies(items, pool) {
         await pool.query(insertQuery);
       } else {
         // In test mode, print what would have been inserted
-        console.log(`${logPrefix} TEST MODE: Would insert movie '${movie.name}' (${movie.slug})`);
+        console.log(`${logPrefix} TEST MODE: Would insert movie '${movie.name || movie.title || movie.slug}' (${movie.slug})`);
         // Print a sample of movie fields to verify data parsing
-        console.log(`${logPrefix} TEST MODE: Sample data - ID: ${movie.movie_id}, Type: ${movie.type}, Year: ${movie.year}`);
+        console.log(`${logPrefix} TEST MODE: Sample data - ID: ${movie.movie_id}, Type: ${movie.type || 'unknown'}, Year: ${movie.year || 'unknown'}`);
       }
       
       // Log message for series
       if (movieDetail.movie?.type === 'series' && movieDetail.episodes) {
-        console.log(`${logPrefix} Movie '${movie.name}' is a series with ${movieDetail.episodes.length} server(s) of episodes`);
+        console.log(`${logPrefix} Movie '${movie.name || movie.title || movie.slug}' is a series with ${movieDetail.episodes.length} server(s) of episodes`);
         if (!TEST_MODE) {
           console.log(`${logPrefix} Episodes will be imported through the API routes`);
         } else {
@@ -309,27 +309,43 @@ async function processAndSaveMovies(items, pool) {
 function convertToMovieModel(movieDetail) {
   const movie = movieDetail.movie;
   
-  return {
+  // Create a base model with fields we're confident exist in the database
+  const modelBase = {
     movie_id: movie._id,
-    name: movie.name,
-    origin_name: movie.origin_name,
-    description: movie.content, // Column in DB is "description" not "content"
-    type: movie.type,
-    status: movie.status,
-    thumb_url: movie.thumb_url,
-    poster_url: movie.poster_url,
-    trailer_url: movie.trailer_url,
-    time: movie.time,
-    quality: movie.quality,
-    lang: movie.lang,
     slug: movie.slug,
-    year: movie.year ? parseInt(movie.year, 10) : null,
-    view: parseInt(movie.view || '0', 10),
-    actors: Array.isArray(movie.actor) ? movie.actor.join(', ') : movie.actor, // Column in DB is "actors"
-    directors: Array.isArray(movie.director) ? movie.director.join(', ') : movie.director, // Column in DB is "directors"
-    categories: JSON.stringify(movie.category || []), // Column in DB is "categories"
-    countries: JSON.stringify(movie.country || []) // Column in DB is "countries"
+    modified_at: new Date()
   };
+  
+  // Add additional fields conditionally, checking if columns exist in our database
+  // Since we can't directly check database columns here, we'll use the columns we added in final-deploy.sh
+  
+  // These are core fields we want to ensure are included
+  if (movie.name) modelBase.name = movie.name; // This is now added in the database fix
+  if (movie.name) modelBase.title = movie.name; // Add as title too in case that's what the DB uses
+  if (movie.origin_name) modelBase.origin_name = movie.origin_name;
+  if (movie.content) modelBase.description = movie.content;
+  
+  // These are typical fields that may exist
+  if (movie.type) modelBase.type = movie.type;
+  if (movie.status) modelBase.status = movie.status;
+  if (movie.thumb_url) modelBase.thumb_url = movie.thumb_url;
+  if (movie.poster_url) modelBase.poster_url = movie.poster_url;
+  if (movie.trailer_url) modelBase.trailer_url = movie.trailer_url;
+  if (movie.time) modelBase.time = movie.time;
+  if (movie.quality) modelBase.quality = movie.quality;
+  if (movie.lang) modelBase.lang = movie.lang;
+  
+  // Numeric fields
+  if (movie.year) modelBase.year = parseInt(movie.year, 10) || null;
+  if (movie.view) modelBase.view = parseInt(movie.view || '0', 10);
+  
+  // Array fields
+  if (movie.actor) modelBase.actors = Array.isArray(movie.actor) ? movie.actor.join(', ') : movie.actor;
+  if (movie.director) modelBase.directors = Array.isArray(movie.director) ? movie.director.join(', ') : movie.director;
+  if (movie.category) modelBase.categories = JSON.stringify(movie.category || []);
+  if (movie.country) modelBase.countries = JSON.stringify(movie.country || []);
+  
+  return modelBase;
 }
 
 /**
