@@ -1,0 +1,40 @@
+Checking for required packages...
+Installing required packages locally...
+
+up to date, audited 99 packages in 1s
+
+16 packages are looking for funding
+  run `npm fund` for details
+
+found 0 vulnerabilities
+Existing import progress found.
+1) Resume from last position
+2) Start over from the beginning
+3) Start from a specific batch/page
+Select an option (1-3): 2
+Starting a new import process...
+The import process will now begin. Press Ctrl+C at any time to safely pause the import.
+You can resume the import later by running this script again and selecting 'Resume'.
+Starting import from batch 1, page 1
+
+Press Enter to start the import process...
+[2025-05-08 16:54:00] BATCH 1/23: Importing pages 1 to 100
+Processing page 1
+Loaded environment variables from .env file
+[2025-05-08T08:54:00.288Z] [DATA-IMPORT] Running in SINGLE PAGE MODE - Only importing page 1 with size 10
+[2025-05-08T08:54:00.288Z] [DATA-IMPORT] Starting movie data import...
+[2025-05-08T08:54:00.288Z] [DATA-IMPORT] Movies table exists
+[2025-05-08T08:54:00.288Z] [DATA-IMPORT] Processing single page 1 with size 10
+[2025-05-08T08:54:00.288Z] [DATA-IMPORT] Fetching movie list for page 1 with limit 10
+[2025-05-08T08:54:00.288Z] [DATA-IMPORT] Need to fetch 1 pages starting from external API page 1
+[2025-05-08T08:54:00.288Z] [DATA-IMPORT] Successfully fetched page 1 with 10 items
+[2025-05-08T08:54:00.288Z] [DATA-IMPORT] Combined 10 items from 1 pages
+[2025-05-08T08:54:00.288Z] [DATA-IMPORT] Pagination: Total items: unknown, Total pages: unknown, Current page: 1
+[2025-05-08T08:54:00.288Z] [DATA-IMPORT] Returning 10 items for page 1
+[2025-05-08T08:54:00.288Z] [DATA-IMPORT] Processing 10 movies...
+[2025-05-08T08:54:00.288Z] [DATA-IMPORT] Error processing movie mot-bo-phim-minecraft: column "type" of relation "movies" does not exist
+[2025-05-08T08:54:00.288Z] [DATA-IMPORT] Error processing movie dac-khu-414: column "type" of relation "movies" does not exist
+[2025-05-08T08:54:00.288Z] [DATA-IMPORT] Error processing movie diep-vu-kep-truy-na-toi-cung: column "type" of relation "movies" does not exist
+[2025-05-08T08:54:00.288Z] [DATA-IMPORT] Error processing movie ke-hoach-nguoi-yeu-cu-4-som-yeu-tre-cuoi: column "type" of relation "movies" does not exist
+^C
+Import interrupted. To resume, run the script agai

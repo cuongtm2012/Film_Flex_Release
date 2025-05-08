@@ -1,0 +1,128 @@
+root@lightnode:~/Film_Flex_Release/scripts/deployment# chmod +x *.sh
+root@lightnode:~/Film_Flex_Release/scripts/deployment# ./final-deploy.sh
+===== FilmFlex Final Deployment Started at Thu May  8 16:51:59 CST 2025 =====
+Source directory: /root/Film_Flex_Release
+Deploy directory: /var/www/filmflex
+0. Fixing database schema...
+Database connection details:
+  Host: localhost
+  Port:
+5432
+  Database: filmflex
+  User: filmflex
+Executing SQL fixes...
+Password for user filmflex:
+psql:/tmp/db-fix.sql:15: NOTICE:  movie_id column already exists
+DO
+psql:/tmp/db-fix.sql:240: NOTICE:  Adding name column to movies table
+psql:/tmp/db-fix.sql:240: NOTICE:  title column already exists
+psql:/tmp/db-fix.sql:240: NOTICE:  Adding origin_name column to movies table
+psql:/tmp/db-fix.sql:240: NOTICE:  description column already exists
+psql:/tmp/db-fix.sql:240: NOTICE:  Adding thumb_url column to movies table
+psql:/tmp/db-fix.sql:240: NOTICE:  Adding poster_url column to movies table
+psql:/tmp/db-fix.sql:240: NOTICE:  Adding trailer_url column to movies table
+psql:/tmp/db-fix.sql:240: NOTICE:  Adding time column to movies table
+psql:/tmp/db-fix.sql:240: NOTICE:  Adding quality column to movies table
+psql:/tmp/db-fix.sql:240: NOTICE:  Adding lang column to movies table
+psql:/tmp/db-fix.sql:240: NOTICE:  Adding year column to movies table
+psql:/tmp/db-fix.sql:240: NOTICE:  Adding view column to movies table
+psql:/tmp/db-fix.sql:240: NOTICE:  Adding actors column to movies table
+psql:/tmp/db-fix.sql:240: NOTICE:  Adding directors column to movies table
+psql:/tmp/db-fix.sql:240: NOTICE:  Adding categories column to movies table
+psql:/tmp/db-fix.sql:240: NOTICE:  Adding countries column to movies table
+psql:/tmp/db-fix.sql:240: NOTICE:  modified_at column already exists
+DO
+psql:/tmp/db-fix.sql:276: NOTICE:  episodes table already exists
+psql:/tmp/db-fix.sql:276: NOTICE:  movie_slug column already exists in episodes table
+DO
+DO
+Database schema fix completed successfully
+1. Stopping any existing FilmFlex processes...
+   - Stopping and deleting existing filmflex process
+[PM2] Applying action stopProcessId on app [filmflex](ids: [ 0 ])
+[PM2] [filmflex](0) ✓
+┌────┬─────────────┬─────────────┬─────────┬─────────┬──────────┬────────┬──────┬───────────┬──────────┬──────────┬──────────┬──────────┐
+│ id │ name        │ namespace   │ version │ mode    │ pid      │ uptime │ ↺    │ status    │ cpu      │ mem      │ user     │ watching │
+├────┼─────────────┼─────────────┼─────────┼─────────┼──────────┼────────┼──────┼───────────┼──────────┼──────────┼──────────┼──────────┤
+│ 0  │ filmflex    │ default     │ 1.0.0   │ fork    │ 0        │ 0      │ 0    │ stopped   │ 0%       │ 0b       │ root     │ disabled │
+└────┴─────────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┴──────────┴──────────┘
+[PM2] Applying action deleteProcessId on app [filmflex](ids: [ 0 ])
+[PM2] [filmflex](0) ✓
+┌────┬───────────┬─────────────┬─────────┬─────────┬──────────┬────────┬──────┬───────────┬──────────┬──────────┬──────────┬──────────┐
+│ id │ name      │ namespace   │ version │ mode    │ pid      │ uptime │ ↺    │ status    │ cpu      │ mem      │ user     │ watching │
+└────┴───────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┴──────────┴──────────┘
+2. Setting up deployment directory...
+3. Creating proper package.json without ESM type...
+4. Copying CommonJS server file...
+5. Creating start script...
+6. Installing dependencies...
+
+up to date, audited 99 packages in 1s
+
+16 packages are looking for funding
+  run `npm fund` for details
+
+found 0 vulnerabilities
+7. Copying scripts directory...
+   - Copying import scripts...
+8. Setting up environment variables...
+9. Starting server with PM2...
+   - Checking for processes using port 5000...
+[PM2] Starting /var/www/filmflex/filmflex-server.cjs in fork_mode (1 instance)
+[PM2] Done.
+┌────┬─────────────┬─────────────┬─────────┬─────────┬──────────┬────────┬──────┬───────────┬──────────┬──────────┬──────────┬──────────┐
+│ id │ name        │ namespace   │ version │ mode    │ pid      │ uptime │ ↺    │ status    │ cpu      │ mem      │ user     │ watching │
+├────┼─────────────┼─────────────┼─────────┼─────────┼──────────┼────────┼──────┼───────────┼──────────┼──────────┼──────────┼──────────┤
+│ 0  │ filmflex    │ default     │ 1.0.0   │ fork    │ 152773   │ 0s     │ 0    │ online    │ 0%       │ 18.6mb   │ root     │ disabled │
+└────┴─────────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┴──────────┴──────────┘
+[PM2] Saving current process list...
+[PM2] Successfully saved in /root/.pm2/dump.pm2
+10. Verifying server status...
+   ! Server failed to start properly
+   - Starting with direct method...
+[PM2] Applying action stopProcessId on app [filmflex](ids: [ 0 ])
+[PM2] [filmflex](0) ✓
+┌────┬─────────────┬─────────────┬─────────┬─────────┬──────────┬────────┬──────┬───────────┬──────────┬──────────┬──────────┬──────────┐
+│ id │ name        │ namespace   │ version │ mode    │ pid      │ uptime │ ↺    │ status    │ cpu      │ mem      │ user     │ watching │
+├────┼─────────────┼─────────────┼─────────┼─────────┼──────────┼────────┼──────┼───────────┼──────────┼──────────┼──────────┼──────────┤
+│ 0  │ filmflex    │ default     │ 1.0.0   │ fork    │ 0        │ 0      │ 0    │ stopped   │ 0%       │ 0b       │ root     │ disabled │
+└────┴─────────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┴──────────┴──────────┘
+[PM2] Applying action deleteProcessId on app [filmflex](ids: [ 0 ])
+[PM2] [filmflex](0) ✓
+┌────┬───────────┬─────────────┬─────────┬─────────┬──────────┬────────┬──────┬───────────┬──────────┬──────────┬──────────┬──────────┐
+│ id │ name      │ namespace   │ version │ mode    │ pid      │ uptime │ ↺    │ status    │ cpu      │ mem      │ user     │ watching │
+└────┴───────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┴──────────┴──────────┘
+[PM2] Starting /var/www/filmflex/start.sh in fork_mode (1 instance)
+[PM2] Done.
+┌────┬─────────────┬─────────────┬─────────┬─────────┬──────────┬────────┬──────┬───────────┬──────────┬──────────┬──────────┬──────────┐
+│ id │ name        │ namespace   │ version │ mode    │ pid      │ uptime │ ↺    │ status    │ cpu      │ mem      │ user     │ watching │
+├────┼─────────────┼─────────────┼─────────┼─────────┼──────────┼────────┼──────┼───────────┼──────────┼──────────┼──────────┼──────────┤
+│ 0  │ filmflex    │ default     │ 1.0.0   │ fork    │ 152867   │ 0s     │ 0    │ online    │ 0%       │ 3.2mb    │ root     │ disabled │
+└────┴─────────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┴──────────┴──────────┘
+[PM2] Saving current process list...
+[PM2] Successfully saved in /root/.pm2/dump.pm2
+   ! All automatic methods failed
+   - Please try manually running: node /var/www/filmflex/filmflex-server.cjs
+11. Checking API response...
+   ✓ API is responding correctly: {"status":"ok","message":"FilmFlex API is running in production mode","time":"2025-05-08T08:52:20.177Z","node_version":"v20.19.1"}
+12. Reloading Nginx configuration...
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /etc/nginx/nginx.conf test is successful
+===== FilmFlex Final Deployment Completed at Thu May  8 16:52:20 CST 2025 =====
+
+To check the status, use these commands:
+  - Server status: pm2 status filmflex
+  - Server logs: pm2 logs filmflex
+  - API check: curl http://localhost:5000/api/health
+  - Web check: Visit https://phimgg.com
+
+Movie import commands:
+  - Daily import: cd /var/www/filmflex/scripts/data && ./import-movies.sh
+  - Full import (resumable): cd /var/www/filmflex/scripts/data && ./import-all-movies-resumable.sh
+  - Set up cron jobs: cd /var/www/filmflex/scripts/data && sudo ./setup-cron.sh
+
+Need help or encountered issues?
+  The comprehensive database fix is now built directly into this script.
+  This script can be run again at any time to fix both deployment and database issues.
+  Manual server start: node /var/www/filmflex/filmflex-server.cjs
+root@lightnode:~/Film_Flex_Release/scripts/deployment#

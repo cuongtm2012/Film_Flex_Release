@@ -49,246 +49,63 @@ echo -e "  Database: $PGDATABASE"
 echo -e "  User: $PGUSER"
 
 # Define SQL to fix database schema
+
+# First, create a simpler and more direct SQL approach
 cat > /tmp/db-fix.sql << EOF
--- Check for and add movie_id column
+-- Direct approach to add all required movie columns with minimal PL/pgSQL
+-- This method is more reliable and will ensure all required columns are present
+
+-- Add all required columns directly with ALTER TABLE statements
+ALTER TABLE movies ADD COLUMN IF NOT EXISTS movie_id TEXT;
+ALTER TABLE movies ADD COLUMN IF NOT EXISTS name TEXT;
+ALTER TABLE movies ADD COLUMN IF NOT EXISTS title TEXT;
+ALTER TABLE movies ADD COLUMN IF NOT EXISTS origin_name TEXT;
+ALTER TABLE movies ADD COLUMN IF NOT EXISTS description TEXT;
+ALTER TABLE movies ADD COLUMN IF NOT EXISTS thumb_url TEXT;
+ALTER TABLE movies ADD COLUMN IF NOT EXISTS poster_url TEXT;
+ALTER TABLE movies ADD COLUMN IF NOT EXISTS trailer_url TEXT;
+ALTER TABLE movies ADD COLUMN IF NOT EXISTS time TEXT;
+ALTER TABLE movies ADD COLUMN IF NOT EXISTS quality TEXT;
+ALTER TABLE movies ADD COLUMN IF NOT EXISTS lang TEXT;
+ALTER TABLE movies ADD COLUMN IF NOT EXISTS year INTEGER;
+ALTER TABLE movies ADD COLUMN IF NOT EXISTS view INTEGER DEFAULT 0;
+ALTER TABLE movies ADD COLUMN IF NOT EXISTS actors TEXT;
+ALTER TABLE movies ADD COLUMN IF NOT EXISTS directors TEXT;
+ALTER TABLE movies ADD COLUMN IF NOT EXISTS categories JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE movies ADD COLUMN IF NOT EXISTS countries JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE movies ADD COLUMN IF NOT EXISTS modified_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE movies ADD COLUMN IF NOT EXISTS type TEXT;
+ALTER TABLE movies ADD COLUMN IF NOT EXISTS status TEXT;
+ALTER TABLE movies ADD COLUMN IF NOT EXISTS slug TEXT;
+
+-- Verify columns were successfully added
 DO \$\$
+DECLARE
+  required_columns TEXT[] := ARRAY[
+    'movie_id', 'name', 'title', 'origin_name', 'description', 
+    'thumb_url', 'poster_url', 'trailer_url', 'time', 'quality', 
+    'lang', 'year', 'view', 'actors', 'directors', 'categories', 
+    'countries', 'modified_at', 'type', 'status', 'slug'
+  ];
+  column_name TEXT;
+  missing_columns TEXT := '';
 BEGIN
+  FOREACH column_name IN ARRAY required_columns LOOP
     IF NOT EXISTS (
-        SELECT FROM information_schema.columns 
-        WHERE table_schema = 'public' 
-        AND table_name = 'movies' 
-        AND column_name = 'movie_id'
+      SELECT FROM information_schema.columns 
+      WHERE table_schema = 'public' 
+      AND table_name = 'movies' 
+      AND column_name = column_name
     ) THEN
-        RAISE NOTICE 'Adding movie_id column to movies table';
-        ALTER TABLE movies ADD COLUMN movie_id TEXT;
-    ELSE
-        RAISE NOTICE 'movie_id column already exists';
+      missing_columns := missing_columns || column_name || ', ';
     END IF;
-END \$\$;
-
--- Add individual columns one by one instead of using complex array structure
-DO \$\$
-BEGIN
-    -- Add name column if it doesn't exist
-    IF NOT EXISTS (
-        SELECT FROM information_schema.columns 
-        WHERE table_schema = 'public' 
-        AND table_name = 'movies' 
-        AND column_name = 'name'
-    ) THEN
-        RAISE NOTICE 'Adding name column to movies table';
-        ALTER TABLE movies ADD COLUMN name TEXT;
-    ELSE
-        RAISE NOTICE 'name column already exists';
-    END IF;
-
-    -- Add title column if it doesn't exist
-    IF NOT EXISTS (
-        SELECT FROM information_schema.columns 
-        WHERE table_schema = 'public' 
-        AND table_name = 'movies' 
-        AND column_name = 'title'
-    ) THEN
-        RAISE NOTICE 'Adding title column to movies table';
-        ALTER TABLE movies ADD COLUMN title TEXT;
-    ELSE
-        RAISE NOTICE 'title column already exists';
-    END IF;
-
-    -- Add origin_name column if it doesn't exist
-    IF NOT EXISTS (
-        SELECT FROM information_schema.columns 
-        WHERE table_schema = 'public' 
-        AND table_name = 'movies' 
-        AND column_name = 'origin_name'
-    ) THEN
-        RAISE NOTICE 'Adding origin_name column to movies table';
-        ALTER TABLE movies ADD COLUMN origin_name TEXT;
-    ELSE
-        RAISE NOTICE 'origin_name column already exists';
-    END IF;
-
-    -- Add description column if it doesn't exist
-    IF NOT EXISTS (
-        SELECT FROM information_schema.columns 
-        WHERE table_schema = 'public' 
-        AND table_name = 'movies' 
-        AND column_name = 'description'
-    ) THEN
-        RAISE NOTICE 'Adding description column to movies table';
-        ALTER TABLE movies ADD COLUMN description TEXT;
-    ELSE
-        RAISE NOTICE 'description column already exists';
-    END IF;
-
-    -- Add thumb_url column if it doesn't exist
-    IF NOT EXISTS (
-        SELECT FROM information_schema.columns 
-        WHERE table_schema = 'public' 
-        AND table_name = 'movies' 
-        AND column_name = 'thumb_url'
-    ) THEN
-        RAISE NOTICE 'Adding thumb_url column to movies table';
-        ALTER TABLE movies ADD COLUMN thumb_url TEXT;
-    ELSE
-        RAISE NOTICE 'thumb_url column already exists';
-    END IF;
-
-    -- Add poster_url column if it doesn't exist
-    IF NOT EXISTS (
-        SELECT FROM information_schema.columns 
-        WHERE table_schema = 'public' 
-        AND table_name = 'movies' 
-        AND column_name = 'poster_url'
-    ) THEN
-        RAISE NOTICE 'Adding poster_url column to movies table';
-        ALTER TABLE movies ADD COLUMN poster_url TEXT;
-    ELSE
-        RAISE NOTICE 'poster_url column already exists';
-    END IF;
-
-    -- Add trailer_url column if it doesn't exist
-    IF NOT EXISTS (
-        SELECT FROM information_schema.columns 
-        WHERE table_schema = 'public' 
-        AND table_name = 'movies' 
-        AND column_name = 'trailer_url'
-    ) THEN
-        RAISE NOTICE 'Adding trailer_url column to movies table';
-        ALTER TABLE movies ADD COLUMN trailer_url TEXT;
-    ELSE
-        RAISE NOTICE 'trailer_url column already exists';
-    END IF;
-
-    -- Add time column if it doesn't exist
-    IF NOT EXISTS (
-        SELECT FROM information_schema.columns 
-        WHERE table_schema = 'public' 
-        AND table_name = 'movies' 
-        AND column_name = 'time'
-    ) THEN
-        RAISE NOTICE 'Adding time column to movies table';
-        ALTER TABLE movies ADD COLUMN time TEXT;
-    ELSE
-        RAISE NOTICE 'time column already exists';
-    END IF;
-
-    -- Add quality column if it doesn't exist
-    IF NOT EXISTS (
-        SELECT FROM information_schema.columns 
-        WHERE table_schema = 'public' 
-        AND table_name = 'movies' 
-        AND column_name = 'quality'
-    ) THEN
-        RAISE NOTICE 'Adding quality column to movies table';
-        ALTER TABLE movies ADD COLUMN quality TEXT;
-    ELSE
-        RAISE NOTICE 'quality column already exists';
-    END IF;
-
-    -- Add lang column if it doesn't exist
-    IF NOT EXISTS (
-        SELECT FROM information_schema.columns 
-        WHERE table_schema = 'public' 
-        AND table_name = 'movies' 
-        AND column_name = 'lang'
-    ) THEN
-        RAISE NOTICE 'Adding lang column to movies table';
-        ALTER TABLE movies ADD COLUMN lang TEXT;
-    ELSE
-        RAISE NOTICE 'lang column already exists';
-    END IF;
-
-    -- Add year column if it doesn't exist
-    IF NOT EXISTS (
-        SELECT FROM information_schema.columns 
-        WHERE table_schema = 'public' 
-        AND table_name = 'movies' 
-        AND column_name = 'year'
-    ) THEN
-        RAISE NOTICE 'Adding year column to movies table';
-        ALTER TABLE movies ADD COLUMN year INTEGER;
-    ELSE
-        RAISE NOTICE 'year column already exists';
-    END IF;
-
-    -- Add view column if it doesn't exist
-    IF NOT EXISTS (
-        SELECT FROM information_schema.columns 
-        WHERE table_schema = 'public' 
-        AND table_name = 'movies' 
-        AND column_name = 'view'
-    ) THEN
-        RAISE NOTICE 'Adding view column to movies table';
-        ALTER TABLE movies ADD COLUMN view INTEGER DEFAULT 0;
-    ELSE
-        RAISE NOTICE 'view column already exists';
-    END IF;
-
-    -- Add actors column if it doesn't exist
-    IF NOT EXISTS (
-        SELECT FROM information_schema.columns 
-        WHERE table_schema = 'public' 
-        AND table_name = 'movies' 
-        AND column_name = 'actors'
-    ) THEN
-        RAISE NOTICE 'Adding actors column to movies table';
-        ALTER TABLE movies ADD COLUMN actors TEXT;
-    ELSE
-        RAISE NOTICE 'actors column already exists';
-    END IF;
-
-    -- Add directors column if it doesn't exist
-    IF NOT EXISTS (
-        SELECT FROM information_schema.columns 
-        WHERE table_schema = 'public' 
-        AND table_name = 'movies' 
-        AND column_name = 'directors'
-    ) THEN
-        RAISE NOTICE 'Adding directors column to movies table';
-        ALTER TABLE movies ADD COLUMN directors TEXT;
-    ELSE
-        RAISE NOTICE 'directors column already exists';
-    END IF;
-
-    -- Add categories column if it doesn't exist
-    IF NOT EXISTS (
-        SELECT FROM information_schema.columns 
-        WHERE table_schema = 'public' 
-        AND table_name = 'movies' 
-        AND column_name = 'categories'
-    ) THEN
-        RAISE NOTICE 'Adding categories column to movies table';
-        ALTER TABLE movies ADD COLUMN categories JSONB DEFAULT '[]'::jsonb;
-    ELSE
-        RAISE NOTICE 'categories column already exists';
-    END IF;
-
-    -- Add countries column if it doesn't exist
-    IF NOT EXISTS (
-        SELECT FROM information_schema.columns 
-        WHERE table_schema = 'public' 
-        AND table_name = 'movies' 
-        AND column_name = 'countries'
-    ) THEN
-        RAISE NOTICE 'Adding countries column to movies table';
-        ALTER TABLE movies ADD COLUMN countries JSONB DEFAULT '[]'::jsonb;
-    ELSE
-        RAISE NOTICE 'countries column already exists';
-    END IF;
-
-    -- Add modified_at column if it doesn't exist
-    IF NOT EXISTS (
-        SELECT FROM information_schema.columns 
-        WHERE table_schema = 'public' 
-        AND table_name = 'movies' 
-        AND column_name = 'modified_at'
-    ) THEN
-        RAISE NOTICE 'Adding modified_at column to movies table';
-        ALTER TABLE movies ADD COLUMN modified_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
-    ELSE
-        RAISE NOTICE 'modified_at column already exists';
-    END IF;
+  END LOOP;
+  
+  IF length(missing_columns) > 0 THEN
+    RAISE WARNING 'Missing columns: %', missing_columns;
+  ELSE
+    RAISE NOTICE 'All required columns exist in movies table';
+  END IF;
 END \$\$;
 
 -- Check episodes table structure
