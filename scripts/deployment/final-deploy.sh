@@ -331,6 +331,32 @@ fi
 
 # Step 9: Start the server with PM2
 echo -e "${BLUE}9. Starting server with PM2...${NC}"
+
+# Check for existing processes using port 5000
+echo -e "   - Checking for processes using port 5000..."
+PORT_CHECK=$(netstat -tulpn 2>/dev/null | grep ':5000 ' || ss -tulpn 2>/dev/null | grep ':5000 ')
+
+if [ ! -z "$PORT_CHECK" ]; then
+  echo -e "   ${YELLOW}! Port 5000 is already in use${NC}"
+  echo -e "$PORT_CHECK"
+  
+  # Check if it's a PM2 process
+  if pm2 list | grep -q "filmflex"; then
+    echo -e "   - Found existing filmflex PM2 process. Stopping and deleting..."
+    pm2 stop filmflex
+    pm2 delete filmflex
+  else
+    echo -e "   - Found non-PM2 process using port 5000. Attempting to kill..."
+    PID=$(echo "$PORT_CHECK" | grep -oP '(?<=LISTEN\s+)[0-9]+' || echo "$PORT_CHECK" | grep -oP '(?<=pid=)[0-9]+')
+    if [ ! -z "$PID" ]; then
+      echo -e "   - Killing process with PID: $PID"
+      kill -9 $PID 2>/dev/null || true
+      sleep 2
+    fi
+  fi
+fi
+
+# Now start the server
 cd "$DEPLOY_DIR"
 pm2 start filmflex-server.cjs --name filmflex
 pm2 save
