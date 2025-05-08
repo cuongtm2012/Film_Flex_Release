@@ -163,7 +163,27 @@ fi
 
 echo -e "${BLUE}Checking for required packages...${NC}"
 cd "$APP_DIR"
-npm install -g axios dotenv pg
+
+# Install dependencies locally instead of globally
+echo -e "${BLUE}Installing required packages locally...${NC}"
+if [ ! -f "$APP_DIR/package.json" ]; then
+  echo -e "${YELLOW}Creating package.json for dependencies...${NC}"
+  cat > "$APP_DIR/package.json" << EOF
+{
+  "name": "filmflex-importer",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "axios": "^1.6.2",
+    "dotenv": "^16.3.1",
+    "pg": "^8.11.3"
+  }
+}
+EOF
+fi
+
+# Install dependencies
+npm install --save
 
 # Make sure script is executable
 chmod +x "$APP_DIR/scripts/data/${SCRIPT_NAME}"
