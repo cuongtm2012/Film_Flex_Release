@@ -2,7 +2,7 @@ import fetch from "node-fetch";
 import { Movie, Episode, MovieListResponse, MovieDetailResponse, InsertMovie, InsertEpisode, Category } from "@shared/schema";
 import { storage } from "./storage";
 
-const API_BASE_URL = "https://ophim1.com";
+const API_BASE_URL = "https://phimapi.com";
 
 export async function fetchMovieList(page: number = 1, limit: number = 50): Promise<MovieListResponse> {
   try {
