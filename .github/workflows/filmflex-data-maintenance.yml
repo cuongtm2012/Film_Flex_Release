@@ -1,0 +1,106 @@
+name: FilmFlex Data Maintenance
+
+on:
+  # Run every day at 2:00 AM UTC (adjust as needed)
+  schedule:
+    - cron: '0 2 * * *'
+  
+  # Allow manual triggering
+  workflow_dispatch:
+    inputs:
+      import_type:
+        description: 'Type of data import to perform'
+        required: true
+        default: 'daily'
+        type: choice
+        options:
+          - daily
+          - full-import
+          - resume-import
+          - update-existing
+
+jobs:
+  data-maintenance:
+    name: Update Movie Database
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Run import script on server
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          script_stop: true
+          script: |
+            # Create log directory if it doesn't exist
+            mkdir -p /var/log/filmflex
+            
+            # Log maintenance start
+            echo "Starting data maintenance at $(date)" >> /var/log/filmflex/data-maintenance.log
+            
+            # Set import type based on workflow input
+            IMPORT_TYPE="${{ github.event.inputs.import_type || 'daily' }}"
+            echo "Running import type: $IMPORT_TYPE" >> /var/log/filmflex/data-maintenance.log
+            
+            # Function to run import with timeout and logging
+            run_import() {
+              local script="$1"
+              local timeout="$2"
+              local log_file="/var/log/filmflex/import-$(date +%Y%m%d%H%M%S).log"
+              
+              echo "Running $script with timeout $timeout seconds" >> /var/log/filmflex/data-maintenance.log
+              echo "Logging output to $log_file" >> /var/log/filmflex/data-maintenance.log
+              
+              # Execute script with timeout and log output
+              cd /var/www/filmflex
+              timeout $timeout /bin/bash -c "scripts/data/$script > $log_file 2>&1"
+              
+              # Check if the script timed out
+              if [ $? -eq 124 ]; then
+                echo "Import script timed out after $timeout seconds" >> /var/log/filmflex/data-maintenance.log
+                return 1
+              else
+                echo "Import script completed successfully" >> /var/log/filmflex/data-maintenance.log
+                return 0
+              fi
+            }
+            
+            # Run different import scripts based on type
+            case $IMPORT_TYPE in
+              daily)
+                echo "Running daily import" >> /var/log/filmflex/data-maintenance.log
+                run_import "import-movies.sh" 1800  # 30-minute timeout
+                ;;
+              
+              full-import)
+                echo "Running full import" >> /var/log/filmflex/data-maintenance.log
+                run_import "import-all-movies.sh" 7200  # 2-hour timeout
+                ;;
+              
+              resume-import)
+                echo "Running resumable import" >> /var/log/filmflex/data-maintenance.log
+                run_import "import-all-movies-resumable.sh" 7200  # 2-hour timeout
+                ;;
+              
+              update-existing)
+                echo "Running update for existing movies" >> /var/log/filmflex/data-maintenance.log
+                run_import "update-existing-movies.sh" 3600  # 1-hour timeout
+                ;;
+            esac
+            
+            # Verify database health after import
+            echo "Verifying database after import" >> /var/log/filmflex/data-maintenance.log
+            
+            # Check total movie count
+            MOVIE_COUNT=$(psql -t -c "SELECT COUNT(*) FROM movies;" filmflex | tr -d ' ')
+            echo "Total movies in database: $MOVIE_COUNT" >> /var/log/filmflex/data-maintenance.log
+            
+            # Check recently added movies
+            echo "Recently added movies:" >> /var/log/filmflex/data-maintenance.log
+            psql -t -c "SELECT title FROM movies ORDER BY modified_at DESC LIMIT 10;" filmflex >> /var/log/filmflex/data-maintenance.log
+            
+            # Log maintenance end
+            echo "Data maintenance completed at $(date)" >> /var/log/filmflex/data-maintenance.log
+      
+# Removed Telegram notification step

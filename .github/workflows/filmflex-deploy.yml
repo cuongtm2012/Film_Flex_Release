@@ -193,23 +193,4 @@ jobs:
             echo "Deployment verification successful!"
             echo "Deployment verified at $(date)" >> /var/log/filmflex/github-deploy.log
 
-  notify:
-    name: Send Deployment Notification
-    needs: deploy
-    runs-on: ubuntu-latest
-    steps:
-      - name: Send notification
-        uses: appleboy/telegram-action@v0.1.1
-        if: ${{ secrets.TELEGRAM_TOKEN != '' }}
-        with:
-          to: ${{ secrets.TELEGRAM_TO }}
-          token: ${{ secrets.TELEGRAM_TOKEN }}
-          message: |
-            🚀 FilmFlex deployment successful!
-            
-            Deployment type: ${{ github.event.inputs.deploy_mode || 'standard' }}
-            Commit: ${{ github.sha }}
-            Triggered by: ${{ github.actor }}
-            Timestamp: ${{ github.event.head_commit.timestamp }}
-            
-            Visit the site: https://phimgg.com
+# Removed Telegram notification job

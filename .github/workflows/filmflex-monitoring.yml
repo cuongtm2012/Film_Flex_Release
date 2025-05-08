@@ -1,0 +1,141 @@
+name: FilmFlex Monitoring
+
+on:
+  # Run every 30 minutes
+  schedule:
+    - cron: '*/30 * * * *'
+  
+  # Allow manual triggering
+  workflow_dispatch:
+
+jobs:
+  monitor:
+    name: System Health Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Check API health
+        id: api_health
+        continue-on-error: true
+        run: |
+          # Set server details from secrets
+          SERVER_IP="${{ secrets.SERVER_IP }}"
+          
+          # Check API health endpoint
+          echo "Checking API health endpoint..."
+          HEALTH_RESPONSE=$(curl -s -m 10 "http://$SERVER_IP:5000/api/health" || echo "Connection failed")
+          
+          # Check if the response contains the status field
+          if [[ "$HEALTH_RESPONSE" == *"status"*"ok"* ]]; then
+            echo "API is healthy!"
+            echo "api_status=healthy" >> $GITHUB_OUTPUT
+          else
+            echo "API health check failed!"
+            echo "api_status=unhealthy" >> $GITHUB_OUTPUT
+            echo "health_response=$HEALTH_RESPONSE" >> $GITHUB_OUTPUT
+          fi
+          
+          # Check frontend (just make sure the main page loads)
+          echo "Checking frontend..."
+          FRONTEND_RESPONSE=$(curl -s -m 10 -o /dev/null -w "%{http_code}" "http://$SERVER_IP:5000" || echo "Connection failed")
+          
+          if [[ "$FRONTEND_RESPONSE" == "200" ]]; then
+            echo "Frontend is accessible!"
+            echo "frontend_status=healthy" >> $GITHUB_OUTPUT
+          else
+            echo "Frontend check failed with status: $FRONTEND_RESPONSE"
+            echo "frontend_status=unhealthy" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check server status
+        id: server_status
+        if: steps.api_health.outputs.api_status == 'unhealthy'
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          script_stop: true
+          script: |
+            echo "===== Server Status Report ====="
+            echo "Date: $(date)"
+            echo
+            
+            echo "===== System Resources ====="
+            echo "Memory Usage:"
+            free -h
+            echo
+            echo "Disk Usage:"
+            df -h | grep -v tmpfs
+            echo
+            echo "CPU Load:"
+            uptime
+            echo
+            
+            echo "===== Process Status ====="
+            echo "PM2 Processes:"
+            pm2 list
+            echo
+            echo "Node Processes:"
+            ps aux | grep node | grep -v grep
+            echo
+            
+            echo "===== FilmFlex Logs ====="
+            echo "PM2 Logs (recent errors):"
+            pm2 logs --lines 20 | grep -i error
+            echo
+            echo "Application Logs (recent):"
+            tail -n 20 /var/log/filmflex/final-deploy-*.log | grep -i error
+            echo
+            
+            echo "===== Nginx Status ====="
+            echo "Nginx Config Test:"
+            nginx -t
+            echo
+            echo "Nginx Process:"
+            systemctl status nginx | grep Active
+            echo
+            
+            echo "===== Database Status ====="
+            echo "PostgreSQL Process:"
+            systemctl status postgresql | grep Active
+            echo
+            echo "Database Connection Test:"
+            PGPASSWORD=filmflex2024 psql -U filmflex -h localhost -c "SELECT 'Database connection successful';" || echo "Database connection failed"
+
+      - name: Automatic recovery attempt
+        if: steps.api_health.outputs.api_status == 'unhealthy'
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          script_stop: true
+          script: |
+            echo "===== Attempting automatic recovery ====="
+            echo "Date: $(date)"
+            
+            # Check if PM2 process is running
+            if ! pm2 list | grep -q filmflex; then
+              echo "FilmFlex process not found in PM2, attempting to start..."
+              cd /var/www/filmflex
+              pm2 start filmflex-server.cjs --name filmflex
+            else
+              echo "Restarting FilmFlex process..."
+              pm2 restart filmflex
+            fi
+            
+            # Wait a moment for the server to start
+            echo "Waiting for server to start..."
+            sleep 5
+            
+            # Check if recovery was successful
+            if curl -s http://localhost:5000/api/health | grep -q "status.*ok"; then
+              echo "Recovery successful!"
+              echo "recovery_status=success" >> $GITHUB_ENV
+            else
+              echo "Recovery failed!"
+              echo "recovery_status=failed" >> $GITHUB_ENV
+            fi
+
+# Removed Telegram notification steps

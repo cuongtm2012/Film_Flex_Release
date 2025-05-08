@@ -77,16 +77,7 @@ set_secret "SSH_PASSWORD" "Enter your server SSH password:" ""
 # Set DATABASE_URL
 set_secret "DATABASE_URL" "Enter your PostgreSQL connection string:" "postgresql://filmflex:filmflex2024@localhost:5432/filmflex"
 
-# Set Telegram notification secrets (optional)
-echo -e "${BLUE}Would you like to set up Telegram notifications? (y/n)${NC}"
-read setup_telegram
-
-if [[ "$setup_telegram" == "y" || "$setup_telegram" == "Y" ]]; then
-    set_secret "TELEGRAM_TOKEN" "Enter your Telegram bot token:" ""
-    set_secret "TELEGRAM_TO" "Enter your Telegram chat ID:" ""
-else
-    echo -e "${YELLOW}Skipping Telegram notification setup${NC}"
-fi
+# Telegram notification support has been removed
 
 echo -e "${GREEN}All secrets have been configured successfully!${NC}"
 echo -e "${BLUE}You can now use the GitHub Actions workflows to deploy FilmFlex.${NC}"
