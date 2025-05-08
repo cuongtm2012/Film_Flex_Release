@@ -5,6 +5,9 @@
 # It handles CommonJS vs ESM conflicts and fixes database schema issues
 # Everything is included in one script for simplicity and reliability
 
+# Exit on error but with better error handling
+set -e
+
 # Define colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -22,215 +25,248 @@ LOG_FILE="$LOG_DIR/final-deploy-$TIMESTAMP.log"
 # Ensure log directory exists
 mkdir -p "$LOG_DIR"
 
-# Start logging
-exec > >(tee -a "$LOG_FILE") 2>&1
+# Echo to console and log file
+log() {
+  echo -e "$@"
+  echo "$@" | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g" >> "$LOG_FILE"
+}
 
-echo -e "${BLUE}===== FilmFlex Final Deployment Started at $(date) =====${NC}"
-echo "Source directory: $SOURCE_DIR"
-echo "Deploy directory: $DEPLOY_DIR"
+# Log a success message
+success() {
+  log "${GREEN}✓ $@${NC}"
+}
+
+# Log a warning message
+warning() {
+  log "${YELLOW}! $@${NC}"
+}
+
+# Log an error message
+error() {
+  log "${RED}✗ $@${NC}"
+}
+
+# Function to check command status and exit if failed
+check_status() {
+  if [ $? -ne 0 ]; then
+    error "$1 failed"
+    exit 1
+  else
+    success "$1 successful"
+  fi
+}
+
+# Start deployment
+log "${BLUE}===== FilmFlex Final Deployment Started at $(date) =====${NC}"
+log "Source directory: $SOURCE_DIR"
+log "Deploy directory: $DEPLOY_DIR"
 
 # Step 0: Fix database schema
-echo -e "${BLUE}0. Fixing database schema...${NC}"
+log "${BLUE}0. Fixing database schema...${NC}"
 
-# Use default DB connection string if not provided
-DB_URL="${DATABASE_URL:-postgresql://filmflex:filmflex2024@localhost:5432/filmflex}"
+# Get database connection info from environment or use default
+if [ -n "$DATABASE_URL" ]; then
+  # Use DATABASE_URL from environment if available
+  log "Using DATABASE_URL from environment variable"
+  DB_URL="$DATABASE_URL"
+else
+  # Use default connection string
+  log "Using default DATABASE_URL"
+  DB_URL="postgresql://filmflex:filmflex2024@localhost:5432/filmflex"
+fi
 
-# Extract database connection details
-PGPASSWORD=$(echo "$DB_URL" | grep -o ':[^:]*@' | tr -d ':@')
-PGUSER=$(echo "$DB_URL" | grep -o '//[^:]*:' | tr -d '//:')
-PGHOST=$(echo "$DB_URL" | grep -o '@[^:]*:' | tr -d '@:')
-PGPORT=$(echo "$DB_URL" | grep -o ':[0-9]*/' | tr -d ':/')
-PGDATABASE=$(echo "$DB_URL" | grep -o '/[^/]*$' | tr -d '/')
+# Set PostgreSQL environment variables
+export PGHOST="localhost"
+export PGDATABASE="filmflex"
+export PGUSER="filmflex"
+export PGPASSWORD="filmflex2024"
+export PGPORT="5432"
 
-echo -e "${BLUE}Database connection details:${NC}"
-echo -e "  Host: $PGHOST"
-echo -e "  Port: $PGPORT"
-echo -e "  Database: $PGDATABASE"
-echo -e "  User: $PGUSER"
+log "${BLUE}Database connection details:${NC}"
+log "  Host: $PGHOST"
+log "  Port: $PGPORT"
+log "  Database: $PGDATABASE"
+log "  User: $PGUSER"
 
-# Define SQL to fix database schema
-
-# First, create a simpler and more direct SQL approach
-cat > /tmp/db-fix.sql << EOF
--- Direct approach to add all required movie columns with minimal PL/pgSQL
--- This method is more reliable and will ensure all required columns are present
-
--- Add all required columns directly with ALTER TABLE statements
-ALTER TABLE movies ADD COLUMN IF NOT EXISTS movie_id TEXT;
-ALTER TABLE movies ADD COLUMN IF NOT EXISTS name TEXT;
-ALTER TABLE movies ADD COLUMN IF NOT EXISTS title TEXT;
-ALTER TABLE movies ADD COLUMN IF NOT EXISTS origin_name TEXT;
-ALTER TABLE movies ADD COLUMN IF NOT EXISTS description TEXT;
-ALTER TABLE movies ADD COLUMN IF NOT EXISTS thumb_url TEXT;
-ALTER TABLE movies ADD COLUMN IF NOT EXISTS poster_url TEXT;
-ALTER TABLE movies ADD COLUMN IF NOT EXISTS trailer_url TEXT;
-ALTER TABLE movies ADD COLUMN IF NOT EXISTS time TEXT;
-ALTER TABLE movies ADD COLUMN IF NOT EXISTS quality TEXT;
-ALTER TABLE movies ADD COLUMN IF NOT EXISTS lang TEXT;
-ALTER TABLE movies ADD COLUMN IF NOT EXISTS year INTEGER;
-ALTER TABLE movies ADD COLUMN IF NOT EXISTS view INTEGER DEFAULT 0;
-ALTER TABLE movies ADD COLUMN IF NOT EXISTS actors TEXT;
-ALTER TABLE movies ADD COLUMN IF NOT EXISTS directors TEXT;
-ALTER TABLE movies ADD COLUMN IF NOT EXISTS categories JSONB DEFAULT '[]'::jsonb;
-ALTER TABLE movies ADD COLUMN IF NOT EXISTS countries JSONB DEFAULT '[]'::jsonb;
-ALTER TABLE movies ADD COLUMN IF NOT EXISTS modified_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
-ALTER TABLE movies ADD COLUMN IF NOT EXISTS type TEXT;
-ALTER TABLE movies ADD COLUMN IF NOT EXISTS status TEXT;
-ALTER TABLE movies ADD COLUMN IF NOT EXISTS slug TEXT;
-
--- Verify columns were successfully added
-DO \$\$
-DECLARE
-  required_columns TEXT[] := ARRAY[
-    'movie_id', 'name', 'title', 'origin_name', 'description', 
-    'thumb_url', 'poster_url', 'trailer_url', 'time', 'quality', 
-    'lang', 'year', 'view', 'actors', 'directors', 'categories', 
-    'countries', 'modified_at', 'type', 'status', 'slug'
-  ];
-  column_name TEXT;
-  missing_columns TEXT := '';
+# Create SQL fix file
+cat > /tmp/db-fix.sql << 'EOSQL'
+-- First check if tables exist and create them if they don't
+DO $$
 BEGIN
-  FOREACH column_name IN ARRAY required_columns LOOP
-    IF NOT EXISTS (
-      SELECT FROM information_schema.columns 
-      WHERE table_schema = 'public' 
-      AND table_name = 'movies' 
-      AND column_name = column_name
-    ) THEN
-      missing_columns := missing_columns || column_name || ', ';
+    IF NOT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'movies') THEN
+        CREATE TABLE movies (
+            id SERIAL PRIMARY KEY,
+            movie_id TEXT,
+            name TEXT,
+            title TEXT,
+            origin_name TEXT,
+            description TEXT,
+            thumb_url TEXT,
+            poster_url TEXT,
+            trailer_url TEXT,
+            time TEXT,
+            quality TEXT,
+            lang TEXT,
+            year TEXT,
+            view TEXT,
+            actors TEXT,
+            directors TEXT,
+            categories TEXT[],
+            countries TEXT[],
+            modified_at TIMESTAMP DEFAULT NOW(),
+            type TEXT,
+            status TEXT,
+            slug TEXT UNIQUE
+        );
+        RAISE NOTICE 'Created movies table';
     END IF;
-  END LOOP;
-  
-  IF length(missing_columns) > 0 THEN
-    RAISE WARNING 'Missing columns: %', missing_columns;
-  ELSE
-    RAISE NOTICE 'All required columns exist in movies table';
-  END IF;
-END \$\$;
+END$$;
 
--- Check episodes table structure
-DO \$\$
+-- Now proceed with the regular schema fixes
+ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS movie_id TEXT;
+ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS name TEXT;
+ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS title TEXT;
+ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS origin_name TEXT;
+ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS description TEXT;
+ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS thumb_url TEXT;
+ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS poster_url TEXT;
+ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS trailer_url TEXT;
+ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS time TEXT;
+ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS quality TEXT;
+ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS lang TEXT;
+ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS year TEXT;
+ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS view TEXT;
+ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS actors TEXT;
+ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS directors TEXT;
+ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS categories TEXT[];
+ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS countries TEXT[];
+ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS modified_at TIMESTAMP DEFAULT NOW();
+ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS type TEXT;
+ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS status TEXT;
+ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS slug TEXT;
+
+-- Add unique constraint to slug if not exists
+DO $$
 BEGIN
-    -- First make sure episodes table exists
-    IF NOT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'episodes') THEN
-        RAISE NOTICE 'Creating episodes table';
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint 
+        WHERE conname = 'movies_slug_key' AND conrelid = 'movies'::regclass
+    ) THEN
+        ALTER TABLE movies ADD CONSTRAINT movies_slug_key UNIQUE (slug);
+        RAISE NOTICE 'Added unique constraint to slug column';
+    END IF;
+END$$;
+
+-- Use a simpler approach to fix array columns
+DO $$
+BEGIN
+    -- Fix categories column
+    EXECUTE 'ALTER TABLE movies ALTER COLUMN categories TYPE TEXT[] USING 
+        CASE 
+            WHEN categories IS NULL THEN NULL::TEXT[] 
+            WHEN categories::TEXT = ''{NULL}'' THEN NULL::TEXT[] 
+            ELSE CASE 
+                WHEN categories ~ E''^\\{.*\\}$'' THEN categories::TEXT[] 
+                ELSE string_to_array(categories::TEXT, '','')
+            END 
+        END';
+    RAISE NOTICE 'Fixed categories column';
+    
+    -- Fix countries column
+    EXECUTE 'ALTER TABLE movies ALTER COLUMN countries TYPE TEXT[] USING 
+        CASE 
+            WHEN countries IS NULL THEN NULL::TEXT[] 
+            WHEN countries::TEXT = ''{NULL}'' THEN NULL::TEXT[] 
+            ELSE CASE 
+                WHEN countries ~ E''^\\{.*\\}$'' THEN countries::TEXT[] 
+                ELSE string_to_array(countries::TEXT, '','')
+            END 
+        END';
+    RAISE NOTICE 'Fixed countries column';
+END$$;
+
+-- Create episodes table if it doesn't exist
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'episodes') THEN
         CREATE TABLE episodes (
             id SERIAL PRIMARY KEY,
-            movie_id INTEGER REFERENCES movies(id),
             movie_slug TEXT,
+            title TEXT,
             server_name TEXT,
-            name TEXT,
-            slug TEXT,
-            filename TEXT,
+            server_data JSONB,
             link_embed TEXT,
             link_m3u8 TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            episode_number INTEGER,
+            season_number INTEGER,
+            created_at TIMESTAMP DEFAULT NOW(),
+            modified_at TIMESTAMP DEFAULT NOW()
         );
+        RAISE NOTICE 'Created episodes table';
     ELSE
         RAISE NOTICE 'episodes table already exists';
-
-        -- Check for movie_slug column in episodes table
-        IF NOT EXISTS (
-            SELECT FROM information_schema.columns 
-            WHERE table_schema = 'public' 
-            AND table_name = 'episodes' 
-            AND column_name = 'movie_slug'
-        ) THEN
-            RAISE NOTICE 'Adding movie_slug column to episodes table';
-            ALTER TABLE episodes ADD COLUMN movie_slug TEXT;
-        ELSE
-            RAISE NOTICE 'movie_slug column already exists in episodes table';
-        END IF;
     END IF;
-END \$\$;
-
--- Create indexes for better performance
-DO \$\$
-BEGIN
-    -- Create index on movies slug if not exists
+    
+    -- Add movie_slug column if it doesn't exist
     IF NOT EXISTS (
-        SELECT 1 FROM pg_indexes 
-        WHERE tablename = 'movies' AND indexname = 'movies_slug_idx'
-    ) THEN
-        RAISE NOTICE 'Creating index on movies(slug)';
-        CREATE INDEX movies_slug_idx ON movies(slug);
-    END IF;
-
-    -- Create index on movie_id in movies table if not exists
-    IF EXISTS (
-        SELECT FROM information_schema.columns 
-        WHERE table_schema = 'public' 
-        AND table_name = 'movies' 
-        AND column_name = 'movie_id'
-    ) AND NOT EXISTS (
-        SELECT 1 FROM pg_indexes 
-        WHERE tablename = 'movies' AND indexname = 'movies_movie_id_idx'
-    ) THEN
-        RAISE NOTICE 'Creating index on movies(movie_id)';
-        CREATE INDEX movies_movie_id_idx ON movies(movie_id);
-    END IF;
-
-    -- Create index on episodes movie_id if not exists
-    IF EXISTS (
-        SELECT FROM information_schema.tables 
-        WHERE table_schema = 'public' 
-        AND table_name = 'episodes'
-    ) AND NOT EXISTS (
-        SELECT 1 FROM pg_indexes 
-        WHERE tablename = 'episodes' AND indexname = 'episodes_movie_id_idx'
-    ) THEN
-        RAISE NOTICE 'Creating index on episodes(movie_id)';
-        CREATE INDEX episodes_movie_id_idx ON episodes(movie_id);
-    END IF;
-
-    -- Create index on episodes movie_slug if not exists
-    IF EXISTS (
         SELECT FROM information_schema.columns 
         WHERE table_schema = 'public' 
         AND table_name = 'episodes' 
         AND column_name = 'movie_slug'
-    ) AND NOT EXISTS (
-        SELECT 1 FROM pg_indexes 
-        WHERE tablename = 'episodes' AND indexname = 'episodes_movie_slug_idx'
     ) THEN
-        RAISE NOTICE 'Creating index on episodes(movie_slug)';
-        CREATE INDEX episodes_movie_slug_idx ON episodes(movie_slug);
+        ALTER TABLE episodes ADD COLUMN movie_slug TEXT;
+        RAISE NOTICE 'Added movie_slug column to episodes table';
+    ELSE
+        RAISE NOTICE 'movie_slug column already exists in episodes table';
     END IF;
-END \$\$;
-EOF
+    
+    -- Add foreign key if it doesn't exist
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint 
+        WHERE conname = 'episodes_movie_slug_fkey' AND conrelid = 'episodes'::regclass
+    ) THEN
+        -- Make sure all existing movie_slug values exist in movies.slug
+        DELETE FROM episodes WHERE movie_slug NOT IN (SELECT slug FROM movies WHERE slug IS NOT NULL);
+        -- Add the foreign key constraint
+        ALTER TABLE episodes ADD CONSTRAINT episodes_movie_slug_fkey 
+            FOREIGN KEY (movie_slug) REFERENCES movies(slug) ON DELETE CASCADE;
+        RAISE NOTICE 'Added foreign key constraint to movie_slug column';
+    END IF;
+END$$;
 
-# Run the SQL file
-echo -e "${BLUE}Executing SQL fixes...${NC}"
-psql -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" -d "$PGDATABASE" -f /tmp/db-fix.sql
+-- Create more indexes to improve performance
+CREATE INDEX IF NOT EXISTS idx_movies_slug ON movies(slug);
+CREATE INDEX IF NOT EXISTS idx_movies_type ON movies(type);
+CREATE INDEX IF NOT EXISTS idx_movies_year ON movies(year);
+CREATE INDEX IF NOT EXISTS idx_movies_modified_at ON movies(modified_at);
+CREATE INDEX IF NOT EXISTS idx_episodes_movie_slug ON episodes(movie_slug);
+EOSQL
 
-# Check if the command was successful
-if [ $? -eq 0 ]; then
-  echo -e "${GREEN}Database schema fix completed successfully${NC}"
-  # Clean up
-  rm /tmp/db-fix.sql
+# Execute SQL fix
+log "Executing SQL fixes..."
+if psql -f /tmp/db-fix.sql; then
+    success "Database schema fix completed successfully"
 else
-  echo -e "${RED}Database schema fix failed! But continuing with deployment...${NC}"
-  echo -e "${YELLOW}You may need to fix database issues manually after deployment.${NC}"
+    error "Database schema fix failed"
+    exit 1
 fi
 
-# Step 1: Stop existing PM2 process
-echo -e "${BLUE}1. Stopping any existing FilmFlex processes...${NC}"
-if pm2 list | grep -q "filmflex"; then
-  echo -e "   - Stopping and deleting existing filmflex process"
-  pm2 stop filmflex
-  pm2 delete filmflex
-fi
+# 1. Stop any existing processes
+log "${BLUE}1. Stopping any existing FilmFlex processes...${NC}"
+pm2 stop filmflex 2>/dev/null || true
+pm2 delete filmflex 2>/dev/null || true
 
-# Step 2: Prepare deployment directory
-echo -e "${BLUE}2. Setting up deployment directory...${NC}"
+# 2. Create deployment directory if it doesn't exist
+log "${BLUE}2. Setting up deployment directory...${NC}"
 mkdir -p "$DEPLOY_DIR"
-chown -R www-data:www-data "$DEPLOY_DIR"
+mkdir -p "$DEPLOY_DIR/client/dist"
+mkdir -p "$DEPLOY_DIR/scripts/data"
 
-# Step 3: Create proper package.json without "type": "module"
-echo -e "${BLUE}3. Creating proper package.json without ESM type...${NC}"
-cat << 'EOL' > "$DEPLOY_DIR/package.json"
+# 3. Create package.json
+log "${BLUE}3. Creating proper package.json without ESM type...${NC}"
+cat > "$DEPLOY_DIR/package.json" << 'EOJSON'
 {
-  "name": "filmflex-server",
+  "name": "filmflex",
   "version": "1.0.0",
   "description": "FilmFlex Production Server",
   "main": "filmflex-server.cjs",
@@ -238,170 +274,148 @@ cat << 'EOL' > "$DEPLOY_DIR/package.json"
     "start": "node filmflex-server.cjs"
   },
   "dependencies": {
-    "express": "^4.21.2",
-    "pg": "^8.15.0",
-    "axios": "^1.6.7"
+    "express": "^4.18.2",
+    "pg": "^8.11.3"
   }
 }
-EOL
+EOJSON
 
-# Step 4: Copy CommonJS server file to deployment directory
-echo -e "${BLUE}4. Copying CommonJS server file...${NC}"
+# 4. Copy the server file
+log "${BLUE}4. Copying CommonJS server file...${NC}"
 cp "$SOURCE_DIR/scripts/deployment/filmflex-server.cjs" "$DEPLOY_DIR/filmflex-server.cjs"
 chmod +x "$DEPLOY_DIR/filmflex-server.cjs"
+check_status "Server file copy"
 
-# Step 5: Create start script for the application
-echo -e "${BLUE}5. Creating start script...${NC}"
-cat << 'EOL' > "$DEPLOY_DIR/start.sh"
+# 5. Create start script
+log "${BLUE}5. Creating start script...${NC}"
+cat > "$DEPLOY_DIR/start.sh" << 'EOSH'
 #!/bin/bash
 cd "$(dirname "$0")"
 export NODE_ENV=production
 export DATABASE_URL=postgresql://filmflex:filmflex2024@localhost:5432/filmflex
 node filmflex-server.cjs
-EOL
+EOSH
 chmod +x "$DEPLOY_DIR/start.sh"
 
-# Step 6: Install dependencies
-echo -e "${BLUE}6. Installing dependencies...${NC}"
+# 6. Install dependencies
+log "${BLUE}6. Installing dependencies...${NC}"
 cd "$DEPLOY_DIR"
-npm install
-
-# Step 7: Copy scripts directory and fix permissions
-echo -e "${BLUE}7. Copying scripts directory...${NC}"
-mkdir -p "$DEPLOY_DIR/scripts/data"
-mkdir -p "$DEPLOY_DIR/scripts/deployment"
-
-# Copy important import scripts
-echo -e "   - Copying import scripts..."
-cp -R "$SOURCE_DIR/scripts/data/import-all-movies-resumable.sh" "$DEPLOY_DIR/scripts/data/"
-cp -R "$SOURCE_DIR/scripts/data/import-movies.sh" "$DEPLOY_DIR/scripts/data/"
-cp -R "$SOURCE_DIR/scripts/data/import-movies-sql.cjs" "$DEPLOY_DIR/scripts/data/"
-cp -R "$SOURCE_DIR/scripts/data/setup-cron.sh" "$DEPLOY_DIR/scripts/data/"
-cp -R "$SOURCE_DIR/scripts/deployment/filmflex-server.cjs" "$DEPLOY_DIR/scripts/deployment/"
-cp -R "$SOURCE_DIR/scripts/deployment/final-deploy.sh" "$DEPLOY_DIR/scripts/deployment/"
-
-# Create a README file explaining the scripts
-cat << 'EOL' > "$DEPLOY_DIR/scripts/README.md"
-# FilmFlex Scripts
-
-This directory contains essential scripts for managing the FilmFlex application.
-
-## Data Import Scripts
-
-These scripts are located in the `data` directory:
-
-- `import-movies.sh`: Daily import of new movies
-- `import-all-movies-resumable.sh`: Full import with resume capability
-- `setup-cron.sh`: Configure automatic daily imports
-
-## Deployment Scripts
-
-These scripts are located in the `deployment` directory:
-
-- `final-deploy.sh`: Comprehensive deployment script that also fixes database schema
-- `filmflex-server.cjs`: Production server file
-
-For more information, see the README files in each directory.
-EOL
-
-# Make scripts executable
-chmod +x "$DEPLOY_DIR/scripts/data/"*.sh
-chmod +x "$DEPLOY_DIR/scripts/deployment/"*.sh
-
-# Step 8: Setup environment variables
-echo -e "${BLUE}8. Setting up environment variables...${NC}"
-if [ -f "$SOURCE_DIR/.env" ]; then
-  cp "$SOURCE_DIR/.env" "$DEPLOY_DIR/.env"
+if npm install --production; then
+    success "Dependencies installed successfully"
 else
-  cat << 'EOL' > "$DEPLOY_DIR/.env"
+    error "Failed to install dependencies"
+    exit 1
+fi
+
+# 7. Copy scripts directory
+log "${BLUE}7. Copying scripts directory...${NC}"
+log "   - Copying import scripts..."
+mkdir -p "$DEPLOY_DIR/scripts/data"
+if [ -d "$SOURCE_DIR/scripts/data" ]; then
+    cp -r "$SOURCE_DIR/scripts/data"/* "$DEPLOY_DIR/scripts/data/" || warning "Failed to copy some data scripts"
+    chmod +x "$DEPLOY_DIR/scripts/data"/*.sh 2>/dev/null || warning "Failed to make scripts executable"
+else
+    warning "Source scripts/data directory not found"
+fi
+
+# 8. Copy client
+if [ -d "$SOURCE_DIR/client/dist" ]; then
+  log "${BLUE}8. Copying client dist files...${NC}"
+  cp -r "$SOURCE_DIR/client/dist"/* "$DEPLOY_DIR/client/dist/" || warning "Failed to copy client files"
+else
+  warning "Client dist directory not found at $SOURCE_DIR/client/dist"
+  # Try to find it elsewhere
+  if [ -d "$SOURCE_DIR/dist" ]; then
+    log "Found client files at $SOURCE_DIR/dist, copying..."
+    cp -r "$SOURCE_DIR/dist"/* "$DEPLOY_DIR/client/dist/" || warning "Failed to copy client files from alternate location"
+  fi
+fi
+
+# 9. Set up environment
+log "${BLUE}9. Setting up environment variables...${NC}"
+cat > "$DEPLOY_DIR/.env" << 'EOENV'
 NODE_ENV=production
 PORT=5000
 DATABASE_URL=postgresql://filmflex:filmflex2024@localhost:5432/filmflex
-EOL
-fi
+EOENV
 
-# Step 9: Start the server with PM2
-echo -e "${BLUE}9. Starting server with PM2...${NC}"
-
-# Check for existing processes using port 5000
-echo -e "   - Checking for processes using port 5000..."
-PORT_CHECK=$(netstat -tulpn 2>/dev/null | grep ':5000 ' || ss -tulpn 2>/dev/null | grep ':5000 ')
-
-if [ ! -z "$PORT_CHECK" ]; then
-  echo -e "   ${YELLOW}! Port 5000 is already in use${NC}"
-  echo -e "$PORT_CHECK"
-  
-  # Check if it's a PM2 process
-  if pm2 list | grep -q "filmflex"; then
-    echo -e "   - Found existing filmflex PM2 process. Stopping and deleting..."
-    pm2 stop filmflex
-    pm2 delete filmflex
-  else
-    echo -e "   - Found non-PM2 process using port 5000. Attempting to kill..."
-    PID=$(echo "$PORT_CHECK" | grep -oP '(?<=LISTEN\s+)[0-9]+' || echo "$PORT_CHECK" | grep -oP '(?<=pid=)[0-9]+')
-    if [ ! -z "$PID" ]; then
-      echo -e "   - Killing process with PID: $PID"
+# 10. Check for processes using the port before killing them
+log "${BLUE}10. Checking for processes using port 5000 before starting server...${NC}"
+PROCESSES=$(lsof -i:5000 -t 2>/dev/null || ss -tulpn 2>/dev/null | grep ':5000 ' | awk '{print $7}' | cut -d= -f2 | cut -d, -f1)
+if [ -n "$PROCESSES" ]; then
+  log "   - Found processes using port 5000: $PROCESSES"
+  log "   - Stopping these processes safely..."
+  for PID in $PROCESSES; do
+    log "     - Sending SIGTERM to process $PID"
+    kill $PID 2>/dev/null || true
+    sleep 1
+    # Only use SIGKILL if process still exists
+    if kill -0 $PID 2>/dev/null; then
+      log "     - Process $PID still running, sending SIGKILL"
       kill -9 $PID 2>/dev/null || true
-      sleep 2
     fi
-  fi
+  done
+  sleep 2
 fi
 
-# Now start the server
+# 11. Start the server with PM2
+log "${BLUE}11. Starting server with PM2...${NC}"
 cd "$DEPLOY_DIR"
-pm2 start filmflex-server.cjs --name filmflex
-pm2 save
-
-# Step 10: Check if server is running
-echo -e "${BLUE}10. Verifying server status...${NC}"
-sleep 5
-if pm2 list | grep -q "online" | grep -q "filmflex"; then
-  echo -e "   ${GREEN}✓ Server started successfully!${NC}"
-  pm2 status filmflex
-else
-  echo -e "   ${YELLOW}! Server failed to start properly${NC}"
-  echo -e "   - Starting with direct method..."
-  pm2 stop filmflex
-  pm2 delete filmflex
-  pm2 start "$DEPLOY_DIR/start.sh" --name filmflex
+if pm2 start filmflex-server.cjs --name filmflex; then
+  success "Server started with PM2"
   pm2 save
-  
-  sleep 5
-  if pm2 list | grep -q "online" | grep -q "filmflex"; then
-    echo -e "   ${GREEN}✓ Server started successfully with start.sh!${NC}"
+else
+  warning "Failed to start server with direct method"
+  log "   - Trying fallback method with start.sh..."
+  pm2 delete filmflex 2>/dev/null || true
+  if pm2 start "$DEPLOY_DIR/start.sh" --name filmflex; then
+    success "Server started with fallback method"
+    pm2 save
   else
-    echo -e "   ${RED}! All automatic methods failed${NC}"
-    echo -e "   - Please try manually running: node $DEPLOY_DIR/filmflex-server.cjs"
+    error "All automatic methods failed"
+    log "   - Please try manually running: node $DEPLOY_DIR/filmflex-server.cjs"
   fi
 fi
 
-# Step 11: Check server response
-echo -e "${BLUE}11. Checking API response...${NC}"
-RESPONSE=$(curl -s http://localhost:5000/api/health || echo "Failed to connect")
-if [[ "$RESPONSE" == *"status"*"ok"* ]]; then
-  echo -e "   ${GREEN}✓ API is responding correctly: $RESPONSE${NC}"
+# 12. Set proper permissions for the deploy directory
+log "${BLUE}12. Setting proper permissions...${NC}"
+chown -R www-data:www-data "$DEPLOY_DIR" || warning "Failed to set permissions"
+
+# 13. Check API response
+log "${BLUE}13. Checking API response...${NC}"
+sleep 3
+API_RESPONSE=$(curl -s http://localhost:5000/api/health)
+if [[ $API_RESPONSE == *"status"* ]]; then
+  success "API is responding correctly: $API_RESPONSE"
 else
-  echo -e "   ${RED}! API is not responding correctly: $RESPONSE${NC}"
+  warning "API is not responding correctly: $API_RESPONSE"
+  log "   - This might be a temporary issue, please try accessing the site manually"
 fi
 
-# Step 12: Reload Nginx
-echo -e "${BLUE}12. Reloading Nginx configuration...${NC}"
-nginx -t && systemctl reload nginx
+# 14. Reload Nginx
+log "${BLUE}14. Reloading Nginx configuration...${NC}"
+if nginx -t; then
+  systemctl reload nginx
+  success "Nginx configuration reloaded"
+else
+  error "Nginx configuration test failed"
+fi
 
-echo -e "${GREEN}===== FilmFlex Final Deployment Completed at $(date) =====${NC}"
-echo
-echo -e "${BLUE}To check the status, use these commands:${NC}"
-echo -e "  - Server status: ${YELLOW}pm2 status filmflex${NC}"
-echo -e "  - Server logs: ${YELLOW}pm2 logs filmflex${NC}"
-echo -e "  - API check: ${YELLOW}curl http://localhost:5000/api/health${NC}"
-echo -e "  - Web check: ${YELLOW}Visit https://phimgg.com${NC}"
-echo
-echo -e "${BLUE}Movie import commands:${NC}"
-echo -e "  - Daily import: ${YELLOW}cd $DEPLOY_DIR/scripts/data && ./import-movies.sh${NC}"
-echo -e "  - Full import (resumable): ${YELLOW}cd $DEPLOY_DIR/scripts/data && ./import-all-movies-resumable.sh${NC}"
-echo -e "  - Set up cron jobs: ${YELLOW}cd $DEPLOY_DIR/scripts/data && sudo ./setup-cron.sh${NC}"
-echo
-echo -e "${BLUE}Need help or encountered issues?${NC}"
-echo -e "  The comprehensive database fix is now ${GREEN}built directly into this script${NC}."
-echo -e "  This script can be run again at any time to fix both deployment and database issues."
-echo -e "  Manual server start: ${YELLOW}node $DEPLOY_DIR/filmflex-server.cjs${NC}"
+# End deployment
+log "${GREEN}===== FilmFlex Final Deployment Completed at $(date) =====${NC}"
+log ""
+log "To check the status, use these commands:"
+log "  - Server status: pm2 status filmflex"
+log "  - Server logs: pm2 logs filmflex"
+log "  - API check: curl http://localhost:5000/api/health"
+log "  - Web check: Visit https://phimgg.com"
+log ""
+log "Movie import commands:"
+log "  - Daily import: cd $DEPLOY_DIR/scripts/data && ./import-movies.sh"
+log "  - Full import (resumable): cd $DEPLOY_DIR/scripts/data && ./import-all-movies-resumable.sh"
+log "  - Set up cron jobs: cd $DEPLOY_DIR/scripts/data && sudo ./setup-cron.sh"
+log ""
+log "Need help or encountered issues?"
+log "  The comprehensive database fix is now built directly into this script."
+log "  This script can be run again at any time to fix both deployment and database issues."
+log "  Manual server start: node $DEPLOY_DIR/filmflex-server.cjs"

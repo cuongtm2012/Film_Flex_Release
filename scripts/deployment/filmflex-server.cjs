@@ -1,11 +1,5 @@
 /**
  * FilmFlex Production Server (CommonJS version)
- * 
- * A simple Express server that serves the static React app and provides 
- * minimal API endpoints for basic functionality.
- * 
- * This server is designed to run without any dependencies on Vite or TypeScript
- * to avoid issues in production environments.
  */
 
 const express = require('express');
@@ -30,18 +24,31 @@ if (process.env.DATABASE_URL) {
   }
 }
 
+// Test database connection
+if (pool) {
+  pool.query('SELECT NOW()', (err, res) => {
+    if (err) {
+      console.log('Database connection: FAILED');
+      console.error('Error connecting to database:', err.message);
+    } else {
+      console.log('Database connection: ESTABLISHED');
+      console.log('Database time:', res.rows[0].now);
+    }
+  });
+}
+
 // Middleware
 app.use(express.json());
 
 // Serve static files from the React build
-const staticPath = path.join(__dirname, '../client/dist');
+const staticPath = path.join(__dirname, 'client/dist');
 console.log(`Static files path: ${staticPath}`);
 console.log(`Does path exist: ${fs.existsSync(staticPath)}`);
 
 // Try alternate paths if standard path doesn't exist
 const alternatePaths = [
-  '../client/dist',
   './client/dist',
+  '../client/dist',
   '../dist',
   './dist'
 ];
@@ -59,9 +66,7 @@ if (!fs.existsSync(staticPath)) {
   }
 }
 
-app.use(express.static(foundPath));
-
-// API Routes
+// API Routes - define these BEFORE the static file middleware
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
@@ -77,18 +82,9 @@ app.get('/api/movies', async (req, res) => {
   const limit = parseInt(req.query.limit) || 48;
 
   if (!pool) {
-    console.log('Database not available, returning maintenance message');
-    return res.json({
-      status: true,
-      maintenance: true,
-      message: 'Site is under maintenance. Please check back soon.',
-      items: [],
-      pagination: {
-        totalItems: 0,
-        totalPages: 1,
-        currentPage: page,
-        limit
-      }
+    return res.status(500).json({
+      status: false,
+      message: 'Database connection error'
     });
   }
 
@@ -123,19 +119,10 @@ app.get('/api/movies', async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching movies:', error);
-    // Instead of returning error, return empty results in maintenance mode
-    res.json({
-      status: true,
-      maintenance: true,
-      message: 'Site is under maintenance. Please check back soon.',
-      error: error.message,
-      items: [],
-      pagination: {
-        totalItems: 0,
-        totalPages: 1,
-        currentPage: page,
-        limit
-      }
+    res.status(500).json({
+      status: false, 
+      message: 'Failed to fetch movies',
+      error: error.message
     });
   }
 });
@@ -145,19 +132,9 @@ app.get('/api/movies/:slug', async (req, res) => {
   const { slug } = req.params;
 
   if (!pool) {
-    console.log(`Database not available, returning maintenance message for movie: ${slug}`);
-    return res.json({
-      status: true,
-      maintenance: true,
-      message: 'Site is under maintenance. Please check back soon.',
-      item: {
-        id: 0,
-        title: 'Maintenance Mode',
-        slug: slug,
-        description: 'The movie database is currently undergoing maintenance. Please check back soon.',
-        poster: '',
-        modified_at: new Date().toISOString()
-      }
+    return res.status(500).json({
+      status: false,
+      message: 'Database connection error'
     });
   }
 
@@ -179,82 +156,16 @@ app.get('/api/movies/:slug', async (req, res) => {
     
     res.json({
       status: true,
-      item: result.rows[0]
+      msg: "",
+      movie: result.rows[0]
     });
   } catch (error) {
     console.error('Error fetching movie detail:', error);
-    // Return maintenance mode response instead of error
-    res.json({
-      status: true,
-      maintenance: true,
-      message: 'Site is under maintenance. Please check back soon.',
-      error: error.message,
-      item: {
-        id: 0,
-        title: 'Maintenance Mode',
-        slug: slug,
-        description: 'The movie database is currently undergoing maintenance. Please check back soon.',
-        poster: '',
-        modified_at: new Date().toISOString()
-      }
+    res.status(500).json({
+      status: false,
+      message: 'Failed to fetch movie details',
+      error: error.message
     });
-  }
-});
-
-// Handle all other routes by serving the React app
-app.get('*', (req, res) => {
-  const indexPath = path.join(foundPath, 'index.html');
-  
-  if (fs.existsSync(indexPath)) {
-    res.sendFile(indexPath);
-  } else {
-    // Generate a simple fallback page if index.html doesn't exist
-    console.log(`Index file not found at ${indexPath}, serving fallback page`);
-    res.send(`
-      <!DOCTYPE html>
-      <html lang="en">
-        <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>FilmFlex</title>
-          <style>
-            body {
-              font-family: Arial, sans-serif;
-              text-align: center;
-              padding: 50px;
-              background: #1a1a1a;
-              color: #fff;
-            }
-            h1 { color: #e50914; }
-            .message {
-              background: rgba(0,0,0,0.5);
-              padding: 20px;
-              border-radius: 5px;
-              max-width: 600px;
-              margin: 0 auto;
-            }
-            .api-status {
-              margin-top: 30px;
-              padding: 10px;
-              background: #333;
-              border-radius: 4px;
-              display: inline-block;
-            }
-          </style>
-        </head>
-        <body>
-          <h1>FilmFlex</h1>
-          <div class="message">
-            <h2>Backend API is running</h2>
-            <p>The FilmFlex API server is running successfully, but we couldn't find the frontend files.</p>
-            <p>Please check the deployment process to ensure the frontend was built correctly.</p>
-          </div>
-          <div class="api-status">
-            API Status: Online | Server Time: ${new Date().toISOString()}
-          </div>
-        </body>
-      </html>
-    `);
   }
 });
 
@@ -263,82 +174,125 @@ app.get('/api/movies/:slug/episodes', async (req, res) => {
   const { slug } = req.params;
   
   if (!pool) {
-    console.log(`Database not available, returning maintenance message for episodes of movie: ${slug}`);
-    return res.json({
-      status: true,
-      maintenance: true,
-      message: 'Site is under maintenance. Please check back soon.',
-      episodes: []
+    return res.status(500).json({
+      status: false,
+      message: 'Database connection error'
     });
   }
   
   try {
-    // Return empty episodes list during maintenance
+    // First check if the movie exists
+    const movieQuery = `
+      SELECT * FROM movies
+      WHERE slug = $1
+      LIMIT 1
+    `;
+    
+    const movieResult = await pool.query(movieQuery, [slug]);
+    
+    if (movieResult.rows.length === 0) {
+      return res.status(404).json({
+        status: false,
+        message: 'Movie not found'
+      });
+    }
+    
+    // Then get the episodes
+    const episodesQuery = `
+      SELECT * FROM episodes
+      WHERE movie_slug = $1
+      ORDER BY season_number, episode_number
+    `;
+    
+    const episodesResult = await pool.query(episodesQuery, [slug]);
+    
     res.json({
       status: true,
-      maintenance: true,
-      message: 'Site is under maintenance. Please check back soon.',
-      episodes: []
+      episodes: episodesResult.rows
     });
   } catch (error) {
     console.error(`Error fetching episodes for ${slug}:`, error);
-    res.json({
-      status: true,
-      maintenance: true,
-      message: 'Site is under maintenance. Please check back soon.',
-      episodes: []
+    res.status(500).json({
+      status: false,
+      message: 'Failed to fetch episodes',
+      error: error.message
     });
   }
 });
 
-// Categories API
-app.get('/api/categories/:slug', async (req, res) => {
+// Recommendations API
+app.get('/api/movies/:slug/recommendations', async (req, res) => {
   const { slug } = req.params;
+  const limit = parseInt(req.query.limit) || 5;
   
   if (!pool) {
-    console.log(`Database not available, returning maintenance message for category: ${slug}`);
-    return res.json({
-      status: true,
-      maintenance: true,
-      message: 'Site is under maintenance. Please check back soon.',
-      items: [],
-      pagination: {
-        totalItems: 0,
-        totalPages: 1,
-        currentPage: 1,
-        limit: 48
-      }
+    return res.status(500).json({
+      status: false,
+      message: 'Database connection error'
     });
   }
   
   try {
-    // Return empty category during maintenance
+    // Simple recommendation implementation - get recent movies
+    const query = `
+      SELECT * FROM movies
+      WHERE slug != $1
+      ORDER BY modified_at DESC
+      LIMIT $2
+    `;
+    
+    const result = await pool.query(query, [slug, limit]);
+    
     res.json({
       status: true,
-      maintenance: true,
-      message: 'Site is under maintenance. Please check back soon.',
-      items: [],
-      pagination: {
-        totalItems: 0,
-        totalPages: 1,
-        currentPage: 1,
-        limit: 48
-      }
+      items: result.rows
     });
   } catch (error) {
-    console.error(`Error fetching category ${slug}:`, error);
-    res.json({
-      status: true,
-      maintenance: true,
-      message: 'Site is under maintenance. Please check back soon.',
-      items: [],
-      pagination: {
-        totalItems: 0,
-        totalPages: 1,
-        currentPage: 1,
-        limit: 48
-      }
+    console.error(`Error fetching recommendations for ${slug}:`, error);
+    res.status(500).json({
+      status: false,
+      message: 'Failed to fetch recommendations',
+      error: error.message
     });
+  }
+});
+
+// Comments API
+app.get('/api/movies/:slug/comments', async (req, res) => {
+  res.json({
+    data: [],
+    total: "0"
+  });
+});
+
+// Watchlist API
+app.get('/api/users/:userId/watchlist/check/:slug', async (req, res) => {
+  res.json({
+    inWatchlist: false
+  });
+});
+
+// Static files - serve AFTER API routes
+app.use(express.static(foundPath));
+
+// Handle all other routes by serving the React app
+app.get('*', (req, res) => {
+  // For API routes that weren't matched above
+  if (req.path.startsWith('/api/')) {
+    return res.status(404).json({
+      status: false,
+      message: 'API endpoint not found'
+    });
+  }
+  
+  // For all other routes, serve the React app
+  const indexPath = path.join(foundPath, 'index.html');
+  
+  if (fs.existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    console.log(`Index file not found at ${indexPath}`);
+    res.status(404).send('Frontend files not found');
   }
 });
 
