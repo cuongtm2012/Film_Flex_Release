@@ -50,7 +50,7 @@ jobs:
       - name: Check server status
         id: server_status
         if: steps.api_health.outputs.api_status == 'unhealthy'
-        uses: appleboy/ssh-action@v0.1.10
+        uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.SERVER_IP }}
           username: ${{ secrets.SERVER_USER }}
@@ -105,7 +105,7 @@ jobs:
 
       - name: Automatic recovery attempt
         if: steps.api_health.outputs.api_status == 'unhealthy'
-        uses: appleboy/ssh-action@v0.1.10
+        uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.SERVER_IP }}
           username: ${{ secrets.SERVER_USER }}
