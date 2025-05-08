@@ -73,6 +73,8 @@ BEGIN
     -- with their types and default values
     DECLARE
         columns_to_check RECORD[] := ARRAY[
+            ROW('name', 'TEXT')::RECORD,
+            ROW('title', 'TEXT')::RECORD,
             ROW('origin_name', 'TEXT')::RECORD,
             ROW('description', 'TEXT')::RECORD,
             ROW('thumb_url', 'TEXT')::RECORD,
