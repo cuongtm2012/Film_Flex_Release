@@ -17,7 +17,7 @@ const pool = new Pool({
 });
 
 // API configuration
-const API_BASE_URL = 'https://phimapi.com/api/v1';
+const API_BASE_URL = 'https://ophim1.com/api/v1';
 
 // Create log directory if it doesn't exist
 const logDir = path.join(__dirname, '..', '..', 'log');

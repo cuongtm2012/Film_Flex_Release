@@ -27,7 +27,7 @@ const timestamp = new Date().toISOString();
 const logPrefix = `[${timestamp}] [DATA-IMPORT]`;
 
 // Configuration
-const API_BASE_URL = 'https://phimapi.com';
+const API_BASE_URL = 'https://ophim1.com';
 const MOVIE_LIST_ENDPOINT = '/danh-sach/phim-moi-cap-nhat';
 let MOVIE_PAGE_SIZE = 50; // Changed from const to let so it can be modified
 let MAX_PAGES = 1; // Focus on page 1 for newest movies

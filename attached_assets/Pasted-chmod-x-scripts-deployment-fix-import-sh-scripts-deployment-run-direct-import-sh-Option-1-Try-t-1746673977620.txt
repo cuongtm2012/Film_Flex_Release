@@ -1,0 +1,100 @@
+chmod +x scripts/deployment/fix-import.sh scripts/deployment/run-direct-import.sh
+# Option 1: Try to fix the original import script
+sudo ./scripts/deployment/fix-import.sh
+# Option 2: Run the direct import script (recommended)
+sudo ./scripts/deployment/run-direct-import.sh 1 5
+Already up to date.
+
+========================================
+    FilmFlex Import Script Fix
+========================================
+
+Starting import script fix at Thu May  8 11:12:32 CST 2025
+Installing required npm packages globally...
+
+added 4 packages, and changed 38 packages in 2s
+
+7 packages are looking for funding
+  run `npm fund` for details
+Installing required npm packages locally in scripts directory...
+
+added 42 packages, and audited 43 packages in 2s
+
+7 packages are looking for funding
+  run `npm fund` for details
+
+found 0 vulnerabilities
+Checking import script...
+Fixing import script to use local modules...
+Testing import script...
+node:internal/modules/cjs/loader:1215
+  throw err;
+  ^
+
+Error: Cannot find module '/var/www/filmflex/node_modules/axios'
+Require stack:
+- /var/www/filmflex/scripts/data/import-movies-sql.cjs
+    at Module._resolveFilename (node:internal/modules/cjs/loader:1212:15)
+    at Module._load (node:internal/modules/cjs/loader:1043:27)
+    at Module.require (node:internal/modules/cjs/loader:1298:19)
+    at require (node:internal/modules/helpers:182:18)
+    at Object.<anonymous> (/var/www/filmflex/scripts/data/import-movies-sql.cjs:12:15)
+    at Module._compile (node:internal/modules/cjs/loader:1529:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1613:10)
+    at Module.load (node:internal/modules/cjs/loader:1275:32)
+    at Module._load (node:internal/modules/cjs/loader:1096:12)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:164:12) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [ '/var/www/filmflex/scripts/data/import-movies-sql.cjs' ]
+}
+
+Node.js v20.19.1
+Import script test failed. Please check the logs.
+Import script fix completed at Thu May  8 11:12:37 CST 2025
+
+Now you can run the import script with:
+cd /var/www/filmflex && node scripts/data/import-movies-sql.cjs
+
+For more information, check the log: /var/log/filmflex/fix-import-20250508111232.log
+
+========================================
+    FilmFlex Direct Import Runner
+========================================
+
+Starting direct import runner at Thu May  8 11:12:37 CST 2025
+Installing required packages...
+
+added 14 packages, and audited 104 packages in 1s
+
+17 packages are looking for funding
+  run `npm fund` for details
+
+found 0 vulnerabilities
+Copying direct import script...
+Running direct import script...
+Starting from page 1, importing 5 pages
+Direct import starting with page 1, importing 5 pages
+Starting direct movie import...
+Creating tables if they don't exist...
+Tables created successfully
+Fetching movies page 1...
+Error fetching movie page 1: Request failed with status code 404
+Page 1 completed. Progress: 0 saved, 0 existing, 0 failed
+Fetching movies page 2...
+Error fetching movie page 2: Request failed with status code 404
+Page 2 completed. Progress: 0 saved, 0 existing, 0 failed
+Fetching movies page 3...
+Error fetching movie page 3: Request failed with status code 404
+Page 3 completed. Progress: 0 saved, 0 existing, 0 failed
+Fetching movies page 4...
+Error fetching movie page 4: Request failed with status code 404
+Page 4 completed. Progress: 0 saved, 0 existing, 0 failed
+Fetching movies page 5...
+Error fetching movie page 5: Request failed with status code 404
+Page 5 completed. Progress: 0 saved, 0 existing, 0 failed
+Import completed. Total: 0 saved, 0 existing, 0 failed
+Import process finished
+Direct import completed at Thu May  8 11:12:41 CST 2025
+
+For more information, check the log: /var/log/filmflex/direct-import-run-20250508111237.log
+root@lightnode:~/Film_Flex_Release#
