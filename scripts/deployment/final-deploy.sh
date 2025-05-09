@@ -431,7 +431,82 @@ cat > "$DEPLOY_DIR/.env" << 'EOENV'
 NODE_ENV=production
 PORT=5000
 DATABASE_URL=postgresql://filmflex:filmflex2024@localhost:5432/filmflex
+SESSION_SECRET=5841abaec918d944cd79481791440643540a3ac9ec33800500ea3ac03d543d61
 EOENV
+
+# Create .env.local file as well for possible dotenv module usage
+cp "$DEPLOY_DIR/.env" "$DEPLOY_DIR/.env.local"
+
+# Create a module loader file for ESM environments that exports environment variables
+log "Creating environment module for ESM compatibility..."
+cat > "$DEPLOY_DIR/dist/env.js" << 'EOENV_MODULE'
+// ESM environment module
+import * as fs from 'fs';
+import * as path from 'path';
+import { fileURLToPath } from 'url';
+
+// Get directory name in ESM
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const rootDir = path.resolve(__dirname, '..');
+
+// Default values
+const defaults = {
+  NODE_ENV: 'production',
+  PORT: '5000',
+  DATABASE_URL: 'postgresql://filmflex:filmflex2024@localhost:5432/filmflex',
+  SESSION_SECRET: '5841abaec918d944cd79481791440643540a3ac9ec33800500ea3ac03d543d61'
+};
+
+// Load from .env file
+function loadEnv() {
+  try {
+    const envPath = path.join(rootDir, '.env');
+    if (fs.existsSync(envPath)) {
+      const envContent = fs.readFileSync(envPath, 'utf8');
+      const envVars = {};
+      
+      envContent.split('\n').forEach(line => {
+        const match = line.match(/^\s*([\w.-]+)\s*=\s*(.*)?\s*$/);
+        if (match) {
+          const key = match[1];
+          let value = match[2] || '';
+          if (value.length > 0 && value.charAt(0) === '"' && value.charAt(value.length - 1) === '"') {
+            value = value.replace(/\\n/g, '\n');
+            value = value.slice(1, -1);
+          }
+          envVars[key] = value;
+        }
+      });
+      
+      return envVars;
+    }
+  } catch (err) {
+    console.error('Error loading .env file:', err);
+  }
+  return {};
+}
+
+// Combine environment variables from all sources, with priority:
+// 1. Process environment variables
+// 2. .env file variables
+// 3. Default values
+const envVars = { ...defaults, ...loadEnv(), ...process.env };
+
+// Export all environment variables
+export const NODE_ENV = envVars.NODE_ENV;
+export const PORT = envVars.PORT;
+export const DATABASE_URL = envVars.DATABASE_URL;
+export const SESSION_SECRET = envVars.SESSION_SECRET;
+
+// Export a function to get any env var with a default
+export function getEnv(key, defaultValue = '') {
+  return envVars[key] || defaultValue;
+}
+
+// Export the entire env object
+export default envVars;
+EOENV_MODULE
 
 # 10. Check for processes using the port before killing them
 log "${BLUE}10. Checking for processes using port 5000 before starting server...${NC}"
@@ -457,13 +532,47 @@ log "${BLUE}11. Setting up PM2 startup service...${NC}"
 cd "$DEPLOY_DIR"
 pm2 startup systemd || warning "Failed to set up PM2 startup hook"
 
+# Create a direct PM2 config file with env variables explicitly set
+log "Creating PM2 startup file with environment variables..."
+cat > "$DEPLOY_DIR/pm2.config.js" << 'EOPMConfig'
+module.exports = {
+  apps: [
+    {
+      name: "filmflex",
+      script: "dist/index.js",
+      instances: "max",
+      exec_mode: "cluster",
+      watch: false,
+      env: {
+        NODE_ENV: "production",
+        PORT: 5000,
+        DATABASE_URL: "postgresql://filmflex:filmflex2024@localhost:5432/filmflex",
+        SESSION_SECRET: "5841abaec918d944cd79481791440643540a3ac9ec33800500ea3ac03d543d61"
+      },
+      log_date_format: "YYYY-MM-DD HH:mm:ss",
+      error_file: "/var/log/filmflex/error.log",
+      out_file: "/var/log/filmflex/out.log",
+      merge_logs: true,
+      max_memory_restart: "500M"
+    }
+  ]
+};
+EOPMConfig
+
 # Start or restart the application with PM2
 if pm2 list | grep -q "filmflex"; then
   log "Restarting application with PM2..."
   pm2 restart filmflex || { error "Failed to restart application"; exit 1; }
 else
   log "Starting application with PM2..."
-  pm2 start ecosystem.config.cjs || { error "Failed to start application"; exit 1; }
+  pm2 start "$DEPLOY_DIR/pm2.config.js" || { 
+    error "Failed to start with pm2.config.js, attempting direct start"
+    # Try direct start as fallback
+    cd "$DEPLOY_DIR"
+    export DATABASE_URL="postgresql://filmflex:filmflex2024@localhost:5432/filmflex"
+    export SESSION_SECRET="5841abaec918d944cd79481791440643540a3ac9ec33800500ea3ac03d543d61"
+    pm2 start dist/index.js --name filmflex -- --env production || { error "All PM2 start methods failed"; exit 1; }
+  }
 fi
 
 # Save PM2 process list
@@ -493,6 +602,35 @@ else
   error "Nginx configuration test failed"
 fi
 
+# Create a restart script for easy manual restarting
+log "Creating restart script..."
+cat > "$DEPLOY_DIR/restart.sh" << 'EORESTART'
+#!/bin/bash
+# FilmFlex Restart Script
+export DATABASE_URL="postgresql://filmflex:filmflex2024@localhost:5432/filmflex"
+export SESSION_SECRET="5841abaec918d944cd79481791440643540a3ac9ec33800500ea3ac03d543d61"
+export NODE_ENV="production"
+export PORT="5000"
+
+cd "$(dirname "$0")"
+
+if pm2 list | grep -q "filmflex"; then
+  echo "Restarting FilmFlex with PM2..."
+  pm2 restart filmflex
+else
+  echo "Starting FilmFlex with PM2..."
+  pm2 start pm2.config.js || pm2 start dist/index.js --name filmflex
+fi
+
+echo "Checking application status..."
+sleep 2
+curl -s http://localhost:5000/api/health
+echo ""
+echo "Done! Check logs with: pm2 logs filmflex"
+EORESTART
+
+chmod +x "$DEPLOY_DIR/restart.sh"
+
 # End deployment
 log "${GREEN}===== FilmFlex Final Deployment Completed at $(date) =====${NC}"
 log ""
@@ -508,6 +646,7 @@ log "  - Full import (resumable): cd $DEPLOY_DIR/scripts/data && ./import-all-mo
 log "  - Set up cron jobs: cd $DEPLOY_DIR/scripts/data && sudo ./setup-cron.sh"
 log ""
 log "Need help or encountered issues?"
-log "  The comprehensive database fix is now built directly into this script."
+log "  To easily restart the server: cd $DEPLOY_DIR && ./restart.sh"
+log "  The comprehensive database fix is built directly into this script."
 log "  This script can be run again at any time to fix both deployment and database issues."
-log "  Manual server start: node $DEPLOY_DIR/dist/index.js"
+log "  Manual server start: DATABASE_URL=postgresql://filmflex:filmflex2024@localhost:5432/filmflex node $DEPLOY_DIR/dist/index.js"
