@@ -262,46 +262,90 @@ mkdir -p "$DEPLOY_DIR"
 mkdir -p "$DEPLOY_DIR/client/dist"
 mkdir -p "$DEPLOY_DIR/scripts/data"
 
-# 3. Create package.json
-log "${BLUE}3. Creating proper package.json without ESM type...${NC}"
-cat > "$DEPLOY_DIR/package.json" << 'EOJSON'
+# 3. Copy the source package.json and prepare it
+log "${BLUE}3. Copying and preparing package.json...${NC}"
+if [ -f "$SOURCE_DIR/package.json" ]; then
+  cp "$SOURCE_DIR/package.json" "$DEPLOY_DIR/package.json"
+  check_status "Package.json copy"
+else
+  # Fallback if package.json is not found
+  log "Package.json not found in source, creating standard one..."
+  cat > "$DEPLOY_DIR/package.json" << 'EOJSON'
 {
   "name": "filmflex",
   "version": "1.0.0",
   "description": "FilmFlex Production Server",
-  "main": "filmflex-server.cjs",
+  "main": "dist/index.js",
   "scripts": {
-    "start": "node filmflex-server.cjs"
+    "start": "node dist/index.js",
+    "build": "tsc"
   },
   "dependencies": {
     "express": "^4.18.2",
-    "pg": "^8.11.3"
+    "pg": "^8.11.3",
+    "@neondatabase/serverless": "^0.7.2",
+    "drizzle-orm": "^0.28.6"
   }
 }
 EOJSON
+fi
 
-# 4. Copy the server file
-log "${BLUE}4. Copying CommonJS server file...${NC}"
-cp "$SOURCE_DIR/scripts/deployment/filmflex-server.cjs" "$DEPLOY_DIR/filmflex-server.cjs"
-chmod +x "$DEPLOY_DIR/filmflex-server.cjs"
-check_status "Server file copy"
+# 4. Copy the source code
+log "${BLUE}4. Copying server files...${NC}"
+if [ -d "$SOURCE_DIR/server" ]; then
+  mkdir -p "$DEPLOY_DIR/server"
+  cp -r "$SOURCE_DIR/server"/* "$DEPLOY_DIR/server/"
+  check_status "Server code copy"
+else
+  warning "Server source directory not found"
+fi
 
-# 5. Create start script
-log "${BLUE}5. Creating start script...${NC}"
-cat > "$DEPLOY_DIR/start.sh" << 'EOSH'
-#!/bin/bash
-cd "$(dirname "$0")"
-export NODE_ENV=production
-export DATABASE_URL=postgresql://filmflex:filmflex2024@localhost:5432/filmflex
-node filmflex-server.cjs
-EOSH
-chmod +x "$DEPLOY_DIR/start.sh"
+if [ -d "$SOURCE_DIR/shared" ]; then
+  mkdir -p "$DEPLOY_DIR/shared"
+  cp -r "$SOURCE_DIR/shared"/* "$DEPLOY_DIR/shared/"
+  check_status "Shared code copy"
+else
+  warning "Shared source directory not found"
+fi
 
-# 6. Install dependencies
+# 5. Create PM2 ecosystem config
+log "${BLUE}5. Creating PM2 ecosystem config...${NC}"
+cat > "$DEPLOY_DIR/ecosystem.config.cjs" << 'EOCONFIG'
+module.exports = {
+  apps: [
+    {
+      name: "filmflex",
+      script: "dist/index.js",
+      instances: "max",
+      exec_mode: "cluster",
+      watch: false,
+      env: {
+        NODE_ENV: "production",
+        PORT: 5000
+      },
+      log_date_format: "YYYY-MM-DD HH:mm:ss",
+      error_file: "/var/log/filmflex/error.log",
+      out_file: "/var/log/filmflex/out.log",
+      merge_logs: true,
+      max_memory_restart: "500M"
+    }
+  ]
+};
+EOCONFIG
+
+# 6. Install dependencies and build
 log "${BLUE}6. Installing dependencies...${NC}"
 cd "$DEPLOY_DIR"
-if npm install --production; then
+if npm install; then
     success "Dependencies installed successfully"
+    
+    log "Building application..."
+    if npm run build; then
+        success "Application built successfully"
+    else
+        error "Failed to build application"
+        exit 1
+    fi
 else
     error "Failed to install dependencies"
     exit 1
@@ -358,24 +402,22 @@ if [ -n "$PROCESSES" ]; then
   sleep 2
 fi
 
-# 11. Start the server with PM2
-log "${BLUE}11. Starting server with PM2...${NC}"
+# 11. Setup systemd service for PM2 and start server
+log "${BLUE}11. Setting up PM2 startup service...${NC}"
 cd "$DEPLOY_DIR"
-if pm2 start filmflex-server.cjs --name filmflex; then
-  success "Server started with PM2"
-  pm2 save
+pm2 startup systemd || warning "Failed to set up PM2 startup hook"
+
+# Start or restart the application with PM2
+if pm2 list | grep -q "filmflex"; then
+  log "Restarting application with PM2..."
+  pm2 restart filmflex || { error "Failed to restart application"; exit 1; }
 else
-  warning "Failed to start server with direct method"
-  log "   - Trying fallback method with start.sh..."
-  pm2 delete filmflex 2>/dev/null || true
-  if pm2 start "$DEPLOY_DIR/start.sh" --name filmflex; then
-    success "Server started with fallback method"
-    pm2 save
-  else
-    error "All automatic methods failed"
-    log "   - Please try manually running: node $DEPLOY_DIR/filmflex-server.cjs"
-  fi
+  log "Starting application with PM2..."
+  pm2 start ecosystem.config.cjs || { error "Failed to start application"; exit 1; }
 fi
+
+# Save PM2 process list
+pm2 save || warning "Failed to save PM2 process list"
 
 # 12. Set proper permissions for the deploy directory
 log "${BLUE}12. Setting proper permissions...${NC}"
@@ -418,4 +460,4 @@ log ""
 log "Need help or encountered issues?"
 log "  The comprehensive database fix is now built directly into this script."
 log "  This script can be run again at any time to fix both deployment and database issues."
-log "  Manual server start: node $DEPLOY_DIR/filmflex-server.cjs"
+log "  Manual server start: node $DEPLOY_DIR/dist/index.js"
