@@ -534,7 +534,7 @@ pm2 startup systemd || warning "Failed to set up PM2 startup hook"
 
 # Create a direct PM2 config file with env variables explicitly set
 log "Creating PM2 startup file with environment variables..."
-cat > "$DEPLOY_DIR/pm2.config.js" << 'EOPMConfig'
+cat > "$DEPLOY_DIR/pm2.config.cjs" << 'EOPMConfig'
 module.exports = {
   apps: [
     {
@@ -565,8 +565,8 @@ if pm2 list | grep -q "filmflex"; then
   pm2 restart filmflex || { error "Failed to restart application"; exit 1; }
 else
   log "Starting application with PM2..."
-  pm2 start "$DEPLOY_DIR/pm2.config.js" || { 
-    error "Failed to start with pm2.config.js, attempting direct start"
+  pm2 start "$DEPLOY_DIR/pm2.config.cjs" || { 
+    error "Failed to start with pm2.config.cjs, attempting direct start"
     # Try direct start as fallback
     cd "$DEPLOY_DIR"
     export DATABASE_URL="postgresql://filmflex:filmflex2024@localhost:5432/filmflex"
@@ -619,7 +619,7 @@ if pm2 list | grep -q "filmflex"; then
   pm2 restart filmflex
 else
   echo "Starting FilmFlex with PM2..."
-  pm2 start pm2.config.js || pm2 start dist/index.js --name filmflex
+  pm2 start pm2.config.cjs || pm2 start dist/index.js --name filmflex
 fi
 
 echo "Checking application status..."

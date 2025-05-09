@@ -1,0 +1,51 @@
+ pm2 unstartup systemd
+Creating PM2 startup file with environment variables...
+Starting application with PM2...
+[PM2][ERROR] File /var/www/filmflex/pm2.config.js malformated
+ReferenceError: module is not defined
+    at file:///var/www/filmflex/pm2.config.js:1:1
+    at ModuleJobSync.runSync (node:internal/modules/esm/module_job:387:35)
+    at ModuleLoader.importSyncForRequire (node:internal/modules/esm/loader:323:47)
+    at loadESMFromCJS (node:internal/modules/cjs/loader:1371:24)
+    at Module._compile (node:internal/modules/cjs/loader:1511:5)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1572:16)
+    at Module.load (node:internal/modules/cjs/loader:1275:32)
+    at Module._load (node:internal/modules/cjs/loader:1096:12)
+    at Module.require (node:internal/modules/cjs/loader:1298:19)
+    at require (node:internal/modules/helpers:182:18)
+✗ Failed to start with pm2.config.js, attempting direct start
+[PM2] Starting /var/www/filmflex/dist/index.js in fork_mode (1 instance)
+[PM2] Done.
+┌────┬────────────────────┬──────────┬──────┬───────────┬──────────┬──────────┐
+│ id │ name               │ mode     │ ↺    │ status    │ cpu      │ memory   │
+├────┼────────────────────┼──────────┼──────┼───────────┼──────────┼──────────┤
+│ 0  │ filmflex           │ fork     │ 0    │ online    │ 0%       │ 12.2mb   │
+└────┴────────────────────┴──────────┴──────┴───────────┴──────────┴──────────┘
+[PM2] Saving current process list...
+[PM2] Successfully saved in /root/.pm2/dump.pm2
+12. Setting proper permissions...
+13. Checking API response...
+✓ API is responding correctly: {"status":"ok","timestamp":"2025-05-09T00:43:02.557Z","uptime":3.921760066,"version":"unknown"}
+14. Reloading Nginx configuration...
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /etc/nginx/nginx.conf test is successful
+✓ Nginx configuration reloaded
+Creating restart script...
+===== FilmFlex Final Deployment Completed at Fri May  9 08:43:02 CST 2025 =====
+
+To check the status, use these commands:
+  - Server status: pm2 status filmflex
+  - Server logs: pm2 logs filmflex
+  - API check: curl http://localhost:5000/api/health
+  - Web check: Visit https://phimgg.com
+
+Movie import commands:
+  - Daily import: cd /var/www/filmflex/scripts/data && ./import-movies.sh
+  - Full import (resumable): cd /var/www/filmflex/scripts/data && ./import-all-movies-resumable.sh
+  - Set up cron jobs: cd /var/www/filmflex/scripts/data && sudo ./setup-cron.sh
+
+Need help or encountered issues?
+  To easily restart the server: cd /var/www/filmflex && ./restart.sh
+  The comprehensive database fix is built directly into this script.
+  This script can be run again at any time to fix both deployment and database issues.
+  Manual server start: DATABASE_URL=postgresql://filmflex:filmflex2024@localhost:5432/filmflex node /var/www/filmflex/dist/index.js
