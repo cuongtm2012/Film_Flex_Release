@@ -40,12 +40,22 @@ jobs:
 
       - name: Build application
         run: npm run build
+        
+      - name: Debug artifact preparation
+        run: |
+          echo "Debug: Checking build output structure"
+          echo "client/dist directory:"
+          ls -la client/dist/ || echo "client/dist directory not found"
+          echo "scripts/deployment directory:"
+          ls -la scripts/deployment/ || echo "scripts/deployment directory not found"
+          echo "scripts/data directory:"
+          ls -la scripts/data/ || echo "scripts/data directory not found"
 
       - name: Run tests
         run: npm test || echo "Some tests failed but continuing deployment"
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v2
         with:
           name: filmflex-artifacts
           path: |
@@ -60,7 +70,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v2
         with:
           name: filmflex-artifacts
           path: filmflex-artifacts
