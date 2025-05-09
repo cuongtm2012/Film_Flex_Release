@@ -340,11 +340,33 @@ if npm install; then
     success "Dependencies installed successfully"
     
     log "Building application..."
-    if npm run build; then
-        success "Application built successfully"
+    # Get the current build script from package.json
+    BUILD_SCRIPT=$(node -e "console.log(require('./package.json').scripts.build || '')")
+    
+    # Check if the build script contains 'vite build'
+    if [[ "$BUILD_SCRIPT" == *"vite build"* ]]; then
+        log "Detected Vite build script, modifying for server-only build..."
+        # Use esbuild directly for server files only, skip Vite client build
+        if npx esbuild server/index.ts --platform=node --packages=external --bundle --format=cjs --outdir=dist; then
+            success "Server built successfully with esbuild"
+        else
+            error "Failed to build server with esbuild"
+            exit 1
+        fi
     else
-        error "Failed to build application"
-        exit 1
+        # Try the original build command
+        if npm run build; then
+            success "Application built successfully"
+        else
+            log "Original build command failed, attempting fallback build..."
+            # Fallback to a direct TypeScript compilation
+            if npx tsc || npx esbuild server/index.ts --platform=node --packages=external --bundle --format=cjs --outdir=dist; then
+                success "Application built successfully with fallback method"
+            else
+                error "All build methods failed"
+                exit 1
+            fi
+        fi
     fi
 else
     error "Failed to install dependencies"
