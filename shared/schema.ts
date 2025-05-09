@@ -428,23 +428,29 @@ export const rolePermissionsRelations = relations(rolePermissions, ({ one }) => 
 
 // API Response Types
 export type MovieListItem = {
-  _id: string;
+  id?: number;     // Database ID
+  _id?: string;    // Original API ID
+  movieId?: string; // Alternative API ID
   name: string;
   slug: string;
-  origin_name: string;
-  poster_url: string;
-  thumb_url: string;
-  year: number;
-  tmdb: {
-    type: 'movie' | 'tv';
-    id: string;
+  origin_name?: string;
+  originName?: string;
+  poster_url?: string;
+  posterUrl?: string;
+  thumb_url?: string;
+  thumbUrl?: string;
+  year?: number;
+  type?: string;
+  tmdb?: {
+    type?: 'movie' | 'tv';
+    id?: string;
     season?: number;
     vote_average?: number;
     vote_count?: number;
   };
   imdb?: string;
-  modified: {
-    time: number;
+  modified?: {
+    time?: number;
   };
 };
 
