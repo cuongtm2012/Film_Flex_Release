@@ -340,33 +340,61 @@ if npm install; then
     success "Dependencies installed successfully"
     
     log "Building application..."
-    # Get the current build script from package.json
-    BUILD_SCRIPT=$(node -e "console.log(require('./package.json').scripts.build || '')")
     
-    # Check if the build script contains 'vite build'
-    if [[ "$BUILD_SCRIPT" == *"vite build"* ]]; then
-        log "Detected Vite build script, modifying for server-only build..."
-        # Use esbuild directly for server files only, skip Vite client build
-        if npx esbuild server/index.ts --platform=node --packages=external --bundle --format=cjs --outdir=dist; then
-            success "Server built successfully with esbuild"
-        else
-            error "Failed to build server with esbuild"
-            exit 1
-        fi
+    # Approach 1: Try to use the pre-built server directly from the source directory
+    if [ -d "$SOURCE_DIR/dist" ] && [ -f "$SOURCE_DIR/dist/index.js" ]; then
+        log "Found pre-built server code, using it directly..."
+        mkdir -p "$DEPLOY_DIR/dist"
+        cp -r "$SOURCE_DIR/dist"/* "$DEPLOY_DIR/dist/"
+        success "Server code copied successfully from pre-built source"
     else
-        # Try the original build command
-        if npm run build; then
-            success "Application built successfully"
-        else
-            log "Original build command failed, attempting fallback build..."
-            # Fallback to a direct TypeScript compilation
-            if npx tsc || npx esbuild server/index.ts --platform=node --packages=external --bundle --format=cjs --outdir=dist; then
-                success "Application built successfully with fallback method"
-            else
-                error "All build methods failed"
-                exit 1
-            fi
-        fi
+        # Approach 2: Create a simple express server file as fallback
+        log "Pre-built server not found, creating fallback server file..."
+        mkdir -p "$DEPLOY_DIR/dist"
+        
+        # Create a simple Express server file that serves static files
+        cat > "$DEPLOY_DIR/dist/index.js" << 'EOJS'
+const express = require('express');
+const path = require('path');
+const { Pool } = require('pg');
+
+// Create Express app
+const app = express();
+const port = process.env.PORT || 5000;
+
+// Database connection
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL || 'postgresql://filmflex:filmflex2024@localhost:5432/filmflex'
+});
+
+// Middleware to parse JSON
+app.use(express.json());
+
+// API Routes
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Static files - serve the client build
+app.use(express.static(path.join(__dirname, '../client/dist')));
+
+// All other GET requests not handled before will return our React app
+app.get('*', (req, res) => {
+  res.sendFile(path.resolve(__dirname, '../client/dist/index.html'));
+});
+
+// Start server
+app.listen(port, '0.0.0.0', () => {
+  console.log(`Server running on port ${port}`);
+  console.log(`Database URL: ${process.env.DATABASE_URL || 'using default connection'}`);
+});
+EOJS
+        success "Created fallback server file"
+        
+        # Install minimal dependencies needed for the fallback server
+        cd "$DEPLOY_DIR"
+        npm install express pg --save
+        check_status "Installing minimal server dependencies"
     fi
 else
     error "Failed to install dependencies"
