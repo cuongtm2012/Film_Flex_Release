@@ -44,25 +44,14 @@ jobs:
       - name: Run tests
         run: npm test || echo "Some tests failed but continuing deployment"
 
-      - name: Upload client build
-        uses: actions/upload-artifact@v4
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
         with:
-          name: client-dist
-          path: client/dist/
-          retention-days: 1
-
-      - name: Upload deployment scripts
-        uses: actions/upload-artifact@v4
-        with:
-          name: deployment-scripts
-          path: scripts/deployment/
-          retention-days: 1
-
-      - name: Upload data scripts
-        uses: actions/upload-artifact@v4
-        with:
-          name: data-scripts
-          path: scripts/data/
+          name: filmflex-artifacts
+          path: |
+            client/dist/
+            scripts/deployment/
+            scripts/data/
           retention-days: 1
 
   deploy:
@@ -70,31 +59,39 @@ jobs:
     needs: test-and-build
     runs-on: ubuntu-latest
     steps:
-      - name: Download client build
-        uses: actions/download-artifact@v4
+      - name: Download artifacts
+        uses: actions/download-artifact@v3
         with:
-          name: client-dist
-          path: client-dist
-
-      - name: Download deployment scripts
-        uses: actions/download-artifact@v4
-        with:
-          name: deployment-scripts
-          path: deployment-scripts
-
-      - name: Download data scripts
-        uses: actions/download-artifact@v4
-        with:
-          name: data-scripts
-          path: data-scripts
+          name: filmflex-artifacts
+          path: filmflex-artifacts
 
       - name: Bundle files for deployment
         run: |
+          # Debug info
+          echo "Current directory: $(pwd)"
+          echo "List artifacts directory:"
+          ls -la filmflex-artifacts
+          echo "List client directory:"
+          ls -la filmflex-artifacts/client || echo "Client directory not found"
+          echo "List scripts directory:"
+          ls -la filmflex-artifacts/scripts || echo "Scripts directory not found"
+          
           mkdir -p filmflex-release
-          cp -r client-dist filmflex-release/client/dist
-          cp -r deployment-scripts filmflex-release/scripts/deployment
-          cp -r data-scripts filmflex-release/scripts/data
+          mkdir -p filmflex-release/client
+          mkdir -p filmflex-release/scripts
+          
+          # Debug structure after download
+          echo "Structure after download:"
+          find filmflex-artifacts -type d | sort
+          
+          # Copy from the artifact directory structure to the release structure
+          cp -r filmflex-artifacts/client/dist filmflex-release/client/ || echo "Failed to copy client/dist"
+          cp -r filmflex-artifacts/scripts/deployment filmflex-release/scripts/ || echo "Failed to copy scripts/deployment"
+          cp -r filmflex-artifacts/scripts/data filmflex-release/scripts/ || echo "Failed to copy scripts/data"
+          
+          # Create tar file
           tar -czf filmflex-release.tar.gz filmflex-release
+          echo "Created tar file: $(ls -la filmflex-release.tar.gz)"
 
       - name: Deploy to server
         uses: appleboy/ssh-action@v1.0.0
