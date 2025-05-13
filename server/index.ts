@@ -1,6 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { config } from './config';
 
 const app = express();
 app.use(express.json());
@@ -47,14 +48,13 @@ app.use((req, res, next) => {
     throw err;
   });
 
-  if (app.get("env") === "development") {
+  if (app.get("env") === config.nodeEnv) {
     await setupVite(app, server);
   } else {
     serveStatic(app);
   }
 
-  const port = process.env.PORT ? parseInt(process.env.PORT) : 3000;
-  server.listen(port, "localhost", () => {
-    log(`serving on http://localhost:${port}`);
+  server.listen(config.port, "localhost", () => {
+    log(`serving on http://localhost:${config.port}`);
   });
 })();
