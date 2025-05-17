@@ -133,9 +133,9 @@ export function setupAuth(app: Express): void {
           return done(new Error("Invalid lastLogin date"));
         }
 
-        // Update last login time
+        // Update last login time - use Date object instead of string
         await storage.updateUser(user.id, {
-          lastLogin: lastLoginDate.toISOString()
+          lastLogin: lastLoginDate
         });
 
         // Log the activity

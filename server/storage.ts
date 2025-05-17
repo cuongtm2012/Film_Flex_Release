@@ -723,6 +723,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateMovieBySlug(slug: string, updateData: Partial<Movie>): Promise<Movie | undefined> {
+    // Ensure data types are correct before updating
+    if ('section' in updateData) {
+      // Handle section properly - it should just be a string or null
+      // No need to convert it to JSON
+      updateData.section = updateData.section || null;
+    }
+    
+    if ('isRecommended' in updateData) {
+      // Ensure this is a true boolean
+      updateData.isRecommended = updateData.isRecommended === true;
+    }
+    
     const [updatedMovie] = await db.update(movies)
       .set({
         ...updateData,

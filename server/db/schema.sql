@@ -16,3 +16,6 @@ ON CONFLICT (section_name) DO NOTHING;
 
 -- Add is_recommended column to movies table
 ALTER TABLE movies ADD COLUMN is_recommended BOOLEAN DEFAULT FALSE;
+
+-- Add section column to movies table if it doesn't exist
+ALTER TABLE movies ADD COLUMN IF NOT EXISTS section VARCHAR(50) DEFAULT NULL;
