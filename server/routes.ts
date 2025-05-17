@@ -81,7 +81,9 @@ async function fetchMovieDetail(slug: string): Promise<MovieDetailResponse> {
       actor: movie.actors ? movie.actors.split(", ") : [],
       director: movie.directors ? movie.directors.split(", ") : [],
       category: movie.categories as any[] || [],
-      country: movie.countries as any[] || []
+      country: movie.countries as any[] || [],
+      isRecommended: movie.isRecommended || false,
+      section: movie.section || null
     },
     episodes: episodes.map(ep => ({
       server_name: ep.serverName,
@@ -357,44 +359,102 @@ export function registerRoutes(app: Express): void {
       // Try to get from cache first
       let movieDetailData = await storage.getMovieDetailCache(slug);
       
-      // If not in cache or cache is expired, fetch from API
+      // If not in cache or cache is expired, fetch from database or API
       if (!movieDetailData) {
         try {
-          movieDetailData = await fetchMovieDetail(slug);
+          // First try to get from our database
+          const movieFromDb = await storage.getMovieBySlug(slug);
           
-          // Validate movie data from API
-          if (!movieDetailData || !movieDetailData.movie || !movieDetailData.movie._id) {
-            console.error(`Invalid movie data structure for slug: ${slug}`);
-            return res.status(404).json({ 
-              message: "Movie not found or invalid data", 
-              status: false 
-            });
-          }
-          
-          // Cache the result
-          await storage.cacheMovieDetail(movieDetailData);
-          
-          // Save movie and episodes to storage
-          const movieModel = convertToMovieModel(movieDetailData);
-          const episodeModels = convertToEpisodeModels(movieDetailData);
-          
-          // Check if movie already exists before saving
-          const existingMovie = await storage.getMovieByMovieId(movieModel.movieId);
-          if (!existingMovie && movieModel.movieId) {  // Make sure movieId is valid
+          if (movieFromDb) {
+            // If we find it in the database, convert to the expected response format
+            const episodes = await storage.getEpisodesByMovieSlug(slug);
+            
+            movieDetailData = {
+              status: true,
+              movie: {
+                _id: movieFromDb.movieId,
+                name: movieFromDb.name,
+                slug: movieFromDb.slug,
+                origin_name: movieFromDb.originName || "",
+                content: movieFromDb.description || "",
+                type: movieFromDb.type || "",
+                status: movieFromDb.status || "",
+                thumb_url: movieFromDb.thumbUrl || "",
+                poster_url: movieFromDb.posterUrl || "",
+                trailer_url: movieFromDb.trailerUrl || "",
+                time: movieFromDb.time || "",
+                quality: movieFromDb.quality || "",
+                lang: movieFromDb.lang || "",
+                episode_current: "Full",
+                episode_total: "1",
+                view: movieFromDb.view || 0,
+                actor: movieFromDb.actors ? movieFromDb.actors.split(", ") : [],
+                director: movieFromDb.directors ? movieFromDb.directors.split(", ") : [],
+                category: movieFromDb.categories || [],
+                country: movieFromDb.countries || [],
+                isRecommended: movieFromDb.isRecommended || false,
+                section: movieFromDb.section || null
+              },
+              episodes: episodes.map(ep => ({
+                server_name: ep.serverName,
+                server_data: [{
+                  name: ep.name,
+                  slug: ep.slug,
+                  filename: ep.filename || "",
+                  link_embed: ep.linkEmbed,
+                  link_m3u8: ep.linkM3u8 || ""
+                }]
+              }))
+            };
+            
+            // Cache this result
+            await storage.cacheMovieDetail(movieDetailData);
+          } else {
+            // If not in database, try to fetch from external API
             try {
-              await storage.saveMovie(movieModel);
+              movieDetailData = await fetchMovieDetail(slug);
               
-              // Save episodes only if the movie is new
-              for (const episode of episodeModels) {
-                await storage.saveEpisode(episode);
+              // Validate movie data from API
+              if (!movieDetailData || !movieDetailData.movie || !movieDetailData.movie._id) {
+                console.error(`Invalid movie data structure for slug: ${slug}`);
+                return res.status(404).json({ 
+                  message: "Movie not found or invalid data", 
+                  status: false 
+                });
               }
-            } catch (saveError) {
-              console.error(`Error saving movie to database: ${saveError}`);
-              // Still continue to serve the cached data, just don't save to DB
+              
+              // Cache the result
+              await storage.cacheMovieDetail(movieDetailData);
+              
+              // Save movie and episodes to storage
+              const movieModel = convertToMovieModel(movieDetailData);
+              const episodeModels = convertToEpisodeModels(movieDetailData);
+              
+              // Check if movie already exists before saving
+              const existingMovie = await storage.getMovieByMovieId(movieModel.movieId);
+              if (!existingMovie && movieModel.movieId) {  // Make sure movieId is valid
+                try {
+                  await storage.saveMovie(movieModel);
+                  
+                  // Save episodes only if the movie is new
+                  for (const episode of episodeModels) {
+                    await storage.saveEpisode(episode);
+                  }
+                } catch (saveError) {
+                  console.error(`Error saving movie to database: ${saveError}`);
+                  // Still continue to serve the cached data, just don't save to DB
+                }
+              }
+            } catch (fetchError) {
+              console.error(`Error fetching movie detail from API: ${fetchError}`);
+              return res.status(404).json({ 
+                message: "Movie not found", 
+                status: false 
+              });
             }
           }
         } catch (fetchError) {
-          console.error(`Error fetching movie detail from API: ${fetchError}`);
+          console.error(`Error fetching movie detail: ${fetchError}`);
           return res.status(404).json({ 
             message: "Movie not found", 
             status: false 
@@ -402,19 +462,33 @@ export function registerRoutes(app: Express): void {
         }
       }
       
+      // Ensure we have valid data in expected format before sending response
+      if (!movieDetailData || !movieDetailData.movie) {
+        return res.status(404).json({
+          message: "Movie data is invalid or missing",
+          status: false
+        });
+      }
+      
       // Ensure description field is present
-      if (movieDetailData && movieDetailData.movie) {
-        if (!movieDetailData.movie.description && movieDetailData.movie.content) {
-          movieDetailData.movie.description = movieDetailData.movie.content;
-        } else if (!movieDetailData.movie.description) {
-          movieDetailData.movie.description = "No description available for this movie.";
-        }
+      if (!movieDetailData.movie.description && movieDetailData.movie.content) {
+        movieDetailData.movie.description = movieDetailData.movie.content;
+      } else if (!movieDetailData.movie.description) {
+        movieDetailData.movie.description = "No description available for this movie.";
+      }
+
+      // Ensure status field is present
+      if (movieDetailData.status === undefined) {
+        movieDetailData.status = true;
       }
       
       res.json(movieDetailData);
     } catch (error) {
       console.error(`Error fetching movie detail for slug ${req.params.slug}:`, error);
-      res.status(500).json({ message: "Failed to fetch movie detail" });
+      res.status(500).json({ 
+        message: "Failed to fetch movie detail",
+        status: false
+      });
     }
   });
   
@@ -1047,12 +1121,24 @@ export function registerRoutes(app: Express): void {
         return res.status(400).json({ message: "Movie title is required" });
       }
 
-      // Ensure section is either a valid value or undefined
-      if (updateData.section && !['trending_now', 'latest_movies', 'top_rated', 'popular_tv'].includes(updateData.section)) {
-        return res.status(400).json({ message: "Invalid section value" });
+      // Ensure section is either a valid value or undefined/null
+      if (updateData.section) {
+        if (updateData.section === "none") {
+          // Convert "none" to null on the server side
+          updateData.section = null;
+        } else if (!['trending_now', 'latest_movies', 'top_rated', 'popular_tv'].includes(updateData.section)) {
+          return res.status(400).json({ message: "Invalid section value" });
+        }
       }
 
-      // Convert isRecommended to boolean
+      // For backward compatibility, set sections field
+      // But make sure it's properly formatted as a JSON string if needed
+      if (updateData.section !== undefined) {
+        // Remove the sections field completely as we'll use only section
+        delete updateData.sections;
+      }
+
+      // Convert isRecommended to boolean explicitly
       if ('isRecommended' in updateData) {
         updateData.isRecommended = updateData.isRecommended === true;
       }
@@ -1070,13 +1156,34 @@ export function registerRoutes(app: Express): void {
         }
       }
 
+      console.log("Updating movie with data:", {
+        section: filteredUpdate.section,
+        isRecommended: filteredUpdate.isRecommended
+      });
+
       // Update the movie in the database
       const updated = await storage.updateMovieBySlug(slug, filteredUpdate);
       if (!updated) {
         return res.status(404).json({ status: false, message: "Movie not found" });
       }
 
-      res.json({ status: true, movie: updated });
+      console.log("Movie updated successfully:", {
+        section: updated.section,
+        isRecommended: updated.isRecommended
+      });
+
+      // Ensure section field is properly returned in the response
+      // Create a response that explicitly includes the section field
+      const response = {
+        status: true,
+        movie: {
+          ...updated,
+          // Make sure section is included and properly formatted
+          section: updated.section
+        }
+      };
+
+      res.json(response);
     } catch (error) {
       console.error("Error updating movie:", error);
       res.status(500).json({ status: false, message: "Failed to update movie" });

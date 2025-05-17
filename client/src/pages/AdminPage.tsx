@@ -239,94 +239,78 @@ export default function AdminPage() {
       
       const data = await response.json();
       
-      if (!data.status || !data.movie) {
+      // Check if response has movie data - it could be in a few different formats
+      // depending on the API implementation
+      const movieData = data.movie || (data.status !== false && data);
+      
+      if (!movieData) {
         throw new Error("Invalid or missing movie data");
       }
       
-      console.log("Fetched movie data:", data.movie);
-      
-      // Create a properly formatted movie object with explicitly handled fields
+      // Ensure we have proper default values for section and isRecommended
       const formattedMovie = {
-        ...data.movie,
-        // For the section field, null/undefined/empty string becomes undefined in our data model
-        // But we'll represent it as "none" in the UI to satisfy the Select component's requirements
-        section: data.movie.section || undefined,
-        // Ensure isRecommended is properly set as a boolean
-        isRecommended: data.movie.isRecommended === true
+        ...movieData,
+        section: movieData.section || "none", // Default to "none" if section is null/undefined
+        isRecommended: movieData.isRecommended === true // Ensure it's a boolean
       };
       
+      console.log("Fetched movie data:", movieData);
       console.log("Formatted movie for editing:", {
         section: formattedMovie.section,
         isRecommended: formattedMovie.isRecommended
       });
       
       setCurrentEditMovie(formattedMovie);
-      
-      // Ensure we're working with arrays of strings for our multi-select
-      const categories = Array.isArray(data.movie.category) 
-        ? data.movie.category.map((cat: any) => typeof cat === 'string' ? cat : (cat.name || String(cat)))
-        : [];
-      
-      const countries = Array.isArray(data.movie.country)
-        ? data.movie.country.map((country: any) => typeof country === 'string' ? country : (country.name || String(country)))
-        : [];
-      
-      setSelectedCategories(categories);
-      setSelectedCountries(countries);
+      setIsLoadingMovieDetails(false);
     } catch (error) {
       console.error("Error fetching movie details:", error);
-      toast.error("Failed to load movie details. Please try again.");
-    } finally {
+      toast.error(`Error fetching movie details: ${error instanceof Error ? error.message : 'Unknown error'}`);
       setIsLoadingMovieDetails(false);
     }
   };
   
-  // Function to handle saving movie data
+  // Function to handle movie save
   const handleMovieSave = async () => {
-    if (!currentEditMovie || !currentEditMovie.name) {
-      toast.error("Title is required.");
-      return;
-    }
-
     try {
-      const loadingToast = toast.loading("Saving changes...");
+      // Validate required fields
+      if (!currentEditMovie.name) {
+        toast.error("Movie title is required");
+        return;
+      }
 
-      // Create a cleaned version of the movie object with all necessary fields
-      const updatedMovie = {
-        ...currentEditMovie,
-        category: selectedCategories,
-        country: selectedCountries,
-        // Handle the special "none" value for section
-        section: currentEditMovie.section === "none" ? undefined : currentEditMovie.section,
-        // Ensure isRecommended is explicitly converted to boolean
-        isRecommended: currentEditMovie.isRecommended === true
+      // Format the data for the API - extract only the fields we want to update
+      const updateData = {
+        name: currentEditMovie.name,
+        origin_name: currentEditMovie.origin_name || "",
+        content: currentEditMovie.content || "",
+        // Handle section field - ensure "none" is properly handled
+        section: currentEditMovie.section === "none" ? null : currentEditMovie.section,
+        isRecommended: currentEditMovie.isRecommended === true, 
+        // other fields that might need updating
+        status: currentEditMovie.status,
+        thumb_url: currentEditMovie.thumb_url,
+        poster_url: currentEditMovie.poster_url,
+        active: currentEditMovie.active
       };
 
-      // Log the data being sent
       console.log("Saving movie with data:", {
-        section: updatedMovie.section,
-        isRecommended: updatedMovie.isRecommended
+        section: updateData.section,
+        isRecommended: updateData.isRecommended
       });
 
+      // Send the update request
       const response = await fetch(`/api/movies/${currentEditMovie.slug}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedMovie),
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updateData)
       });
 
-      // Always dismiss the loading toast
-      toast.dismiss(loadingToast);
-
+      // Check for HTTP errors
       if (!response.ok) {
-        // Handle error response
-        let errorMessage = "Failed to save changes";
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.message || errorMessage;
-        } catch (e) {
-          // If we can't parse the error JSON, use the default message
-        }
-        throw new Error(errorMessage);
+        const errorData = await response.json();
+        const errorMessage = errorData.message || `Error: ${response.status} ${response.statusText}`;
+        console.error("Error saving movie:", errorMessage);
+        throw new Error(`Failed to update movie: ${errorMessage}`);
       }
 
       const savedData = await response.json();
@@ -335,19 +319,26 @@ export default function AdminPage() {
         throw new Error("Server returned success but with invalid data");
       }
 
+      // Log server response
+      console.log("Server response:", {
+        section: savedData.movie.section,
+        isRecommended: savedData.movie.isRecommended
+      });
+      
       // Update the current edit movie with the saved data
+      // Make sure we handle section and isRecommended properly
       setCurrentEditMovie({
         ...currentEditMovie,
         ...savedData.movie,
         // Ensure these values are properly set from the response
-        section: savedData.movie.section || undefined,
+        section: savedData.movie.section === null ? "none" : savedData.movie.section || "none",
         isRecommended: savedData.movie.isRecommended === true
       });
 
       // Log successful save
       console.log("Movie saved successfully:", {
-        section: savedData.movie?.section,
-        isRecommended: savedData.movie?.isRecommended
+        section: savedData.movie.section,
+        isRecommended: savedData.movie.isRecommended
       });
 
       // Show success message
@@ -360,12 +351,17 @@ export default function AdminPage() {
         queryKey: ["/api/movies", currentPage, contentType, statusFilter, recommendedFilter, searchQuery, itemsPerPage] 
       });
       
-      // Close the dialog
-      setFullScreenEdit(false);
+      // Force a delay before closing the dialog to ensure state updates are processed
+      setTimeout(() => {
+        // Refetch the data to ensure we have the latest values
+        fetchMovieDetails(currentEditMovie.slug);
+        // Close the dialog after successful save
+        setFullScreenEdit(false);
+      }, 300);
 
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to save changes");
       console.error("Error saving movie:", error);
+      toast.error(error instanceof Error ? error.message : "An unknown error occurred");
     }
   };
 
@@ -1551,7 +1547,7 @@ export default function AdminPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-4">
                   <div>
-                    <Label htmlFor="title">Title</Label>
+                    <Label htmlFor="title">Title (Read only)</Label>
                     <Input 
                       id="title"
                       value={currentEditMovie.name}
@@ -1559,11 +1555,12 @@ export default function AdminPage() {
                         ...currentEditMovie,
                         name: e.target.value
                       })}
+                      readOnly
                     />
                   </div>
                   
                   <div>
-                    <Label htmlFor="origin-name">Original Title</Label>
+                    <Label htmlFor="origin-name">Original Title (Read only)</Label>
                     <Input 
                       id="origin-name"
                       value={currentEditMovie.origin_name || ""}
@@ -1571,6 +1568,7 @@ export default function AdminPage() {
                         ...currentEditMovie,
                         origin_name: e.target.value
                       })}
+                      readOnly
                     />
                   </div>
 
@@ -1597,10 +1595,10 @@ export default function AdminPage() {
                   <div>
                     <Label htmlFor="section">Section</Label>
                     <Select 
-                      value={currentEditMovie.section || "none"}
+                      value={currentEditMovie.section}
                       onValueChange={(value) => setCurrentEditMovie({
                         ...currentEditMovie,
-                        section: value === "none" ? undefined : value
+                        section: value
                       })}
                     >
                       <SelectTrigger>
@@ -1619,7 +1617,7 @@ export default function AdminPage() {
 
                 <div className="space-y-4">
                   <div>
-                    <Label htmlFor="year">Year</Label>
+                    <Label htmlFor="year">Year (Read only)</Label>
                     <Input 
                       id="year"
                       value={currentEditMovie.year || ""}
@@ -1627,11 +1625,12 @@ export default function AdminPage() {
                         ...currentEditMovie,
                         year: e.target.value
                       })}
+                      readOnly
                     />
                   </div>
 
                   <div>
-                    <Label htmlFor="quality">Quality</Label>
+                    <Label htmlFor="quality">Quality (Read only)</Label>
                     <Input 
                       id="quality"
                       value={currentEditMovie.quality || ""}
@@ -1639,11 +1638,12 @@ export default function AdminPage() {
                         ...currentEditMovie,
                         quality: e.target.value
                       })}
+                      readOnly
                     />
                   </div>
 
                   <div>
-                    <Label htmlFor="language">Language</Label>
+                    <Label htmlFor="language">Language (Read only)</Label>
                     <Input 
                       id="language"
                       value={currentEditMovie.lang || ""}
@@ -1651,6 +1651,7 @@ export default function AdminPage() {
                         ...currentEditMovie,
                         lang: e.target.value
                       })}
+                      readOnly
                     />
                   </div>
 
@@ -1681,7 +1682,7 @@ export default function AdminPage() {
               </div>
 
               <div>
-                <Label htmlFor="content">Description</Label>
+                <Label htmlFor="content">Description (Read only)</Label>
                 <Textarea 
                   id="content"
                   value={currentEditMovie.content || ""}
@@ -1690,6 +1691,7 @@ export default function AdminPage() {
                     content: e.target.value
                   })}
                   rows={5}
+                  readOnly
                 />
               </div>
 
