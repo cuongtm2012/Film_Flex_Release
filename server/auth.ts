@@ -1,17 +1,18 @@
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
-import { Express, Request, Response, NextFunction } from "express";
+import { Express, Request, Response, NextFunction, RequestHandler } from "express";
 import session from "express-session";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { storage } from "./storage";
-import { User } from "@shared/schema";
 
-// Include this to avoid passport type confusion
+// Extend Express types for better type safety
 declare global {
   namespace Express {
-    interface User extends Omit<User, "password"> { 
+    interface User {
       id: number;
+      username: string;
+      email: string;
       role: string;
       status: string;
     }
@@ -20,86 +21,100 @@ declare global {
 
 const scryptAsync = promisify(scrypt);
 
-async function hashPassword(password: string) {
+async function hashPassword(password: string): Promise<string> {
   const salt = randomBytes(16).toString("hex");
   const buf = (await scryptAsync(password, salt, 64)) as Buffer;
   return `${buf.toString("hex")}.${salt}`;
 }
 
-async function comparePasswords(supplied: string, stored: string) {
+async function comparePasswords(supplied: string, stored: string): Promise<boolean> {
   const [hashed, salt] = stored.split(".");
   const hashedBuf = Buffer.from(hashed, "hex");
   const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
   return timingSafeEqual(hashedBuf, suppliedBuf);
 }
 
-// Middleware for checking if user is authenticated
-export function isAuthenticated(req: Request, res: Response, next: NextFunction) {
-  if (req.isAuthenticated()) {
-    return next();
-  }
-  return res.status(401).json({ message: "Not authenticated" });
-}
-
-// Middleware for checking if user is admin
-export function isAdmin(req: Request, res: Response, next: NextFunction) {
-  if (req.isAuthenticated() && req.user.role === "admin") {
-    return next();
-  }
-  return res.status(403).json({ message: "Unauthorized - Admin access required" });
-}
-
-// Middleware for checking if user is admin or moderator
-export function isAdminOrModerator(req: Request, res: Response, next: NextFunction) {
-  if (req.isAuthenticated() && (req.user.role === "admin" || req.user.role === "moderator")) {
-    return next();
-  }
-  return res.status(403).json({ message: "Unauthorized - Moderator or Admin access required" });
-}
-
-// Middleware for checking if user is active
-export function isActive(req: Request, res: Response, next: NextFunction) {
-  if (req.isAuthenticated() && req.user.status === "active") {
-    return next();
-  }
-  return res.status(403).json({ message: "Account is not active" });
-}
-
-// Log user activity (for audit logs)
-async function logUserActivity(userId: number, activityType: string, targetId?: number, details?: any, ipAddress?: string) {
+// Log user activity with explicit types
+async function logUserActivity(
+  userId: number, 
+  activityType: string, 
+  targetId?: number | null, 
+  details?: Record<string, any> | null, 
+  ipAddress?: string | null
+): Promise<void> {
   try {
     await storage.addAuditLog({
       userId,
       activityType,
-      targetId: targetId || null,
-      details: details || null,
-      ipAddress: ipAddress || null,
-      timestamp: new Date(),
+      targetId,
+      details,
+      ipAddress,
+      // Remove the invalid createdAt property
+      // The storage.addAuditLog function will handle timestamp automatically
     });
   } catch (error) {
     console.error("Failed to log user activity:", error);
   }
 }
 
-export function setupAuth(app: Express) {
+// Middleware for checking if user is authenticated
+export const isAuthenticated: RequestHandler = (req, res, next) => {
+  if (req.isAuthenticated()) {
+    return next();
+  }
+  res.status(401).json({ message: "Not authenticated" });
+};
+
+// Middleware for checking if user is admin
+export const isAdmin: RequestHandler = (req, res, next) => {
+  if (req.isAuthenticated() && req.user?.role === "admin") {
+    return next();
+  }
+  res.status(403).json({ message: "Unauthorized - Admin access required" });
+};
+
+// Middleware for checking if user is admin or moderator
+export const isAdminOrModerator: RequestHandler = (req, res, next) => {
+  if (req.isAuthenticated() && (req.user?.role === "admin" || req.user?.role === "moderator")) {
+    return next();
+  }
+  res.status(403).json({ message: "Unauthorized - Moderator or Admin access required" });
+};
+
+// Middleware for checking if user is active
+export const isActive: RequestHandler = (req, res, next) => {
+  if (req.isAuthenticated() && req.user?.status === "active") {
+    return next();
+  }
+  res.status(403).json({ message: "Account is not active" });
+};
+
+export function setupAuth(app: Express): void {
   const sessionSettings: session.SessionOptions = {
     secret: process.env.SESSION_SECRET || "filmflex-session-secret",
     resave: false,
     saveUninitialized: false,
     cookie: {
       secure: process.env.NODE_ENV === "production",
-      maxAge: 24 * 60 * 60 * 1000 // 24 hours
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      sameSite: 'lax'
     },
     store: storage.sessionStore,
+    name: 'filmflex.sid',
+    rolling: true, // Refresh session with each request
   };
 
-  app.set("trust proxy", 1);
+  // Trust first proxy in production
+  if (process.env.NODE_ENV === 'production') {
+    app.set("trust proxy", 1);
+  }
+
   app.use(session(sessionSettings));
   app.use(passport.initialize());
   app.use(passport.session());
 
   passport.use(
-    new LocalStrategy(async (username, password, done) => {
+    new LocalStrategy(async (username: string, password: string, done) => {
       try {
         const user = await storage.getUserByUsername(username);
         if (!user) {
@@ -111,13 +126,20 @@ export function setupAuth(app: Express) {
           return done(null, false, { message: "Invalid username or password" });
         }
 
+        // Validate lastLogin to ensure it is a valid Date object
+        const lastLoginDate = new Date();
+        if (isNaN(lastLoginDate.getTime())) {
+          console.error("Invalid lastLogin date");
+          return done(new Error("Invalid lastLogin date"));
+        }
+
         // Update last login time
         await storage.updateUser(user.id, {
-          lastLogin: new Date()
+          lastLogin: lastLoginDate.toISOString()
         });
 
         // Log the activity
-        await logUserActivity(user.id, "login", undefined, null, undefined);
+        await logUserActivity(user.id, "login", null, null, null);
 
         // Omit password before passing to done
         const { password: _, ...userWithoutPassword } = user;
@@ -129,7 +151,7 @@ export function setupAuth(app: Express) {
   );
 
   passport.serializeUser((user, done) => {
-    done(null, user.id);
+    done(null, (user as Express.User).id);
   });
 
   passport.deserializeUser(async (id: number, done) => {
@@ -139,15 +161,14 @@ export function setupAuth(app: Express) {
         return done(null, false);
       }
       // Omit password from session
-      const { password, ...userWithoutPassword } = user;
+      const { password: _, ...userWithoutPassword } = user;
       done(null, userWithoutPassword);
     } catch (error) {
       done(error);
     }
   });
 
-  // Register route
-  app.post("/api/register", async (req, res) => {
+  app.post("/api/register", async (req: Request, res: Response) => {
     try {
       // Check if user exists
       const existingUser = await storage.getUserByUsername(req.body.username);
@@ -158,28 +179,28 @@ export function setupAuth(app: Express) {
       // Hash password
       const hashedPassword = await hashPassword(req.body.password);
 
-      // Remove confirmPassword if it exists (it should have been validated already in routes.ts)
+      // Remove confirmPassword if it exists
       const { confirmPassword, ...userData } = req.body;
 
       // Create user with default role
       const user = await storage.createUser({
         ...userData,
         password: hashedPassword,
-        role: req.body.role || "normal", // Use provided role or default to normal
-        status: req.body.status || "active", // Use provided status or default to active
+        role: req.body.role || "normal",
+        status: req.body.status || "active",
       });
 
       // Log the registration
-      await logUserActivity(user.id, "register", undefined, null, req.ip);
+      await logUserActivity(user.id, "register", null, null, req.ip);
 
       // Log the user in
-      req.login(user, (err) => {
+      req.login(user, (err: Error | null) => {
         if (err) {
           return res.status(500).json({ message: "Login after registration failed" });
         }
         
         // Omit password from response
-        const { password, ...userWithoutPassword } = user;
+        const { password: _, ...userWithoutPassword } = user;
         res.status(201).json(userWithoutPassword);
       });
     } catch (error) {
@@ -188,9 +209,8 @@ export function setupAuth(app: Express) {
     }
   });
 
-  // Login route
-  app.post("/api/login", (req, res, next) => {
-    passport.authenticate("local", (err, user, info) => {
+  app.post("/api/login", (req: Request, res: Response, next: NextFunction) => {
+    passport.authenticate("local", (err: Error | null, user: Express.User | false, info: LocalStrategyInfo | undefined) => {
       if (err) {
         return next(err);
       }
@@ -206,11 +226,11 @@ export function setupAuth(app: Express) {
     })(req, res, next);
   });
 
-  // Logout route
-  app.post("/api/logout", isAuthenticated, (req, res) => {
-    // Log the activity before logging out
+  app.post("/api/logout", isAuthenticated, (req: Request, res: Response) => {
     if (req.user) {
-      logUserActivity(req.user.id, "logout", undefined, null, req.ip);
+      const userId = (req.user as Express.User).id;
+      // Log the activity before logging out
+      logUserActivity(userId, "logout", null, null, req.ip);
     }
     
     req.logout(() => {
@@ -218,39 +238,38 @@ export function setupAuth(app: Express) {
     });
   });
 
-  // Get current user
-  app.get("/api/user", (req, res) => {
+  app.get("/api/user", (req: Request, res: Response) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ message: "Not authenticated" });
     }
     res.json(req.user);
   });
 
-  // Update user profile (self)
-  app.put("/api/user/profile", isAuthenticated, isActive, async (req, res) => {
+  app.put("/api/user/profile", isAuthenticated, isActive, async (req: Request, res: Response) => {
     try {
+      const userId = (req.user as Express.User).id;
       const allowedUpdates = ["email", "displayName", "avatar"];
       const updates = Object.keys(req.body)
         .filter(key => allowedUpdates.includes(key))
-        .reduce((obj, key) => {
+        .reduce((obj: Record<string, any>, key) => {
           obj[key] = req.body[key];
           return obj;
-        }, {} as Record<string, any>);
+        }, {});
 
       if (Object.keys(updates).length === 0) {
         return res.status(400).json({ message: "No valid fields to update" });
       }
 
-      const updatedUser = await storage.updateUser(req.user.id, updates);
+      const updatedUser = await storage.updateUser(userId, updates);
       if (!updatedUser) {
         return res.status(404).json({ message: "User not found" });
       }
 
       // Log the activity
-      await logUserActivity(req.user.id, "profile_update", req.user.id, updates, req.ip);
+      await logUserActivity(userId, "profile_update", userId, updates, req.ip);
 
       // Omit password
-      const { password, ...userWithoutPassword } = updatedUser;
+      const { password: _, ...userWithoutPassword } = updatedUser;
       res.json(userWithoutPassword);
     } catch (error) {
       console.error("Profile update error:", error);
@@ -258,16 +277,16 @@ export function setupAuth(app: Express) {
     }
   });
 
-  // Change password (self)
-  app.put("/api/user/password", isAuthenticated, isActive, async (req, res) => {
+  app.put("/api/user/password", isAuthenticated, isActive, async (req: Request, res: Response) => {
     try {
+      const userId = (req.user as Express.User).id;
       const { currentPassword, newPassword } = req.body;
       if (!currentPassword || !newPassword) {
         return res.status(400).json({ message: "Current password and new password are required" });
       }
 
       // Get user with password
-      const user = await storage.getUser(req.user.id);
+      const user = await storage.getUser(userId);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
@@ -280,10 +299,10 @@ export function setupAuth(app: Express) {
 
       // Hash and update new password
       const hashedPassword = await hashPassword(newPassword);
-      await storage.updateUser(req.user.id, { password: hashedPassword });
+      await storage.updateUser(userId, { password: hashedPassword });
 
       // Log the activity
-      await logUserActivity(req.user.id, "password_change", req.user.id, null, req.ip);
+      await logUserActivity(userId, "password_change", userId, null, req.ip);
 
       res.json({ message: "Password updated successfully" });
     } catch (error) {
@@ -292,9 +311,9 @@ export function setupAuth(app: Express) {
     }
   });
 
-  // Admin routes - manage users
-  app.get("/api/admin/users", isAuthenticated, isAdmin, async (req, res) => {
+  app.get("/api/admin/users", isAuthenticated, isAdmin, async (req: Request, res: Response) => {
     try {
+      const userId = (req.user as Express.User).id;
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 10;
       const filters = {
@@ -306,7 +325,7 @@ export function setupAuth(app: Express) {
       const users = await storage.getAllUsers(page, limit, filters);
       
       // Log the activity
-      await logUserActivity(req.user.id, "view_users", undefined, { page, limit, filters }, req.ip);
+      await logUserActivity(userId, "view_users", undefined, { page, limit, filters }, req.ip);
       
       res.json(users);
     } catch (error) {
@@ -315,9 +334,9 @@ export function setupAuth(app: Express) {
     }
   });
 
-  // Admin routes - change user role
-  app.put("/api/admin/users/:userId/role", isAuthenticated, isAdmin, async (req, res) => {
+  app.put("/api/admin/users/:userId/role", isAuthenticated, isAdmin, async (req: Request, res: Response) => {
     try {
+      const adminId = (req.user as Express.User).id;
       const userId = parseInt(req.params.userId);
       const { role } = req.body;
       
@@ -332,15 +351,15 @@ export function setupAuth(app: Express) {
 
       // Log the activity
       await logUserActivity(
-        req.user.id, 
-        "change_user_role", 
-        userId, 
-        { newRole: role }, 
+        adminId,
+        "change_user_role",
+        userId,
+        { newRole: role },
         req.ip
       );
 
       // Omit password
-      const { password, ...userWithoutPassword } = updatedUser;
+      const { password: _, ...userWithoutPassword } = updatedUser;
       res.json(userWithoutPassword);
     } catch (error) {
       console.error("Change user role error:", error);
@@ -348,9 +367,9 @@ export function setupAuth(app: Express) {
     }
   });
 
-  // Admin routes - change user status
-  app.put("/api/admin/users/:userId/status", isAuthenticated, isAdmin, async (req, res) => {
+  app.put("/api/admin/users/:userId/status", isAuthenticated, isAdmin, async (req: Request, res: Response) => {
     try {
+      const adminId = (req.user as Express.User).id;
       const userId = parseInt(req.params.userId);
       const { status } = req.body;
       
@@ -365,15 +384,15 @@ export function setupAuth(app: Express) {
 
       // Log the activity
       await logUserActivity(
-        req.user.id, 
-        "change_user_status", 
-        userId, 
-        { newStatus: status }, 
+        adminId,
+        "change_user_status",
+        userId,
+        { newStatus: status },
         req.ip
       );
 
       // Omit password
-      const { password, ...userWithoutPassword } = updatedUser;
+      const { password: _, ...userWithoutPassword } = updatedUser;
       res.json(userWithoutPassword);
     } catch (error) {
       console.error("Change user status error:", error);
@@ -381,8 +400,7 @@ export function setupAuth(app: Express) {
     }
   });
 
-  // Admin routes - get audit logs
-  app.get("/api/admin/audit-logs", isAuthenticated, isAdmin, async (req, res) => {
+  app.get("/api/admin/audit-logs", isAuthenticated, isAdmin, async (req: Request, res: Response) => {
     try {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 20;
@@ -398,4 +416,9 @@ export function setupAuth(app: Express) {
       res.status(500).json({ message: "Failed to fetch audit logs" });
     }
   });
+}
+
+// Add interface for LocalStrategy info
+interface LocalStrategyInfo {
+  message?: string;
 }

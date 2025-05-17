@@ -12,4 +12,7 @@ INSERT INTO featured_sections (section_name) VALUES
   ('latest_movies'),
   ('top_rated'),
   ('popular_tv')
-ON CONFLICT (section_name) DO NOTHING; 
+ON CONFLICT (section_name) DO NOTHING;
+
+-- Add is_recommended column to movies table
+ALTER TABLE movies ADD COLUMN is_recommended BOOLEAN DEFAULT FALSE;

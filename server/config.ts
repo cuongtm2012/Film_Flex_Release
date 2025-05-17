@@ -8,9 +8,18 @@ const __dirname = dirname(__filename);
 // Load environment variables from .env file
 dotenv.config({ path: resolve(__dirname, '../.env') });
 
-export const config = {
+interface Config {
+  nodeEnv: string;
+  port: number;
+  databaseUrl: string | undefined;
+  sessionSecret: string | undefined;
+  clientUrl: string;
+}
+
+export const config: Config = {
   nodeEnv: process.env.NODE_ENV || 'development',
-  port: process.env.PORT ? parseInt(process.env.PORT) : 5000,
+  port: parseInt(process.env.PORT || '5000', 10),
   databaseUrl: process.env.DATABASE_URL,
-  sessionSecret: process.env.SESSION_SECRET
-}; 
+  sessionSecret: process.env.SESSION_SECRET,
+  clientUrl: process.env.CLIENT_URL || 'http://localhost:3000'
+};

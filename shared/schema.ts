@@ -3,6 +3,40 @@ import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+// Movie model for caching movie data
+export const movies = pgTable("movies", {
+  id: serial("id").primaryKey(),
+  movieId: text("movie_id").notNull().unique(), // Original _id from API
+  slug: text("slug").notNull().unique(),
+  name: text("name").notNull(),
+  originName: text("origin_name"),
+  posterUrl: text("poster_url"),
+  thumbUrl: text("thumb_url"),
+  year: integer("year"),
+  type: text("type"), // 'movie' or 'tv'
+  quality: text("quality"),
+  lang: text("lang"),
+  time: text("time"), // Duration
+  view: integer("view").default(0),
+  description: text("description"),
+  status: text("status"),
+  trailerUrl: text("trailer_url"),
+  sections: text("sections"),  // Preserve existing sections column
+  isRecommended: boolean("is_recommended").default(false),
+  categories: jsonb("categories").default([]),
+  countries: jsonb("countries").default([]),
+  actors: text("actors"),
+  directors: text("directors"),
+  modifiedAt: timestamp("modified_at").defaultNow().notNull(),
+});
+
+// Session model for storing user sessions
+export const sessions = pgTable("sessions", {
+  sid: text("sid").primaryKey(),
+  sess: jsonb("sess").notNull(),
+  expire: timestamp("expire", { precision: 6 }).notNull(),
+});
+
 // User roles enum
 export const UserRole = {
   ADMIN: 'admin',
@@ -55,33 +89,6 @@ export const rolePermissions = pgTable("role_permissions", {
   id: serial("id").primaryKey(),
   roleId: integer("role_id").notNull().references(() => roles.id, { onDelete: "cascade" }),
   permissionId: integer("permission_id").notNull().references(() => permissions.id, { onDelete: "cascade" }),
-});
-
-// Movie model for caching movie data
-export const movies = pgTable("movies", {
-  id: serial("id").primaryKey(),
-  movieId: text("movie_id").notNull().unique(), // Original _id from API
-  slug: text("slug").notNull().unique(),
-  name: text("name").notNull(),
-  originName: text("origin_name"),
-  posterUrl: text("poster_url"),
-  thumbUrl: text("thumb_url"),
-  year: integer("year"),
-  type: text("type"), // 'movie' or 'tv'
-  quality: text("quality"),
-  lang: text("lang"),
-  time: text("time"), // Duration
-  view: integer("view").default(0),
-  description: text("description"),
-  status: text("status"),
-  trailerUrl: text("trailer_url"),
-  section: text("section"), // Section for the movie (trending_now, latest_movies, etc.)
-  isRecommended: boolean("is_recommended").default(false),
-  categories: jsonb("categories").default([]),
-  countries: jsonb("countries").default([]),
-  actors: text("actors"),
-  directors: text("directors"),
-  modifiedAt: timestamp("modified_at").defaultNow().notNull(),
 });
 
 // Episode model for caching episode data
@@ -295,136 +302,134 @@ export type Role = typeof roles.$inferSelect;
 export type Permission = typeof permissions.$inferSelect;
 export type RolePermission = typeof rolePermissions.$inferSelect;
 
-// Define relations between tables
+// Define relations between tables using proper Drizzle types
 export const usersRelations = relations(users, ({ many }) => ({
-  comments: many(comments),
-  watchlist: many(watchlist),
-  viewHistory: many(viewHistory),
+  comments: many(comments, { relationName: 'userComments' }),
+  watchlist: many(watchlist, { relationName: 'userWatchlist' }),
+  viewHistory: many(viewHistory, { relationName: 'userViewHistory' }),
   submittedContent: many(contentApprovals, { relationName: "submittedBy" }),
   reviewedContent: many(contentApprovals, { relationName: "reviewedBy" }),
-  auditLogs: many(auditLogs),
-  apiKeys: many(apiKeys),
-  analyticsEvents: many(analyticsEvents),
+  auditLogs: many(auditLogs, { relationName: 'userAuditLogs' }),
+  apiKeys: many(apiKeys, { relationName: 'userApiKeys' }),
+  analyticsEvents: many(analyticsEvents, { relationName: 'userAnalytics' }),
 }));
 
 export const moviesRelations = relations(movies, ({ many }) => ({
-  episodes: many(episodes),
-  comments: many(comments),
-  watchlist: many(watchlist),
-  viewHistory: many(viewHistory),
-  contentApprovals: many(contentApprovals),
-  contentPerformance: many(contentPerformance),
+  episodes: many(episodes, { relationName: 'movieEpisodes' }),
+  comments: many(comments, { relationName: 'movieComments' }),
+  watchlist: many(watchlist, { relationName: 'movieWatchlist' }),
+  viewHistory: many(viewHistory, { relationName: 'movieViewHistory' }),
+  contentApprovals: many(contentApprovals, { relationName: 'movieApprovals' }),
+  contentPerformance: many(contentPerformance, { relationName: 'moviePerformance' }),
 }));
 
 export const commentsRelations = relations(comments, ({ one }) => ({
   user: one(users, {
     fields: [comments.userId],
-    references: [users.id],
+    references: [users.id]
   }),
   movie: one(movies, {
     fields: [comments.movieSlug],
-    references: [movies.slug],
+    references: [movies.slug]
   }),
 }));
 
 export const watchlistRelations = relations(watchlist, ({ one }) => ({
   user: one(users, {
     fields: [watchlist.userId],
-    references: [users.id],
+    references: [users.id]
   }),
   movie: one(movies, {
     fields: [watchlist.movieSlug],
-    references: [movies.slug],
+    references: [movies.slug]
   }),
 }));
 
 export const viewHistoryRelations = relations(viewHistory, ({ one }) => ({
   user: one(users, {
     fields: [viewHistory.userId],
-    references: [users.id],
+    references: [users.id]
   }),
   movie: one(movies, {
     fields: [viewHistory.movieSlug],
-    references: [movies.slug],
+    references: [movies.slug]
   }),
 }));
 
 export const episodesRelations = relations(episodes, ({ one }) => ({
   movie: one(movies, {
     fields: [episodes.movieSlug],
-    references: [movies.slug],
+    references: [movies.slug]
   }),
 }));
 
 export const contentApprovalsRelations = relations(contentApprovals, ({ one }) => ({
   movie: one(movies, {
     fields: [contentApprovals.movieId],
-    references: [movies.id],
+    references: [movies.id]
   }),
   submittedBy: one(users, {
     fields: [contentApprovals.submittedByUserId],
-    references: [users.id],
-    relationName: "submittedBy",
+    references: [users.id]
   }),
   reviewedBy: one(users, {
     fields: [contentApprovals.reviewedByUserId],
-    references: [users.id],
-    relationName: "reviewedBy",
+    references: [users.id]
   }),
 }));
 
 export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
   user: one(users, {
     fields: [auditLogs.userId],
-    references: [users.id],
+    references: [users.id]
   }),
 }));
 
 export const apiKeysRelations = relations(apiKeys, ({ one, many }) => ({
   user: one(users, {
     fields: [apiKeys.userId],
-    references: [users.id],
+    references: [users.id]
   }),
-  apiRequests: many(apiRequests),
+  apiRequests: many(apiRequests, { relationName: 'keyRequests' }),
 }));
 
 export const apiRequestsRelations = relations(apiRequests, ({ one }) => ({
   apiKey: one(apiKeys, {
     fields: [apiRequests.apiKeyId],
-    references: [apiKeys.id],
+    references: [apiKeys.id]
   }),
 }));
 
 export const analyticsEventsRelations = relations(analyticsEvents, ({ one }) => ({
   user: one(users, {
     fields: [analyticsEvents.userId],
-    references: [users.id],
+    references: [users.id]
   }),
 }));
 
 export const contentPerformanceRelations = relations(contentPerformance, ({ one }) => ({
   movie: one(movies, {
     fields: [contentPerformance.movieId],
-    references: [movies.id],
+    references: [movies.id]
   }),
 }));
 
 export const rolesRelations = relations(roles, ({ many }) => ({
-  rolePermissions: many(rolePermissions),
+  rolePermissions: many(rolePermissions, { relationName: 'rolePerms' }),
 }));
 
 export const permissionsRelations = relations(permissions, ({ many }) => ({
-  rolePermissions: many(rolePermissions),
+  rolePermissions: many(rolePermissions, { relationName: 'permRoles' }),
 }));
 
 export const rolePermissionsRelations = relations(rolePermissions, ({ one }) => ({
   role: one(roles, {
     fields: [rolePermissions.roleId],
-    references: [roles.id],
+    references: [roles.id]
   }),
   permission: one(permissions, {
     fields: [rolePermissions.permissionId],
-    references: [permissions.id],
+    references: [permissions.id]
   }),
 }));
 
@@ -516,3 +521,71 @@ export type MovieDetailResponse = {
   };
   episodes: EpisodeServer[];
 };
+
+// Helper function to convert nullable strings to undefined
+export function nullToUndefined<T>(obj: T): { [K in keyof T]: T[K] extends null ? undefined : T[K] } {
+  const result = { ...obj };
+  for (const key in result) {
+    if (result[key] === null) {
+      // Fixing type assignment issue by ensuring compatibility
+      result[key] = undefined as unknown as T[Extract<keyof T, string>];
+    }
+  }
+  return result as { [K in keyof T]: T[K] extends null ? undefined : T[K] };
+}
+
+// Add helper functions for data conversion
+export function convertToMovieModel(data: MovieDetailResponse): InsertMovie {
+  return {
+    movieId: data.movie._id,
+    slug: data.movie.slug,
+    name: data.movie.name,
+    originName: data.movie.origin_name || null,
+    posterUrl: data.movie.poster_url || null,
+    thumbUrl: data.movie.thumb_url || null,
+    type: data.movie.type || null,
+    status: data.movie.status || null,
+    description: data.movie.content || null,
+    time: data.movie.time || null,
+    quality: data.movie.quality || null,
+    lang: data.movie.lang || null,
+    year: null, // Extract from data if available
+    view: data.movie.view || 0,
+    categories: data.movie.category || [],
+    countries: data.movie.country || [],
+    actors: data.movie.actor?.join(", ") || null,
+    directors: data.movie.director?.join(", ") || null,
+    trailerUrl: data.movie.trailer_url || null,
+  };
+}
+
+export function convertToEpisodeModels(data: MovieDetailResponse): InsertEpisode[] {
+  const episodes: InsertEpisode[] = [];
+  
+  for (const serverEpisode of data.episodes || []) {
+    for (const episodeData of serverEpisode.server_data) {
+      episodes.push({
+        name: episodeData.name,
+        slug: episodeData.slug,
+        movieSlug: data.movie.slug,
+        serverName: serverEpisode.server_name,
+        filename: episodeData.filename || null,
+        linkEmbed: episodeData.link_embed,
+        linkM3u8: episodeData.link_m3u8 || null,
+      });
+    }
+  }
+  
+  return episodes;
+}
+
+// Helper function to normalize text for search
+export function normalizeText(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
