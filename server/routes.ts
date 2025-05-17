@@ -910,6 +910,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put("/api/movies/:slug", async (req, res) => {
+    try {
+      const { slug } = req.params;
+      const updateData = req.body;
+
+      // Only allow updating certain fields, including section
+      const allowedFields = [
+        "name", "origin_name", "content", "type", "status", "thumb_url", "poster_url",
+        "is_copyright", "sub_docquyen", "chieurap", "time", "episode_current", "episode_total",
+        "quality", "lang", "notify", "showtimes", "year", "view", "actor", "director",
+        "category", "country", "episodes", "isRecommended", "active", "tmdb", "section"
+      ];
+      const filteredUpdate = {};
+      for (const key of allowedFields) {
+        if (updateData[key] !== undefined) filteredUpdate[key] = updateData[key];
+      }
+
+      // Update the movie in the database
+      const updated = await storage.updateMovieBySlug(slug, filteredUpdate);
+      if (!updated) {
+        return res.status(404).json({ message: "Movie not found" });
+      }
+      res.json({ status: true, movie: updated });
+    } catch (error) {
+      console.error("Error updating movie:", error);
+      res.status(500).json({ message: "Failed to update movie" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
