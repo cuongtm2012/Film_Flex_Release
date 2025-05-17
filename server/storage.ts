@@ -111,870 +111,17 @@ export interface IStorage {
   sessionStore: session.Store;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<number, User>;
-  private movies: Map<string, Movie>; // Key is slug
-  private episodes: Map<string, Episode>; // Key is slug
-  private comments: Map<number, Comment>;
-  private watchlists: Watchlist[];
-  private viewHistory: ViewHistory[]; // Array of view history entries
-  private contentApprovals: Map<number, ContentApproval>;
-  private auditLogs: Map<number, AuditLog>;
-  private movieListCache: Map<number, MovieListResponse>; // Key is page number
-  private movieDetailCache: Map<string, MovieDetailResponse>; // Key is slug
-  private roles: Map<number, Role>;
-  private permissions: Map<number, Permission>;
-  private rolePermissions: Map<string, RolePermission>; // Key is roleId-permissionId
-  
-  sessionStore: session.Store;
-  
-  private currentUserId: number = 1;
-  private currentMovieId: number = 1;
-  private currentEpisodeId: number = 1;
-  private currentCommentId: number = 1;
-  private currentWatchlistId: number = 1;
-  private currentViewHistoryId: number = 1;
-  private currentApprovalId: number = 1;
-  private currentAuditLogId: number = 1;
-  private currentRoleId: number = 1;
-  private currentPermissionId: number = 1;
-
-  constructor() {
-    this.users = new Map();
-    this.movies = new Map();
-    this.episodes = new Map();
-    this.comments = new Map();
-    this.watchlists = [];
-    this.viewHistory = [];
-    this.contentApprovals = new Map();
-    this.auditLogs = new Map();
-    this.movieListCache = new Map();
-    this.movieDetailCache = new Map();
-    this.roles = new Map();
-    this.permissions = new Map();
-    this.rolePermissions = new Map();
-    
-    // Create memory store for sessions
-    const MemoryStore = require('memorystore')(session);
-    this.sessionStore = new MemoryStore({
-      checkPeriod: 86400000 // prune expired entries every 24h
-    });
-  }
-
-  // User methods
-  async getUser(id: number): Promise<User | undefined> {
-    return this.users.get(id);
-  }
-
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username
-    );
-  }
-
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const id = this.currentUserId++;
-    const now = new Date();
-    const user: User = { 
-      ...insertUser, 
-      id, 
-      createdAt: now, 
-      updatedAt: now, 
-      lastLogin: null,
-      role: insertUser.role || UserRole.NORMAL,
-      status: insertUser.status || UserStatus.ACTIVE
-    };
-    this.users.set(id, user);
-    return user;
-  }
-  
-  async updateUser(id: number, userData: Partial<InsertUser>): Promise<User | undefined> {
-    const user = this.users.get(id);
-    if (!user) return undefined;
-    
-    const updatedUser = { 
-      ...user, 
-      ...userData, 
-      updatedAt: new Date() 
-    };
-    
-    this.users.set(id, updatedUser);
-    return updatedUser;
-  }
-  
-  async changeUserStatus(id: number, status: string): Promise<User | undefined> {
-    const user = this.users.get(id);
-    if (!user) return undefined;
-    
-    const updatedUser = { 
-      ...user, 
-      status, 
-      updatedAt: new Date() 
-    };
-    
-    this.users.set(id, updatedUser);
-    return updatedUser;
-  }
-  
-  async getAllUsers(page: number, limit: number, filters?: {role?: string, status?: string, search?: string}): Promise<{ data: User[], total: number }> {
-    let allUsers = Array.from(this.users.values());
-    
-    if (filters) {
-      if (filters.role) {
-        allUsers = allUsers.filter(user => user.role === filters.role);
-      }
-      
-      if (filters.status) {
-        allUsers = allUsers.filter(user => user.status === filters.status);
-      }
-      
-      if (filters.search) {
-        const search = filters.search.toLowerCase();
-        allUsers = allUsers.filter(user => 
-          user.username.toLowerCase().includes(search) || 
-          user.email.toLowerCase().includes(search)
-        );
-      }
-    }
-    
-    const total = allUsers.length;
-    const start = (page - 1) * limit;
-    const end = start + limit;
-    const paginatedUsers = allUsers.slice(start, end);
-    
-    return { data: paginatedUsers, total };
-  }
-  
-  // Movie methods
-  async getMovies(page: number, limit: number, sortBy: string = 'latest'): Promise<{ data: Movie[], total: number }> {
-    let allMovies = Array.from(this.movies.values());
-    
-    // Apply sorting based on parameter
-    switch (sortBy) {
-      case 'latest':
-      case 'modified':
-        // Sort by most recent modified time (newest first)
-        // Both latest and modified use the same sorting logic
-        allMovies.sort((a, b) => b.modifiedAt.getTime() - a.modifiedAt.getTime());
-        break;
-      case 'popular':
-        // Sort by popularity (view count)
-        allMovies.sort((a, b) => (b.view || 0) - (a.view || 0));
-        break;
-      case 'rating':
-        // Sort by rating (we'll need to add this logic later when ratings are implemented)
-        // For now, fallback to popularity
-        allMovies.sort((a, b) => (b.view || 0) - (a.view || 0));
-        break;
-      case 'year':
-        // Sort by release year (newest first)
-        // Add more sophisticated year sorting - handle invalid years and ensure proper formatting
-        allMovies.sort((a, b) => {
-          // Validate the year values (should be legitimate years, not future years)
-          const currentYear = new Date().getFullYear();
-          
-          // Convert to numbers and default to 0 if not valid
-          const yearA = typeof a.year === 'number' && a.year > 1900 && a.year <= currentYear ? a.year : 0;
-          const yearB = typeof b.year === 'number' && b.year > 1900 && b.year <= currentYear ? b.year : 0;
-          
-          // First sort by valid vs. invalid years (valid years come first)
-          if (yearA === 0 && yearB !== 0) return 1;
-          if (yearB === 0 && yearA !== 0) return -1;
-          
-          // Then sort by year (newest first)
-          return yearB - yearA;
-        });
-        break;
-      default:
-        // Default sort by latest modified
-        allMovies.sort((a, b) => b.modifiedAt.getTime() - a.modifiedAt.getTime());
-    }
-    
-    const total = allMovies.length;
-    const start = (page - 1) * limit;
-    const end = start + limit;
-    const paginatedMovies = allMovies.slice(start, end);
-    
-    return { data: paginatedMovies, total };
-  }
-  
-  async getMovieBySlug(slug: string): Promise<Movie | undefined> {
-    return this.movies.get(slug);
-  }
-  
-  async getMovieByMovieId(movieId: string): Promise<Movie | undefined> {
-    return Array.from(this.movies.values()).find(movie => movie.movieId === movieId);
-  }
-  
-  async saveMovie(movie: InsertMovie): Promise<Movie> {
-    const id = this.currentMovieId++;
-    const newMovie: Movie = { ...movie, id, modifiedAt: new Date() };
-    this.movies.set(newMovie.slug, newMovie);
-    return newMovie;
-  }
-  
-  /**
-   * Function to normalize Vietnamese text by removing accents and diacritics
-   * This helps with search functionality where users might type without accents
-   */
-  private normalizeText(text: string): string {
-    if (!text) return '';
-    
-    // Normalize to NFD form where accented chars are separated into base char + accent
-    return text.normalize('NFD')
-      // Remove combining diacritical marks (accents, etc.)
-      .replace(/[\u0300-\u036f]/g, '')
-      // Remove other special characters and normalize to lowercase
-      .toLowerCase()
-      // Replace đ/Đ with d
-      .replace(/[đĐ]/g, 'd');
-  }
-  
-  async searchMovies(query: string, normalizedQuery: string, page: number, limit: number): Promise<{ data: Movie[], total: number }> {
-    const lowerQuery = query.toLowerCase();
-    const lowerNormalizedQuery = normalizedQuery.toLowerCase();
-    
-    // First get all matching movies
-    const matchingMovies = Array.from(this.movies.values()).filter(
-      (movie) => {
-        // Check with original query
-        const nameMatch = movie.name.toLowerCase().includes(lowerQuery);
-        const originNameMatch = movie.originName && movie.originName.toLowerCase().includes(lowerQuery);
-        const descriptionMatch = movie.description && movie.description.toLowerCase().includes(lowerQuery);
-        
-        // Also check with normalized query, comparing against normalized versions of movie fields
-        const normalizedName = this.normalizeText(movie.name);
-        const normalizedOriginName = movie.originName ? this.normalizeText(movie.originName) : '';
-        const normalizedDescription = movie.description ? this.normalizeText(movie.description) : '';
-        
-        const normalizedNameMatch = normalizedName.includes(lowerNormalizedQuery);
-        const normalizedOriginNameMatch = normalizedOriginName.includes(lowerNormalizedQuery);
-        const normalizedDescriptionMatch = normalizedDescription.includes(lowerNormalizedQuery);
-        
-        // Also check if slug contains the normalized query
-        const slugMatch = movie.slug.includes(lowerNormalizedQuery);
-        
-        return nameMatch || originNameMatch || descriptionMatch || 
-               normalizedNameMatch || normalizedOriginNameMatch || normalizedDescriptionMatch || 
-               slugMatch;
-      }
-    );
-    
-    // Now sort the matching movies based on relevance
-    const sortedMovies = matchingMovies.sort((a, b) => {
-      const aName = a.name.toLowerCase();
-      const bName = b.name.toLowerCase();
-      const aNormalizedName = this.normalizeText(a.name).toLowerCase();
-      const bNormalizedName = this.normalizeText(b.name).toLowerCase();
-      
-      // Exact match gets highest priority
-      const aExactMatch = aName === lowerQuery || (a.originName && a.originName.toLowerCase() === lowerQuery);
-      const bExactMatch = bName === lowerQuery || (b.originName && b.originName.toLowerCase() === lowerQuery);
-      if (aExactMatch && !bExactMatch) return -1;
-      if (!aExactMatch && bExactMatch) return 1;
-      
-      // Exact match with normalized text gets next priority
-      const aNormalizedExactMatch = aNormalizedName === lowerNormalizedQuery;
-      const bNormalizedExactMatch = bNormalizedName === lowerNormalizedQuery;
-      if (aNormalizedExactMatch && !bNormalizedExactMatch) return -1;
-      if (!aNormalizedExactMatch && bNormalizedExactMatch) return 1;
-      
-      // Starts with gets next priority
-      const aStartsWith = aName.startsWith(lowerQuery) || (a.originName && a.originName.toLowerCase().startsWith(lowerQuery));
-      const bStartsWith = bName.startsWith(lowerQuery) || (b.originName && b.originName.toLowerCase().startsWith(lowerQuery));
-      if (aStartsWith && !bStartsWith) return -1;
-      if (!aStartsWith && bStartsWith) return 1;
-      
-      // Normalized starts with gets next priority
-      const aNormalizedStartsWith = aNormalizedName.startsWith(lowerNormalizedQuery);
-      const bNormalizedStartsWith = bNormalizedName.startsWith(lowerNormalizedQuery);
-      if (aNormalizedStartsWith && !bNormalizedStartsWith) return -1;
-      if (!aNormalizedStartsWith && bNormalizedStartsWith) return 1;
-      
-      // Title word boundary match gets next priority (e.g., "Tình yêu" in "Câu chuyện tình yêu")
-      const aWordMatch = ` ${aName} `.includes(` ${lowerQuery} `);
-      const bWordMatch = ` ${bName} `.includes(` ${lowerQuery} `);
-      if (aWordMatch && !bWordMatch) return -1;
-      if (!aWordMatch && bWordMatch) return 1;
-      
-      // Finally, fall back to alphabetical sort
-      return aName.localeCompare(bName);
-    });
-    
-    const total = sortedMovies.length;
-    const start = (page - 1) * limit;
-    const end = start + limit;
-    const paginatedMovies = sortedMovies.slice(start, end);
-    
-    return { data: paginatedMovies, total };
-  }
-  
-  async getMoviesByCategory(categorySlug: string, page: number, limit: number, sortBy: string = 'latest'): Promise<{ data: Movie[], total: number }> {
-    let matchingMovies = Array.from(this.movies.values()).filter(movie => {
-      const categories = movie.categories as any[];
-      return categories.some(category => category.slug === categorySlug);
-    });
-    
-    // Apply sorting based on parameter
-    switch (sortBy) {
-      case 'latest':
-      case 'modified':
-        // Sort by most recent modified time (newest first)
-        // Both latest and modified use the same sorting logic
-        matchingMovies.sort((a, b) => b.modifiedAt.getTime() - a.modifiedAt.getTime());
-        break;
-      case 'popular':
-        // Sort by popularity (view count)
-        matchingMovies.sort((a, b) => (b.view || 0) - (a.view || 0));
-        break;
-      case 'rating':
-        // Sort by rating (we'll need to add this logic later when ratings are implemented)
-        // For now, fallback to popularity
-        matchingMovies.sort((a, b) => (b.view || 0) - (a.view || 0));
-        break;
-      case 'year':
-        // Sort by release year (newest first)
-        // Add more sophisticated year sorting - handle invalid years and ensure proper formatting
-        matchingMovies.sort((a, b) => {
-          // Validate the year values (should be legitimate years, not future years)
-          const currentYear = new Date().getFullYear();
-          
-          // Convert to numbers and default to 0 if not valid
-          const yearA = typeof a.year === 'number' && a.year > 1900 && a.year <= currentYear ? a.year : 0;
-          const yearB = typeof b.year === 'number' && b.year > 1900 && b.year <= currentYear ? b.year : 0;
-          
-          // First sort by valid vs. invalid years (valid years come first)
-          if (yearA === 0 && yearB !== 0) return 1;
-          if (yearB === 0 && yearA !== 0) return -1;
-          
-          // Then sort by year (newest first)
-          return yearB - yearA;
-        });
-        break;
-      default:
-        // Default sort by latest modified
-        matchingMovies.sort((a, b) => b.modifiedAt.getTime() - a.modifiedAt.getTime());
-    }
-    
-    const total = matchingMovies.length;
-    const start = (page - 1) * limit;
-    const end = start + limit;
-    const paginatedMovies = matchingMovies.slice(start, end);
-    
-    return { data: paginatedMovies, total };
-  }
-  
-  // Episode methods
-  async getEpisodesByMovieSlug(movieSlug: string): Promise<Episode[]> {
-    return Array.from(this.episodes.values()).filter(
-      (episode) => episode.movieSlug === movieSlug
-    );
-  }
-  
-  async getEpisodeBySlug(slug: string): Promise<Episode | undefined> {
-    return this.episodes.get(slug);
-  }
-  
-  async saveEpisode(episode: InsertEpisode): Promise<Episode> {
-    const id = this.currentEpisodeId++;
-    const newEpisode: Episode = { ...episode, id };
-    this.episodes.set(newEpisode.slug, newEpisode);
-    return newEpisode;
-  }
-  
-  // Comment methods
-  async getCommentsByMovieSlug(movieSlug: string, page: number, limit: number): Promise<{ data: Comment[], total: number }> {
-    const allComments = Array.from(this.comments.values())
-      .filter(comment => comment.movieSlug === movieSlug)
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-    
-    const total = allComments.length;
-    const start = (page - 1) * limit;
-    const end = start + limit;
-    const paginatedComments = allComments.slice(start, end);
-    
-    return { data: paginatedComments, total };
-  }
-  
-  async addComment(comment: InsertComment): Promise<Comment> {
-    const id = this.currentCommentId++;
-    const now = new Date();
-    const newComment: Comment = { 
-      ...comment, 
-      id, 
-      likes: 0,
-      dislikes: 0,
-      createdAt: now 
-    };
-    
-    this.comments.set(id, newComment);
-    return newComment;
-  }
-  
-  async likeComment(commentId: number): Promise<void> {
-    const comment = this.comments.get(commentId);
-    if (comment) {
-      comment.likes += 1;
-      this.comments.set(commentId, comment);
-    }
-  }
-  
-  async dislikeComment(commentId: number): Promise<void> {
-    const comment = this.comments.get(commentId);
-    if (comment) {
-      comment.dislikes += 1;
-      this.comments.set(commentId, comment);
-    }
-  }
-  
-  // Watchlist methods
-  async getWatchlist(userId: number): Promise<Movie[]> {
-    const userWatchlist = this.watchlists.filter(item => item.userId === userId);
-    return userWatchlist.map(item => this.movies.get(item.movieSlug)!).filter(Boolean);
-  }
-  
-  async checkWatchlist(userId: number, movieSlug: string): Promise<boolean> {
-    return this.watchlists.some(
-      item => item.userId === userId && item.movieSlug === movieSlug
-    );
-  }
-  
-  async addToWatchlist(watchlistItem: InsertWatchlist): Promise<void> {
-    const exists = this.watchlists.some(
-      item => item.userId === watchlistItem.userId && item.movieSlug === watchlistItem.movieSlug
-    );
-    
-    if (!exists) {
-      const id = this.currentWatchlistId++;
-      const now = new Date();
-      this.watchlists.push({ ...watchlistItem, id, addedAt: now });
-    }
-  }
-  
-  async removeFromWatchlist(userId: number, movieSlug: string): Promise<void> {
-    this.watchlists = this.watchlists.filter(
-      item => !(item.userId === userId && item.movieSlug === movieSlug)
-    );
-  }
-  
-  // View History methods
-  async getViewHistory(userId: number, limit?: number): Promise<Movie[]> {
-    // Get all user's view history entries, sorted by lastViewedAt descending (most recent first)
-    const userHistory = this.viewHistory
-      .filter(item => item.userId === userId)
-      .sort((a, b) => b.lastViewedAt.getTime() - a.lastViewedAt.getTime());
-    
-    // Apply limit if specified
-    const limitedHistory = limit ? userHistory.slice(0, limit) : userHistory;
-    
-    // Map history items to actual movies, filter out any that might not exist
-    return limitedHistory
-      .map(item => this.movies.get(item.movieSlug))
-      .filter(Boolean) as Movie[];
-  }
-  
-  async addToViewHistory(userId: number, movieSlug: string, progress: number = 0): Promise<void> {
-    // Check if the movie exists
-    const movie = this.movies.get(movieSlug);
-    if (!movie) return;
-    
-    // Look for existing entry
-    const existingEntryIndex = this.viewHistory.findIndex(
-      item => item.userId === userId && item.movieSlug === movieSlug
-    );
-    
-    const now = new Date();
-    
-    if (existingEntryIndex >= 0) {
-      // Update existing entry
-      this.viewHistory[existingEntryIndex].lastViewedAt = now;
-      this.viewHistory[existingEntryIndex].progress = progress;
-    } else {
-      // Create new entry
-      const id = this.currentViewHistoryId++;
-      const newEntry: ViewHistory = {
-        id,
-        userId,
-        movieSlug,
-        progress,
-        lastViewedAt: now
-      };
-      this.viewHistory.push(newEntry);
-    }
-  }
-  
-  async updateViewProgress(userId: number, movieSlug: string, progress: number): Promise<void> {
-    // Find the existing entry
-    const existingEntryIndex = this.viewHistory.findIndex(
-      item => item.userId === userId && item.movieSlug === movieSlug
-    );
-    
-    if (existingEntryIndex >= 0) {
-      // Update progress and lastViewedAt
-      this.viewHistory[existingEntryIndex].progress = progress;
-      this.viewHistory[existingEntryIndex].lastViewedAt = new Date();
-    } else {
-      // If not found, create a new entry
-      await this.addToViewHistory(userId, movieSlug, progress);
-    }
-  }
-  
-  async getViewedMovie(userId: number, movieSlug: string): Promise<ViewHistory | undefined> {
-    return this.viewHistory.find(
-      item => item.userId === userId && item.movieSlug === movieSlug
-    );
-  }
-  
-  // Cache methods
-  private movieCategoryCache = new Map<string, MovieListResponse>();
-  private readonly API_CACHE_TTL = 5 * 60 * 1000; // 5 minutes in milliseconds
-  
-  async cacheMovieList(data: MovieListResponse, page: number): Promise<void> {
-    this.movieListCache.set(page, data);
-  }
-  
-  async cacheMovieDetail(data: MovieDetailResponse): Promise<void> {
-    this.movieDetailCache.set(data.movie.slug, data);
-  }
-  
-  async cacheMovieCategory(data: MovieListResponse, categorySlug: string, page: number): Promise<void> {
-    const key = `${categorySlug}_${page}`;
-    this.movieCategoryCache.set(key, data);
-  }
-  
-  async getMovieListCache(page: number): Promise<MovieListResponse | null> {
-    const cached = this.movieListCache.get(page);
-    return cached || null;
-  }
-  
-  async getMovieDetailCache(slug: string): Promise<MovieDetailResponse | null> {
-    const cached = this.movieDetailCache.get(slug);
-    return cached || null;
-  }
-  
-  async getMovieCategoryCache(categorySlug: string, page: number): Promise<MovieListResponse | null> {
-    const key = `${categorySlug}_${page}`;
-    const cached = this.movieCategoryCache.get(key);
-    return cached || null;
-  }
-  
-  // Role methods
-  async getRole(id: number): Promise<Role | undefined> {
-    return this.roles.get(id);
-  }
-
-  async getRoleByName(name: string): Promise<Role | undefined> {
-    return Array.from(this.roles.values()).find(role => role.name === name);
-  }
-
-  async getAllRoles(): Promise<Role[]> {
-    return Array.from(this.roles.values());
-  }
-
-  async createRole(role: InsertRole): Promise<Role> {
-    const id = this.currentRoleId++;
-    const now = new Date();
-    
-    const newRole: Role = {
-      ...role,
-      id,
-      createdAt: now,
-      updatedAt: now
-    };
-    
-    this.roles.set(id, newRole);
-    return newRole;
-  }
-
-  async updateRole(id: number, roleData: Partial<InsertRole>): Promise<Role | undefined> {
-    const role = this.roles.get(id);
-    if (!role) return undefined;
-    
-    const updatedRole: Role = {
-      ...role,
-      ...roleData,
-      updatedAt: new Date()
-    };
-    
-    this.roles.set(id, updatedRole);
-    return updatedRole;
-  }
-
-  async deleteRole(id: number): Promise<void> {
-    this.roles.delete(id);
-    
-    // Also delete any role-permission relations
-    for (const key of this.rolePermissions.keys()) {
-      if (key.startsWith(`${id}-`)) {
-        this.rolePermissions.delete(key);
-      }
-    }
-  }
-
-  // Permission methods
-  async getPermission(id: number): Promise<Permission | undefined> {
-    return this.permissions.get(id);
-  }
-
-  async getPermissionByName(name: string): Promise<Permission | undefined> {
-    return Array.from(this.permissions.values()).find(permission => permission.name === name);
-  }
-
-  async getAllPermissions(): Promise<Permission[]> {
-    return Array.from(this.permissions.values());
-  }
-
-  async createPermission(permission: InsertPermission): Promise<Permission> {
-    const id = this.currentPermissionId++;
-    const now = new Date();
-    
-    const newPermission: Permission = {
-      ...permission,
-      id,
-      createdAt: now
-    };
-    
-    this.permissions.set(id, newPermission);
-    return newPermission;
-  }
-
-  async updatePermission(id: number, permissionData: Partial<InsertPermission>): Promise<Permission | undefined> {
-    const permission = this.permissions.get(id);
-    if (!permission) return undefined;
-    
-    const updatedPermission: Permission = {
-      ...permission,
-      ...permissionData
-    };
-    
-    this.permissions.set(id, updatedPermission);
-    return updatedPermission;
-  }
-
-  async deletePermission(id: number): Promise<void> {
-    this.permissions.delete(id);
-    
-    // Also delete any role-permission relations
-    for (const key of this.rolePermissions.keys()) {
-      if (key.endsWith(`-${id}`)) {
-        this.rolePermissions.delete(key);
-      }
-    }
-  }
-
-  // Role-Permission methods
-  async assignPermissionToRole(roleId: number, permissionId: number): Promise<RolePermission> {
-    const key = `${roleId}-${permissionId}`;
-    const rolePermission: RolePermission = { roleId, permissionId, id: key };
-    
-    this.rolePermissions.set(key, rolePermission);
-    return rolePermission;
-  }
-
-  async removePermissionFromRole(roleId: number, permissionId: number): Promise<void> {
-    const key = `${roleId}-${permissionId}`;
-    this.rolePermissions.delete(key);
-  }
-
-  async getPermissionsByRole(roleId: number): Promise<Permission[]> {
-    const permissionIds = Array.from(this.rolePermissions.values())
-      .filter(rp => rp.roleId === roleId)
-      .map(rp => rp.permissionId);
-    
-    return permissionIds.map(id => this.permissions.get(id)).filter(Boolean) as Permission[];
-  }
-
-  async getRolesByPermission(permissionId: number): Promise<Role[]> {
-    const roleIds = Array.from(this.rolePermissions.values())
-      .filter(rp => rp.permissionId === permissionId)
-      .map(rp => rp.roleId);
-    
-    return roleIds.map(id => this.roles.get(id)).filter(Boolean) as Role[];
-  }
-  
-  // Content Approval methods
-  async submitContentForApproval(approval: InsertContentApproval): Promise<ContentApproval> {
-    const id = this.currentApprovalId++;
-    const now = new Date();
-    
-    const newApproval: ContentApproval = {
-      ...approval,
-      id,
-      status: ContentStatus.PENDING,
-      submittedAt: now,
-      reviewedAt: null,
-      reviewedByUserId: null
-    };
-    
-    this.contentApprovals.set(id, newApproval);
-    return newApproval;
-  }
-  
-  async approveContent(contentId: number, reviewerId: number, comments?: string): Promise<ContentApproval | undefined> {
-    const approval = this.contentApprovals.get(contentId);
-    if (!approval) return undefined;
-    
-    const now = new Date();
-    const updatedApproval: ContentApproval = {
-      ...approval,
-      status: ContentStatus.APPROVED,
-      reviewedByUserId: reviewerId,
-      reviewedAt: now,
-      comments: comments || approval.comments
-    };
-    
-    this.contentApprovals.set(contentId, updatedApproval);
-    return updatedApproval;
-  }
-  
-  async rejectContent(contentId: number, reviewerId: number, comments: string): Promise<ContentApproval | undefined> {
-    const approval = this.contentApprovals.get(contentId);
-    if (!approval) return undefined;
-    
-    const now = new Date();
-    const updatedApproval: ContentApproval = {
-      ...approval,
-      status: ContentStatus.REJECTED,
-      reviewedByUserId: reviewerId,
-      reviewedAt: now,
-      comments
-    };
-    
-    this.contentApprovals.set(contentId, updatedApproval);
-    return updatedApproval;
-  }
-  
-  async getPendingContent(page: number, limit: number): Promise<{ data: ContentApproval[], total: number }> {
-    const pendingApprovals = Array.from(this.contentApprovals.values())
-      .filter(approval => approval.status === ContentStatus.PENDING)
-      .sort((a, b) => b.submittedAt.getTime() - a.submittedAt.getTime());
-    
-    const total = pendingApprovals.length;
-    const start = (page - 1) * limit;
-    const end = start + limit;
-    const paginatedApprovals = pendingApprovals.slice(start, end);
-    
-    return { data: paginatedApprovals, total };
-  }
-  
-  async getContentByUser(userId: number, page: number, limit: number, status?: string): Promise<{ data: ContentApproval[], total: number }> {
-    let userApprovals = Array.from(this.contentApprovals.values())
-      .filter(approval => approval.submittedByUserId === userId);
-    
-    if (status) {
-      userApprovals = userApprovals.filter(approval => approval.status === status);
-    }
-    
-    userApprovals.sort((a, b) => b.submittedAt.getTime() - a.submittedAt.getTime());
-    
-    const total = userApprovals.length;
-    const start = (page - 1) * limit;
-    const end = start + limit;
-    const paginatedApprovals = userApprovals.slice(start, end);
-    
-    return { data: paginatedApprovals, total };
-  }
-  
-  // Audit Log methods
-  async addAuditLog(log: InsertAuditLog): Promise<AuditLog> {
-    const id = this.currentAuditLogId++;
-    const now = new Date();
-    
-    const newLog: AuditLog = {
-      ...log,
-      id,
-      timestamp: now
-    };
-    
-    this.auditLogs.set(id, newLog);
-    return newLog;
-  }
-  
-  async getAuditLogs(page: number, limit: number, filters?: {activityType?: string, userId?: number}): Promise<{ data: AuditLog[], total: number }> {
-    let logs = Array.from(this.auditLogs.values());
-    
-    if (filters) {
-      if (filters.activityType) {
-        logs = logs.filter(log => log.activityType === filters.activityType);
-      }
-      
-      if (filters.userId) {
-        logs = logs.filter(log => log.userId === filters.userId);
-      }
-    }
-    
-    logs.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-    
-    const total = logs.length;
-    const start = (page - 1) * limit;
-    const end = start + limit;
-    const paginatedLogs = logs.slice(start, end);
-    
-    return { data: paginatedLogs, total };
-  }
-}
-
 export class DatabaseStorage implements IStorage {
   sessionStore: session.Store;
-  
+
   constructor() {
-    // Initialize session store with PostgreSQL
-    const PostgresStore = connectPg(session);
-    this.sessionStore = new PostgresStore({
+    const PgSession = connectPg(session);
+    this.sessionStore = new PgSession({
       pool,
-      // Use the default table name 'session' to avoid conflicts
-      createTableIfMissing: false // Don't try to create the table since it already exists
+      tableName: 'sessions'
     });
-    
-    // Initialize admin user if it doesn't exist
-    this.initializeAdminUser();
   }
-  
-  /**
-   * Function to normalize Vietnamese text by removing accents and diacritics
-   * This helps with search functionality where users might type without accents
-   */
-  private normalizeText(text: string): string {
-    if (!text) return '';
-    
-    // Normalize to NFD form where accented chars are separated into base char + accent
-    return text.normalize('NFD')
-      // Remove combining diacritical marks (accents, etc.)
-      .replace(/[\u0300-\u036f]/g, '')
-      // Remove other special characters and normalize to lowercase
-      .toLowerCase()
-      // Replace đ/Đ with d
-      .replace(/[đĐ]/g, 'd');
-  }
-  
-  private async initializeAdminUser() {
-    try {
-      // Check if admin user already exists
-      const adminUser = await this.getUserByUsername('admin');
-      
-      if (!adminUser) {
-        // Create admin user with super admin privileges
-        const hashedPassword = await this.hashPassword('Cuongtm2012$');
-        await this.createUser({
-          username: 'admin',
-          password: hashedPassword,
-          email: 'admin@filmflex.com',
-          role: UserRole.ADMIN,
-          status: UserStatus.ACTIVE
-        });
-        console.log('Admin user created successfully');
-      }
-    } catch (error) {
-      console.error('Error initializing admin user:', error);
-    }
-  }
-  
-  private async hashPassword(password: string) {
-    const salt = randomBytes(16).toString("hex");
-    const buf = (await scryptAsync(password, salt, 64)) as Buffer;
-    return `${buf.toString("hex")}.${salt}`;
-  }
-  
+
   // User methods
   async getUser(id: number): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
@@ -982,19 +129,24 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.username, username));
+    const [user] = await db.select()
+      .from(users)
+      .where(eq(users.username, username));
     return user;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
     const [user] = await db.insert(users).values({
       ...insertUser,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      lastLogin: null,
       role: insertUser.role || UserRole.NORMAL,
       status: insertUser.status || UserStatus.ACTIVE
     }).returning();
     return user;
   }
-  
+
   async updateUser(id: number, userData: Partial<InsertUser>): Promise<User | undefined> {
     const [updatedUser] = await db.update(users)
       .set({
@@ -1005,7 +157,7 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return updatedUser;
   }
-  
+
   async changeUserStatus(id: number, status: string): Promise<User | undefined> {
     const [updatedUser] = await db.update(users)
       .set({
@@ -1018,691 +170,38 @@ export class DatabaseStorage implements IStorage {
   }
   
   async getAllUsers(page: number, limit: number, filters?: {role?: string, status?: string, search?: string}): Promise<{ data: User[], total: number }> {
-    let query = db.select().from(users);
-    
-    if (filters) {
-      if (filters.role) {
-        query = query.where(eq(users.role, filters.role));
-      }
-      
-      if (filters.status) {
-        query = query.where(eq(users.status, filters.status));
-      }
-      
-      if (filters.search) {
-        query = query.where(
-          sql`(${users.username} ILIKE ${`%${filters.search}%`} OR ${users.email} ILIKE ${`%${filters.search}%`})`
-        );
-      }
+    // Build conditions array
+    const conditions = [];
+    if (filters?.role) {
+      conditions.push(eq(users.role, filters.role));
     }
-    
-    // Count total before applying pagination
-    const countResult = await db.select({ count: sql<number>`count(*)` }).from(query.as('user_count'));
+    if (filters?.status) {
+      conditions.push(eq(users.status, filters.status));
+    }
+    if (filters?.search) {
+      conditions.push(
+        sql`(${users.username} ILIKE ${`%${filters.search}%`} OR ${users.email} ILIKE ${`%${filters.search}%`})`
+      );
+    }
+
+    // Base query with all conditions
+    const query = db.select()
+      .from(users)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .limit(limit)
+      .offset((page - 1) * limit);
+
+    // Count query
+    const countResult = await db.select({ count: sql<number>`count(*)` })
+      .from(users)
+      .where(conditions.length > 0 ? and(...conditions) : undefined);
+
+    const data = await query;
     const total = countResult[0]?.count || 0;
-    
-    // Apply pagination and fetch users
-    const data = await query.limit(limit).offset((page - 1) * limit);
-    
+
     return { data, total };
   }
   
-  // Movie methods
-  async getMovies(page: number, limit: number, sortBy: string = 'latest'): Promise<{ data: Movie[], total: number }> {
-    let query = db.select().from(movies);
-    
-    // Apply sorting based on parameter
-    switch (sortBy) {
-      case 'latest':
-        // Sort by most recent modified time (newest first)
-        query = query.orderBy(desc(movies.modifiedAt));
-        break;
-      case 'popular':
-        // Sort by popularity (view count)
-        query = query.orderBy(desc(movies.view));
-        break;
-      case 'rating':
-        // Sort by rating (not implemented yet, fall back to popularity)
-        query = query.orderBy(desc(movies.view));
-        break;
-      case 'year':
-        // Sort by release year (newest first)
-        // Special handling for year sorting to prioritize valid years
-        // First get all the movies so we can do custom sorting (not ideal for large datasets but works for our case)
-        const allMovies = await db.select().from(movies);
-        const currentYear = new Date().getFullYear();
-        
-        // Sort with custom logic to prioritize valid years
-        const sortedMovies = allMovies.sort((a, b) => {
-          // Validate the year values (should be legitimate years, not future years)
-          const yearA = typeof a.year === 'number' && a.year > 1900 && a.year <= currentYear ? a.year : 0;
-          const yearB = typeof b.year === 'number' && b.year > 1900 && b.year <= currentYear ? b.year : 0;
-          
-          // First sort by valid vs. invalid years (valid years come first)
-          if (yearA === 0 && yearB !== 0) return 1;
-          if (yearB === 0 && yearA !== 0) return -1;
-          
-          // Then sort by year (newest first)
-          return yearB - yearA;
-        });
-        
-        // Apply pagination manually
-        const total = sortedMovies.length;
-        const start = (page - 1) * limit;
-        const end = start + limit;
-        const paginatedMovies = sortedMovies.slice(start, end);
-        
-        // Log what's happening for debugging
-        console.log(`Year sorting: Found ${total} movies, returning ${paginatedMovies.length} for page ${page}`);
-        if (paginatedMovies.length > 0) {
-          console.log('First 5 movies by year:');
-          paginatedMovies.slice(0, 5).forEach((movie, index) => {
-            console.log(`${index+1}. ${movie.name} (${movie.year || 'N/A'}) - ID: ${movie.id}`);
-          });
-        }
-        
-        return { data: paginatedMovies, total };
-        
-      default:
-        // Default sort by latest modified
-        query = query.orderBy(desc(movies.modifiedAt));
-    }
-    
-    // Apply pagination (for all cases except year which has custom handling)
-    if (sortBy !== 'year') {
-      const data = await query.limit(limit).offset((page - 1) * limit);
-      const [{ count }] = await db.select({ count: sql<number>`count(*)` }).from(movies);
-      return { data, total: count };
-    }
-    
-    // This line will never execute due to the early return in the year case,
-    // but TypeScript expects a return statement here
-    return { data: [], total: 0 };
-  }
-  
-  async getMovieBySlug(slug: string): Promise<Movie | undefined> {
-    const [movie] = await db.select().from(movies).where(eq(movies.slug, slug));
-    return movie;
-  }
-  
-  async getMovieByMovieId(movieId: string): Promise<Movie | undefined> {
-    const [movie] = await db.select().from(movies).where(eq(movies.movieId, movieId));
-    return movie;
-  }
-  
-  async saveMovie(movie: InsertMovie): Promise<Movie> {
-    const [savedMovie] = await db.insert(movies).values(movie).returning();
-    return savedMovie;
-  }
-  
-  /**
-   * Search for movies using both original query and normalized query (without accents)
-   * @param query The original search query
-   * @param normalizedQuery The search query with accents removed (e.g., "co dau" for "cô dâu")
-   * @param page The page number
-   * @param limit The number of results per page
-   */
-  async searchMovies(query: string, normalizedQuery: string, page: number, limit: number): Promise<{ data: Movie[], total: number }> {
-    const exactPattern = query.toLowerCase();
-    const normalizedExactPattern = normalizedQuery.toLowerCase();
-    const startWithPattern = `${query}%`;
-    const normalizedStartWithPattern = `${normalizedQuery}%`;
-    const searchPattern = `%${query}%`;
-    const normalizedPattern = `%${normalizedQuery}%`;
-    
-    // The SQL function unaccent() is used to remove accents for comparison
-    // We need to install the unaccent extension if it's not already available
-    try {
-      await db.execute(sql`CREATE EXTENSION IF NOT EXISTS unaccent`);
-    } catch (error) {
-      console.error("Error creating unaccent extension:", error);
-      // Continue without unaccent if it fails - we'll rely on direct pattern matching
-    }
-    
-    try {
-      // Get all matching items first, then we'll apply custom sorting
-      const allMatches = await db.select().from(movies)
-        .where(
-          sql`(
-            ${movies.name} ILIKE ${searchPattern} OR 
-            ${movies.originName} ILIKE ${searchPattern} OR 
-            ${movies.description} ILIKE ${searchPattern} OR
-            unaccent(${movies.name}) ILIKE ${normalizedPattern} OR
-            unaccent(${movies.originName}) ILIKE ${normalizedPattern} OR
-            unaccent(${movies.description}) ILIKE ${normalizedPattern} OR
-            ${movies.slug} ILIKE ${normalizedPattern}
-          )`
-        );
-      
-      // Sort the results based on relevance
-      const sortedResults = allMatches.sort((a, b) => {
-        const aName = a.name.toLowerCase();
-        const bName = b.name.toLowerCase();
-        const aOriginName = a.originName?.toLowerCase() || '';
-        const bOriginName = b.originName?.toLowerCase() || '';
-        
-        // Exact match gets highest priority
-        const aExactMatch = aName === exactPattern || aOriginName === exactPattern;
-        const bExactMatch = bName === exactPattern || bOriginName === exactPattern;
-        if (aExactMatch && !bExactMatch) return -1;
-        if (!aExactMatch && bExactMatch) return 1;
-        
-        // Normalized exact match gets next priority
-        const aNormalizedName = this.normalizeText(a.name).toLowerCase();
-        const bNormalizedName = this.normalizeText(b.name).toLowerCase();
-        const aNormalizedOriginName = a.originName ? this.normalizeText(a.originName).toLowerCase() : '';
-        const bNormalizedOriginName = b.originName ? this.normalizeText(b.originName).toLowerCase() : '';
-        
-        const aNormalizedExactMatch = aNormalizedName === normalizedExactPattern || aNormalizedOriginName === normalizedExactPattern;
-        const bNormalizedExactMatch = bNormalizedName === normalizedExactPattern || bNormalizedOriginName === normalizedExactPattern;
-        if (aNormalizedExactMatch && !bNormalizedExactMatch) return -1;
-        if (!aNormalizedExactMatch && bNormalizedExactMatch) return 1;
-        
-        // Starts with gets next priority
-        const aStartsWith = aName.startsWith(exactPattern) || aOriginName.startsWith(exactPattern);
-        const bStartsWith = bName.startsWith(exactPattern) || bOriginName.startsWith(exactPattern);
-        if (aStartsWith && !bStartsWith) return -1;
-        if (!aStartsWith && bStartsWith) return 1;
-        
-        // Normalized starts with gets next priority
-        const aNormalizedStartsWith = aNormalizedName.startsWith(normalizedExactPattern) || aNormalizedOriginName.startsWith(normalizedExactPattern);
-        const bNormalizedStartsWith = bNormalizedName.startsWith(normalizedExactPattern) || bNormalizedOriginName.startsWith(normalizedExactPattern);
-        if (aNormalizedStartsWith && !bNormalizedStartsWith) return -1;
-        if (!aNormalizedStartsWith && bNormalizedStartsWith) return 1;
-        
-        // Title word boundary match gets next priority (e.g., "Tình yêu" in "Câu chuyện tình yêu")
-        const aWordMatch = ` ${aName} `.includes(` ${exactPattern} `) || ` ${aOriginName} `.includes(` ${exactPattern} `);
-        const bWordMatch = ` ${bName} `.includes(` ${exactPattern} `) || ` ${bOriginName} `.includes(` ${exactPattern} `);
-        if (aWordMatch && !bWordMatch) return -1;
-        if (!aWordMatch && bWordMatch) return 1;
-        
-        // Finally, fall back to alphabetical sort
-        return aName.localeCompare(bName);
-      });
-      
-      // Apply pagination to the sorted results
-      const total = sortedResults.length;
-      const start = (page - 1) * limit;
-      const end = Math.min(start + limit, total);
-      const data = sortedResults.slice(start, end);
-      
-      return { data, total };
-    } catch (error) {
-      // If unaccent fails or isn't available, fall back to simpler matching
-      console.error("Error with advanced search, falling back to basic search:", error);
-      
-      // For fallback, we'll just do a simple DB query with limit/offset
-      const data = await db.select().from(movies)
-        .where(
-          sql`(
-            ${movies.name} ILIKE ${searchPattern} OR 
-            ${movies.originName} ILIKE ${searchPattern} OR 
-            ${movies.description} ILIKE ${searchPattern} OR
-            ${movies.slug} ILIKE ${normalizedPattern}
-          )`
-        )
-        .limit(limit)
-        .offset((page - 1) * limit);
-      
-      const [{ count }] = await db.select({ count: sql<number>`count(*)` }).from(movies)
-        .where(
-          sql`(
-            ${movies.name} ILIKE ${searchPattern} OR 
-            ${movies.originName} ILIKE ${searchPattern} OR 
-            ${movies.description} ILIKE ${searchPattern} OR
-            ${movies.slug} ILIKE ${normalizedPattern}
-          )`
-        );
-      
-      return { data, total: count };
-    }
-  }
-  
-  async getMoviesByCategory(categorySlug: string, page: number, limit: number, sortBy: string = 'latest'): Promise<{ data: Movie[], total: number }> {
-    // This assumes categories is a JSONB array field with objects that have a slug property
-    // First, get the total count which doesn't change with sorting
-    const [{ count }] = await db.select({ count: sql<number>`count(*)` }).from(movies)
-      .where(sql`EXISTS (SELECT 1 FROM jsonb_array_elements(${movies.categories}) as category 
-      WHERE category->>'slug' = ${categorySlug})`);
-      
-    // For year sorting, we need the custom handling similar to the getMovies method
-    if (sortBy === 'year') {
-      // Get all movies in this category
-      const allMovies = await db.select().from(movies)
-        .where(sql`EXISTS (SELECT 1 FROM jsonb_array_elements(${movies.categories}) as category 
-        WHERE category->>'slug' = ${categorySlug})`);
-      
-      const currentYear = new Date().getFullYear();
-      
-      // Sort with custom logic to prioritize valid years
-      const sortedMovies = allMovies.sort((a, b) => {
-        // Validate the year values (should be legitimate years, not future years)
-        const yearA = typeof a.year === 'number' && a.year > 1900 && a.year <= currentYear ? a.year : 0;
-        const yearB = typeof b.year === 'number' && b.year > 1900 && b.year <= currentYear ? b.year : 0;
-        
-        // First sort by valid vs. invalid years (valid years come first)
-        if (yearA === 0 && yearB !== 0) return 1;
-        if (yearB === 0 && yearA !== 0) return -1;
-        
-        // Then sort by year (newest first)
-        return yearB - yearA;
-      });
-      
-      // Apply pagination manually
-      const start = (page - 1) * limit;
-      const end = start + limit;
-      const paginatedMovies = sortedMovies.slice(start, end);
-      
-      // Log what's happening for debugging
-      console.log(`Category (${categorySlug}) year sorting: Found ${sortedMovies.length} movies, returning ${paginatedMovies.length} for page ${page}`);
-      if (paginatedMovies.length > 0) {
-        console.log('First 5 movies by year in this category:');
-        paginatedMovies.slice(0, 5).forEach((movie, index) => {
-          console.log(`${index+1}. ${movie.name} (${movie.year || 'N/A'}) - ID: ${movie.id}`);
-        });
-      }
-      
-      return { data: paginatedMovies, total: count };
-    }
-    
-    // For all other sorting options
-    let query = db.select().from(movies)
-      .where(sql`EXISTS (SELECT 1 FROM jsonb_array_elements(${movies.categories}) as category 
-      WHERE category->>'slug' = ${categorySlug})`);
-    
-    // Apply sorting based on parameter
-    switch (sortBy) {
-      case 'latest':
-        // Sort by most recent modified time (newest first)
-        query = query.orderBy(desc(movies.modifiedAt));
-        break;
-      case 'popular':
-        // Sort by popularity (view count)
-        query = query.orderBy(desc(movies.view));
-        break;
-      case 'rating':
-        // Sort by rating (not implemented yet, fall back to popularity)
-        query = query.orderBy(desc(movies.view));
-        break;
-      default:
-        // Default sort by latest modified
-        query = query.orderBy(desc(movies.modifiedAt));
-    }
-    
-    // Apply pagination
-    const data = await query.limit(limit).offset((page - 1) * limit);
-    return { data, total: count };
-  }
-  
-  // Episode methods
-  async getEpisodesByMovieSlug(movieSlug: string): Promise<Episode[]> {
-    return db.select().from(episodes).where(eq(episodes.movieSlug, movieSlug));
-  }
-  
-  async getEpisodeBySlug(slug: string): Promise<Episode | undefined> {
-    const [episode] = await db.select().from(episodes).where(eq(episodes.slug, slug));
-    return episode;
-  }
-  
-  async saveEpisode(episode: InsertEpisode): Promise<Episode> {
-    const [savedEpisode] = await db.insert(episodes).values(episode).returning();
-    return savedEpisode;
-  }
-  
-  // Comment methods
-  async getCommentsByMovieSlug(movieSlug: string, page: number, limit: number): Promise<{ data: any[], total: number }> {
-    // Join comments with users to get the username
-    const data = await db.select({
-      comment: comments,
-      username: users.username
-    })
-    .from(comments)
-    .leftJoin(users, eq(comments.userId, users.id))
-    .where(eq(comments.movieSlug, movieSlug))
-    .orderBy(desc(comments.createdAt))
-    .limit(limit)
-    .offset((page - 1) * limit);
-    
-    // Format the results
-    const formattedData = data.map(item => ({
-      ...item.comment,
-      username: item.username
-    }));
-    
-    const [{ count }] = await db.select({ count: sql<number>`count(*)` }).from(comments)
-      .where(eq(comments.movieSlug, movieSlug));
-    
-    return { data: formattedData, total: count };
-  }
-  
-  async addComment(comment: InsertComment): Promise<Comment> {
-    const [savedComment] = await db.insert(comments).values(comment).returning();
-    return savedComment;
-  }
-  
-  async likeComment(commentId: number): Promise<void> {
-    await db.update(comments)
-      .set({ likes: sql`${comments.likes} + 1` })
-      .where(eq(comments.id, commentId));
-  }
-  
-  async dislikeComment(commentId: number): Promise<void> {
-    await db.update(comments)
-      .set({ dislikes: sql`${comments.dislikes} + 1` })
-      .where(eq(comments.id, commentId));
-  }
-  
-  // Watchlist methods
-  async getWatchlist(userId: number): Promise<Movie[]> {
-    const result = await db.select({ movie: movies })
-      .from(watchlist)
-      .innerJoin(movies, eq(watchlist.movieSlug, movies.slug))
-      .where(eq(watchlist.userId, userId));
-    
-    return result.map(item => item.movie);
-  }
-  
-  async checkWatchlist(userId: number, movieSlug: string): Promise<boolean> {
-    const [existing] = await db.select().from(watchlist)
-      .where(and(
-        eq(watchlist.userId, userId),
-        eq(watchlist.movieSlug, movieSlug)
-      ));
-    
-    return Boolean(existing);
-  }
-  
-  async addToWatchlist(watchlistItem: InsertWatchlist): Promise<void> {
-    // Check if already exists
-    const [existing] = await db.select().from(watchlist)
-      .where(and(
-        eq(watchlist.userId, watchlistItem.userId),
-        eq(watchlist.movieSlug, watchlistItem.movieSlug)
-      ));
-    
-    if (!existing) {
-      await db.insert(watchlist).values(watchlistItem);
-    }
-  }
-  
-  async removeFromWatchlist(userId: number, movieSlug: string): Promise<void> {
-    await db.delete(watchlist)
-      .where(and(
-        eq(watchlist.userId, userId),
-        eq(watchlist.movieSlug, movieSlug)
-      ));
-  }
-  
-  // View History methods
-  async getViewHistory(userId: number, limit?: number): Promise<Movie[]> {
-    // Get user's view history entries, sorted by lastViewedAt descending (most recent first)
-    let query = db.select()
-      .from(viewHistory)
-      .where(eq(viewHistory.userId, userId))
-      .orderBy(desc(viewHistory.lastViewedAt));
-    
-    // Apply limit if specified
-    if (limit) {
-      query = query.limit(limit);
-    }
-    
-    const historyItems = await query;
-    
-    if (!historyItems.length) return [];
-    
-    // Get all movies in one query using the movieSlugs from history
-    const movieSlugs = historyItems.map(item => item.movieSlug);
-    
-    // Join with movies table to get movie details
-    const result = await db.select({ movie: movies })
-      .from(movies)
-      .where(sql`${movies.slug} IN (${movieSlugs.join(',')})`);
-    
-    // Map history items to movies in the same order as the history
-    return historyItems
-      .map(item => {
-        const movieResult = result.find(r => r.movie.slug === item.movieSlug);
-        return movieResult?.movie;
-      })
-      .filter(Boolean) as Movie[]; // Filter out any undefined entries
-  }
-  
-  async addToViewHistory(userId: number, movieSlug: string, progress: number = 0): Promise<void> {
-    // Check if the movie exists first
-    const movie = await this.getMovieBySlug(movieSlug);
-    if (!movie) return;
-    
-    // Check if the user already has this movie in their view history
-    const [existingEntry] = await db.select()
-      .from(viewHistory)
-      .where(and(
-        eq(viewHistory.userId, userId),
-        eq(viewHistory.movieSlug, movieSlug)
-      ));
-    
-    const now = new Date();
-    
-    if (existingEntry) {
-      // Update existing entry
-      await db.update(viewHistory)
-        .set({ 
-          lastViewedAt: now,
-          progress,
-          // Increment view count if progress was reset (indicating a new viewing)
-          viewCount: progress === 0 ? (existingEntry.viewCount || 1) + 1 : existingEntry.viewCount
-        })
-        .where(eq(viewHistory.id, existingEntry.id));
-    } else {
-      // Create new entry
-      await db.insert(viewHistory).values({
-        userId,
-        movieSlug,
-        progress,
-        viewCount: 1,
-        lastViewedAt: now
-      });
-    }
-  }
-  
-  async updateViewProgress(userId: number, movieSlug: string, progress: number): Promise<void> {
-    // Find existing entry
-    const [existingEntry] = await db.select()
-      .from(viewHistory)
-      .where(and(
-        eq(viewHistory.userId, userId),
-        eq(viewHistory.movieSlug, movieSlug)
-      ));
-    
-    if (existingEntry) {
-      // Update progress and lastViewedAt
-      await db.update(viewHistory)
-        .set({ 
-          progress, 
-          lastViewedAt: new Date() 
-        })
-        .where(eq(viewHistory.id, existingEntry.id));
-    } else {
-      // If no entry exists, create one with the specified progress
-      await this.addToViewHistory(userId, movieSlug, progress);
-    }
-  }
-  
-  async getViewedMovie(userId: number, movieSlug: string): Promise<ViewHistory | undefined> {
-    const [entry] = await db.select()
-      .from(viewHistory)
-      .where(and(
-        eq(viewHistory.userId, userId),
-        eq(viewHistory.movieSlug, movieSlug)
-      ));
-    
-    return entry;
-  }
-  
-  // Content Approval methods
-  async submitContentForApproval(approval: InsertContentApproval): Promise<ContentApproval> {
-    const [savedApproval] = await db.insert(contentApprovals)
-      .values({
-        ...approval,
-        status: ContentStatus.PENDING
-      })
-      .returning();
-    
-    return savedApproval;
-  }
-  
-  async approveContent(contentId: number, reviewerId: number, comments?: string): Promise<ContentApproval | undefined> {
-    const [approval] = await db.update(contentApprovals)
-      .set({
-        status: ContentStatus.APPROVED,
-        reviewedByUserId: reviewerId,
-        reviewedAt: new Date(),
-        comments: comments || sql`${contentApprovals.comments}`
-      })
-      .where(eq(contentApprovals.id, contentId))
-      .returning();
-    
-    return approval;
-  }
-  
-  async rejectContent(contentId: number, reviewerId: number, comments: string): Promise<ContentApproval | undefined> {
-    const [approval] = await db.update(contentApprovals)
-      .set({
-        status: ContentStatus.REJECTED,
-        reviewedByUserId: reviewerId,
-        reviewedAt: new Date(),
-        comments
-      })
-      .where(eq(contentApprovals.id, contentId))
-      .returning();
-    
-    return approval;
-  }
-  
-  async getPendingContent(page: number, limit: number): Promise<{ data: ContentApproval[], total: number }> {
-    const data = await db.select().from(contentApprovals)
-      .where(eq(contentApprovals.status, ContentStatus.PENDING))
-      .orderBy(desc(contentApprovals.submittedAt))
-      .limit(limit)
-      .offset((page - 1) * limit);
-    
-    const [{ count }] = await db.select({ count: sql<number>`count(*)` }).from(contentApprovals)
-      .where(eq(contentApprovals.status, ContentStatus.PENDING));
-    
-    return { data, total: count };
-  }
-  
-  async getContentByUser(userId: number, page: number, limit: number, status?: string): Promise<{ data: ContentApproval[], total: number }> {
-    let query = db.select().from(contentApprovals)
-      .where(eq(contentApprovals.submittedByUserId, userId));
-    
-    if (status) {
-      query = query.where(eq(contentApprovals.status, status));
-    }
-    
-    const data = await query
-      .orderBy(desc(contentApprovals.submittedAt))
-      .limit(limit)
-      .offset((page - 1) * limit);
-    
-    let countQuery = db.select({ count: sql<number>`count(*)` }).from(contentApprovals)
-      .where(eq(contentApprovals.submittedByUserId, userId));
-    
-    if (status) {
-      countQuery = countQuery.where(eq(contentApprovals.status, status));
-    }
-    
-    const [{ count }] = await countQuery;
-    
-    return { data, total: count };
-  }
-  
-  // Audit Log methods
-  async addAuditLog(log: InsertAuditLog): Promise<AuditLog> {
-    const [savedLog] = await db.insert(auditLogs).values(log).returning();
-    return savedLog;
-  }
-  
-  async getAuditLogs(page: number, limit: number, filters?: {activityType?: string, userId?: number}): Promise<{ data: AuditLog[], total: number }> {
-    let query = db.select().from(auditLogs);
-    
-    if (filters) {
-      if (filters.activityType) {
-        query = query.where(eq(auditLogs.activityType, filters.activityType));
-      }
-      
-      if (filters.userId) {
-        query = query.where(eq(auditLogs.userId, filters.userId));
-      }
-    }
-    
-    const data = await query
-      .orderBy(desc(auditLogs.timestamp))
-      .limit(limit)
-      .offset((page - 1) * limit);
-    
-    let countQuery = db.select({ count: sql<number>`count(*)` }).from(auditLogs);
-    
-    if (filters) {
-      if (filters.activityType) {
-        countQuery = countQuery.where(eq(auditLogs.activityType, filters.activityType));
-      }
-      
-      if (filters.userId) {
-        countQuery = countQuery.where(eq(auditLogs.userId, filters.userId));
-      }
-    }
-    
-    const [{ count }] = await countQuery;
-    
-    return { data, total: count };
-  }
-  
-  // Cache methods
-  // For database implementation, we'll still cache in memory for now
-  // In a production environment, we might want to use Redis or another caching solution
-  private movieListCache = new Map<number, {data: MovieListResponse, timestamp: number}>();
-  private movieDetailCache = new Map<string, {data: MovieDetailResponse, timestamp: number}>();
-  private movieCategoryCache = new Map<string, {data: MovieListResponse, timestamp: number}>();
-  
-  private readonly API_CACHE_TTL = 5 * 60 * 1000; // 5 minutes in milliseconds
-  
-  async cacheMovieList(data: MovieListResponse, page: number): Promise<void> {
-    this.movieListCache.set(page, {data, timestamp: Date.now()});
-  }
-  
-  async cacheMovieDetail(data: MovieDetailResponse): Promise<void> {
-    this.movieDetailCache.set(data.movie.slug, {data, timestamp: Date.now()});
-  }
-  
-  async cacheMovieCategory(data: MovieListResponse, categorySlug: string, page: number): Promise<void> {
-    const key = `${categorySlug}_${page}`;
-    this.movieCategoryCache.set(key, {data, timestamp: Date.now()});
-  }
-  
-  async getMovieListCache(page: number): Promise<MovieListResponse | null> {
-    const cached = this.movieListCache.get(page);
-    if (cached && (Date.now() - cached.timestamp) < this.API_CACHE_TTL) {
-      return cached.data;
-    }
-    return null;
-  }
-  
-  async getMovieDetailCache(slug: string): Promise<MovieDetailResponse | null> {
-    const cached = this.movieDetailCache.get(slug);
-    if (cached && (Date.now() - cached.timestamp) < this.API_CACHE_TTL) {
-      return cached.data;
-    }
-    return null;
-  }
-  
-  async getMovieCategoryCache(categorySlug: string, page: number): Promise<MovieListResponse | null> {
-    const key = `${categorySlug}_${page}`;
-    const cached = this.movieCategoryCache.get(key);
-    if (cached && (Date.now() - cached.timestamp) < this.API_CACHE_TTL) {
-      return cached.data;
-    }
-    return null;
-  }
-
   // Role methods
   async getRole(id: number): Promise<Role | undefined> {
     const [role] = await db.select().from(roles).where(eq(roles.id, id));
@@ -1719,7 +218,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createRole(role: InsertRole): Promise<Role> {
-    const [newRole] = await db.insert(roles).values(role).returning();
+    const [newRole] = await db.insert(roles).values({
+      ...role,
+      description: role.description || null,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }).returning();
     return newRole;
   }
 
@@ -1727,6 +231,7 @@ export class DatabaseStorage implements IStorage {
     const [updatedRole] = await db.update(roles)
       .set({
         ...roleData,
+        description: roleData.description || null,
         updatedAt: new Date()
       })
       .where(eq(roles.id, id))
@@ -1737,7 +242,7 @@ export class DatabaseStorage implements IStorage {
   async deleteRole(id: number): Promise<void> {
     await db.delete(roles).where(eq(roles.id, id));
   }
-
+  
   // Permission methods
   async getPermission(id: number): Promise<Permission | undefined> {
     const [permission] = await db.select().from(permissions).where(eq(permissions.id, id));
@@ -1754,13 +259,20 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createPermission(permission: InsertPermission): Promise<Permission> {
-    const [newPermission] = await db.insert(permissions).values(permission).returning();
+    const [newPermission] = await db.insert(permissions).values({
+      ...permission,
+      description: permission.description || null,
+      createdAt: new Date()
+    }).returning();
     return newPermission;
   }
 
   async updatePermission(id: number, permissionData: Partial<InsertPermission>): Promise<Permission | undefined> {
     const [updatedPermission] = await db.update(permissions)
-      .set(permissionData)
+      .set({
+        ...permissionData,
+        description: permissionData.description || null
+      })
       .where(eq(permissions.id, id))
       .returning();
     return updatedPermission;
@@ -1769,58 +281,522 @@ export class DatabaseStorage implements IStorage {
   async deletePermission(id: number): Promise<void> {
     await db.delete(permissions).where(eq(permissions.id, id));
   }
-
+  
   // Role-Permission methods
   async assignPermissionToRole(roleId: number, permissionId: number): Promise<RolePermission> {
     const [rolePermission] = await db.insert(rolePermissions)
-      .values({
-        roleId,
-        permissionId
-      })
+      .values({ roleId, permissionId })
       .returning();
     return rolePermission;
   }
 
   async removePermissionFromRole(roleId: number, permissionId: number): Promise<void> {
     await db.delete(rolePermissions)
-      .where(
-        and(
-          eq(rolePermissions.roleId, roleId),
-          eq(rolePermissions.permissionId, permissionId)
-        )
-      );
+      .where(and(
+        eq(rolePermissions.roleId, roleId),
+        eq(rolePermissions.permissionId, permissionId)
+      ));
   }
 
   async getPermissionsByRole(roleId: number): Promise<Permission[]> {
-    const result = await db.select({
-      permission: permissions
-    })
-    .from(rolePermissions)
-    .innerJoin(permissions, eq(rolePermissions.permissionId, permissions.id))
-    .where(eq(rolePermissions.roleId, roleId));
+    const result = await db.select({ permission: permissions })
+      .from(rolePermissions)
+      .innerJoin(permissions, eq(rolePermissions.permissionId, permissions.id))
+      .where(eq(rolePermissions.roleId, roleId));
     
     return result.map(r => r.permission);
   }
 
   async getRolesByPermission(permissionId: number): Promise<Role[]> {
-    const result = await db.select({
-      role: roles
-    })
-    .from(rolePermissions)
-    .innerJoin(roles, eq(rolePermissions.roleId, roles.id))
-    .where(eq(rolePermissions.permissionId, permissionId));
+    const result = await db.select({ role: roles })
+      .from(rolePermissions)
+      .innerJoin(roles, eq(rolePermissions.roleId, roles.id))
+      .where(eq(rolePermissions.permissionId, permissionId));
     
     return result.map(r => r.role);
   }
 
+  // Movie methods
+  async getMovies(page: number, limit: number, sortBy: string = 'latest'): Promise<{ data: Movie[], total: number }> {
+    const offset = (page - 1) * limit;
+    
+    // For the year sorting case, we need to get all movies and sort manually
+    if (sortBy === 'year') {
+      const allMovies = await db.select().from(movies);
+      const currentYear = new Date().getFullYear();
+      
+      const sortedMovies = allMovies.sort((a: Movie, b: Movie) => {
+        const yearA = typeof a.year === 'number' && a.year > 1900 && a.year <= currentYear ? a.year : 0;
+        const yearB = typeof b.year === 'number' && b.year > 1900 && b.year <= currentYear ? b.year : 0;
+        
+        if (yearA === 0 && yearB !== 0) return 1;
+        if (yearB === 0 && yearA !== 0) return -1;
+        
+        return yearB - yearA;
+      });
+      
+      const total = sortedMovies.length;
+      const paginatedMovies = sortedMovies.slice(offset, offset + limit);
+      
+      return { data: paginatedMovies, total };
+    }
+
+    // For all other sorting options
+    const baseQuery = db.select().from(movies);
+    const sortedQuery = (() => {
+      switch (sortBy) {
+        case 'latest':
+          return db.select().from(movies).orderBy(desc(movies.modifiedAt));
+        case 'popular':
+        case 'rating': // Fall back to popularity for now
+          return db.select().from(movies).orderBy(desc(movies.view));
+        default:
+          return db.select().from(movies).orderBy(desc(movies.modifiedAt));
+      }
+    })();
+
+    const paginatedQuery = sortedQuery.limit(limit).offset(offset);
+    const [{ count }] = await db.select({ count: sql<number>`count(*)` }).from(movies);
+    const data = await paginatedQuery;
+    
+    return { 
+      data, 
+      total: count || 0 
+    };
+  }
+  
+  async getMovieBySlug(slug: string): Promise<Movie | undefined> {
+    const [movie] = await db.select()
+      .from(movies)
+      .where(eq(movies.slug, slug));
+    return movie;
+  }
+  
+  async getMovieByMovieId(movieId: string): Promise<Movie | undefined> {
+    const [movie] = await db.select()
+      .from(movies)
+      .where(eq(movies.movieId, movieId));
+    return movie;
+  }
+  
+  private async createModel<T extends { id: number }>(
+    data: Omit<T, 'id'>, 
+    currentId: number
+  ): Promise<T> {
+    const model = {
+      ...data,
+      id: currentId,
+    } as T;
+
+    // Ensure all nullable fields are explicitly set to null if undefined
+    Object.keys(model).forEach(key => {
+      if ((model as any)[key] === undefined) {
+        (model as any)[key] = null;
+      }
+    });
+
+    return model;
+  }
+
+  async saveMovie(movie: InsertMovie): Promise<Movie> {
+    const [newMovie] = await db.insert(movies).values({
+      ...movie,
+      modifiedAt: new Date(),
+      status: movie.status || null,
+      type: movie.type || null,
+      description: movie.description || null,
+      originName: movie.originName || null,
+      posterUrl: movie.posterUrl || null,
+      thumbUrl: movie.thumbUrl || null,
+      year: movie.year || null,
+      quality: movie.quality || null,
+      lang: movie.lang || null,
+      time: movie.time || null,
+      trailerUrl: movie.trailerUrl || null,
+      section: movie.section || null,
+      isRecommended: movie.isRecommended || false,
+      categories: movie.categories || [],
+      countries: movie.countries || [],
+      actors: movie.actors || null,
+      directors: movie.directors || null
+    }).returning();
+
+    return newMovie;
+  }
+  
+  // Episode methods
+  async getEpisodesByMovieSlug(movieSlug: string): Promise<Episode[]> {
+    return db.select()
+      .from(episodes)
+      .where(eq(episodes.movieSlug, movieSlug));
+  }
+  
+  async getEpisodeBySlug(slug: string): Promise<Episode | undefined> {
+    const [episode] = await db.select()
+      .from(episodes)
+      .where(eq(episodes.slug, slug));
+    return episode;
+  }
+  
+  async saveEpisode(episode: InsertEpisode): Promise<Episode> {
+    const [newEpisode] = await db.insert(episodes).values({
+      ...episode,
+      filename: episode.filename || null,
+      linkM3u8: episode.linkM3u8 || null
+    }).returning();
+
+    return newEpisode;
+  }
+  
+  // Comment methods
+  async getCommentsByMovieSlug(movieSlug: string, page: number, limit: number): Promise<{ data: Comment[], total: number }> {
+    const baseQuery = db.select()
+      .from(comments)
+      .where(eq(comments.movieSlug, movieSlug))
+      .orderBy(desc(comments.createdAt));
+
+    const data = await baseQuery
+      .limit(limit)
+      .offset((page - 1) * limit);
+
+    const [{ count }] = await db.select({ count: sql<number>`count(*)` })
+      .from(comments)
+      .where(eq(comments.movieSlug, movieSlug));
+
+    return { data, total: count || 0 };
+  }
+  
+  async addComment(comment: InsertComment): Promise<Comment> {
+    const [newComment] = await db.insert(comments)
+      .values({
+        ...comment,
+        likes: 0,
+        dislikes: 0,
+        createdAt: new Date()
+      })
+      .returning();
+    return newComment;
+  }
+  
+  async likeComment(commentId: number): Promise<void> {
+    await db.update(comments)
+      .set({
+        likes: sql`${comments.likes} + 1`
+      })
+      .where(eq(comments.id, commentId));
+  }
+  
+  async dislikeComment(commentId: number): Promise<void> {
+    await db.update(comments)
+      .set({
+        dislikes: sql`${comments.dislikes} + 1`
+      })
+      .where(eq(comments.id, commentId));
+  }
+  
+  // Watchlist methods
+  async getWatchlist(userId: number): Promise<Movie[]> {
+    const result = await db.select({ movie: movies })
+      .from(watchlist)
+      .innerJoin(movies, eq(watchlist.movieSlug, movies.slug))
+      .where(eq(watchlist.userId, userId));
+    
+    return result.map(r => r.movie);
+  }
+
+  async checkWatchlist(userId: number, movieSlug: string): Promise<boolean> {
+    const [exists] = await db.select()
+      .from(watchlist)
+      .where(and(
+        eq(watchlist.userId, userId),
+        eq(watchlist.movieSlug, movieSlug)
+      ));
+    return !!exists;
+  }
+
+  async addToWatchlist(watchlistItem: InsertWatchlist): Promise<void> {
+    await db.insert(watchlist).values({
+      ...watchlistItem,
+      addedAt: new Date()
+    });
+  }
+
+  async removeFromWatchlist(userId: number, movieSlug: string): Promise<void> {
+    await db.delete(watchlist)
+      .where(and(
+        eq(watchlist.userId, userId),
+        eq(watchlist.movieSlug, movieSlug)
+      ));
+  }
+  
+  // View History methods
+  async getViewHistory(userId: number, limit?: number): Promise<Movie[]> {
+    const query = db.select({ movie: movies })
+      .from(viewHistory)
+      .innerJoin(movies, eq(viewHistory.movieSlug, movies.slug))
+      .where(eq(viewHistory.userId, userId))
+      .orderBy(desc(viewHistory.lastViewedAt));
+
+    if (limit) {
+      query.limit(limit);
+    }
+
+    const result = await query;
+    return result.map(r => r.movie);
+  }
+
+  async addToViewHistory(userId: number, movieSlug: string, progress: number = 0): Promise<void> {
+    await db.insert(viewHistory).values({
+      userId,
+      movieSlug,
+      progress,
+      viewCount: 1,
+      lastViewedAt: new Date()
+    });
+  }
+
+  async updateViewProgress(userId: number, movieSlug: string, progress: number): Promise<void> {
+    const [existing] = await db.select()
+      .from(viewHistory)
+      .where(and(
+        eq(viewHistory.userId, userId),
+        eq(viewHistory.movieSlug, movieSlug)
+      ));
+
+    if (existing) {
+      await db.update(viewHistory)
+        .set({
+          progress,
+          viewCount: sql`${viewHistory.viewCount} + 1`,
+          lastViewedAt: new Date()
+        })
+        .where(and(
+          eq(viewHistory.userId, userId),
+          eq(viewHistory.movieSlug, movieSlug)
+        ));
+    } else {
+      await this.addToViewHistory(userId, movieSlug, progress);
+    }
+  }
+
+  async getViewedMovie(userId: number, movieSlug: string): Promise<ViewHistory | undefined> {
+    const [viewedMovie] = await db.select()
+      .from(viewHistory)
+      .where(and(
+        eq(viewHistory.userId, userId),
+        eq(viewHistory.movieSlug, movieSlug)
+      ));
+    return viewedMovie;
+  }
+
+  // Content management methods
+  async submitContentForApproval(approval: InsertContentApproval): Promise<ContentApproval> {
+    const [newApproval] = await db.insert(contentApprovals).values({
+      ...approval,
+      status: ContentStatus.PENDING,
+      submittedAt: new Date(),
+      reviewedAt: null,
+      reviewedByUserId: null,
+      comments: approval.comments || null
+    }).returning();
+    return newApproval;
+  }
+
+  async approveContent(contentId: number, reviewerId: number, comments?: string): Promise<ContentApproval | undefined> {
+    const [updatedApproval] = await db.update(contentApprovals)
+      .set({
+        status: ContentStatus.APPROVED,
+        reviewedByUserId: reviewerId,
+        reviewedAt: new Date(),
+        comments: comments || null
+      })
+      .where(eq(contentApprovals.id, contentId))
+      .returning();
+    return updatedApproval;
+  }
+
+  async rejectContent(contentId: number, reviewerId: number, comments: string): Promise<ContentApproval | undefined> {
+    const [updatedApproval] = await db.update(contentApprovals)
+      .set({
+        status: ContentStatus.REJECTED,
+        reviewedByUserId: reviewerId,
+        reviewedAt: new Date(),
+        comments
+      })
+      .where(eq(contentApprovals.id, contentId))
+      .returning();
+    return updatedApproval;
+  }
+
+  async getPendingContent(page: number, limit: number): Promise<{ data: ContentApproval[], total: number }> {
+    const baseQuery = db.select()
+      .from(contentApprovals)
+      .where(eq(contentApprovals.status, ContentStatus.PENDING))
+      .orderBy(desc(contentApprovals.submittedAt));
+
+    const data = await baseQuery
+      .limit(limit)
+      .offset((page - 1) * limit);
+
+    const [{ count }] = await db.select({ count: sql<number>`count(*)` })
+      .from(contentApprovals)
+      .where(eq(contentApprovals.status, ContentStatus.PENDING));
+
+    return { data, total: count || 0 };
+  }
+
+  async getContentByUser(userId: number, page: number, limit: number, status?: string): Promise<{ data: ContentApproval[], total: number }> {
+    const conditions = [eq(contentApprovals.submittedByUserId, userId)];
+    if (status) {
+      conditions.push(eq(contentApprovals.status, status));
+    }
+
+    const baseQuery = db.select()
+      .from(contentApprovals)
+      .where(and(...conditions))
+      .orderBy(desc(contentApprovals.submittedAt));
+
+    const data = await baseQuery
+      .limit(limit)
+      .offset((page - 1) * limit);
+
+    const [{ count }] = await db.select({ count: sql<number>`count(*)` })
+      .from(contentApprovals)
+      .where(and(...conditions));
+
+    return { data, total: count || 0 };
+  }
+  
+  async addAuditLog(log: InsertAuditLog): Promise<AuditLog> {
+    const [auditLog] = await db.insert(auditLogs)
+      .values({
+        ...log,
+        timestamp: new Date()
+      })
+      .returning();
+    return auditLog;
+  }
+
+  async getAuditLogs(page: number, limit: number, filters?: {activityType?: string, userId?: number}): Promise<{ data: AuditLog[], total: number }> {
+    const conditions = [];
+    if (filters?.activityType) {
+      conditions.push(eq(auditLogs.activityType, filters.activityType));
+    }
+    if (filters?.userId) {
+      conditions.push(eq(auditLogs.userId, filters.userId));
+    }
+
+    const baseQuery = db.select()
+      .from(auditLogs)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .orderBy(desc(auditLogs.timestamp));
+
+    const data = await baseQuery
+      .limit(limit)
+      .offset((page - 1) * limit);
+
+    const [{ count }] = await db.select({ count: sql<number>`count(*)` }).from(auditLogs);
+    return { data, total: count || 0 };
+  }
+
+  // Add search and category methods
+  async searchMovies(query: string, normalizedQuery: string, page: number, limit: number): Promise<{ data: Movie[], total: number }> {
+    const baseQuery = db.select().from(movies)
+      .where(sql`(${movies.name} ILIKE ${`%${query}%`} OR ${movies.originName} ILIKE ${`%${query}%`})`);
+
+    const data = await baseQuery
+      .limit(limit)
+      .offset((page - 1) * limit);
+
+    const [{ count }] = await db.select({ count: sql<number>`count(*)` })
+      .from(movies)
+      .where(sql`(${movies.name} ILIKE ${`%${query}%`} OR ${movies.originName} ILIKE ${`%${query}%`})`);
+
+    return { data, total: count || 0 };
+  }
+
+  async getMoviesByCategory(categorySlug: string, page: number, limit: number, sortBy?: string): Promise<{ data: Movie[], total: number }> {
+    const baseQuery = db.select()
+      .from(movies)
+      .where(sql`${movies.categories}::jsonb @> ${`["${categorySlug}"]`}::jsonb`);
+
+    const sortedQuery = sortBy === 'popular'
+      ? baseQuery.orderBy(desc(movies.view))
+      : baseQuery.orderBy(desc(movies.modifiedAt));
+
+    const data = await sortedQuery
+      .limit(limit)
+      .offset((page - 1) * limit);
+
+    const [{ count }] = await db.select({ count: sql<number>`count(*)` })
+      .from(movies)
+      .where(sql`${movies.categories}::jsonb @> ${`["${categorySlug}"]`}::jsonb`);
+
+    return { data, total: count || 0 };
+  }
+
   async updateMovieBySlug(slug: string, updateData: Partial<Movie>): Promise<Movie | undefined> {
     const [updatedMovie] = await db.update(movies)
-      .set({ ...updateData, modifiedAt: new Date() })
+      .set({
+        ...updateData,
+        modifiedAt: new Date()
+      })
       .where(eq(movies.slug, slug))
       .returning();
     return updatedMovie;
   }
+
+  // Cache implementation - using Redis-like API
+  private cache = new Map<string, any>();
+  private readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutes in milliseconds
+
+  private getCacheKey(type: string, ...params: any[]): string {
+    return `${type}:${params.join(':')}`;
+  }
+
+  private async setCache<T>(key: string, data: T): Promise<void> {
+    this.cache.set(key, {
+      data,
+      expiry: Date.now() + this.CACHE_TTL
+    });
+  }
+
+  private async getCache<T>(key: string): Promise<T | null> {
+    const cached = this.cache.get(key);
+    if (!cached) return null;
+    
+    if (Date.now() > cached.expiry) {
+      this.cache.delete(key);
+      return null;
+    }
+
+    return cached.data;
+  }
+
+  async cacheMovieList(data: MovieListResponse, page: number): Promise<void> {
+    await this.setCache(this.getCacheKey('movieList', page), data);
+  }
+
+  async cacheMovieDetail(data: MovieDetailResponse): Promise<void> {
+    await this.setCache(this.getCacheKey('movieDetail', data.movie.slug), data);
+  }
+
+  async cacheMovieCategory(data: MovieListResponse, categorySlug: string, page: number): Promise<void> {
+    await this.setCache(this.getCacheKey('movieCategory', categorySlug, page), data);
+  }
+
+  async getMovieListCache(page: number): Promise<MovieListResponse | null> {
+    return this.getCache(this.getCacheKey('movieList', page));
+  }
+
+  async getMovieDetailCache(slug: string): Promise<MovieDetailResponse | null> {
+    return this.getCache(this.getCacheKey('movieDetail', slug));
+  }
+
+  async getMovieCategoryCache(categorySlug: string, page: number): Promise<MovieListResponse | null> {
+    return this.getCache(this.getCacheKey('movieCategory', categorySlug, page));
+  }
 }
 
-// Use database storage instead of memory storage
+// Fix export to use named export for storage instance
 export const storage = new DatabaseStorage();

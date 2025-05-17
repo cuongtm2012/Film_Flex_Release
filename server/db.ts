@@ -1,6 +1,6 @@
-import { Pool } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
-import * as schema from "@shared/schema";
+import { Pool } from 'pg';
+import * as schema from '@shared/schema';
 import { config } from './config';
 
 if (!config.databaseUrl) {
@@ -9,12 +9,13 @@ if (!config.databaseUrl) {
   );
 }
 
+// Initialize PostgreSQL pool
 export const pool = new Pool({
-  connectionString: config.databaseUrl,
-  max: 20,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 10000,
-  ssl: false // Disable SSL for local connections
+  host: process.env.DB_HOST || 'localhost',
+  port: parseInt(process.env.DB_PORT || '5432'),
+  database: process.env.DB_NAME || 'filmflex',
+  user: process.env.DB_USER || 'postgres',
+  password: process.env.DB_PASSWORD || 'postgres',
 });
 
 pool.on('connect', () => {
@@ -25,4 +26,8 @@ pool.on('error', (err) => {
   console.error('Unexpected error on database client:', err);
 });
 
-export const db = drizzle({ client: pool, schema });
+// Create drizzle database instance with the schema
+export const db = drizzle(pool, { schema });
+
+// Export a helper to create prepared statements
+export const prepareQuery = db.query;
