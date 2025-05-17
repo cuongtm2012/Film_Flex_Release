@@ -4,6 +4,7 @@ import { toast } from "react-hot-toast";
 import { MovieDetailResponse } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useQueryClient } from "react-query";
 
 // Define Section type based on the database schema
 // and display names for the dropdown
@@ -24,6 +25,7 @@ interface MovieData {
 }
 
 export default function MovieEditScreen() {
+  const queryClient = useQueryClient();
   const [, params] = useRoute("/admin/movies/:movieId");
   const movieId = params?.movieId || "";
 
@@ -62,6 +64,9 @@ export default function MovieEditScreen() {
       toast.error("Please select a section.");
       return;
     }
+
+    const loadingToast = toast.loading("Saving changes...");
+
     try {
       const response = await fetch(`/api/movies/${movieId}`, {
         method: "PUT",
@@ -74,14 +79,38 @@ export default function MovieEditScreen() {
         }),
       });
 
+      // Always dismiss the loading toast
+      toast.dismiss(loadingToast);
+
       if (!response.ok) {
-        throw new Error("Failed to save changes");
+        // Try to get error message from response
+        let errorMessage = "Failed to save changes";
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorMessage;
+        } catch (e) {
+          // Use default error message if we can't parse the error response
+        }
+        throw new Error(errorMessage);
       }
 
+      const data = await response.json();
+      if (!data.status || !data.movie) {
+        throw new Error("Server returned success but with invalid data");
+      }
+
+      // Show success message
       toast.success("Changes saved successfully");
+
+      // Invalidate all related queries to force a refresh
+      queryClient.invalidateQueries([`/api/movies/${movieId}`]);
+      queryClient.invalidateQueries(["/api/movies"]);
+
+      // Navigate back to content list after successful save
+      window.location.href = '/admin?tab=content-management';
     } catch (error) {
       console.error("Error saving changes:", error);
-      toast.error("Failed to save changes");
+      toast.error(error instanceof Error ? error.message : "Failed to save changes");
     }
   };
 
@@ -120,4 +149,4 @@ export default function MovieEditScreen() {
       </div>
     </div>
   );
-} 
+}

@@ -910,17 +910,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update movie details
   app.put("/api/movies/:slug", async (req, res) => {
     try {
       const { slug } = req.params;
       const updateData = req.body;
 
-      // Only allow updating certain fields, including section
+      // Validate required fields
+      if (!updateData.name) {
+        return res.status(400).json({ message: "Movie title is required" });
+      }
+
+      // Ensure section is either a valid value or undefined
+      if (updateData.section && !['trending_now', 'latest_movies', 'top_rated', 'popular_tv'].includes(updateData.section)) {
+        return res.status(400).json({ message: "Invalid section value" });
+      }
+
+      // Convert isRecommended to boolean
+      if ('isRecommended' in updateData) {
+        updateData.isRecommended = updateData.isRecommended === true;
+      }
+
+      // Only allow updating certain fields
       const allowedFields = [
         "name", "origin_name", "content", "type", "status", "thumb_url", "poster_url",
-        "is_copyright", "sub_docquyen", "chieurap", "time", "episode_current", "episode_total",
-        "quality", "lang", "notify", "showtimes", "year", "view", "actor", "director",
-        "category", "country", "episodes", "isRecommended", "active", "tmdb", "section"
+        "trailer_url", "time", "quality", "lang", "year", "view", "actor", "director",
+        "category", "country", "isRecommended", "active", "tmdb", "section"
       ];
       const filteredUpdate = {};
       for (const key of allowedFields) {
@@ -930,12 +945,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Update the movie in the database
       const updated = await storage.updateMovieBySlug(slug, filteredUpdate);
       if (!updated) {
-        return res.status(404).json({ message: "Movie not found" });
+        return res.status(404).json({ status: false, message: "Movie not found" });
       }
+
       res.json({ status: true, movie: updated });
     } catch (error) {
       console.error("Error updating movie:", error);
-      res.status(500).json({ message: "Failed to update movie" });
+      res.status(500).json({ status: false, message: "Failed to update movie" });
     }
   });
 

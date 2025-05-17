@@ -76,6 +76,7 @@ export const movies = pgTable("movies", {
   status: text("status"),
   trailerUrl: text("trailer_url"),
   section: text("section"), // Section for the movie (trending_now, latest_movies, etc.)
+  isRecommended: boolean("is_recommended").default(false),
   categories: jsonb("categories").default([]),
   countries: jsonb("countries").default([]),
   actors: text("actors"),
