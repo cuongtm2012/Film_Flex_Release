@@ -1,48 +1,172 @@
-import type { Express, Request, Response } from "express";
-import { createServer, type Server } from "http";
+import { Router } from 'express';
+import type { Express } from 'express';
+import { createServer } from "http";
 import { storage } from "./storage";
+import { setupAuth } from "./auth";
 import { z } from "zod";
 import { 
-  insertCommentSchema, 
-  insertUserSchema, 
-  insertWatchlistSchema,
-  ActivityType
-} from "@shared/schema";
-import { 
-  fetchMovieList, 
-  fetchMovieDetail, 
-  searchMovies, 
-  fetchMoviesByCategory,
-  fetchMoviesByCountry,
-  fetchRecommendedMovies,
+  MovieListResponse,
+  MovieDetailResponse,
+  nullToUndefined,
   convertToMovieModel,
   convertToEpisodeModels,
-  type MovieListResponse
-} from "./api";
-import { setupAuth, isAuthenticated, isActive } from "./auth";
+  normalizeText,
+  type Movie,
+  type MovieListItem
+} from "@shared/schema";
 
-const API_CACHE_TTL = 5 * 60 * 1000; // 5 minutes in milliseconds
+const router = Router();
 
-/**
- * Function to normalize Vietnamese text by removing accents and diacritics
- * This helps with search functionality where users might type without accents
- */
-function normalizeText(text: string): string {
-  if (!text) return '';
-  
-  // Normalize to NFD form where accented chars are separated into base char + accent
-  return text.normalize('NFD')
-    // Remove combining diacritical marks (accents, etc.)
-    .replace(/[\u0300-\u036f]/g, '')
-    // Remove other special characters and normalize to lowercase
-    .toLowerCase()
-    // Replace đ/Đ with d
-    .replace(/[đĐ]/g, 'd');
+// Remove unused API_CACHE_TTL
+
+// Remove unused TypedRequestQuery and TypedRequestBody interfaces
+
+// Add API function declarations
+async function fetchMoviesByCategory(category: string, page: number, limit: number): Promise<MovieListResponse> {
+  // Simulated API call - in reality would hit external API
+  const movies = await storage.getMoviesByCategory(category, page, limit);
+  return {
+    status: true,
+    items: movies.data,
+    pagination: {
+      totalItems: movies.total,
+      totalPages: Math.ceil(movies.total / limit),
+      currentPage: page,
+      totalItemsPerPage: limit
+    }
+  };
 }
 
-export async function registerRoutes(app: Express): Promise<Server> {
+async function fetchMovieList(page: number, limit: number): Promise<MovieListResponse> {
+  const movies = await storage.getMovies(page, limit);
+  return {
+    status: true,
+    items: movies.data,
+    pagination: {
+      totalItems: movies.total,
+      totalPages: Math.ceil(movies.total / limit),
+      currentPage: page,
+      totalItemsPerPage: limit
+    }
+  };
+}
+
+async function fetchMovieDetail(slug: string): Promise<MovieDetailResponse> {
+  const movie = await storage.getMovieBySlug(slug);
+  if (!movie) {
+    throw new Error("Movie not found");
+  }
+
+  const episodes = await storage.getEpisodesByMovieSlug(slug);
+
+  // Convert to API response format
+  return {
+    movie: {
+      _id: movie.movieId,
+      name: movie.name,
+      slug: movie.slug,
+      origin_name: movie.originName || "",
+      content: movie.description || "",
+      type: movie.type || "",
+      status: movie.status || "",
+      thumb_url: movie.thumbUrl || "",
+      poster_url: movie.posterUrl || "",
+      trailer_url: movie.trailerUrl,
+      time: movie.time || "",
+      quality: movie.quality || "",
+      lang: movie.lang || "",
+      episode_current: "Full",
+      episode_total: "1",
+      view: movie.view || 0,
+      actor: movie.actors ? movie.actors.split(", ") : [],
+      director: movie.directors ? movie.directors.split(", ") : [],
+      category: movie.categories as any[] || [],
+      country: movie.countries as any[] || []
+    },
+    episodes: episodes.map(ep => ({
+      server_name: ep.serverName,
+      server_data: [{
+        name: ep.name,
+        slug: ep.slug,
+        filename: ep.filename || "",
+        link_embed: ep.linkEmbed,
+        link_m3u8: ep.linkM3u8 || ""
+      }]
+    }))
+  };
+}
+
+async function searchMovies(query: string, normalizedQuery: string, page: number, limit: number): Promise<MovieListResponse> {
+  const movies = await storage.searchMovies(query, normalizedQuery, page, limit);
+  return {
+    status: true,
+    items: movies.data,
+    pagination: {
+      totalItems: movies.total,
+      totalPages: Math.ceil(movies.total / limit),
+      currentPage: page,
+      totalItemsPerPage: limit
+    }
+  };
+}
+
+async function fetchMoviesByCountry(countrySlug: string, page: number): Promise<MovieListResponse> {
+  // For now, just return all movies as we don't have country filtering yet
+  const movies = await storage.getMovies(page, 48);
+  return {
+    status: true,
+    items: movies.data,
+    pagination: {
+      totalItems: movies.total,
+      totalPages: Math.ceil(movies.total / 48),
+      currentPage: page,
+      totalItemsPerPage: 48
+    }
+  };
+}
+
+async function fetchRecommendedMovies(slug: string, limit: number): Promise<MovieListResponse> {
+  // Get movie to find its category
+  const movie = await storage.getMovieBySlug(slug);
+  if (!movie || !movie.categories || movie.categories.length === 0) {
+    // Return empty response if no movie or categories
+    return {
+      status: true,
+      items: [],
+      pagination: {
+        totalItems: 0,
+        totalPages: 0,
+        currentPage: 1,
+        totalItemsPerPage: limit
+      }
+    };
+  }
+
+  // Use first category to get similar movies
+  const category = movie.categories[0];
+  const similar = await storage.getMoviesByCategory(category, 1, limit);
+
+  // Filter out the current movie
+  const recommendations = similar.data.filter(m => m.slug !== slug);
+
+  return {
+    status: true,
+    items: recommendations,
+    pagination: {
+      totalItems: similar.total - 1, // Subtract 1 for the filtered movie
+      totalPages: Math.ceil((similar.total - 1) / limit),
+      currentPage: 1,
+      totalItemsPerPage: limit
+    }
+  };
+}
+
+export function registerRoutes(app: Express): void {
+  // Mount all the routes here
+  app.use('/api', router);
+  
   // Health check endpoint for CI/CD and monitoring
-  app.get("/api/health", (_req: Request, res: Response) => {
+  router.get("/health", (_req, res) => {
     res.status(200).json({
       status: "ok",
       timestamp: new Date().toISOString(),
@@ -50,10 +174,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       version: process.env.npm_package_version || "unknown"
     });
   });
+
   // Set up authentication
   setupAuth(app);
+  
   // Get paginated movie list
-  app.get("/api/movies", async (req: Request, res: Response) => {
+  router.get("/movies", async (req, res) => {
     try {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 48; // Default to 48 per page
@@ -215,7 +341,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }
   
   // Get movie detail by slug
-  app.get("/api/movies/:slug", async (req: Request, res: Response) => {
+  router.get("/movies/:slug", async (req, res) => {
     try {
       const { slug } = req.params;
       
@@ -293,7 +419,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Quick search suggestions (for autocomplete)
-  app.get("/api/search/suggestions", async (req: Request, res: Response) => {
+  router.get("/search/suggestions", async (req, res) => {
     try {
       const keyword = req.query.q as string;
       
@@ -328,7 +454,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Search movies
-  app.get("/api/search", async (req: Request, res: Response) => {
+  router.get("/search", async (req, res) => {
     try {
       // Ensure no trailing spaces in the search keyword
       const keyword = (req.query.q as string || "").trim();
@@ -387,7 +513,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Get movies by category
-  app.get("/api/categories/:slug", async (req: Request, res: Response) => {
+  router.get("/categories/:slug", async (req, res) => {
     try {
       const { slug } = req.params;
       const page = parseInt(req.query.page as string) || 1;
@@ -513,7 +639,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Get movies by country
-  app.get("/api/countries/:slug", async (req: Request, res: Response) => {
+  router.get("/countries/:slug", async (req, res) => {
     try {
       const { slug } = req.params;
       const page = parseInt(req.query.page as string) || 1;
@@ -589,7 +715,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Get episodes for a movie
-  app.get("/api/movies/:slug/episodes", async (req: Request, res: Response) => {
+  router.get("/movies/:slug/episodes", async (req, res) => {
     try {
       const { slug } = req.params;
       
@@ -662,7 +788,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Get recommended movies for a specific movie
-  app.get("/api/movies/:slug/recommendations", async (req: Request, res: Response) => {
+  router.get("/movies/:slug/recommendations", async (req, res) => {
     try {
       const { slug } = req.params;
       const limit = parseInt(req.query.limit as string) || 5;
@@ -698,7 +824,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // User registration
-  app.post("/api/users/register", async (req: Request, res: Response) => {
+  router.post("/users/register", async (req, res) => {
     try {
       const userSchema = insertUserSchema.extend({
         confirmPassword: z.string()
@@ -720,7 +846,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Comment operations
-  app.get("/api/movies/:slug/comments", async (req: Request, res: Response) => {
+  router.get("/movies/:slug/comments", async (req, res) => {
     try {
       const { slug } = req.params;
       const page = parseInt(req.query.page as string) || 1;
@@ -734,7 +860,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.post("/api/movies/:slug/comments", async (req: Request, res: Response) => {
+  router.post("/movies/:slug/comments", async (req, res) => {
     try {
       const { slug } = req.params;
       console.log("POST comment for movie:", slug, "body:", req.body);
@@ -761,7 +887,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.post("/api/comments/:id/like", async (req: Request, res: Response) => {
+  router.post("/comments/:id/like", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       await storage.likeComment(id);
@@ -772,7 +898,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.post("/api/comments/:id/dislike", async (req: Request, res: Response) => {
+  router.post("/comments/:id/dislike", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       await storage.dislikeComment(id);
@@ -784,7 +910,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Watchlist operations
-  app.get("/api/users/:userId/watchlist", async (req: Request, res: Response) => {
+  router.get("/users/:userId/watchlist", async (req, res) => {
     try {
       const userId = parseInt(req.params.userId);
       const watchlist = await storage.getWatchlist(userId);
@@ -795,7 +921,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.post("/api/users/:userId/watchlist", async (req: Request, res: Response) => {
+  router.post("/users/:userId/watchlist", async (req, res) => {
     try {
       const userId = parseInt(req.params.userId);
       const watchlistData = insertWatchlistSchema.parse(req.body);
@@ -812,7 +938,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.delete("/api/users/:userId/watchlist/:slug", async (req: Request, res: Response) => {
+  router.delete("/users/:userId/watchlist/:slug", async (req, res) => {
     try {
       const userId = parseInt(req.params.userId);
       const { slug } = req.params;
@@ -825,7 +951,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.get("/api/users/:userId/watchlist/check/:slug", async (req: Request, res: Response) => {
+  router.get("/users/:userId/watchlist/check/:slug", async (req, res) => {
     try {
       const userId = parseInt(req.params.userId);
       const { slug } = req.params;
@@ -839,7 +965,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // View History routes
-  app.get("/api/users/:userId/view-history", async (req: Request, res: Response) => {
+  router.get("/users/:userId/view-history", async (req, res) => {
     try {
       const userId = parseInt(req.params.userId);
       const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
@@ -852,7 +978,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.post("/api/users/:userId/view-history", async (req: Request, res: Response) => {
+  router.post("/users/:userId/view-history", async (req, res) => {
     try {
       const userId = parseInt(req.params.userId);
       const { movieSlug, progress } = req.body;
@@ -875,7 +1001,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.put("/api/users/:userId/view-history/:slug/progress", async (req: Request, res: Response) => {
+  router.put("/users/:userId/view-history/:slug/progress", async (req, res) => {
     try {
       const userId = parseInt(req.params.userId);
       const { slug } = req.params;
@@ -893,7 +1019,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.get("/api/users/:userId/view-history/:slug", async (req: Request, res: Response) => {
+  router.get("/users/:userId/view-history/:slug", async (req, res) => {
     try {
       const userId = parseInt(req.params.userId);
       const { slug } = req.params;
@@ -911,7 +1037,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update movie details
-  app.put("/api/movies/:slug", async (req, res) => {
+  router.put("/movies/:slug", async (req, res) => {
     try {
       const { slug } = req.params;
       const updateData = req.body;
@@ -937,9 +1063,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         "trailer_url", "time", "quality", "lang", "year", "view", "actor", "director",
         "category", "country", "isRecommended", "active", "tmdb", "section"
       ];
-      const filteredUpdate = {};
+      const filteredUpdate: Partial<Movie> = {};
       for (const key of allowedFields) {
-        if (updateData[key] !== undefined) filteredUpdate[key] = updateData[key];
+        if (updateData[key] !== undefined) {
+          (filteredUpdate as any)[key] = updateData[key];
+        }
       }
 
       // Update the movie in the database
@@ -958,3 +1086,5 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
   return httpServer;
 }
+
+export { router };

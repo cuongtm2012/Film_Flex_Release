@@ -11,11 +11,11 @@ if (!config.databaseUrl) {
 
 // Initialize PostgreSQL pool
 export const pool = new Pool({
-  host: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT || '5432'),
-  database: process.env.DB_NAME || 'filmflex',
-  user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD || 'postgres',
+  connectionString: config.databaseUrl,
+  max: 20,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 10000,
+  ssl: false, // Disable SSL for local connections
 });
 
 pool.on('connect', () => {
@@ -24,6 +24,10 @@ pool.on('connect', () => {
 
 pool.on('error', (err) => {
   console.error('Unexpected error on database client:', err);
+  // Let's try to reconnect on connection errors
+  if ((err as any).code === 'PROTOCOL_CONNECTION_LOST') {
+    console.log('Lost connection to the database. Attempting to reconnect...');
+  }
 });
 
 // Create drizzle database instance with the schema
@@ -31,3 +35,12 @@ export const db = drizzle(pool, { schema });
 
 // Export a helper to create prepared statements
 export const prepareQuery = db.query;
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (err) => {
+  if ((err as any).code === 'PROTOCOL_CONNECTION_LOST') {
+    console.error('Database connection was closed.');
+  } else {
+    console.error('Unhandled exception:', err);
+  }
+});

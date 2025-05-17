@@ -1,12 +1,25 @@
 import express, { type Request, Response, NextFunction } from "express";
+import http from 'http';
+import cors from 'cors';
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { config } from './config';
+import { pool } from './db';
+import { setupAuth } from './auth';
 
 const app = express();
+const server = http.createServer(app);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+app.use(cors({
+  origin: process.env.NODE_ENV === 'production' 
+    ? config.clientUrl 
+    : 'http://localhost:3000',
+  credentials: true
+}));
 
+// Request logging middleware
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
@@ -38,23 +51,47 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  const server = await registerRoutes(app);
+  try {
+    // Verify database connection before starting server
+    await pool.connect();
+    console.log('Successfully connected to database');
+    
+    // Setup auth and routes after DB connection is confirmed
+    setupAuth(app);
+    registerRoutes(app);
 
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
+    // Error handling middleware
+    app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+      const status = err.status || err.statusCode || 500;
+      const message = err.message || "Internal Server Error";
+      console.error(err);
+      res.status(status).json({ message });
+    });
 
-    res.status(status).json({ message });
-    throw err;
-  });
+    // Setup Vite or static serving based on environment
+    if (process.env.NODE_ENV === 'development') {
+      await setupVite(app, server);
+    } else {
+      serveStatic(app);
+    }
 
-  if (app.get("env") === config.nodeEnv) {
-    await setupVite(app, server);
-  } else {
-    serveStatic(app);
+    // Start server
+    server.listen(config.port, () => {
+      log(`Server running on http://localhost:${config.port}`);
+    });
+  } catch (err) {
+    console.error('Failed to start server:', err);
+    process.exit(1);
   }
-
-  server.listen(config.port, "localhost", () => {
-    log(`serving on http://localhost:${config.port}`);
-  });
 })();
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received. Shutting down gracefully...');
+  server.close(() => {
+    pool.end(() => {
+      console.log('Server stopped and database pool closed.');
+      process.exit(0);
+    });
+  });
+});

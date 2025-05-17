@@ -1,29 +1,25 @@
 import { 
-  User, InsertUser, 
   Movie, InsertMovie, 
   Episode, InsertEpisode, 
   Comment, InsertComment, 
-  Watchlist, InsertWatchlist,
-  ViewHistory, InsertViewHistory,
+  InsertWatchlist,
+  ViewHistory,
   ContentApproval, InsertContentApproval,
   AuditLog, InsertAuditLog,
   Role, InsertRole,
   Permission, InsertPermission,
-  RolePermission, InsertRolePermission,
-  MovieListResponse, MovieDetailResponse,
+  RolePermission,
+  MovieListResponse,
+  MovieDetailResponse,
   users, movies, episodes, comments, watchlist, viewHistory, contentApprovals, auditLogs,
   roles, permissions, rolePermissions,
-  UserRole, UserStatus, ContentStatus, ActivityType
+  UserRole, UserStatus, ContentStatus
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, like, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 import connectPg from "connect-pg-simple";
 import session from "express-session";
 import { pool } from "./db";
-import { promisify } from "util";
-import { scrypt, randomBytes } from "crypto";
-
-const scryptAsync = promisify(scrypt);
 
 export interface IStorage {
   // User methods
@@ -118,7 +114,12 @@ export class DatabaseStorage implements IStorage {
     const PgSession = connectPg(session);
     this.sessionStore = new PgSession({
       pool,
-      tableName: 'sessions'
+      tableName: 'sessions',
+      createTableIfMissing: true,
+      pruneSessionInterval: 60 * 15, // Prune expired sessions every 15 minutes
+      errorLog: (error: Error) => {
+        console.error('Session store error:', error);
+      }
     });
   }
 
@@ -379,41 +380,24 @@ export class DatabaseStorage implements IStorage {
     return movie;
   }
   
-  private async createModel<T extends { id: number }>(
-    data: Omit<T, 'id'>, 
-    currentId: number
-  ): Promise<T> {
-    const model = {
-      ...data,
-      id: currentId,
-    } as T;
-
-    // Ensure all nullable fields are explicitly set to null if undefined
-    Object.keys(model).forEach(key => {
-      if ((model as any)[key] === undefined) {
-        (model as any)[key] = null;
-      }
-    });
-
-    return model;
-  }
-
   async saveMovie(movie: InsertMovie): Promise<Movie> {
     const [newMovie] = await db.insert(movies).values({
-      ...movie,
-      modifiedAt: new Date(),
-      status: movie.status || null,
-      type: movie.type || null,
-      description: movie.description || null,
+      movieId: movie.movieId,
+      slug: movie.slug,
+      name: movie.name,
       originName: movie.originName || null,
       posterUrl: movie.posterUrl || null,
       thumbUrl: movie.thumbUrl || null,
       year: movie.year || null,
+      type: movie.type || null,
       quality: movie.quality || null,
       lang: movie.lang || null,
       time: movie.time || null,
+      view: movie.view || 0,
+      description: movie.description || null,
+      status: movie.status || null,
       trailerUrl: movie.trailerUrl || null,
-      section: movie.section || null,
+      sections: movie.sections || null,
       isRecommended: movie.isRecommended || false,
       categories: movie.categories || [],
       countries: movie.countries || [],
@@ -700,13 +684,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Add search and category methods
-  async searchMovies(query: string, normalizedQuery: string, page: number, limit: number): Promise<{ data: Movie[], total: number }> {
-    const baseQuery = db.select().from(movies)
+  async searchMovies(query: string, _normalizedQuery: string, page: number, limit: number): Promise<{ data: Movie[], total: number }> {
+    const offset = (page - 1) * limit;
+
+    const baseQuery = db.select()
+      .from(movies)
       .where(sql`(${movies.name} ILIKE ${`%${query}%`} OR ${movies.originName} ILIKE ${`%${query}%`})`);
 
     const data = await baseQuery
       .limit(limit)
-      .offset((page - 1) * limit);
+      .offset(offset);
 
     const [{ count }] = await db.select({ count: sql<number>`count(*)` })
       .from(movies)
