@@ -3,6 +3,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { MovieListResponse } from "@shared/schema";
+import { toast } from "react-hot-toast";
 
 // This is an extended type for the movie with all fields
 // We don't need to augment the original type as we're using casting
@@ -58,6 +59,7 @@ interface MovieDetailsType {
     id?: number;
     type?: string;
   };
+  section?: string;
 }
 import UserManagement from "@/components/admin/UserManagement";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -228,11 +230,25 @@ export default function AdminPage() {
       }
       const data = await response.json();
       if (data.status && data.movie) {
-        console.log("Movie data:", data.movie);
-        console.log("Category type:", Array.isArray(data.movie.category), typeof data.movie.category?.[0]);
-        console.log("Country type:", Array.isArray(data.movie.country), typeof data.movie.country?.[0]);
+        // Log details about the fetched movie data for debugging
+        console.log("Movie data from server:", data.movie);
+        console.log("Section data type:", typeof data.movie.section, "Value:", data.movie.section);
+        console.log("isRecommended data type:", typeof data.movie.isRecommended, "Value:", data.movie.isRecommended);
         
-        setCurrentEditMovie(data.movie);
+        // Create a properly formatted movie object with explicitly handled fields
+        const formattedMovie = {
+          ...data.movie,
+          // Ensure section is properly set as undefined for empty values (not null or "")
+          section: data.movie.section || undefined,
+          // Ensure isRecommended is properly set as a boolean
+          isRecommended: data.movie.isRecommended === true
+        };
+        
+        console.log("Formatted movie for editing:", formattedMovie);
+        console.log("  - Formatted section:", formattedMovie.section, typeof formattedMovie.section);
+        console.log("  - Formatted isRecommended:", formattedMovie.isRecommended, typeof formattedMovie.isRecommended);
+        
+        setCurrentEditMovie(formattedMovie);
         
         // Ensure we're working with arrays of strings for our multi-select
         const categories = Array.isArray(data.movie.category) 
@@ -258,36 +274,86 @@ export default function AdminPage() {
   };
   
   // Function to handle saving movie data
-  const handleMovieSave = () => {
+  const handleMovieSave = async () => {
     if (!currentEditMovie) return;
     
-    // Convert string category/country values back to objects if needed for the API
-    // This depends on what format the backend expects
-    
-    // Get form values and create updated movie object
-    // In a real implementation, we would get all form field values here
-    const updatedMovie = {
-      ...currentEditMovie,
-      category: selectedCategories,
-      country: selectedCountries,
-      // Add other form fields here
-    };
-    
-    // Here we would typically call an API to update the movie
-    console.log("Saving movie with processed data:", updatedMovie);
-    
-    // In a real implementation, we would make an API call:
-    // fetch(`/api/movies/${currentEditMovie.slug}`, {
-    //   method: 'PUT',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify(updatedMovie)
-    // })
-    
-    // Close the dialog
-    setEditDialogOpen(false);
-    
-    // Show a toast or notification
-    // toast({ title: "Success", description: "Movie updated successfully" });
+    try {
+      // Show a loading toast to indicate the save process has started
+      const loadingToast = toast.loading("Saving changes...");
+      
+      // Log the important fields to ensure they're correct
+      console.log("Saving movie - section:", currentEditMovie.section);
+      console.log("Saving movie - isRecommended:", currentEditMovie.isRecommended);
+      
+      // Create the updated movie object with all editable fields
+      const updatedMovie = {
+        // Basic information
+        name: currentEditMovie.name,
+        slug: currentEditMovie.slug,
+        origin_name: currentEditMovie.origin_name,
+        content: currentEditMovie.content,
+        
+        // Media and classification
+        thumb_url: currentEditMovie.thumb_url,
+        poster_url: currentEditMovie.poster_url,
+        category: selectedCategories,
+        country: selectedCountries,
+        
+        // These fields need explicit handling
+        section: currentEditMovie.section || undefined,
+        isRecommended: currentEditMovie.isRecommended === true,
+        
+        // Status and metadata
+        active: currentEditMovie.active,
+        year: currentEditMovie.year,
+        type: currentEditMovie.tmdb?.type,
+        quality: currentEditMovie.quality,
+        lang: currentEditMovie.lang,
+        time: currentEditMovie.time,
+        
+        // Additional fields
+        actor: currentEditMovie.actor,
+        director: currentEditMovie.director
+      };
+      
+      console.log("Saving movie with data:", updatedMovie);
+      
+      const response = await fetch(`/api/movies/${currentEditMovie.slug}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedMovie)
+      });
+
+      // Dismiss the loading toast
+      toast.dismiss(loadingToast);
+
+      if (!response.ok) {
+        // Get error details if available
+        let errorDetails = "Failed to save changes";
+        try {
+          const errorData = await response.json();
+          errorDetails = errorData.message || errorDetails;
+        } catch (e) {
+          // If we can't parse the error, just use the default message
+        }
+        throw new Error(errorDetails);
+      }
+
+      // Get the updated movie data from the response
+      const savedData = await response.json();
+      console.log("Movie saved successfully:", savedData);
+
+      // Close the edit dialog and show success notification
+      setEditDialogOpen(false);
+      toast.success("Movie updated successfully");
+      
+      // Refresh the movie list to show updated data
+      window.location.reload();
+    } catch (error: any) {
+      // Show detailed error message
+      toast.error(error.message || "Failed to save changes");
+      console.error("Error saving movie:", error);
+    }
   };
 
   // Fetch real movie data
@@ -613,6 +679,7 @@ export default function AdminPage() {
                                 <ArrowUpDown className="h-3 w-3" />
                               </div>
                             </th>
+                            <th className="py-3 px-2 text-left font-medium">Section</th>
                             <th className="py-3 px-2 text-left font-medium">Status</th>
                             <th className="py-3 px-2 text-center font-medium">Recommend</th>
                             <th className="py-3 px-2 text-left font-medium">Actions</th>
@@ -642,6 +709,21 @@ export default function AdminPage() {
                                   </div>
                                 </td>
                                 <td className="py-4 px-2">{movieDetails.year || "N/A"}</td>
+                                <td className="py-4 px-2">
+                                  {(() => {
+                                    // Convert section value to readable format
+                                    if (!movieDetails.section) return 'None';
+                                    
+                                    const sectionNames = {
+                                      'trending_now': 'Trending Now',
+                                      'latest_movies': 'Latest Movies',
+                                      'top_rated': 'Top Rated Movies',
+                                      'popular_tv': 'Popular TV Series'
+                                    };
+                                    
+                                    return sectionNames[movieDetails.section as keyof typeof sectionNames] || movieDetails.section;
+                                  })()}
+                                </td>
                                 <td className="py-4 px-2">
                                   <Badge 
                                     variant={movieDetails.active === false ? "destructive" : "outline"}
@@ -675,13 +757,9 @@ export default function AdminPage() {
                                       variant="outline" 
                                       size="sm"
                                       onClick={() => {
-                                        // First set the basic movie data we have
                                         setCurrentEditMovie(movie as unknown as MovieDetailsType);
-                                        // Set fullscreen edit mode
                                         setFullScreenEdit(true);
-                                        // Then open the dialog
                                         setEditDialogOpen(true);
-                                        // And finally fetch the full details
                                         fetchMovieDetails(movie.slug);
                                       }}
                                     >
@@ -1819,308 +1897,372 @@ export default function AdminPage() {
               <p className="text-sm text-muted-foreground">Loading movie details...</p>
             </div>
           ) : currentEditMovie && (
-            <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="movie-title" className="text-right">
-                  Title
-                </Label>
-                <Input
-                  id="movie-title"
-                  defaultValue={currentEditMovie.name}
-                  className="col-span-3"
-                />
-              </div>
-              
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="movie-slug" className="text-right">
-                  Slug
-                </Label>
-                <Input
-                  id="movie-slug"
-                  defaultValue={currentEditMovie.slug}
-                  className="col-span-3"
-                />
-              </div>
-              
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="original-title" className="text-right">
-                  Original Title
-                </Label>
-                <Input
-                  id="original-title"
-                  defaultValue={currentEditMovie.origin_name || ""}
-                  className="col-span-3"
-                />
-              </div>
-              
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="content-type" className="text-right">
-                  Content Type
-                </Label>
-                <Select defaultValue={currentEditMovie.tmdb?.type || "movie"}>
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="movie">Movie</SelectItem>
-                    <SelectItem value="tv">TV Series</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="categories" className="text-right">
-                  Categories
-                </Label>
-                <div className="col-span-3">
-                  <MultiSelectTags
-                    options={predefinedCategories}
-                    selectedValues={selectedCategories}
-                    onChange={setSelectedCategories}
-                    placeholder="Select categories..."
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="actors" className="text-right">
-                  Actors
-                </Label>
-                <Input
-                  id="actors"
-                  defaultValue={currentEditMovie.actor?.join(", ") || ""}
-                  placeholder="Actor names (comma separated)"
-                  className="col-span-3"
-                />
-              </div>
-
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="directors" className="text-right">
-                  Directors
-                </Label>
-                <Input
-                  id="directors"
-                  defaultValue={currentEditMovie.director?.join(", ") || ""}
-                  placeholder="Director names (comma separated)"
-                  className="col-span-3"
-                />
-              </div>
-              
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="movie-year" className="text-right">
-                  Year
-                </Label>
-                <Input
-                  id="movie-year"
-                  type="number"
-                  defaultValue={currentEditMovie.year || ""}
-                  className="col-span-3"
-                />
-              </div>
-              
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="country" className="text-right">
-                  Country
-                </Label>
-                <div className="col-span-3">
-                  <MultiSelectTags
-                    options={predefinedCountries}
-                    selectedValues={selectedCountries}
-                    onChange={setSelectedCountries}
-                    placeholder="Select countries..."
-                  />
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="poster-url" className="text-right">
-                  Poster URL
-                </Label>
-                <div className="col-span-3 flex gap-2">
-                  <Input
-                    id="poster-url"
-                    defaultValue={currentEditMovie.poster_url || ""}
-                    className="flex-1"
-                  />
-                  {currentEditMovie.poster_url && (
-                    <div className="w-12 h-16 border rounded overflow-hidden flex-shrink-0">
-                      <img 
-                        src={currentEditMovie.poster_url} 
-                        alt="Poster" 
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="thumbnail-url" className="text-right">
-                  Thumbnail URL
-                </Label>
-                <div className="col-span-3 flex gap-2">
-                  <Input
-                    id="thumbnail-url"
-                    defaultValue={currentEditMovie.thumb_url || ""}
-                    className="flex-1"
-                  />
-                  {currentEditMovie.thumb_url && (
-                    <div className="w-12 h-16 border rounded overflow-hidden flex-shrink-0">
-                      <img 
-                        src={currentEditMovie.thumb_url} 
-                        alt="Thumbnail" 
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid grid-cols-2 items-center gap-4">
-                  <Label htmlFor="quality" className="text-right">
-                    Quality
+            <div className="grid gap-6 py-4 max-h-[70vh] overflow-y-auto pr-2">
+              {/* Basic Information Section */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium border-b pb-2">Basic Information</h3>
+                
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="movie-title" className="text-right">
+                    Title <span className="text-destructive">*</span>
                   </Label>
                   <Input
-                    id="quality"
-                    defaultValue={currentEditMovie.quality || ""}
-                    placeholder="HD, FHD, etc."
+                    id="movie-title"
+                    value={currentEditMovie.name}
+                    onChange={(e) => setCurrentEditMovie({...currentEditMovie, name: e.target.value})}
+                    className="col-span-3"
+                    required
                   />
                 </div>
                 
-                <div className="grid grid-cols-2 items-center gap-4">
-                  <Label htmlFor="language" className="text-right">
-                    Language
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="movie-slug" className="text-right">
+                    Slug <span className="text-muted-foreground text-xs">(Read-only)</span>
                   </Label>
                   <Input
-                    id="language"
-                    defaultValue={currentEditMovie.lang || ""}
-                    placeholder="VN, EN, etc."
+                    id="movie-slug"
+                    value={currentEditMovie.slug}
+                    className="col-span-3"
+                    disabled
                   />
                 </div>
-              </div>
-              
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="status" className="text-right">
-                  Status
-                </Label>
-                <Select defaultValue={currentEditMovie.active === false ? "inactive" : "active"}>
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
-                    <SelectItem value="pending">Pending Review</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label className="text-right">
-                  Recommendation
-                </Label>
-                <div className="flex items-center space-x-2 col-span-3">
-                  <Checkbox 
-                    id="movie-recommended" 
-                    checked={currentEditMovie.isRecommended} 
-                  />
-                  <Label htmlFor="movie-recommended" className="cursor-pointer flex items-center">
-                    Mark as Recommended 
-                    {currentEditMovie.isRecommended && (
-                      <Star className="ml-2 h-4 w-4 text-amber-500 fill-amber-500" />
-                    )}
+                
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="original-title" className="text-right">
+                    Original Title
                   </Label>
+                  <Input
+                    id="original-title"
+                    value={currentEditMovie.origin_name || ""}
+                    onChange={(e) => setCurrentEditMovie({...currentEditMovie, origin_name: e.target.value})}
+                    className="col-span-3"
+                  />
                 </div>
               </div>
               
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="description" className="text-right">
-                  Description
-                </Label>
-                <Textarea
-                  id="description"
-                  defaultValue={currentEditMovie.content || ""}
-                  className="col-span-3"
-                  rows={5}
-                />
-              </div>
-              
-              <div className="grid grid-cols-4 items-start gap-4">
-                <Label htmlFor="episode-count" className="text-right pt-2">
-                  Episode Info
-                </Label>
-                <div className="col-span-3">
-                  <div className="text-sm p-3 bg-muted/30 rounded mb-2">
-                    <div className="font-medium">Episode Count: {currentEditMovie.episodes?.length || 0}</div>
-                    {currentEditMovie.episodes && currentEditMovie.episodes.length > 0 && (
-                      <div className="mt-1 text-xs text-muted-foreground">
-                        Latest episode: {currentEditMovie.episodes[currentEditMovie.episodes.length - 1]?.name || "N/A"}
-                      </div>
-                    )}
-                    {currentEditMovie.episode_current && (
-                      <div className="mt-1 text-xs text-muted-foreground">
-                        Current/Latest: {currentEditMovie.episode_current}
-                      </div>
-                    )}
-                    {currentEditMovie.episode_total && (
-                      <div className="mt-1 text-xs text-muted-foreground">
-                        Total Episodes: {currentEditMovie.episode_total}
-                      </div>
-                    )}
+              {/* Classification Section */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium border-b pb-2">Classification</h3>
+                
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="content-type" className="text-right">
+                    Content Type
+                  </Label>
+                  <Select 
+                    value={currentEditMovie.tmdb?.type || "movie"}
+                    onValueChange={(value) => setCurrentEditMovie({
+                      ...currentEditMovie, 
+                      tmdb: {...(currentEditMovie.tmdb || {}), type: value}
+                    })}
+                  >
+                    <SelectTrigger className="col-span-3">
+                      <SelectValue placeholder="Select type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="movie">Movie</SelectItem>
+                      <SelectItem value="tv">TV Series</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="section" className="text-right font-medium">
+                    Section
+                  </Label>
+                  <Select
+                    value={currentEditMovie.section || ""}
+                    onValueChange={(value) => {
+                      console.log("Section dropdown - selected value:", value);
+                      console.log("Section dropdown - value type:", typeof value);
+                      
+                      // Make a complete copy of the current edit movie to avoid reference issues
+                      const updatedMovie = { ...currentEditMovie };
+                      
+                      // Update the section value - empty string becomes undefined
+                      // This is critical for the server to process it correctly
+                      updatedMovie.section = value === "" ? undefined : value;
+                      
+                      console.log("Section dropdown - updated movie:", updatedMovie);
+                      console.log("Section dropdown - new section value:", updatedMovie.section);
+                      console.log("Section dropdown - new section type:", typeof updatedMovie.section);
+                      
+                      setCurrentEditMovie(updatedMovie);
+                    }}
+                  >
+                    <SelectTrigger className="col-span-3">
+                      <SelectValue placeholder="Select section..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">None</SelectItem>
+                      <SelectItem value="trending_now">Trending Now</SelectItem>
+                      <SelectItem value="latest_movies">Latest Movies</SelectItem>
+                      <SelectItem value="top_rated">Top Rated Movies</SelectItem>
+                      <SelectItem value="popular_tv">Popular TV Series</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="movie-status" className="text-right">
+                    Status
+                  </Label>
+                  <Select 
+                    value={currentEditMovie.active === false ? "inactive" : "active"}
+                    onValueChange={(value) => setCurrentEditMovie({
+                      ...currentEditMovie, 
+                      active: value === "active"
+                    })}
+                  >
+                    <SelectTrigger className="col-span-3">
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="inactive">Inactive</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label className="text-right">
+                    Recommendation
+                  </Label>
+                  <div className="flex items-center space-x-2 col-span-3">
+                    <Checkbox 
+                      id="movie-recommended" 
+                      checked={currentEditMovie.isRecommended === true}
+                      onCheckedChange={(checked) => {
+                        console.log("Checkbox - isRecommended checked state:", checked);
+                        console.log("Checkbox - isRecommended checked type:", typeof checked);
+                        
+                        // Create a complete copy of the movie object
+                        const updatedMovie = { ...currentEditMovie };
+                        
+                        // Explicitly set to boolean true/false based on checkbox state
+                        updatedMovie.isRecommended = checked === true;
+                        
+                        console.log("Checkbox - updated isRecommended:", updatedMovie.isRecommended);
+                        console.log("Checkbox - updated isRecommended type:", typeof updatedMovie.isRecommended);
+                        
+                        setCurrentEditMovie(updatedMovie);
+                      }}
+                    />
+                    <Label htmlFor="movie-recommended" className="cursor-pointer flex items-center">
+                      Mark as Recommended 
+                      {currentEditMovie.isRecommended === true && (
+                        <Star className="ml-2 h-4 w-4 text-amber-500 fill-amber-500" />
+                      )}
+                    </Label>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="categories" className="text-right">
+                    Categories
+                  </Label>
+                  <div className="col-span-3">
+                    <MultiSelectTags
+                      options={predefinedCategories}
+                      selectedValues={selectedCategories}
+                      onChange={setSelectedCategories}
+                      placeholder="Select categories..."
+                    />
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="country" className="text-right">
+                    Country
+                  </Label>
+                  <div className="col-span-3">
+                    <MultiSelectTags
+                      options={predefinedCountries}
+                      selectedValues={selectedCountries}
+                      onChange={setSelectedCountries}
+                      placeholder="Select countries..."
+                    />
                   </div>
                 </div>
               </div>
               
-              <div className="grid grid-cols-4 items-start gap-4">
-                <Label htmlFor="view-stats" className="text-right pt-2">
-                  View Statistics
-                </Label>
-                <div className="col-span-3">
-                  <div className="text-sm p-3 bg-muted/30 rounded mb-2">
-                    <div className="font-medium">Total Views: {currentEditMovie.view?.toLocaleString() || "0"}</div>
-                  </div>
+              {/* Media Information Section */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium border-b pb-2">Media Information</h3>
+                
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="movie-year" className="text-right">
+                    Year
+                  </Label>
+                  <Input
+                    id="movie-year"
+                    type="number"
+                    value={currentEditMovie.year || ""}
+                    onChange={(e) => setCurrentEditMovie({...currentEditMovie, year: e.target.value})}
+                    className="col-span-3"
+                  />
+                </div>
+                
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="description" className="text-right">
+                    Description
+                  </Label>
+                  <Textarea
+                    id="description"
+                    value={currentEditMovie.content || ""}
+                    onChange={(e) => setCurrentEditMovie({...currentEditMovie, content: e.target.value})}
+                    className="col-span-3"
+                    rows={3}
+                  />
+                </div>
+
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="actors" className="text-right">
+                    Actors
+                  </Label>
+                  <Input
+                    id="actors"
+                    value={currentEditMovie.actor?.join(", ") || ""}
+                    onChange={(e) => setCurrentEditMovie({
+                      ...currentEditMovie, 
+                      actor: e.target.value.split(",").map(a => a.trim()).filter(Boolean)
+                    })}
+                    placeholder="Actor names (comma separated)"
+                    className="col-span-3"
+                  />
+                </div>
+                
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="directors" className="text-right">
+                    Directors
+                  </Label>
+                  <Input
+                    id="directors"
+                    value={currentEditMovie.director?.join(", ") || ""}
+                    onChange={(e) => setCurrentEditMovie({
+                      ...currentEditMovie, 
+                      director: e.target.value.split(",").map(d => d.trim()).filter(Boolean)
+                    })}
+                    placeholder="Director names (comma separated)"
+                    className="col-span-3"
+                  />
                 </div>
               </div>
               
-              <div className="grid grid-cols-4 items-start gap-4">
-                <Label htmlFor="metadata" className="text-right pt-2">
-                  Metadata
-                </Label>
-                <div className="col-span-3">
-                  <div className="text-xs space-y-1 p-3 bg-muted/30 rounded">
-                    {currentEditMovie.created?.time ? (
-                      <div>Created: {new Date(currentEditMovie.created.time).toLocaleString()}</div>
-                    ) : (
-                      <div>Created: Not available</div>
+              {/* Metadata Section */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium border-b pb-2">Technical Details</h3>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 items-center gap-4">
+                    <Label htmlFor="quality" className="text-right">
+                      Quality
+                    </Label>
+                    <Input
+                      id="quality"
+                      value={currentEditMovie.quality || ""}
+                      onChange={(e) => setCurrentEditMovie({...currentEditMovie, quality: e.target.value})}
+                      placeholder="HD, FHD, etc."
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-2 items-center gap-4">
+                    <Label htmlFor="language" className="text-right">
+                      Language
+                    </Label>
+                    <Input
+                      id="language"
+                      value={currentEditMovie.lang || ""}
+                      onChange={(e) => setCurrentEditMovie({...currentEditMovie, lang: e.target.value})}
+                      placeholder="VN, EN, etc."
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-2 items-center gap-4">
+                    <Label htmlFor="duration" className="text-right">
+                      Duration
+                    </Label>
+                    <Input
+                      id="duration"
+                      value={currentEditMovie.time || ""}
+                      onChange={(e) => setCurrentEditMovie({...currentEditMovie, time: e.target.value})}
+                      placeholder="e.g. 120 min"
+                    />
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="poster-url" className="text-right">
+                    Poster URL
+                  </Label>
+                  <div className="col-span-3 flex gap-2">
+                    <Input
+                      id="poster-url"
+                      value={currentEditMovie.poster_url || ""}
+                      onChange={(e) => setCurrentEditMovie({...currentEditMovie, poster_url: e.target.value})}
+                      className="flex-1"
+                    />
+                    {currentEditMovie.poster_url && (
+                      <div className="w-12 h-16 border rounded overflow-hidden flex-shrink-0">
+                        <img 
+                          src={currentEditMovie.poster_url} 
+                          alt="Poster" 
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
                     )}
-                    {currentEditMovie.modified?.time ? (
-                      <div>Last Updated: {new Date(currentEditMovie.modified.time).toLocaleString()}</div>
-                    ) : (
-                      <div>Last Updated: Not available</div>
-                    )}
-                    <div>ID: {currentEditMovie._id}</div>
-                    {currentEditMovie.tmdb?.id && (
-                      <div>TMDB ID: {currentEditMovie.tmdb.id}</div>
-                    )}
-                    {currentEditMovie.time && (
-                      <div>Duration: {currentEditMovie.time}</div>
-                    )}
-                    {currentEditMovie.is_copyright && (
-                      <div>Copyright: Protected</div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="thumbnail-url" className="text-right">
+                    Thumbnail URL
+                  </Label>
+                  <div className="col-span-3 flex gap-2">
+                    <Input
+                      id="thumbnail-url"
+                      value={currentEditMovie.thumb_url || ""}
+                      onChange={(e) => setCurrentEditMovie({...currentEditMovie, thumb_url: e.target.value})}
+                      className="flex-1"
+                    />
+                    {currentEditMovie.thumb_url && (
+                      <div className="w-12 h-16 border rounded overflow-hidden flex-shrink-0">
+                        <img 
+                          src={currentEditMovie.thumb_url} 
+                          alt="Thumbnail" 
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
                     )}
                   </div>
                 </div>
               </div>
             </div>
           )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" onClick={handleMovieSave}>
-              Save Changes
-            </Button>
+          <DialogFooter className="mt-4 gap-2 sm:gap-0">
+            <div className="flex w-full justify-between items-center">
+              <div className="text-sm text-muted-foreground">
+                {currentEditMovie?.modified?.time ? (
+                  <span>Last updated: {new Date(currentEditMovie.modified.time).toLocaleString()}</span>
+                ) : null}
+              </div>
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setEditDialogOpen(false)}
+                  className="px-4"
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  onClick={handleMovieSave}
+                  className="px-6 font-medium"
+                  disabled={isLoadingMovieDetails || !currentEditMovie?.name} // Disable if loading or no title
+                >
+                  Save Changes
+                </Button>
+              </div>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>

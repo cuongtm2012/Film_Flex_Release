@@ -63,6 +63,7 @@ export interface IStorage {
   saveMovie(movie: InsertMovie): Promise<Movie>;
   searchMovies(query: string, normalizedQuery: string, page: number, limit: number): Promise<{ data: Movie[], total: number }>;
   getMoviesByCategory(categorySlug: string, page: number, limit: number, sortBy?: string): Promise<{ data: Movie[], total: number }>;
+  updateMovieBySlug(slug: string, updateData: Partial<Movie>): Promise<Movie | undefined>;
   
   // Episode methods
   getEpisodesByMovieSlug(movieSlug: string): Promise<Episode[]>;
@@ -1810,6 +1811,14 @@ export class DatabaseStorage implements IStorage {
     .where(eq(rolePermissions.permissionId, permissionId));
     
     return result.map(r => r.role);
+  }
+
+  async updateMovieBySlug(slug: string, updateData: Partial<Movie>): Promise<Movie | undefined> {
+    const [updatedMovie] = await db.update(movies)
+      .set({ ...updateData, modifiedAt: new Date() })
+      .where(eq(movies.slug, slug))
+      .returning();
+    return updatedMovie;
   }
 }
 
