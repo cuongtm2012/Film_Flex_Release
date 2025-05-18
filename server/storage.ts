@@ -57,7 +57,7 @@ export interface IStorage {
   getMovieBySlug(slug: string): Promise<Movie | undefined>;
   getMovieByMovieId(movieId: string): Promise<Movie | undefined>;
   saveMovie(movie: InsertMovie): Promise<Movie>;
-  searchMovies(query: string, normalizedQuery: string, page: number, limit: number): Promise<{ data: Movie[], total: number }>;
+  searchMovies(query: string, normalizedQuery: string, page: number, limit: number, section?: string): Promise<{ data: Movie[], total: number }>;
   getMoviesByCategory(categorySlug: string, page: number, limit: number, sortBy?: string): Promise<{ data: Movie[], total: number }>;
   getMoviesBySection(section: string, page: number, limit: number): Promise<{ data: Movie[], total: number }>;
   updateMovieBySlug(slug: string, updateData: Partial<Movie>): Promise<Movie | undefined>;
@@ -685,20 +685,41 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Add search and category methods
-  async searchMovies(query: string, _normalizedQuery: string, page: number, limit: number): Promise<{ data: Movie[], total: number }> {
+  async searchMovies(query: string, _normalizedQuery: string, page: number, limit: number, section?: string): Promise<{ data: Movie[], total: number }> {
     const offset = (page - 1) * limit;
+
+    // Convert query to lowercase for case-insensitive search
+    const lowercaseQuery = query.toLowerCase();
+
+    // Build search conditions to search across multiple fields with explicit lowercasing
+    const searchConditions = sql`(
+      LOWER(${movies.name}) LIKE ${`%${lowercaseQuery}%`} OR 
+      LOWER(${movies.originName}) LIKE ${`%${lowercaseQuery}%`} OR 
+      LOWER(${movies.description}) LIKE ${`%${lowercaseQuery}%`} OR 
+      LOWER(${movies.actors}) LIKE ${`%${lowercaseQuery}%`} OR 
+      LOWER(${movies.directors}) LIKE ${`%${lowercaseQuery}%`}
+    )`;
+
+    let conditions = searchConditions;
+    
+    // Add section filter if specified
+    if (section) {
+      conditions = sql`${searchConditions} AND ${movies.section} = ${section}`;
+      console.log(`[DEBUG] Adding section filter: ${section} to search query`);
+    }
 
     const baseQuery = db.select()
       .from(movies)
-      .where(sql`(${movies.name} ILIKE ${`%${query}%`} OR ${movies.originName} ILIKE ${`%${query}%`})`);
+      .where(conditions);
 
     const data = await baseQuery
+      .orderBy(desc(movies.modifiedAt))
       .limit(limit)
       .offset(offset);
 
     const [{ count }] = await db.select({ count: sql<number>`count(*)` })
       .from(movies)
-      .where(sql`(${movies.name} ILIKE ${`%${query}%`} OR ${movies.originName} ILIKE ${`%${query}%`})`);
+      .where(conditions);
 
     return { data, total: count || 0 };
   }

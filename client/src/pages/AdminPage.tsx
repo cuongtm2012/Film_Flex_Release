@@ -206,12 +206,13 @@ function MultiSelectTags({ options, selectedValues, onChange, placeholder = "Sel
 export default function AdminPage() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
-  const [activeTab, setActiveTab] = useState("user-management");
+  // Changed default from "user-management" to "content-management"
+  const [activeTab, setActiveTab] = useState("content-management");
   const [currentPage, setCurrentPage] = useState(1);
-  const [contentType, setContentType] = useState("all");
+  const [sectionFilter, setSectionFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState<string[]>([]);
+  const [countryFilter, setCountryFilter] = useState<string[]>([]);
   const [recommendedFilter, setRecommendedFilter] = useState("all");
   const [itemsPerPage, setItemsPerPage] = useState(20);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -222,6 +223,9 @@ export default function AdminPage() {
   // State for multi-select values in edit dialog
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedCountries, setSelectedCountries] = useState<string[]>([]);
+  
+  // Add isAuthenticated variable to fix undefined error
+  const isAuthenticated = !!user;
   
   const queryClient = useQueryClient();
   
@@ -321,9 +325,6 @@ export default function AdminPage() {
         origin_name: currentEditMovie.origin_name || "",
         content: currentEditMovie.content || "",
         // Handle section field - make sure we're using explicit value
-        section: currentEditMovie.section === "none" ? null : currentEditMovie.section || null,
-        // Make sure isRecommended is a boolean - explicit true/false not string
-        isRecommended: currentEditMovie.isRecommended === true, 
         // Add categories and countries
         category: formattedCategories,
         country: formattedCountries,
@@ -432,6 +433,14 @@ export default function AdminPage() {
       // Update the loading toast with success message
       toast.success("Movie updated successfully", { id: savingToastId });
       
+      // Show a more prominent success message with more information
+      toast({
+        title: "Update Successful",
+        description: `"${currentEditMovie.name}" was updated successfully with section: ${savedData.movie.section ? savedData.movie.section : 'None'} and ${savedData.movie.isRecommended ? 'marked as recommended' : 'not marked as recommended'}`,
+        variant: "success",
+        duration: 5000, // Show for 5 seconds so it's more noticeable
+      });
+      
       // Close the dialog after successful update
       setFullScreenEdit(false);
       
@@ -451,14 +460,52 @@ export default function AdminPage() {
 
   // Fetch real movie data
   const { data: moviesData, isLoading: isLoadingMovies, error: moviesError } = useQuery({
-    queryKey: ["/api/movies", currentPage, contentType, statusFilter, recommendedFilter, searchQuery, itemsPerPage],
+    queryKey: ["/api/movies", currentPage, sectionFilter, categoryFilter, countryFilter, recommendedFilter, searchQuery, itemsPerPage],
     queryFn: async () => {
-      let url = `/api/movies?page=${currentPage}&limit=${itemsPerPage}`;
-      
-      // If search query exists, use search endpoint instead
-      if (searchQuery.trim()) {
-        url = `/api/search?keyword=${encodeURIComponent(searchQuery)}&page=${currentPage}&limit=${itemsPerPage}`;
+      // If there are no specific filters active and we're on the content management tab,
+      // use the admin endpoint to fetch all movies by default
+      if (activeTab === "content-management" && 
+          !searchQuery.trim() && 
+          sectionFilter === "all" && 
+          categoryFilter.length === 0 && 
+          countryFilter.length === 0 && 
+          recommendedFilter === "all") {
+        
+        // Use the admin endpoint that fetches all movies
+        const params = new URLSearchParams({
+          page: String(currentPage),
+          limit: String(itemsPerPage)
+        });
+        
+        const url = `/api/admin/movies?${params.toString()}`;
+        console.log(`Fetching all movies from admin endpoint: ${url}`);
+        
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error("Failed to fetch movies");
+        }
+        
+        return await response.json() as MovieListResponse;
       }
+      
+      // Construct base query parameters for filtered searches
+      const params = new URLSearchParams({
+        page: String(currentPage),
+        limit: String(itemsPerPage)
+      });
+      
+      // Add section filter if specified
+      if (sectionFilter !== "all") {
+        params.append("section", sectionFilter);
+      }
+      
+      // If search query exists, use full-text search across multiple fields
+      if (searchQuery.trim()) {
+        params.append("q", searchQuery.trim());
+        params.append("fields", "name,origin_name,content,description,actor,director,category,country");
+      }
+      
+      let url = `/api/search?${params.toString()}`;
       
       const response = await fetch(url);
       if (!response.ok) {
@@ -467,49 +514,67 @@ export default function AdminPage() {
       
       const data = await response.json() as MovieListResponse;
       
-      // Apply filters on client-side
+      // Apply client-side filters for categories, countries, and recommendation status
       let filteredItems = [...data.items];
       
-      // Filter by content type
-      if (contentType !== "all") {
-        filteredItems = filteredItems.filter(movie => movie.tmdb?.type === contentType);
+      // Apply category filter if any categories are selected
+      if (categoryFilter.length > 0) {
+        filteredItems = filteredItems.filter(movie => {
+          const movieCategories = Array.isArray((movie as any).category) 
+            ? (movie as any).category 
+            : (movie as unknown as MovieDetailsType).categories || [];
+            
+          // Check if any of the selected categories match this movie
+          return categoryFilter.some(selectedCat => 
+            movieCategories.some(cat => 
+              (typeof cat === "string" && cat === selectedCat) || 
+              (typeof cat === "object" && cat?.id === selectedCat)
+            )
+          );
+        });
       }
       
-      // Filter by status (active/inactive)
-      if (statusFilter !== "all") {
-        const isActive = statusFilter === "active";
+      // Apply country filter if any countries are selected
+      if (countryFilter.length > 0) {
+        filteredItems = filteredItems.filter(movie => {
+          const movieCountries = Array.isArray((movie as any).country) 
+            ? (movie as any).country 
+            : (movie as unknown as MovieDetailsType).countries || [];
+            
+          // Check if any of the selected countries match this movie
+          return countryFilter.some(selectedCountry => 
+            movieCountries.some(country => 
+              (typeof country === "string" && country === selectedCountry) ||
+              (typeof country === "object" && country?.id === selectedCountry)
+            )
+          );
+        });
+      }
+      
+      // Apply recommended filter if enabled
+      if (recommendedFilter === "yes") {
         filteredItems = filteredItems.filter(movie => 
-          (movie as unknown as MovieDetailsType).active === isActive
+          (movie as unknown as MovieDetailsType).isRecommended === true
+        );
+      } else if (recommendedFilter === "no") {
+        filteredItems = filteredItems.filter(movie => 
+          (movie as unknown as MovieDetailsType).isRecommended !== true
         );
       }
       
-      // Filter by recommendation status
-      if (recommendedFilter !== "all") {
-        const isRecommended = recommendedFilter === "yes";
-        filteredItems = filteredItems.filter(movie => 
-          (movie as unknown as MovieDetailsType).isRecommended === isRecommended
-        );
-      }
-      
-      // Only update totalItems/totalPages if we've applied filtering
-      if (contentType !== "all" || statusFilter !== "all" || recommendedFilter !== "all") {
-        return {
-          ...data,
-          items: filteredItems,
-          pagination: {
-            ...data.pagination,
-            totalItems: filteredItems.length,
-            totalPages: Math.ceil(filteredItems.length / itemsPerPage)
-          }
-        };
-      }
-      
-      // Otherwise keep the server-provided pagination 
       return {
         ...data,
-        items: filteredItems
+        items: filteredItems,
+        pagination: {
+          ...data.pagination,
+          totalItems: filteredItems.length,
+          totalPages: Math.ceil(filteredItems.length / itemsPerPage)
+        }
       };
     },
+    enabled: isAuthenticated,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    retry: 1
   });
 
   // Mock data for users (keeping this for now)
@@ -639,20 +704,28 @@ export default function AdminPage() {
                     <div className="relative flex-1">
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input 
-                        placeholder="Search by title..." 
+                        placeholder="Search across titles, description, actors, directors, categories..." 
                         className="pl-10" 
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                       />
                     </div>
                     <div className="flex gap-2">
-                      <Button variant="outline" onClick={() => {}} className="flex items-center gap-1">
-                        <SlidersHorizontal className="h-4 w-4" />
-                        Filters
+                      <Button variant="outline" onClick={() => {
+                        // Reset filters
+                        setSectionFilter("all");
+                        setCategoryFilter([]);
+                        setCountryFilter([]);
+                        setRecommendedFilter("all");
+                        setSearchQuery("");
+                        setCurrentPage(1);
+                      }} className="flex items-center gap-1">
+                        <RefreshCw className="h-4 w-4" />
+                        Reset Filters
                       </Button>
                       <Button onClick={() => setCurrentPage(1)}>
-                        <RefreshCw className="mr-2 h-4 w-4" />
-                        Refresh
+                        <Search className="mr-2 h-4 w-4" />
+                        Search
                       </Button>
                     </div>
                     <Button>
@@ -664,46 +737,50 @@ export default function AdminPage() {
                   {/* Advanced Filter Panel */}
                   <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 p-4 bg-muted/20 rounded-md mb-4">
                     <div>
-                      <Label htmlFor="content-type" className="text-sm font-medium block mb-2">
-                        Content Type
+                      <Label htmlFor="section-filter" className="text-sm font-medium block mb-2">
+                        Section
                       </Label>
                       <Select 
                         defaultValue="all" 
-                        value={contentType}
-                        onValueChange={(value) => setContentType(value)}
+                        value={sectionFilter}
+                        onValueChange={(value) => setSectionFilter(value)}
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder="Select type" />
+                          <SelectValue placeholder="Select section" />
                         </SelectTrigger>
                         <SelectContent>
-                          {/* Ensure all SelectItem components have valid value props */}
-                          <SelectItem key="all" value="all">All Types</SelectItem>
-                          <SelectItem key="movie" value="movie">Movies</SelectItem>
-                          <SelectItem key="tv" value="tv">TV Series</SelectItem>
-                          <SelectItem key="documentary" value="documentary">Documentary</SelectItem>
+                          <SelectItem key="all-sections" value="all">All Sections</SelectItem>
+                          <SelectItem key="trending" value="trending_now">Trending Now</SelectItem>
+                          <SelectItem key="latest" value="latest_movies">Latest Movies</SelectItem>
+                          <SelectItem key="top-rated" value="top_rated">Top Rated Movies</SelectItem>
+                          <SelectItem key="popular-tv" value="popular_tv">Popular TV Series</SelectItem>
+                          <SelectItem key="none-section" value="none">None</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
 
                     <div>
-                      <Label htmlFor="status-filter" className="text-sm font-medium block mb-2">
-                        Status
+                      <Label htmlFor="category-filter" className="text-sm font-medium block mb-2">
+                        Categories
                       </Label>
-                      <Select 
-                        defaultValue="all" 
-                        value={statusFilter}
-                        onValueChange={(value) => setStatusFilter(value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select status" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {/* Ensure all SelectItem components have valid value props */}
-                          <SelectItem key="all-statuses" value="all">All Statuses</SelectItem>
-                          <SelectItem key="active-status" value="active">Active</SelectItem>
-                          <SelectItem key="inactive-status" value="inactive">Inactive</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <MultiSelectTags
+                        options={predefinedCategories}
+                        selectedValues={categoryFilter}
+                        onChange={setCategoryFilter}
+                        placeholder="Select categories"
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="country-filter" className="text-sm font-medium block mb-2">
+                        Country
+                      </Label>
+                      <MultiSelectTags
+                        options={predefinedCountries}
+                        selectedValues={countryFilter}
+                        onChange={setCountryFilter}
+                        placeholder="Select countries"
+                      />
                     </div>
 
                     <div>
@@ -719,32 +796,9 @@ export default function AdminPage() {
                           <SelectValue placeholder="Recommendation status" />
                         </SelectTrigger>
                         <SelectContent>
-                          {/* Ensure all SelectItem components have valid value props */}
                           <SelectItem key="all-rec" value="all">All</SelectItem>
                           <SelectItem key="yes-rec" value="yes">Recommended</SelectItem>
                           <SelectItem key="no-rec" value="no">Not Recommended</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div>
-                      <Label htmlFor="items-per-page" className="text-sm font-medium block mb-2">
-                        Items Per Page
-                      </Label>
-                      <Select 
-                        defaultValue="20" 
-                        value={itemsPerPage.toString()}
-                        onValueChange={(value) => setItemsPerPage(parseInt(value))}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Items per page" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {/* Ensure all SelectItem components have valid value props */}
-                          <SelectItem key="10-items" value="10">10</SelectItem>
-                          <SelectItem key="20-items" value="20">20</SelectItem>
-                          <SelectItem key="50-items" value="50">50</SelectItem>
-                          <SelectItem key="100-items" value="100">100</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -1631,7 +1685,7 @@ export default function AdminPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-4">
                   <div>
-                    <Label htmlFor="title">Title (Read only)</Label>
+                    <Label htmlFor="title">Title</Label>
                     <Input 
                       id="title"
                       value={currentEditMovie.name}
@@ -1644,7 +1698,7 @@ export default function AdminPage() {
                   </div>
                   
                   <div>
-                    <Label htmlFor="origin-name">Original Title (Read only)</Label>
+                    <Label htmlFor="origin-name">Original Title</Label>
                     <Input 
                       id="origin-name"
                       value={currentEditMovie.origin_name || ""}
@@ -1675,6 +1729,17 @@ export default function AdminPage() {
                       placeholder="Select countries"
                     />
                   </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="year">Year</Label>
+                    <Input 
+                      id="year"
+                      value={currentEditMovie.year || ""}
+                      readOnly
+                    />
+                  </div>
 
                   <div>
                     <Label htmlFor="section">Section</Label>
@@ -1697,58 +1762,14 @@ export default function AdminPage() {
                       </SelectContent>
                     </Select>
                   </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="year">Year (Read only)</Label>
-                    <Input 
-                      id="year"
-                      value={currentEditMovie.year || ""}
-                      onChange={(e) => setCurrentEditMovie({
-                        ...currentEditMovie,
-                        year: e.target.value
-                      })}
-                      readOnly
-                    />
-                  </div>
 
                   <div>
-                    <Label htmlFor="quality">Quality (Read only)</Label>
-                    <Input 
-                      id="quality"
-                      value={currentEditMovie.quality || ""}
-                      onChange={(e) => setCurrentEditMovie({
-                        ...currentEditMovie,
-                        quality: e.target.value
-                      })}
-                      readOnly
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="language">Language (Read only)</Label>
+                    <Label htmlFor="language">Language</Label>
                     <Input 
                       id="language"
                       value={currentEditMovie.lang || ""}
-                      onChange={(e) => setCurrentEditMovie({
-                        ...currentEditMovie,
-                        lang: e.target.value
-                      })}
                       readOnly
                     />
-                  </div>
-
-                  <div className="flex items-center space-x-2">
-                    <Checkbox 
-                      id="active"
-                      checked={currentEditMovie.active !== false}
-                      onCheckedChange={(checked) => setCurrentEditMovie({
-                        ...currentEditMovie,
-                        active: checked === true
-                      })}
-                    />
-                    <Label htmlFor="active">Active</Label>
                   </div>
 
                   <div className="flex items-center space-x-2">
@@ -1766,14 +1787,10 @@ export default function AdminPage() {
               </div>
 
               <div>
-                <Label htmlFor="content">Description (Read only)</Label>
+                <Label htmlFor="content">Description</Label>
                 <Textarea 
                   id="content"
                   value={currentEditMovie.content || ""}
-                  onChange={(e) => setCurrentEditMovie({
-                    ...currentEditMovie,
-                    content: e.target.value
-                  })}
                   rows={5}
                   readOnly
                 />

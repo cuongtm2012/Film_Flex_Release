@@ -100,8 +100,8 @@ async function fetchMovieDetail(slug: string): Promise<MovieDetailResponse> {
   };
 }
 
-async function searchMovies(query: string, normalizedQuery: string, page: number, limit: number): Promise<MovieListResponse> {
-  const movies = await storage.searchMovies(query, normalizedQuery, page, limit);
+async function searchMovies(query: string, normalizedQuery: string, page: number, limit: number, section?: string): Promise<MovieListResponse> {
+  const movies = await storage.searchMovies(query, normalizedQuery, page, limit, section);
   return {
     status: true,
     items: movies.data,
@@ -758,8 +758,8 @@ export function registerRoutes(app: Express): void {
       
       // For suggestions, we always use a small limit (max 8 results)
       console.log(`Fetching search suggestions for "${keyword}"`);
-      const normalizedKeyword = normalizeText(keyword);
-      const searchResults = await searchMovies(keyword, normalizedKeyword, 1, 8);
+      const normalizedKeyword = normalizeText(keyword.toLowerCase());
+      const searchResults = await searchMovies(keyword.toLowerCase(), normalizedKeyword, 1, 8);
       
       // Log the search results
       if (searchResults.items && searchResults.items.length > 0) {
@@ -789,8 +789,16 @@ export function registerRoutes(app: Express): void {
       const keyword = (req.query.q as string || "").trim();
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 48; // Default to 48 items per page
+      const fields = (req.query.fields as string || "name,origin_name").split(',');
+      const section = req.query.section as string; // Get section parameter
       
-      console.log(`Searching for "${keyword}" in page ${page} with limit ${limit}`);
+      console.log(`Searching for "${keyword}" in page ${page} with limit ${limit}, fields: [${fields.join(', ')}]${section ? `, section: ${section}` : ''}`);
+      
+      // If section is specified but no search keyword, redirect to section endpoint
+      if (section && !keyword) {
+        console.log(`No search term but section ${section} specified, redirecting to section endpoint`);
+        return res.redirect(`/api/movies/sections/${section}?page=${page}&limit=${limit}`);
+      }
       
       if (!keyword) {
         console.log("Empty search term received, returning empty results");
@@ -806,8 +814,12 @@ export function registerRoutes(app: Express): void {
         });
       }
       
-      const normalizedKeyword = normalizeText(keyword);
-      const searchResults = await searchMovies(keyword, normalizedKeyword, page, limit);
+      // Ensure case insensitive search by converting to lowercase
+      const lowercaseKeyword = keyword.toLowerCase();
+      const normalizedKeyword = normalizeText(lowercaseKeyword);
+      
+      // Pass the section parameter directly to the searchMovies function
+      const searchResults = await searchMovies(lowercaseKeyword, normalizedKeyword, page, limit, section);
       
       // Ensure pagination info is present
       if (!searchResults.pagination) {
@@ -838,6 +850,34 @@ export function registerRoutes(app: Express): void {
           totalItemsPerPage: limit
         }
       });
+    }
+  });
+  
+  // API endpoint for fetching movies for admin content management
+  router.get("/admin/movies", async (req, res) => {
+    try {
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 48;
+      const sortBy = req.query.sort as string || 'latest';
+      
+      console.log(`Fetching admin movies list for page ${page} with limit ${limit}, sorting by ${sortBy}`);
+      
+      // We reuse the existing storage.getMovies method which provides pagination
+      const result = await storage.getMovies(page, limit, sortBy);
+      
+      res.json({
+        status: true,
+        items: result.data,
+        pagination: {
+          totalItems: result.total,
+          totalPages: Math.ceil(result.total / limit),
+          currentPage: page,
+          totalItemsPerPage: limit
+        }
+      });
+    } catch (error) {
+      console.error("Error fetching admin movies list:", error);
+      res.status(500).json({ status: false, message: "Failed to fetch movies" });
     }
   });
   

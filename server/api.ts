@@ -165,14 +165,15 @@ export async function fetchMovieDetail(slug: string): Promise<MovieDetailRespons
 function normalizeText(text: string): string {
   if (!text) return '';
   
+  // First convert to lowercase to ensure case-insensitive comparison
+  text = text.toLowerCase();
+  
   // Normalize to NFD form where accented chars are separated into base char + accent
   return text.normalize('NFD')
     // Remove combining diacritical marks (accents, etc.)
     .replace(/[\u0300-\u036f]/g, '')
-    // Remove other special characters and normalize to lowercase
-    .toLowerCase()
-    // Replace đ/Đ with d
-    .replace(/[đĐ]/g, 'd');
+    // Replace đ/Đ with d (already lowercase from earlier conversion)
+    .replace(/đ/g, 'd');
 }
 
 export async function searchMovies(keyword: string, normalizedQuery: string | null = null, page: number = 1, limit: number = 50): Promise<MovieListResponse> {
@@ -682,60 +683,4 @@ async function generateRecommendations(movie: Movie, limit: number): Promise<Mov
         if (categoryMovies && categoryMovies.items && categoryMovies.items.length > 0) {
           // Add movies from this category to recommendations, but exclude the current movie
           categoryMovies.items.forEach(item => {
-            if (item.slug !== movie.slug) {
-              recommendedMovies.push(item);
-            }
-          });
-        }
-      } catch (error) {
-        console.error(`Error fetching movies from category ${category.slug}:`, error);
-        // Continue with other categories
-      }
-      
-      // Break if we have enough recommendations
-      if (recommendedMovies.length >= limit * 2) {
-        break;
-      }
-    }
-  }
-  
-  // Strategy 2: If we don't have enough recommendations, add some recent movies
-  if (recommendedMovies.length < limit) {
-    console.log(`Not enough recommendations (${recommendedMovies.length}), adding recent movies`);
-    try {
-      const recentMovies = await fetchMovieList(1, 20);
-      if (recentMovies && recentMovies.items && recentMovies.items.length > 0) {
-        recentMovies.items.forEach(item => {
-          if (item.slug !== movie.slug) {
-            recommendedMovies.push(item);
-          }
-        });
-      }
-    } catch (error) {
-      console.error(`Error fetching recent movies for recommendations:`, error);
-    }
-  }
-  
-  // Deduplicate recommendations by slug
-  const uniqueRecommendations = Array.from(
-    new Map(recommendedMovies.map(item => [item.slug, item])).values()
-  );
-  
-  // Limit to requested number
-  const limitedRecommendations = uniqueRecommendations.slice(0, limit);
-  
-  // Create the response
-  const response: MovieListResponse = {
-    status: true,
-    items: limitedRecommendations,
-    pagination: {
-      totalItems: limitedRecommendations.length,
-      totalPages: 1,
-      currentPage: 1,
-      totalItemsPerPage: limit
-    }
-  };
-  
-  console.log(`Returning ${limitedRecommendations.length} recommendations for movie ${movie.slug}`);
-  return response;
-}
+            if
