@@ -1,0 +1,88 @@
+[2025-05-18 00:13:42] Starting new complete database import process
+[2025-05-18 00:13:43] BATCH 1/23: Importing pages 1 to 100
+[2025-05-18 00:13:55] Successfully completed processing page 1
+[2025-05-18 00:13:55] Progress saved: batch 1, page 1
+[2025-05-18 00:13:56] Progress saved: batch 1, page 1
+[2025-05-18 00:25:07] Starting new complete database import process
+[2025-05-18 00:25:08] BATCH 1/23: Importing pages 1 to 100
+[2025-05-18 00:25:20] Progress saved: batch 1, page 1
+[2025-05-18 00:27:20] Starting new complete database import process
+[2025-05-18 00:27:21] BATCH 1/23: Importing pages 1 to 100
+[2025-05-18 00:27:35] Successfully completed processing page 1
+[2025-05-18 00:27:35] Progress saved: batch 1, page 1
+[2025-05-18 00:28:04] Successfully completed processing page 2
+[2025-05-18 00:28:04] Progress saved: batch 1, page 2
+[2025-05-18 00:28:12] Successfully completed processing page 3
+[2025-05-18 00:28:12] Progress saved: batch 1, page 3
+[2025-05-18 00:28:17] Successfully completed processing page 4
+[2025-05-18 00:28:17] Progress saved: batch 1, page 4
+[2025-05-18 00:28:22] Successfully completed processing page 5
+[2025-05-18 00:28:22] Progress saved: batch 1, page 5
+[2025-05-18 00:28:27] Successfully completed processing page 6
+[2025-05-18 00:28:27] Progress saved: batch 1, page 6
+[2025-05-18 00:28:31] Progress saved: batch 1, page 7
+[2025-05-18 00:47:48] Starting new complete database import process
+[2025-05-18 00:47:53] BATCH 1/23: Importing pages 1 to 100
+[2025-05-18 00:47:58] Successfully completed processing page 1
+[2025-05-18 00:47:58] Progress saved: batch 1, page 1
+[2025-05-18 00:48:02] Successfully completed processing page 2
+[2025-05-18 00:48:02] Progress saved: batch 1, page 2
+[2025-05-18 00:48:07] Successfully completed processing page 3
+[2025-05-18 00:48:07] Progress saved: batch 1, page 3
+[2025-05-18 00:48:12] Successfully completed processing page 4
+[2025-05-18 00:48:12] Progress saved: batch 1, page 4
+[2025-05-18 00:48:17] Successfully completed processing page 5
+[2025-05-18 00:48:17] Progress saved: batch 1, page 5
+[2025-05-18 00:48:21] Successfully completed processing page 6
+[2025-05-18 00:48:21] Progress saved: batch 1, page 6
+[2025-05-18 00:48:26] Successfully completed processing page 7
+[2025-05-18 00:48:26] Progress saved: batch 1, page 7
+[2025-05-18 00:48:33] Successfully completed processing page 8
+[2025-05-18 00:48:33] Progress saved: batch 1, page 8
+[2025-05-18 00:48:42] Progress saved: batch 1, page 9
+[2025-05-18 00:52:35] Starting new complete database import process
+[2025-05-18 00:52:36] BATCH 0/23: Importing pages -99 to 0
+[2025-05-18 00:52:37] Successfully completed processing page -99
+[2025-05-18 00:52:37] Progress saved: batch 0, page -99
+[2025-05-18 00:52:41] Successfully completed processing page -98
+[2025-05-18 00:52:41] Progress saved: batch 0, page -98
+[2025-05-18 00:52:45] Successfully completed processing page -97
+[2025-05-18 00:52:45] Progress saved: batch 0, page -97
+[2025-05-18 00:52:49] Successfully completed processing page -96
+[2025-05-18 00:52:49] Progress saved: batch 0, page -96
+[2025-05-18 00:52:53] Successfully completed processing page -95
+[2025-05-18 00:52:53] Progress saved: batch 0, page -95
+[2025-05-18 00:52:56] Progress saved: batch 0, page -95
+[2025-05-18 00:59:33] Starting new complete database import process
+[2025-05-18 00:59:41] Starting new complete database import process
+[2025-05-18 01:02:32] Starting new complete database import process
+[2025-05-18 01:02:34] Starting batch 1 (pages 1-100)
+[2025-05-18 01:02:44] Successfully completed processing page 1
+[2025-05-18 01:02:44] Progress saved: batch 1, page 1
+[2025-05-18 01:02:49] Successfully completed processing page 2
+[2025-05-18 01:02:49] Progress saved: batch 1, page 2
+[2025-05-18 01:02:55] Successfully completed processing page 3
+[2025-05-18 01:02:55] Progress saved: batch 1, page 3
+[2025-05-18 01:03:00] Successfully completed processing page 4
+[2025-05-18 01:03:00] Progress saved: batch 1, page 4
+[2025-05-18 01:03:05] Successfully completed processing page 5
+[2025-05-18 01:03:05] Progress saved: batch 1, page 5
+[2025-05-18 01:03:11] Successfully completed processing page 6
+[2025-05-18 01:03:11] Progress saved: batch 1, page 6
+[2025-05-18 01:03:16] Successfully completed processing page 7
+[2025-05-18 01:03:16] Progress saved: batch 1, page 7
+[2025-05-18 01:03:21] Successfully completed processing page 8
+[2025-05-18 01:03:21] Progress saved: batch 1, page 8
+[2025-05-18 01:03:23] Progress saved: batch 1, page 8
+[2025-05-18 01:05:01] Starting batch 1 (pages 1-100)
+[2025-05-18 01:05:01] Page 8 already processed (verified from detailed progress), skipping
+[2025-05-18 01:05:01] Progress saved: batch 1, page 8
+[2025-05-18 01:05:15] Successfully completed processing page 9
+[2025-05-18 01:05:15] Progress saved: batch 1, page 9
+[2025-05-18 01:05:27] Progress saved: batch 1, page 10
+[2025-05-18 01:21:06] Starting batch 1 (pages 1-100)
+[2025-05-18 01:21:31] Successfully completed processing page 10
+[2025-05-18 01:21:31] Progress saved: batch 1, page 10
+[2025-05-18 01:22:02] Successfully completed processing page 11
+[2025-05-18 01:22:02] Progress saved: batch 1, page 11
+[2025-05-18 01:22:24] Progress saved: batch 1, page 12
