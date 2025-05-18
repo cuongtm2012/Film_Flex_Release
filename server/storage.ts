@@ -59,6 +59,7 @@ export interface IStorage {
   saveMovie(movie: InsertMovie): Promise<Movie>;
   searchMovies(query: string, normalizedQuery: string, page: number, limit: number): Promise<{ data: Movie[], total: number }>;
   getMoviesByCategory(categorySlug: string, page: number, limit: number, sortBy?: string): Promise<{ data: Movie[], total: number }>;
+  getMoviesBySection(section: string, page: number, limit: number): Promise<{ data: Movie[], total: number }>;
   updateMovieBySlug(slug: string, updateData: Partial<Movie>): Promise<Movie | undefined>;
   
   // Episode methods
@@ -722,6 +723,25 @@ export class DatabaseStorage implements IStorage {
     return { data, total: count || 0 };
   }
 
+  async getMoviesBySection(section: string, page: number, limit: number): Promise<{ data: Movie[], total: number }> {
+    const offset = (page - 1) * limit;
+    
+    // Query movies by section field
+    const data = await db.select()
+      .from(movies)
+      .where(eq(movies.section, section))
+      .orderBy(desc(movies.modifiedAt))
+      .limit(limit)
+      .offset(offset);
+    
+    // Count total movies in this section
+    const [{ count }] = await db.select({ count: sql<number>`count(*)` })
+      .from(movies)
+      .where(eq(movies.section, section));
+    
+    return { data, total: count || 0 };
+  }
+
   async updateMovieBySlug(slug: string, updateData: Partial<Movie>): Promise<Movie | undefined> {
     // Ensure data types are correct before updating
     if ('section' in updateData) {
@@ -760,6 +780,10 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
+  private async clearCache(key: string): Promise<void> {
+    this.cache.delete(key);
+  }
+
   private async getCache<T>(key: string): Promise<T | null> {
     const cached = this.cache.get(key);
     if (!cached) return null;
@@ -772,11 +796,36 @@ export class DatabaseStorage implements IStorage {
     return cached.data;
   }
 
+  async clearMovieDetailCache(slug: string): Promise<void> {
+    const key = this.getCacheKey('movieDetail', slug);
+    await this.clearCache(key);
+    console.log(`[DEBUG] Cleared cache for movie: ${slug}`);
+  }
+
   async cacheMovieList(data: MovieListResponse, page: number): Promise<void> {
     await this.setCache(this.getCacheKey('movieList', page), data);
   }
 
   async cacheMovieDetail(data: MovieDetailResponse): Promise<void> {
+    // Ensure the section and isRecommended fields are preserved
+    if (data && data.movie) {
+      // Deep clone to avoid reference issues
+      const movieClone = JSON.parse(JSON.stringify(data.movie));
+      
+      // Ensure section property is correctly typed
+      if (movieClone.section === undefined || movieClone.section === null) {
+        movieClone.section = null;
+      }
+      
+      // Ensure isRecommended is a proper boolean
+      movieClone.isRecommended = movieClone.isRecommended === true;
+      
+      console.log(`[DEBUG] Caching movie ${movieClone.slug} with section: ${movieClone.section}, isRecommended: ${movieClone.isRecommended}`);
+      
+      // Replace the movie object with our fixed version
+      data.movie = movieClone;
+    }
+    
     await this.setCache(this.getCacheKey('movieDetail', data.movie.slug), data);
   }
 
