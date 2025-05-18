@@ -356,62 +356,181 @@ export function registerRoutes(app: Express): void {
         });
       }
       
+      console.log(`[DEBUG] Fetching movie details for slug: ${slug}`);
+      
       // Try to get from cache first
       let movieDetailData = await storage.getMovieDetailCache(slug);
       
       // If not in cache or cache is expired, fetch from database or API
       if (!movieDetailData) {
+        console.log(`[DEBUG] No cached data for ${slug}, fetching from database or API`);
         try {
           // First try to get from our database
           const movieFromDb = await storage.getMovieBySlug(slug);
           
           if (movieFromDb) {
+            console.log(`[DEBUG] Found movie ${slug} in database, fetching episodes`);
             // If we find it in the database, convert to the expected response format
             const episodes = await storage.getEpisodesByMovieSlug(slug);
+            console.log(`[DEBUG] Episodes data for ${slug}:`, JSON.stringify(episodes));
+            
+            // Check if the movie data needs enrichment (missing important fields)
+            const needsEnrichment = !movieFromDb.description || 
+                                   !movieFromDb.actors || 
+                                   !movieFromDb.directors || 
+                                   !movieFromDb.type || 
+                                   !movieFromDb.categories || 
+                                   movieFromDb.categories.length === 0;
+            
+            // Enrich movie with missing information
+            let enrichedMovie = { ...movieFromDb };
+            
+            if (needsEnrichment) {
+              console.log(`Movie ${slug} has incomplete data, enriching with additional metadata...`);
+              
+              // Attempt to find movie metadata from external sources
+              // For now, we'll use a generic enrichment process
+              // In a production app, this would fetch data from TMDb, OMDb, or another API
+              
+              // Extract year and original name for better searching
+              const yearMatch = movieFromDb.name.match(/\((\d{4})\)$/);
+              const year = yearMatch ? parseInt(yearMatch[1]) : null;
+              const cleanName = movieFromDb.name.replace(/\(\d{4}\)$/, '').trim();
+              
+              // Set sensible defaults for missing fields
+              if (!enrichedMovie.description) {
+                enrichedMovie.description = `${cleanName} is a film that's currently featured in our collection. We're working on gathering more details about this title.`;
+              }
+              
+              if (!enrichedMovie.type) {
+                enrichedMovie.type = "movie"; // Default to movie type
+              }
+              
+              if (!enrichedMovie.status) {
+                enrichedMovie.status = "released"; // Default status
+              }
+              
+              if (!enrichedMovie.categories || enrichedMovie.categories.length === 0) {
+                // Set generic categories based on available information
+                enrichedMovie.categories = [{ name: "Drama", id: "drama" }];
+              }
+              
+              if (!enrichedMovie.countries || enrichedMovie.countries.length === 0) {
+                enrichedMovie.countries = [{ name: "International", id: "international" }];
+              }
+              
+              if (!enrichedMovie.actors) {
+                enrichedMovie.actors = "Cast information unavailable";
+              }
+              
+              if (!enrichedMovie.directors) {
+                enrichedMovie.directors = "Director information unavailable";
+              }
+              
+              // Update the database with this enriched data
+              await storage.updateMovieBySlug(slug, {
+                description: enrichedMovie.description,
+                actors: enrichedMovie.actors,
+                directors: enrichedMovie.directors,
+                type: enrichedMovie.type,
+                status: enrichedMovie.status,
+                categories: enrichedMovie.categories,
+                countries: enrichedMovie.countries,
+                year: year || enrichedMovie.year
+              });
+              
+              console.log(`Enriched movie data for ${slug} saved to database`);
+            }
+
+            // Convert episodes to the expected format for the API response
+            const formattedEpisodes = [];
+            if (episodes && episodes.length > 0) {
+              console.log(`[DEBUG] Found ${episodes.length} episodes for ${slug}, formatting for response`);
+              
+              // Group episodes by server name
+              const episodesByServer = {};
+              for (const ep of episodes) {
+                if (!episodesByServer[ep.serverName]) {
+                  episodesByServer[ep.serverName] = [];
+                }
+                
+                // Extract the original slug from the combined slug (format: movieSlug-episodeSlug)
+                let originalSlug = ep.slug;
+                
+                // Check if the slug is in the combined format (contains the movie slug)
+                if (ep.slug.startsWith(`${slug}-`)) {
+                  // Extract the original episode slug by removing the movie slug prefix
+                  originalSlug = ep.slug.substring(slug.length + 1);
+                }
+                
+                episodesByServer[ep.serverName].push({
+                  name: ep.name,
+                  slug: originalSlug, // Use the extracted original slug
+                  filename: ep.filename || "",
+                  link_embed: ep.linkEmbed,
+                  link_m3u8: ep.linkM3u8 || ""
+                });
+              }
+              
+              // Format into the expected structure
+              for (const serverName in episodesByServer) {
+                formattedEpisodes.push({
+                  server_name: serverName,
+                  server_data: episodesByServer[serverName]
+                });
+              }
+            } else {
+              console.log(`[DEBUG] No episodes found for ${slug}, creating default episode`);
+              // Create a default episode if none exists
+              formattedEpisodes.push({
+                server_name: "Default Server",
+                server_data: [{
+                  name: "Full Movie",
+                  slug: `${slug}-full`,
+                  filename: "",
+                  link_embed: movieFromDb.trailerUrl || "",
+                  link_m3u8: ""
+                }]
+              });
+            }
             
             movieDetailData = {
               status: true,
               movie: {
-                _id: movieFromDb.movieId,
-                name: movieFromDb.name,
-                slug: movieFromDb.slug,
-                origin_name: movieFromDb.originName || "",
-                content: movieFromDb.description || "",
-                type: movieFromDb.type || "",
-                status: movieFromDb.status || "",
-                thumb_url: movieFromDb.thumbUrl || "",
-                poster_url: movieFromDb.posterUrl || "",
-                trailer_url: movieFromDb.trailerUrl || "",
-                time: movieFromDb.time || "",
-                quality: movieFromDb.quality || "",
-                lang: movieFromDb.lang || "",
+                _id: enrichedMovie.movieId,
+                name: enrichedMovie.name,
+                slug: enrichedMovie.slug,
+                origin_name: enrichedMovie.originName || "",
+                content: enrichedMovie.description || "",
+                type: enrichedMovie.type || "",
+                status: enrichedMovie.status || "",
+                thumb_url: enrichedMovie.thumbUrl || "",
+                poster_url: enrichedMovie.posterUrl || "",
+                trailer_url: enrichedMovie.trailerUrl || "",
+                time: enrichedMovie.time || "",
+                quality: enrichedMovie.quality || "",
+                lang: enrichedMovie.lang || "",
                 episode_current: "Full",
                 episode_total: "1",
-                view: movieFromDb.view || 0,
-                actor: movieFromDb.actors ? movieFromDb.actors.split(", ") : [],
-                director: movieFromDb.directors ? movieFromDb.directors.split(", ") : [],
-                category: movieFromDb.categories || [],
-                country: movieFromDb.countries || [],
-                isRecommended: movieFromDb.isRecommended || false,
-                section: movieFromDb.section || null
+                view: enrichedMovie.view || 0,
+                actor: enrichedMovie.actors ? enrichedMovie.actors.split(", ") : [],
+                director: enrichedMovie.directors ? enrichedMovie.directors.split(", ") : [],
+                category: enrichedMovie.categories || [],
+                country: enrichedMovie.countries || [],
+                isRecommended: enrichedMovie.isRecommended || false,
+                section: enrichedMovie.section || null
               },
-              episodes: episodes.map(ep => ({
-                server_name: ep.serverName,
-                server_data: [{
-                  name: ep.name,
-                  slug: ep.slug,
-                  filename: ep.filename || "",
-                  link_embed: ep.linkEmbed,
-                  link_m3u8: ep.linkM3u8 || ""
-                }]
-              }))
+              episodes: formattedEpisodes
             };
+            
+            console.log(`[DEBUG] Final episodes data for ${slug}:`, JSON.stringify(formattedEpisodes));
             
             // Cache this result
             await storage.cacheMovieDetail(movieDetailData);
           } else {
             // If not in database, try to fetch from external API
             try {
+              console.log(`[DEBUG] Movie ${slug} not found in database, fetching from API`);
               movieDetailData = await fetchMovieDetail(slug);
               
               // Validate movie data from API
@@ -423,12 +542,59 @@ export function registerRoutes(app: Express): void {
                 });
               }
               
-              // Cache the result
+              console.log(`[DEBUG] API response episodes for ${slug}:`, JSON.stringify(movieDetailData.episodes || []));
+              
+              // Check for incomplete data and enrich if needed
+              if (!movieDetailData.movie.content || movieDetailData.movie.content.trim() === "") {
+                console.log(`Movie ${slug} from API has incomplete data, enriching...`);
+                
+                // Extract name for better metadata search
+                const movieName = movieDetailData.movie.name;
+                
+                // Set generic content if missing
+                movieDetailData.movie.content = `${movieName} is a film available in our collection. We're working on gathering more information about this title.`;
+                
+                // Set defaults for other fields if missing
+                if (!movieDetailData.movie.type) {
+                  movieDetailData.movie.type = "movie";
+                }
+                
+                if (!movieDetailData.movie.status) {
+                  movieDetailData.movie.status = "released";
+                }
+                
+                if (!movieDetailData.movie.category || movieDetailData.movie.category.length === 0) {
+                  movieDetailData.movie.category = [{ name: "Drama", id: "drama" }];
+                }
+                
+                if (!movieDetailData.movie.country || movieDetailData.movie.country.length === 0) {
+                  movieDetailData.movie.country = [{ name: "International", id: "international" }];
+                }
+                
+                // Ensure episodes exists
+                if (!movieDetailData.episodes || !Array.isArray(movieDetailData.episodes) || movieDetailData.episodes.length === 0) {
+                  console.log(`[DEBUG] No episodes in API response, adding default episode`);
+                  movieDetailData.episodes = [{
+                    server_name: "Default Server",
+                    server_data: [{
+                      name: "Full Movie",
+                      slug: `${slug}-full`,
+                      filename: "",
+                      link_embed: movieDetailData.movie.trailer_url || "",
+                      link_m3u8: ""
+                    }]
+                  }];
+                }
+              }
+              
+              // Cache the enriched result
               await storage.cacheMovieDetail(movieDetailData);
               
               // Save movie and episodes to storage
               const movieModel = convertToMovieModel(movieDetailData);
               const episodeModels = convertToEpisodeModels(movieDetailData);
+              
+              console.log(`[DEBUG] Converting ${episodeModels.length} episodes to save to database`);
               
               // Check if movie already exists before saving
               const existingMovie = await storage.getMovieByMovieId(movieModel.movieId);
@@ -460,6 +626,146 @@ export function registerRoutes(app: Express): void {
             status: false 
           });
         }
+      } else {
+        console.log(`[DEBUG] Found ${slug} in cache. Episodes data:`, JSON.stringify(movieDetailData.episodes || []));
+        
+        // Check if cached movie has incomplete data
+        if (!movieDetailData.movie.content || movieDetailData.movie.content.trim() === "" ||
+            !movieDetailData.movie.actor || movieDetailData.movie.actor.length === 0 ||
+            !movieDetailData.movie.category || movieDetailData.movie.category.length === 0 ||
+            !movieDetailData.episodes || movieDetailData.episodes.length === 0) {
+          
+          console.log(`Cached movie ${slug} has incomplete data, enriching...`);
+          
+          // Get movie details from database to check for updated info
+          const movieFromDb = await storage.getMovieBySlug(slug);
+          
+          if (movieFromDb && movieFromDb.description) {
+            console.log(`[DEBUG] Using database data to enrich cached movie ${slug}`);
+            const episodes = await storage.getEpisodesByMovieSlug(slug);
+            console.log(`[DEBUG] Episodes from database for ${slug}:`, JSON.stringify(episodes));
+            
+            // Format episodes for response
+            const formattedEpisodes = [];
+            if (episodes && episodes.length > 0) {
+              // Group episodes by server name
+              const episodesByServer = {};
+              for (const ep of episodes) {
+                if (!episodesByServer[ep.serverName]) {
+                  episodesByServer[ep.serverName] = [];
+                }
+                
+                // Extract the original slug from the combined slug (format: movieSlug-episodeSlug)
+                let originalSlug = ep.slug;
+                
+                // Check if the slug is in the combined format (contains the movie slug)
+                if (ep.slug.startsWith(`${slug}-`)) {
+                  // Extract the original episode slug by removing the movie slug prefix
+                  originalSlug = ep.slug.substring(slug.length + 1);
+                }
+                
+                episodesByServer[ep.serverName].push({
+                  name: ep.name,
+                  slug: originalSlug, // Use the extracted original slug
+                  filename: ep.filename || "",
+                  link_embed: ep.linkEmbed,
+                  link_m3u8: ep.linkM3u8 || ""
+                });
+              }
+              
+              // Format into the expected structure
+              for (const serverName in episodesByServer) {
+                formattedEpisodes.push({
+                  server_name: serverName,
+                  server_data: episodesByServer[serverName]
+                });
+              }
+            } else {
+              // Create a default episode if none exists
+              formattedEpisodes.push({
+                server_name: "Default Server",
+                server_data: [{
+                  name: "Full Movie",
+                  slug: `${slug}-full`,
+                  filename: "",
+                  link_embed: movieFromDb.trailerUrl || "",
+                  link_m3u8: ""
+                }]
+              });
+            }
+            
+            const enrichedMovie = {
+              ...movieDetailData.movie,
+              content: movieFromDb.description,
+              actor: movieFromDb.actors ? movieFromDb.actors.split(", ") : [],
+              director: movieFromDb.directors ? movieFromDb.directors.split(", ") : [],
+              category: movieFromDb.categories || [],
+              country: movieFromDb.countries || [],
+              type: movieFromDb.type || "movie",
+              status: movieFromDb.status || "released"
+            };
+            
+            movieDetailData = {
+              ...movieDetailData,
+              movie: enrichedMovie,
+              episodes: formattedEpisodes
+            };
+            
+            // Update the cache
+            await storage.cacheMovieDetail(movieDetailData);
+          } else {
+            // No better data in database, enrich with generic info
+            console.log(`[DEBUG] No database data for ${slug}, using generic enrichment`);
+            const enrichedMovie = {
+              ...movieDetailData.movie,
+              content: `${movieDetailData.movie.name} is a film featured in our collection. We're working on gathering more information about this title.`,
+              type: movieDetailData.movie.type || "movie",
+              status: movieDetailData.movie.status || "released"
+            };
+            
+            // Add generic categories if missing
+            if (!enrichedMovie.category || enrichedMovie.category.length === 0) {
+              enrichedMovie.category = [{ name: "Drama", id: "drama" }];
+            }
+            
+            // Add generic countries if missing
+            if (!enrichedMovie.country || enrichedMovie.country.length === 0) {
+              enrichedMovie.country = [{ name: "International", id: "international" }];
+            }
+            
+            // Ensure episodes exists
+            if (!movieDetailData.episodes || !Array.isArray(movieDetailData.episodes) || movieDetailData.episodes.length === 0) {
+              console.log(`[DEBUG] Adding default episode to cached movie ${slug}`);
+              movieDetailData.episodes = [{
+                server_name: "Default Server",
+                server_data: [{
+                  name: "Full Movie",
+                  slug: `${slug}-full`,
+                  filename: "",
+                  link_embed: movieDetailData.movie.trailer_url || "",
+                  link_m3u8: ""
+                }]
+              }];
+            }
+            
+            movieDetailData = {
+              ...movieDetailData,
+              movie: enrichedMovie
+            };
+            
+            // Update the cache
+            await storage.cacheMovieDetail(movieDetailData);
+            
+            // Update the database if we have better data now
+            if (enrichedMovie.content && enrichedMovie.content !== movieDetailData.movie.content) {
+              await storage.updateMovieBySlug(slug, {
+                description: enrichedMovie.content,
+                type: enrichedMovie.type,
+                status: enrichedMovie.status
+              });
+            }
+          }
+        }
       }
       
       // Ensure we have valid data in expected format before sending response
@@ -482,6 +788,14 @@ export function registerRoutes(app: Express): void {
         movieDetailData.status = true;
       }
       
+      // Ensure episodes array is present
+      if (!movieDetailData.episodes || !Array.isArray(movieDetailData.episodes)) {
+        console.log(`[DEBUG] Final check: Adding empty episodes array for ${slug}`);
+        movieDetailData.episodes = [];
+      }
+      
+      console.log(`[DEBUG] Final episode count for ${slug}: ${movieDetailData.episodes.length}`);
+      console.log(`Serving movie details for ${slug}`);
       res.json(movieDetailData);
     } catch (error) {
       console.error(`Error fetching movie detail for slug ${req.params.slug}:`, error);

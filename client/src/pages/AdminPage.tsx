@@ -250,8 +250,10 @@ export default function AdminPage() {
       // Ensure we have proper default values for section and isRecommended
       const formattedMovie = {
         ...movieData,
-        section: movieData.section || "none", // Default to "none" if section is null/undefined
-        isRecommended: movieData.isRecommended === true // Ensure it's a boolean
+        // Convert null/undefined section to "none" for the UI dropdown
+        section: movieData.section || "none", 
+        // Ensure isRecommended is a boolean
+        isRecommended: movieData.isRecommended === true 
       };
       
       console.log("Fetched movie data:", movieData);
@@ -259,6 +261,21 @@ export default function AdminPage() {
         section: formattedMovie.section,
         isRecommended: formattedMovie.isRecommended
       });
+      
+      // Initialize categories and countries for multi-select components
+      if (movieData.category && Array.isArray(movieData.category)) {
+        const categoryNames = movieData.category
+          .filter(cat => cat && (typeof cat === 'string' || cat.name))
+          .map(cat => typeof cat === 'string' ? cat : cat.name);
+        setSelectedCategories(categoryNames);
+      }
+      
+      if (movieData.country && Array.isArray(movieData.country)) {
+        const countryNames = movieData.country
+          .filter(country => country && (typeof country === 'string' || country.name))
+          .map(country => typeof country === 'string' ? country : country.name);
+        setSelectedCountries(countryNames);
+      }
       
       setCurrentEditMovie(formattedMovie);
       setIsLoadingMovieDetails(false);
@@ -273,10 +290,14 @@ export default function AdminPage() {
   const handleMovieSave = async () => {
     try {
       // Validate required fields
-      if (!currentEditMovie.name) {
+      if (!currentEditMovie?.name) {
         toast.error("Movie title is required");
         return;
       }
+
+      // Convert selectedCategories and selectedCountries to the format expected by the API
+      const formattedCategories = selectedCategories.map(name => ({ name }));
+      const formattedCountries = selectedCountries.map(name => ({ name }));
 
       // Format the data for the API - extract only the fields we want to update
       const updateData = {
@@ -286,6 +307,9 @@ export default function AdminPage() {
         // Handle section field - ensure "none" is properly handled
         section: currentEditMovie.section === "none" ? null : currentEditMovie.section,
         isRecommended: currentEditMovie.isRecommended === true, 
+        // Add categories and countries
+        category: formattedCategories,
+        country: formattedCountries,
         // other fields that might need updating
         status: currentEditMovie.status,
         thumb_url: currentEditMovie.thumb_url,
@@ -295,7 +319,9 @@ export default function AdminPage() {
 
       console.log("Saving movie with data:", {
         section: updateData.section,
-        isRecommended: updateData.isRecommended
+        isRecommended: updateData.isRecommended,
+        categories: formattedCategories.length,
+        countries: formattedCountries.length
       });
 
       // Send the update request
@@ -322,7 +348,9 @@ export default function AdminPage() {
       // Log server response
       console.log("Server response:", {
         section: savedData.movie.section,
-        isRecommended: savedData.movie.isRecommended
+        isRecommended: savedData.movie.isRecommended,
+        categories: savedData.movie.category?.length || 0,
+        countries: savedData.movie.country?.length || 0
       });
       
       // Update the current edit movie with the saved data
@@ -334,6 +362,21 @@ export default function AdminPage() {
         section: savedData.movie.section === null ? "none" : savedData.movie.section || "none",
         isRecommended: savedData.movie.isRecommended === true
       });
+
+      // Update categories and countries if present in the response
+      if (savedData.movie.category && Array.isArray(savedData.movie.category)) {
+        const categoryNames = savedData.movie.category
+          .filter(cat => cat && (typeof cat === 'string' || cat.name))
+          .map(cat => typeof cat === 'string' ? cat : cat.name);
+        setSelectedCategories(categoryNames);
+      }
+      
+      if (savedData.movie.country && Array.isArray(savedData.movie.country)) {
+        const countryNames = savedData.movie.country
+          .filter(country => country && (typeof country === 'string' || country.name))
+          .map(country => typeof country === 'string' ? country : country.name);
+        setSelectedCountries(countryNames);
+      }
 
       // Log successful save
       console.log("Movie saved successfully:", {
