@@ -237,6 +237,7 @@ export default function AdminPage() {
       
       console.log(`Fetching movie details from: ${url}`);
       const response = await fetch(url, {
+        cache: 'no-store', // Tell browser to never use cache 
         headers: {
           'Cache-Control': 'no-cache, no-store, must-revalidate',
           'Pragma': 'no-cache',
@@ -265,7 +266,7 @@ export default function AdminPage() {
         ...movieData,
         // Convert null/undefined section to "none" for the UI dropdown
         section: movieData.section || "none", 
-        // Ensure isRecommended is a boolean
+        // Ensure isRecommended is a boolean - use strict equality
         isRecommended: movieData.isRecommended === true 
       };
       
@@ -275,7 +276,10 @@ export default function AdminPage() {
         isRecommended: formattedMovie.isRecommended
       });
       
-      // Initialize categories and countries for multi-select components
+      // Store the formatted movie in state
+      setCurrentEditMovie(formattedMovie);
+      
+      // Extract categories and countries
       if (movieData.category && Array.isArray(movieData.category)) {
         const categoryNames = movieData.category
           .filter((cat: any) => cat && (typeof cat === 'string' || cat.name))
@@ -289,8 +293,7 @@ export default function AdminPage() {
           .map((country: any) => typeof country === 'string' ? country : country.name);
         setSelectedCountries(countryNames);
       }
-      
-      setCurrentEditMovie(formattedMovie);
+
       setIsLoadingMovieDetails(false);
     } catch (error) {
       console.error("Error fetching movie details:", error);
@@ -317,8 +320,9 @@ export default function AdminPage() {
         name: currentEditMovie.name,
         origin_name: currentEditMovie.origin_name || "",
         content: currentEditMovie.content || "",
-        // Handle section field - ensure "none" is properly handled
-        section: currentEditMovie.section === "none" ? null : currentEditMovie.section,
+        // Handle section field - make sure we're using explicit value
+        section: currentEditMovie.section === "none" ? null : currentEditMovie.section || null,
+        // Make sure isRecommended is a boolean - explicit true/false not string
         isRecommended: currentEditMovie.isRecommended === true, 
         // Add categories and countries
         category: formattedCategories,
@@ -330,9 +334,12 @@ export default function AdminPage() {
         active: currentEditMovie.active
       };
 
+      // Debug logging with type information
       console.log("Saving movie with data:", {
-        section: updateData.section,
+        section: updateData.section, 
+        sectionType: typeof updateData.section,
         isRecommended: updateData.isRecommended,
+        isRecommendedType: typeof updateData.isRecommended,
         categories: formattedCategories.length,
         countries: formattedCountries.length
       });
@@ -340,7 +347,7 @@ export default function AdminPage() {
       // Display "Saving..." toast that will be updated with success or error
       const savingToastId = toast.loading("Saving movie data...");
 
-      // Send the update request
+      // Send the update request with explicit no-cache headers
       const response = await fetch(`/api/movies/${currentEditMovie.slug}`, {
         method: "PUT",
         headers: { 
@@ -369,22 +376,36 @@ export default function AdminPage() {
         throw new Error("Server returned success but with invalid data");
       }
 
-      // Log server response
+      // Log server response with details about types
       console.log("Server response:", {
         section: savedData.movie.section,
+        sectionType: typeof savedData.movie.section,
         isRecommended: savedData.movie.isRecommended,
+        isRecommendedType: typeof savedData.movie.isRecommended,
         categories: savedData.movie.category?.length || 0,
         countries: savedData.movie.country?.length || 0
       });
       
       // Update the current edit movie with the saved data
       // Make sure we handle section and isRecommended properly
-      setCurrentEditMovie({
-        ...currentEditMovie,
-        ...savedData.movie,
-        // Ensure these values are properly set from the response
-        section: savedData.movie.section === null ? "none" : savedData.movie.section || "none",
-        isRecommended: savedData.movie.isRecommended === true
+      setCurrentEditMovie(prev => {
+        if (!prev) return savedData.movie;
+        
+        const updated = {
+          ...prev,
+          ...savedData.movie,
+          // Explicitly convert section to string or "none"
+          section: savedData.movie.section === null ? "none" : savedData.movie.section || "none",
+          // Explicitly convert isRecommended to boolean
+          isRecommended: Boolean(savedData.movie.isRecommended)
+        };
+        
+        console.log("Updated movie state:", { 
+          section: updated.section, 
+          isRecommended: updated.isRecommended
+        });
+        
+        return updated;
       });
 
       // Update categories and countries if present in the response
@@ -413,45 +434,11 @@ export default function AdminPage() {
       
       // Invalidate queries to refresh the data
       queryClient.invalidateQueries({ queryKey: [`/api/movies/${currentEditMovie.slug}`] });
-      queryClient.invalidateQueries({ queryKey: ["/api/movies"] });
-      queryClient.invalidateQueries({ 
-        queryKey: ["/api/movies", currentPage, contentType, statusFilter, recommendedFilter, searchQuery, itemsPerPage] 
-      });
+      queryClient.invalidateQueries({ queryKey: ['movies'] });
+      queryClient.invalidateQueries({ queryKey: ['featured'] });
       
-      // Force a delay before closing the dialog to ensure state updates are processed
-      setTimeout(() => {
-        // Close the dialog after successful save
-        setFullScreenEdit(false);
-        
-        // Force fetch the updated movie data after a brief delay to ensure the server has time to update any caches
-        setTimeout(() => {
-          // Create a unique timestamp to prevent any caching issues
-          const timestamp = Date.now();
-          const randomStr = Math.random().toString(36).substring(2, 10);
-          fetch(`/api/movies/${currentEditMovie.slug}?_t=${timestamp}&r=${randomStr}&clear_cache=true`, {
-            headers: {
-              'Cache-Control': 'no-cache, no-store, must-revalidate',
-              'Pragma': 'no-cache',
-              'Expires': '0'
-            }
-          }).then(response => response.json())
-            .then(data => {
-              console.log("Refreshed movie data:", {
-                section: data.movie.section,
-                isRecommended: data.movie.isRecommended
-              });
-              
-              // Force data refresh in React Query cache
-              queryClient.setQueryData(
-                [`/api/movies/${currentEditMovie.slug}`], 
-                data
-              );
-            })
-            .catch(error => {
-              console.error("Error refreshing movie data:", error);
-            });
-        }, 500);
-      }, 1000);
+      // Reload the movie details directly to ensure fresh data
+      fetchMovieDetails(currentEditMovie.slug);
 
     } catch (error) {
       console.error("Error saving movie:", error);

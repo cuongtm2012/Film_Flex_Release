@@ -186,93 +186,24 @@ export function registerRoutes(app: Express): void {
   router.get("/movies", async (req, res) => {
     try {
       const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 48; // Default to 48 per page
-      const category = req.query.category as string || 'all';
-      const sortBy = req.query.sort as string || 'modified'; // Default sort by modified time
+      const limit = parseInt(req.query.limit as string) || 48;
+      const sortBy = req.query.sort as string || 'latest';
       
-      let movieListData;
+      const result = await storage.getMovies(page, limit, sortBy);
       
-      // If a specific category is requested (not 'all')
-      if (category && category !== 'all') {
-        // Try to get from category cache first
-        movieListData = await storage.getMovieCategoryCache(category, page);
-        
-        // If not in cache, fetch from API
-        if (!movieListData) {
-          movieListData = await fetchMoviesByCategory(category, page, limit);
-          
-          // Cache the result
-          await storage.cacheMovieCategory(movieListData, category, page);
-          
-          // Process and save movies to storage
-          await processAndSaveMovies(movieListData.items);
-        }
-        
-        // Now sort the fetched movies using our database
-        const sortedMovies = await storage.getMoviesByCategory(category, page, limit, sortBy);
-        
-        // If we have results from our database, use those instead (they're sorted correctly)
-        if (sortedMovies.data.length > 0) {
-          // Create a new response with the sorted data
-          const sortedResponse = {
-            ...movieListData,
-            items: sortedMovies.data
-          };
-          
-          return res.json(sortedResponse);
-        }
-      } else {
-        // For 'all' category, use the regular movie list
-        // Try to get from cache first
-        movieListData = await storage.getMovieListCache(page);
-        
-        // If not in cache, fetch from API
-        if (!movieListData) {
-          movieListData = await fetchMovieList(page, limit);
-          
-          // Cache the result
-          await storage.cacheMovieList(movieListData, page);
-          
-          // Process and save movies to storage
-          await processAndSaveMovies(movieListData.items);
-        }
-        
-        // Now sort the fetched movies using our database
-        const sortedMovies = await storage.getMovies(page, limit, sortBy);
-        
-        // If we have results from our database, use those instead (they're sorted correctly)
-        if (sortedMovies.data.length > 0) {
-          // Create a new response with the sorted data
-          const sortedResponse = {
-            ...movieListData,
-            items: sortedMovies.data
-          };
-          
-          return res.json(sortedResponse);
-        }
-      }
-      
-      // Ensure we return the proper pagination data
-      const totalItems = movieListData.items?.length || 0;
-      const totalPages = Math.ceil(totalItems / limit);
-      
-      // Add pagination info if not present
-      if (!movieListData.pagination) {
-        movieListData.pagination = {
-          totalItems,
-          totalPages, 
+      res.json({
+        status: true,
+        items: result.data,
+        pagination: {
+          totalItems: result.total,
+          totalPages: Math.ceil(result.total / limit),
           currentPage: page,
           totalItemsPerPage: limit
-        };
-      }
-      
-      res.json(movieListData);
+        }
+      });
     } catch (error) {
       console.error("Error fetching movies:", error);
-      res.status(500).json({ 
-        message: "Failed to fetch movies",
-        error: error instanceof Error ? error.message : String(error)
-      });
+      res.status(500).json({ status: false, message: "Failed to fetch movies" });
     }
   });
   
@@ -1440,31 +1371,32 @@ export function registerRoutes(app: Express): void {
       const { slug } = req.params;
       const updateData = req.body;
 
+      // Log the raw request body for debugging
+      console.log(`[DEBUG] PUT /movies/${slug} - Received request body:`, JSON.stringify(updateData));
+
       // Validate required fields
       if (!updateData.name) {
         return res.status(400).json({ message: "Movie title is required" });
       }
 
       // Ensure section is either a valid value or undefined/null
-      if (updateData.section) {
-        if (updateData.section === "none") {
-          // Convert "none" to null on the server side
+      if ('section' in updateData) {
+        console.log(`[DEBUG] Original section value: '${updateData.section}' (${typeof updateData.section})`);
+        
+        if (updateData.section === "none" || updateData.section === "") {
+          // Convert "none" or empty string to null on the server side
           updateData.section = null;
-        } else if (!['trending_now', 'latest_movies', 'top_rated', 'popular_tv'].includes(updateData.section)) {
+          console.log(`[DEBUG] Converted section 'none' to null`);
+        } else if (updateData.section !== null && !['trending_now', 'latest_movies', 'top_rated', 'popular_tv'].includes(updateData.section)) {
           return res.status(400).json({ message: "Invalid section value" });
         }
       }
 
-      // For backward compatibility, set sections field
-      // But make sure it's properly formatted as a JSON string if needed
-      if (updateData.section !== undefined) {
-        // Remove the sections field completely as we'll use only section
-        delete updateData.sections;
-      }
-
       // Convert isRecommended to boolean explicitly
       if ('isRecommended' in updateData) {
+        console.log(`[DEBUG] Original isRecommended value: '${updateData.isRecommended}' (${typeof updateData.isRecommended})`);
         updateData.isRecommended = updateData.isRecommended === true;
+        console.log(`[DEBUG] Converted isRecommended to: ${updateData.isRecommended} (${typeof updateData.isRecommended})`);
       }
 
       // Only allow updating certain fields
@@ -1473,6 +1405,8 @@ export function registerRoutes(app: Express): void {
         "trailer_url", "time", "quality", "lang", "year", "view", "actor", "director",
         "category", "country", "isRecommended", "active", "tmdb", "section"
       ];
+      
+      // Create a filtered object with only allowed fields
       const filteredUpdate: Partial<Movie> = {};
       for (const key of allowedFields) {
         if (updateData[key] !== undefined) {
@@ -1480,9 +1414,11 @@ export function registerRoutes(app: Express): void {
         }
       }
 
-      console.log("Updating movie with data:", {
+      console.log("[DEBUG] Updating movie with data:", {
         section: filteredUpdate.section,
-        isRecommended: filteredUpdate.isRecommended
+        sectionType: typeof filteredUpdate.section,
+        isRecommended: filteredUpdate.isRecommended,
+        isRecommendedType: typeof filteredUpdate.isRecommended
       });
 
       // First clear the cache for this movie to ensure we don't serve stale data
@@ -1494,34 +1430,57 @@ export function registerRoutes(app: Express): void {
         return res.status(404).json({ status: false, message: "Movie not found" });
       }
 
-      console.log("Movie updated successfully:", {
+      console.log("[DEBUG] Movie updated successfully in database:", {
         section: updated.section,
-        isRecommended: updated.isRecommended
+        sectionType: typeof updated.section,
+        isRecommended: updated.isRecommended,
+        isRecommendedType: typeof updated.isRecommended
+      });
+      
+      // Always clear any associated caches
+      await storage.clearMovieDetailCache(slug);
+      
+      // Fetch fresh movie data directly from database to confirm values are correctly saved
+      const freshData = await storage.getMovieBySlug(slug);
+      console.log("[DEBUG] Fresh movie data after update:", {
+        section: freshData?.section,
+        sectionType: typeof freshData?.section,
+        isRecommended: freshData?.isRecommended,
+        isRecommendedType: typeof freshData?.isRecommended,
+        is_recommended_db: freshData?.is_recommended
       });
 
-      // We don't need to check for cached data - just create a fresh response
-      // that includes all the correctly updated fields
+      // Create a response with all the updated values - use the freshly fetched data 
+      // to ensure we're returning what's actually in the database
       const response = {
         status: true,
         movie: {
-          _id: updated.movieId,
-          id: updated.id,
-          name: updated.name,
-          slug: updated.slug,
-          origin_name: updated.originName || "",
-          content: updated.description || "",
-          type: updated.type || "",
-          status: updated.status || "",
-          thumb_url: updated.thumbUrl || "",
-          poster_url: updated.posterUrl || "",
-          trailer_url: updated.trailerUrl || "",
-          section: updated.section,
-          isRecommended: updated.isRecommended === true,
+          _id: freshData.movieId,
+          id: freshData.id,
+          name: freshData.name,
+          slug: freshData.slug,
+          origin_name: freshData.originName || "",
+          content: freshData.description || "",
+          type: freshData.type || "",
+          status: freshData.status || "",
+          thumb_url: freshData.thumbUrl || "",
+          poster_url: freshData.posterUrl || "",
+          trailer_url: freshData.trailerUrl || "",
+          // Make sure these specific fields are properly typed
+          section: freshData.section,
+          isRecommended: freshData.isRecommended === true,
           // Add other fields
-          category: updated.categories || [],
-          country: updated.countries || []
+          category: freshData.categories || [],
+          country: freshData.countries || []
         }
       };
+
+      console.log("[DEBUG] Sending response:", {
+        section: response.movie.section,
+        sectionType: typeof response.movie.section,
+        isRecommended: response.movie.isRecommended,
+        isRecommendedType: typeof response.movie.isRecommended
+      });
 
       // Send the properly formed response with all fields
       res.json(response);
@@ -1558,6 +1517,32 @@ export function registerRoutes(app: Express): void {
     } catch (error) {
       console.error("Error fetching movies by section:", error);
       res.status(500).json({ status: false, message: "Failed to fetch movies" });
+    }
+  });
+
+  // Get all recommended movies
+  router.get("/movies/recommended", async (req, res) => {
+    try {
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 10;
+
+      console.log(`[DEBUG] Fetching recommended movies: page=${page}, limit=${limit}`);
+      const result = await storage.getRecommendedMovies(page, limit);
+      
+      console.log(`[DEBUG] Returning ${result.data.length} recommended movies`);
+      res.json({
+        status: true,
+        items: result.data,
+        pagination: {
+          totalItems: result.total,
+          totalPages: Math.ceil(result.total / limit),
+          currentPage: page,
+          totalItemsPerPage: limit
+        }
+      });
+    } catch (error) {
+      console.error("Error fetching recommended movies:", error);
+      res.status(500).json({ status: false, message: "Failed to fetch recommended movies" });
     }
   });
 

@@ -742,26 +742,99 @@ export class DatabaseStorage implements IStorage {
     return { data, total: count || 0 };
   }
 
+  async getRecommendedMovies(page: number, limit: number): Promise<{ data: Movie[], total: number }> {
+    const offset = (page - 1) * limit;
+    
+    // Query movies that are marked as recommended
+    const data = await db.select()
+      .from(movies)
+      .where(eq(movies.isRecommended, true))
+      .orderBy(desc(movies.modifiedAt))
+      .limit(limit)
+      .offset(offset);
+    
+    // Count total recommended movies
+    const [{ count }] = await db.select({ count: sql<number>`count(*)` })
+      .from(movies)
+      .where(eq(movies.isRecommended, true));
+    
+    console.log(`[DEBUG] Found ${count} recommended movies`);
+    return { data, total: count || 0 };
+  }
+
   async updateMovieBySlug(slug: string, updateData: Partial<Movie>): Promise<Movie | undefined> {
-    // Ensure data types are correct before updating
+    // Create a clean object that will map to the correct database columns
+    const dbUpdateData: Record<string, any> = {};
+    
+    // Convert camelCase keys to snake_case for DB and handle special fields
     if ('section' in updateData) {
-      // Handle section properly - it should just be a string or null
-      // No need to convert it to JSON
-      updateData.section = updateData.section || null;
+      // Handle section as a direct property (no conversion needed)
+      dbUpdateData.section = updateData.section || null;
+      console.log(`[DEBUG] Setting section to: ${dbUpdateData.section}`);
     }
     
     if ('isRecommended' in updateData) {
-      // Ensure this is a true boolean
-      updateData.isRecommended = updateData.isRecommended === true;
+      // Convert isRecommended to is_recommended DB field
+      dbUpdateData.is_recommended = updateData.isRecommended === true;
+      console.log(`[DEBUG] Setting is_recommended to: ${dbUpdateData.is_recommended}`);
     }
     
+    // Handle other fields that might come in API format vs DB format
+    if ('name' in updateData) dbUpdateData.name = updateData.name;
+    if ('originName' in updateData) dbUpdateData.origin_name = updateData.originName;
+    if ('description' in updateData) dbUpdateData.description = updateData.description;
+    if ('type' in updateData) dbUpdateData.type = updateData.type;
+    if ('status' in updateData) dbUpdateData.status = updateData.status;
+    if ('thumbUrl' in updateData) dbUpdateData.thumb_url = updateData.thumbUrl;
+    if ('posterUrl' in updateData) dbUpdateData.poster_url = updateData.posterUrl;
+    if ('trailerUrl' in updateData) dbUpdateData.trailer_url = updateData.trailerUrl;
+    if ('time' in updateData) dbUpdateData.time = updateData.time;
+    if ('quality' in updateData) dbUpdateData.quality = updateData.quality;
+    if ('lang' in updateData) dbUpdateData.lang = updateData.lang;
+    if ('year' in updateData) dbUpdateData.year = updateData.year;
+    if ('view' in updateData) dbUpdateData.view = updateData.view;
+    
+    // API name conversion (special cases)
+    if ('content' in updateData) dbUpdateData.description = updateData.content;
+    if ('origin_name' in updateData) dbUpdateData.origin_name = updateData.origin_name;
+    if ('thumb_url' in updateData) dbUpdateData.thumb_url = updateData.thumb_url;
+    if ('poster_url' in updateData) dbUpdateData.poster_url = updateData.poster_url;
+    
+    // Categories and countries need special handling (they're JSONB)
+    if ('categories' in updateData) dbUpdateData.categories = updateData.categories;
+    if ('countries' in updateData) dbUpdateData.countries = updateData.countries;
+    
+    // Category and country can come from API format (explicit name conversion)
+    if ('category' in updateData) {
+      dbUpdateData.categories = Array.isArray(updateData.category) 
+        ? JSON.stringify(updateData.category) 
+        : '[]';
+    }
+    
+    if ('country' in updateData) {
+      dbUpdateData.countries = Array.isArray(updateData.country) 
+        ? JSON.stringify(updateData.country) 
+        : '[]';
+    }
+    
+    // Set modified timestamp
+    dbUpdateData.modified_at = new Date();
+    
+    console.log(`[DEBUG] Updating movie ${slug} with data:`, {
+      section: dbUpdateData.section,
+      is_recommended: dbUpdateData.is_recommended
+    });
+    
     const [updatedMovie] = await db.update(movies)
-      .set({
-        ...updateData,
-        modifiedAt: new Date()
-      })
+      .set(dbUpdateData)
       .where(eq(movies.slug, slug))
       .returning();
+      
+    console.log(`[DEBUG] Updated movie ${slug}. DB returned:`, {
+      section: updatedMovie.section,
+      isRecommended: updatedMovie.isRecommended
+    });
+    
     return updatedMovie;
   }
 
@@ -818,9 +891,15 @@ export class DatabaseStorage implements IStorage {
       }
       
       // Ensure isRecommended is a proper boolean
+      // Use triple equals to ensure we're doing a strict equality check
       movieClone.isRecommended = movieClone.isRecommended === true;
       
-      console.log(`[DEBUG] Caching movie ${movieClone.slug} with section: ${movieClone.section}, isRecommended: ${movieClone.isRecommended}`);
+      console.log(`[DEBUG] Caching movie ${movieClone.slug || 'unknown'} with:`, {
+        section: movieClone.section,
+        sectionType: typeof movieClone.section,
+        isRecommended: movieClone.isRecommended,
+        isRecommendedType: typeof movieClone.isRecommended
+      });
       
       // Replace the movie object with our fixed version
       data.movie = movieClone;
