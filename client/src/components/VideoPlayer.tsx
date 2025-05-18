@@ -28,28 +28,49 @@ export default function VideoPlayer({ embedUrl, isLoading = false, onError }: Vi
       return;
     }
     
-    // Check if the embedUrl is an iframe tag
-    if (embedUrl.includes("<iframe")) {
-      const srcMatch = embedUrl.match(/src="([^"]+)"/);
-      if (srcMatch && srcMatch[1]) {
-        setCleanSrc(srcMatch[1]);
-        
-        // Extract direct stream URL if possible
-        const urlParam = srcMatch[1].match(/url=([^&]+)/);
-        if (urlParam && urlParam[1]) {
-          setDirectStreamUrl(decodeURIComponent(urlParam[1]));
+    try {
+      // Check if the embedUrl is an iframe tag
+      if (embedUrl.includes("<iframe")) {
+        const srcMatch = embedUrl.match(/src="([^"]+)"/);
+        if (srcMatch && srcMatch[1]) {
+          setCleanSrc(srcMatch[1]);
+          
+          // Extract direct stream URL if possible
+          const urlParam = srcMatch[1].match(/url=([^&]+)/);
+          if (urlParam && urlParam[1]) {
+            try {
+              const decodedUrl = decodeURIComponent(urlParam[1]);
+              setDirectStreamUrl(decodedUrl);
+              console.log("Direct stream URL extracted:", decodedUrl);
+            } catch (e) {
+              console.error("Error decoding URL:", e);
+              setDirectStreamUrl(urlParam[1]);
+            }
+          }
+        } else {
+          setCleanSrc(embedUrl);
         }
       } else {
         setCleanSrc(embedUrl);
+        
+        // Extract direct stream URL if possible
+        const urlParam = embedUrl.match(/url=([^&]+)/);
+        if (urlParam && urlParam[1]) {
+          try {
+            const decodedUrl = decodeURIComponent(urlParam[1]);
+            setDirectStreamUrl(decodedUrl);
+            console.log("Direct stream URL extracted:", decodedUrl);
+          } catch (e) {
+            console.error("Error decoding URL:", e);
+            setDirectStreamUrl(urlParam[1]);
+          }
+        }
       }
-    } else {
-      setCleanSrc(embedUrl);
+    } catch (error) {
+      console.error("Error processing embed URL:", error);
       
-      // Extract direct stream URL if possible
-      const urlParam = embedUrl.match(/url=([^&]+)/);
-      if (urlParam && urlParam[1]) {
-        setDirectStreamUrl(decodeURIComponent(urlParam[1]));
-      }
+      // If we encountered an error, just use the raw URL
+      setCleanSrc(embedUrl);
     }
   }, [embedUrl]);
 
@@ -105,13 +126,25 @@ export default function VideoPlayer({ embedUrl, isLoading = false, onError }: Vi
   // Handle direct play
   const handleDirectPlay = () => {
     if (directStreamUrl) {
-      // Open direct-player.html with URL parameter
-      window.open(`/direct-player.html?stream=${encodeURIComponent(directStreamUrl)}`, '_blank');
-      
-      toast({
-        title: "Direct stream opened",
-        description: "If you have a compatible player extension, the stream should start playing.",
-      });
+      try {
+        // Open direct-player.html with URL parameter
+        const directPlayerUrl = `/direct-player.html?stream=${encodeURIComponent(directStreamUrl)}`;
+        console.log("Opening direct player with URL:", directPlayerUrl);
+        window.open(directPlayerUrl, '_blank');
+        
+        toast({
+          title: "Direct stream opened",
+          description: "The stream should start playing in a new tab.",
+        });
+      } catch (error) {
+        console.error("Error opening direct player:", error);
+        
+        toast({
+          title: "Error opening direct player",
+          description: "Could not open the direct player. Check console for details.",
+          variant: "destructive"
+        });
+      }
     } else {
       toast({
         title: "No direct stream available",
@@ -156,7 +189,6 @@ export default function VideoPlayer({ embedUrl, isLoading = false, onError }: Vi
             onLoad={handleIframeLoad}
             onError={handleIframeError}
             loading="eager"
-            importance="high"
           />
         )}
       </div>

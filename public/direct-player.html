@@ -108,8 +108,16 @@
             const refreshBtn = document.getElementById('refresh-btn');
             const directLink = document.getElementById('direct-link');
             
-            // Stream URL - the specific M3U8 file
-            const videoSrc = "https://s5.phim1280.tv/20250516/aZBpSlob/index.m3u8";
+            // Get stream URL from query parameter
+            const urlParams = new URLSearchParams(window.location.search);
+            const videoSrc = urlParams.get('stream');
+            
+            if (!videoSrc) {
+                updateStatus('No stream URL provided. Add ?stream=YOUR_M3U8_URL to the URL.', 'error');
+                return;
+            }
+            
+            // Set stream URL in UI
             streamUrl.textContent = videoSrc;
             directLink.href = videoSrc;
             
@@ -249,23 +257,25 @@
                 updateStatus('Your browser does not support HLS. Try VLC or another player.', 'error');
             }
             
-            // Start the player
-            initializePlayer();
-            
-            // Add event listeners for video element
-            video.addEventListener('playing', () => {
-                loadingOverlay.classList.add('hidden');
-                updateStatus('Video is playing', 'success');
-            });
-            
-            video.addEventListener('waiting', () => {
-                loadingOverlay.classList.remove('hidden');
-                updateStatus('Buffering video...');
-            });
-            
-            video.addEventListener('error', (e) => {
-                updateStatus(`Video error: ${video.error ? video.error.message : 'Unknown error'}`, 'error');
-            });
+            // Start the player if we have a valid stream URL
+            if (videoSrc) {
+                initializePlayer();
+                
+                // Add event listeners for video element
+                video.addEventListener('playing', () => {
+                    loadingOverlay.classList.add('hidden');
+                    updateStatus('Video is playing', 'success');
+                });
+                
+                video.addEventListener('waiting', () => {
+                    loadingOverlay.classList.remove('hidden');
+                    updateStatus('Buffering video...');
+                });
+                
+                video.addEventListener('error', (e) => {
+                    updateStatus(`Video error: ${video.error ? video.error.message : 'Unknown error'}`, 'error');
+                });
+            }
         });
     </script>
 </body>

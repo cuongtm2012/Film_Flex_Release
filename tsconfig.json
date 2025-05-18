@@ -32,6 +32,7 @@
     "noImplicitAny": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
+    "jsx": "react-jsx",
     "types": [
       "node",
       "express",
@@ -50,6 +51,9 @@
       ],
       "@client/*": [
         "client/*"
+      ],
+      "@/*": [
+        "client/src/*"
       ]
     }
   }

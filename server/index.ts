@@ -1,6 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import http from 'http';
 import cors from 'cors';
+import path from 'path';
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { config } from './config';
@@ -18,6 +19,9 @@ app.use(cors({
     : 'http://localhost:3000',
   credentials: true
 }));
+
+// Serve files from public directory first for direct player access
+app.use(express.static(path.join(process.cwd(), 'public')));
 
 // Request logging middleware
 app.use((req, res, next) => {
