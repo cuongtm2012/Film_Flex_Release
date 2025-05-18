@@ -432,6 +432,9 @@ export default function AdminPage() {
       // Update the loading toast with success message
       toast.success("Movie updated successfully", { id: savingToastId });
       
+      // Close the dialog after successful update
+      setFullScreenEdit(false);
+      
       // Invalidate queries to refresh the data
       queryClient.invalidateQueries({ queryKey: [`/api/movies/${currentEditMovie.slug}`] });
       queryClient.invalidateQueries({ queryKey: ['movies'] });
