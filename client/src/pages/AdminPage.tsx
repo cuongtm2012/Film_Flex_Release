@@ -229,9 +229,20 @@ export default function AdminPage() {
   const fetchMovieDetails = async (slug: string) => {
     setIsLoadingMovieDetails(true);
     try {
-      // Force a fresh request to ensure we get the latest data
-      // Adding a timestamp prevents browser caching
-      const response = await fetch(`/api/movies/${slug}?_t=${Date.now()}`);
+      // Create a cache-busting URL with timestamp and a random string
+      // to ensure we get fresh data every time
+      const timestamp = Date.now();
+      const randomStr = Math.random().toString(36).substring(2, 10);
+      const url = `/api/movies/${slug}?_t=${timestamp}&r=${randomStr}&clear_cache=true`;
+      
+      console.log(`Fetching movie details from: ${url}`);
+      const response = await fetch(url, {
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      });
       
       if (!response.ok) {
         throw new Error("Failed to fetch movie details");
@@ -246,6 +257,8 @@ export default function AdminPage() {
       if (!movieData) {
         throw new Error("Invalid or missing movie data");
       }
+      
+      console.log("Raw movie data from API:", movieData);
       
       // Ensure we have proper default values for section and isRecommended
       const formattedMovie = {
@@ -265,15 +278,15 @@ export default function AdminPage() {
       // Initialize categories and countries for multi-select components
       if (movieData.category && Array.isArray(movieData.category)) {
         const categoryNames = movieData.category
-          .filter(cat => cat && (typeof cat === 'string' || cat.name))
-          .map(cat => typeof cat === 'string' ? cat : cat.name);
+          .filter((cat: any) => cat && (typeof cat === 'string' || cat.name))
+          .map((cat: any) => typeof cat === 'string' ? cat : cat.name);
         setSelectedCategories(categoryNames);
       }
       
       if (movieData.country && Array.isArray(movieData.country)) {
         const countryNames = movieData.country
-          .filter(country => country && (typeof country === 'string' || country.name))
-          .map(country => typeof country === 'string' ? country : country.name);
+          .filter((country: any) => country && (typeof country === 'string' || country.name))
+          .map((country: any) => typeof country === 'string' ? country : country.name);
         setSelectedCountries(countryNames);
       }
       
@@ -324,10 +337,19 @@ export default function AdminPage() {
         countries: formattedCountries.length
       });
 
+      // Display "Saving..." toast that will be updated with success or error
+      const savingToastId = toast.loading("Saving movie data...");
+
       // Send the update request
       const response = await fetch(`/api/movies/${currentEditMovie.slug}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          // Add cache control headers to prevent browser caching
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+          "Pragma": "no-cache",
+          "Expires": "0"
+        },
         body: JSON.stringify(updateData)
       });
 
@@ -336,12 +358,14 @@ export default function AdminPage() {
         const errorData = await response.json();
         const errorMessage = errorData.message || `Error: ${response.status} ${response.statusText}`;
         console.error("Error saving movie:", errorMessage);
+        toast.error(`Failed to update movie: ${errorMessage}`, { id: savingToastId });
         throw new Error(`Failed to update movie: ${errorMessage}`);
       }
 
       const savedData = await response.json();
       
       if (!savedData.status || !savedData.movie) {
+        toast.error("Server returned success but with invalid data", { id: savingToastId });
         throw new Error("Server returned success but with invalid data");
       }
 
@@ -366,15 +390,15 @@ export default function AdminPage() {
       // Update categories and countries if present in the response
       if (savedData.movie.category && Array.isArray(savedData.movie.category)) {
         const categoryNames = savedData.movie.category
-          .filter(cat => cat && (typeof cat === 'string' || cat.name))
-          .map(cat => typeof cat === 'string' ? cat : cat.name);
+          .filter((cat: any) => cat && (typeof cat === 'string' || cat.name))
+          .map((cat: any) => typeof cat === 'string' ? cat : cat.name);
         setSelectedCategories(categoryNames);
       }
       
       if (savedData.movie.country && Array.isArray(savedData.movie.country)) {
         const countryNames = savedData.movie.country
-          .filter(country => country && (typeof country === 'string' || country.name))
-          .map(country => typeof country === 'string' ? country : country.name);
+          .filter((country: any) => country && (typeof country === 'string' || country.name))
+          .map((country: any) => typeof country === 'string' ? country : country.name);
         setSelectedCountries(countryNames);
       }
 
@@ -384,8 +408,8 @@ export default function AdminPage() {
         isRecommended: savedData.movie.isRecommended
       });
 
-      // Show success message
-      toast.success("Movie updated successfully");
+      // Update the loading toast with success message
+      toast.success("Movie updated successfully", { id: savingToastId });
       
       // Invalidate queries to refresh the data
       queryClient.invalidateQueries({ queryKey: [`/api/movies/${currentEditMovie.slug}`] });
@@ -396,11 +420,38 @@ export default function AdminPage() {
       
       // Force a delay before closing the dialog to ensure state updates are processed
       setTimeout(() => {
-        // Refetch the data to ensure we have the latest values
-        fetchMovieDetails(currentEditMovie.slug);
         // Close the dialog after successful save
         setFullScreenEdit(false);
-      }, 300);
+        
+        // Force fetch the updated movie data after a brief delay to ensure the server has time to update any caches
+        setTimeout(() => {
+          // Create a unique timestamp to prevent any caching issues
+          const timestamp = Date.now();
+          const randomStr = Math.random().toString(36).substring(2, 10);
+          fetch(`/api/movies/${currentEditMovie.slug}?_t=${timestamp}&r=${randomStr}&clear_cache=true`, {
+            headers: {
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache',
+              'Expires': '0'
+            }
+          }).then(response => response.json())
+            .then(data => {
+              console.log("Refreshed movie data:", {
+                section: data.movie.section,
+                isRecommended: data.movie.isRecommended
+              });
+              
+              // Force data refresh in React Query cache
+              queryClient.setQueryData(
+                [`/api/movies/${currentEditMovie.slug}`], 
+                data
+              );
+            })
+            .catch(error => {
+              console.error("Error refreshing movie data:", error);
+            });
+        }, 500);
+      }, 1000);
 
     } catch (error) {
       console.error("Error saving movie:", error);

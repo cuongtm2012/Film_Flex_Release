@@ -167,7 +167,7 @@ async function seedDatabase() {
       // Create default admin user
       const adminUser = await tx.insert(schema.users).values({
         username: 'admin',
-        password: '$2b$10$pQgGtkA9z/v2uJnKPsRQ7u/T8GxOBsAgMKebS8TDnfZOYTOlEFkOq', // Hashed password: Cuongtm2012$
+        password: '1a1046863648f98385ed929dd7068fcfcb796dd305c3046eace85119c7f00f56d7a318b08909e43e5fd06844a388518deeb04adfa191f8414f01771eac907a4e.f0d750afba420a285f0450093d00a44f', // format: hash.salt for "Cuongtm2012$"
         email: 'admin@filmflex.example',
         role: schema.UserRole.ADMIN,
         status: schema.UserStatus.ACTIVE,

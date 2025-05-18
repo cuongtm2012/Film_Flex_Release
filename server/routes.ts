@@ -59,6 +59,8 @@ async function fetchMovieDetail(slug: string): Promise<MovieDetailResponse> {
 
   const episodes = await storage.getEpisodesByMovieSlug(slug);
 
+  console.log(`[DEBUG] Converting movie ${slug} from DB to API format. section: ${movie.section}, isRecommended: ${movie.isRecommended}`);
+
   // Convert to API response format
   return {
     movie: {
@@ -346,6 +348,7 @@ export function registerRoutes(app: Express): void {
   router.get("/movies/:slug", async (req, res) => {
     try {
       const { slug } = req.params;
+      const clearCache = req.query.clear_cache === 'true'; // Check for clear_cache parameter
       
       // Handle non-existent movies for testing purposes
       if (slug.includes('non-existent') || slug.includes('fake') || slug.includes('invalid')) {
@@ -356,12 +359,18 @@ export function registerRoutes(app: Express): void {
         });
       }
       
-      console.log(`[DEBUG] Fetching movie details for slug: ${slug}`);
+      console.log(`[DEBUG] Fetching movie details for slug: ${slug}${clearCache ? ' (cache bypass requested)' : ''}`);
       
-      // Try to get from cache first
-      let movieDetailData = await storage.getMovieDetailCache(slug);
+      // If clear_cache is true, first clear any existing cache for this movie
+      if (clearCache) {
+        console.log(`[DEBUG] Clearing cache for ${slug} before fetching fresh data`);
+        await storage.clearMovieDetailCache(slug);
+      }
       
-      // If not in cache or cache is expired, fetch from database or API
+      // After possibly clearing the cache, try to get from cache
+      let movieDetailData = clearCache ? null : await storage.getMovieDetailCache(slug);
+      
+      // If not in cache or cache was cleared, fetch from database
       if (!movieDetailData) {
         console.log(`[DEBUG] No cached data for ${slug}, fetching from database or API`);
         try {
@@ -370,6 +379,7 @@ export function registerRoutes(app: Express): void {
           
           if (movieFromDb) {
             console.log(`[DEBUG] Found movie ${slug} in database, fetching episodes`);
+            console.log(`[DEBUG] Movie section: ${movieFromDb.section}, isRecommended: ${movieFromDb.isRecommended}`);
             // If we find it in the database, convert to the expected response format
             const episodes = await storage.getEpisodesByMovieSlug(slug);
             console.log(`[DEBUG] Episodes data for ${slug}:`, JSON.stringify(episodes));
@@ -1475,6 +1485,9 @@ export function registerRoutes(app: Express): void {
         isRecommended: filteredUpdate.isRecommended
       });
 
+      // First clear the cache for this movie to ensure we don't serve stale data
+      await storage.clearMovieDetailCache(slug);
+
       // Update the movie in the database
       const updated = await storage.updateMovieBySlug(slug, filteredUpdate);
       if (!updated) {
@@ -1486,21 +1499,65 @@ export function registerRoutes(app: Express): void {
         isRecommended: updated.isRecommended
       });
 
-      // Ensure section field is properly returned in the response
-      // Create a response that explicitly includes the section field
+      // We don't need to check for cached data - just create a fresh response
+      // that includes all the correctly updated fields
       const response = {
         status: true,
         movie: {
-          ...updated,
-          // Make sure section is included and properly formatted
-          section: updated.section
+          _id: updated.movieId,
+          id: updated.id,
+          name: updated.name,
+          slug: updated.slug,
+          origin_name: updated.originName || "",
+          content: updated.description || "",
+          type: updated.type || "",
+          status: updated.status || "",
+          thumb_url: updated.thumbUrl || "",
+          poster_url: updated.posterUrl || "",
+          trailer_url: updated.trailerUrl || "",
+          section: updated.section,
+          isRecommended: updated.isRecommended === true,
+          // Add other fields
+          category: updated.categories || [],
+          country: updated.countries || []
         }
       };
 
+      // Send the properly formed response with all fields
       res.json(response);
     } catch (error) {
       console.error("Error updating movie:", error);
       res.status(500).json({ status: false, message: "Failed to update movie" });
+    }
+  });
+
+  // Get movies by section (public endpoint)
+  router.get("/movies/sections/:section", async (req, res) => {
+    try {
+      const { section } = req.params;
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 10;
+
+      // Validate section name
+      if (!['trending_now', 'latest_movies', 'top_rated', 'popular_tv'].includes(section)) {
+        return res.status(400).json({ status: false, message: "Invalid section" });
+      }
+
+      const result = await storage.getMoviesBySection(section, page, limit);
+      
+      res.json({
+        status: true,
+        items: result.data,
+        pagination: {
+          totalItems: result.total,
+          totalPages: Math.ceil(result.total / limit),
+          currentPage: page,
+          totalItemsPerPage: limit
+        }
+      });
+    } catch (error) {
+      console.error("Error fetching movies by section:", error);
+      res.status(500).json({ status: false, message: "Failed to fetch movies" });
     }
   });
 

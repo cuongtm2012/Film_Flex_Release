@@ -42,23 +42,28 @@ function TvSeriesSection({ title, movies }: { title: string; movies: MovieListRe
 }
 
 export default function Home() {
-  // Fetch trending movies
+  // Fetch movies by sections
   const { data: trendingMovies, isLoading: trendingLoading } = useQuery<MovieListResponse>({
-    queryKey: ['/api/movies', { page: 1, sort: 'popular', limit: 10 }],
+    queryKey: ['/api/movies/sections/trending_now', { page: 1, limit: 10 }],
   });
 
-  // Fetch latest movies
+  // Fetch latest movies section
   const { data: latestMovies, isLoading: latestLoading } = useQuery<MovieListResponse>({
-    queryKey: ['/api/movies', { page: 1, sort: 'latest', limit: 10 }],
+    queryKey: ['/api/movies/sections/latest_movies', { page: 1, limit: 10 }],
   });
 
-  // Fetch top rated movies
+  // Fetch top rated movies section
   const { data: topRatedMovies, isLoading: topRatedLoading } = useQuery<MovieListResponse>({
-    queryKey: ['/api/movies', { page: 1, sort: 'rating', limit: 10 }],
+    queryKey: ['/api/movies/sections/top_rated', { page: 1, limit: 10 }],
+  });
+  
+  // Fetch popular TV series
+  const { data: popularTvSeries, isLoading: tvSeriesLoading } = useQuery<MovieListResponse>({
+    queryKey: ['/api/movies/sections/popular_tv', { page: 1, limit: 10 }],
   });
 
   // Loading state
-  if (trendingLoading || latestLoading || topRatedLoading) {
+  if (trendingLoading || latestLoading || topRatedLoading || tvSeriesLoading) {
     return (
       <div className="flex items-center justify-center min-h-[70vh]">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -101,7 +106,7 @@ export default function Home() {
 
       <div className="space-y-4">
         {/* Trending Now Section */}
-        {trendingMovies?.items && (
+        {trendingMovies?.items && trendingMovies.items.length > 0 && (
           <MovieSection
             title="Trending Now"
             movies={trendingMovies.items.filter(movie => movie.type?.toLowerCase() !== 'tv')}
@@ -109,7 +114,7 @@ export default function Home() {
         )}
 
         {/* Latest Releases Section */}
-        {latestMovies?.items && (
+        {latestMovies?.items && latestMovies.items.length > 0 && (
           <MovieSection
             title="Latest Movies"
             movies={latestMovies.items.filter(movie => movie.type?.toLowerCase() !== 'tv')}
@@ -117,7 +122,7 @@ export default function Home() {
         )}
 
         {/* Top Rated Section */}
-        {topRatedMovies?.items && (
+        {topRatedMovies?.items && topRatedMovies.items.length > 0 && (
           <MovieSection
             title="Top Rated Movies"
             movies={topRatedMovies.items.filter(movie => movie.type?.toLowerCase() !== 'tv')}
@@ -126,10 +131,10 @@ export default function Home() {
 
         {/* TV Series Section */}
         <div className="mt-8 pt-8 border-t border-gray-800">
-          {trendingMovies?.items && (
+          {popularTvSeries?.items && popularTvSeries.items.length > 0 && (
             <TvSeriesSection
               title="Popular TV Series"
-              movies={trendingMovies.items}
+              movies={popularTvSeries.items}
             />
           )}
         </div>
