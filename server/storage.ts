@@ -774,20 +774,20 @@ export class DatabaseStorage implements IStorage {
     }
     
     if ('isRecommended' in updateData) {
-      // Convert isRecommended to is_recommended DB field
-      dbUpdateData.is_recommended = updateData.isRecommended === true;
-      console.log(`[DEBUG] Setting is_recommended to: ${dbUpdateData.is_recommended}`);
+      // FIX: Use the correct field name 'isRecommended' instead of 'is_recommended'
+      dbUpdateData.isRecommended = updateData.isRecommended === true;
+      console.log(`[DEBUG] Setting isRecommended to: ${dbUpdateData.isRecommended}, type: ${typeof dbUpdateData.isRecommended}`);
     }
     
     // Handle other fields that might come in API format vs DB format
     if ('name' in updateData) dbUpdateData.name = updateData.name;
-    if ('originName' in updateData) dbUpdateData.origin_name = updateData.originName;
+    if ('originName' in updateData) dbUpdateData.originName = updateData.originName;
     if ('description' in updateData) dbUpdateData.description = updateData.description;
     if ('type' in updateData) dbUpdateData.type = updateData.type;
     if ('status' in updateData) dbUpdateData.status = updateData.status;
-    if ('thumbUrl' in updateData) dbUpdateData.thumb_url = updateData.thumbUrl;
-    if ('posterUrl' in updateData) dbUpdateData.poster_url = updateData.posterUrl;
-    if ('trailerUrl' in updateData) dbUpdateData.trailer_url = updateData.trailerUrl;
+    if ('thumbUrl' in updateData) dbUpdateData.thumbUrl = updateData.thumbUrl;
+    if ('posterUrl' in updateData) dbUpdateData.posterUrl = updateData.posterUrl;
+    if ('trailerUrl' in updateData) dbUpdateData.trailerUrl = updateData.trailerUrl;
     if ('time' in updateData) dbUpdateData.time = updateData.time;
     if ('quality' in updateData) dbUpdateData.quality = updateData.quality;
     if ('lang' in updateData) dbUpdateData.lang = updateData.lang;
@@ -796,9 +796,9 @@ export class DatabaseStorage implements IStorage {
     
     // API name conversion (special cases)
     if ('content' in updateData) dbUpdateData.description = updateData.content;
-    if ('origin_name' in updateData) dbUpdateData.origin_name = updateData.origin_name;
-    if ('thumb_url' in updateData) dbUpdateData.thumb_url = updateData.thumb_url;
-    if ('poster_url' in updateData) dbUpdateData.poster_url = updateData.poster_url;
+    if ('origin_name' in updateData) dbUpdateData.originName = updateData.origin_name;
+    if ('thumb_url' in updateData) dbUpdateData.thumbUrl = updateData.thumb_url;
+    if ('poster_url' in updateData) dbUpdateData.posterUrl = updateData.poster_url;
     
     // Categories and countries need special handling (they're JSONB)
     if ('categories' in updateData) dbUpdateData.categories = updateData.categories;
@@ -807,22 +807,22 @@ export class DatabaseStorage implements IStorage {
     // Category and country can come from API format (explicit name conversion)
     if ('category' in updateData) {
       dbUpdateData.categories = Array.isArray(updateData.category) 
-        ? JSON.stringify(updateData.category) 
-        : '[]';
+        ? updateData.category
+        : [];
     }
     
     if ('country' in updateData) {
       dbUpdateData.countries = Array.isArray(updateData.country) 
-        ? JSON.stringify(updateData.country) 
-        : '[]';
+        ? updateData.country
+        : [];
     }
     
     // Set modified timestamp
-    dbUpdateData.modified_at = new Date();
+    dbUpdateData.modifiedAt = new Date();
     
     console.log(`[DEBUG] Updating movie ${slug} with data:`, {
       section: dbUpdateData.section,
-      is_recommended: dbUpdateData.is_recommended
+      isRecommended: dbUpdateData.isRecommended
     });
     
     const [updatedMovie] = await db.update(movies)
