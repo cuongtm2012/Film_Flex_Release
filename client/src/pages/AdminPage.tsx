@@ -813,9 +813,7 @@ export default function AdminPage() {
                         Error loading content data. Please try again.
                       </div>
                     ) : (
-                      <table className="w-full border-collapse">
-                        <thead>
-                          <tr className="border-b">
+                      <table className="w-full border-collapse">                        <thead>                          <tr className="border-b">
                             <th className="py-3 px-2 text-left font-medium">ID</th>
                             <th className="py-3 px-2 text-left font-medium">
                               <div className="flex items-center gap-1 cursor-pointer">
@@ -823,14 +821,7 @@ export default function AdminPage() {
                                 <ArrowUpDown className="h-3 w-3" />
                               </div>
                             </th>
-                            <th className="py-3 px-2 text-left font-medium">
-                              <div className="flex items-center gap-1 cursor-pointer">
-                                Year
-                                <ArrowUpDown className="h-3 w-3" />
-                              </div>
-                            </th>
                             <th className="py-3 px-2 text-left font-medium">Section</th>
-                            <th className="py-3 px-2 text-left font-medium">Status</th>
                             <th className="py-3 px-2 text-center font-medium">Recommend</th>
                             <th className="py-3 px-2 text-left font-medium">Actions</th>
                           </tr>
@@ -842,8 +833,7 @@ export default function AdminPage() {
                             // Use a reliable unique key combining multiple properties
                             const uniqueKey = `movie-${movieDetails.id || movieDetails._id || movieDetails.slug || index}`;
                             return (
-                              <tr key={uniqueKey} className="border-b hover:bg-muted/10">
-                                <td className="py-4 px-2">{movieDetails.id || index + 1}</td>
+                              <tr key={uniqueKey} className="border-b hover:bg-muted/10">                                <td className="py-4 px-2">{movieDetails.id || index + 1}</td>
                                 <td className="py-4 px-2 font-medium">
                                   <div className="flex items-center">
                                     {movieDetails.thumb_url && (
@@ -858,7 +848,6 @@ export default function AdminPage() {
                                     <span>{movieDetails.name}</span>
                                   </div>
                                 </td>
-                                <td className="py-4 px-2">{movieDetails.year || "N/A"}</td>
                                 <td className="py-4 px-2">
                                   {(() => {
                                     // Convert section value to readable format
@@ -873,26 +862,7 @@ export default function AdminPage() {
                                     
                                     return sectionNames[movieDetails.section as keyof typeof sectionNames] || movieDetails.section;
                                   })()}
-                                </td>
-                                <td className="py-4 px-2">
-                                  <Badge 
-                                    variant={movieDetails.active === false ? "destructive" : "outline"}
-                                    className="flex items-center gap-1"
-                                  >
-                                    {movieDetails.active === false ? (
-                                      <>
-                                        <XCircle className="h-3 w-3" />
-                                        <span>Inactive</span>
-                                      </>
-                                    ) : (
-                                      <>
-                                        <CheckCircle className="h-3 w-3" />
-                                        <span>Active</span>
-                                      </>
-                                    )}
-                                  </Badge>
-                                </td>
-                                <td className="py-4 px-2 text-center">
+                                </td>                                <td className="py-4 px-2 text-center">
                                   <div className="flex justify-center">
                                     {movieDetails.isRecommended === true ? (
                                       <Star className="h-5 w-5 text-amber-500 fill-amber-500" />
@@ -1756,7 +1726,7 @@ export default function AdminPage() {
                         <SelectItem value="none">None</SelectItem>
                         <SelectItem value="trending_now">Trending Now</SelectItem>
                         <SelectItem value="latest_movies">Latest Movies</SelectItem>
-                        <SelectItem value="top_rated">Top Rated</SelectItem>
+                        <SelectItem value="top_rated">Top Rated Movies</SelectItem>
                         <SelectItem value="popular_tv">Popular TV Series</SelectItem>
                       </SelectContent>
                     </Select>
