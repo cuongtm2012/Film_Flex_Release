@@ -13,7 +13,9 @@ import {
   MovieDetailResponse,
   users, movies, episodes, comments, watchlist, viewHistory, contentApprovals, auditLogs,
   roles, permissions, rolePermissions,
-  UserRole, UserStatus, ContentStatus
+  UserRole, UserStatus, ContentStatus,
+  Section,
+  User, InsertUser
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, sql } from "drizzle-orm";
@@ -51,16 +53,17 @@ export interface IStorage {
   removePermissionFromRole(roleId: number, permissionId: number): Promise<void>;
   getPermissionsByRole(roleId: number): Promise<Permission[]>;
   getRolesByPermission(permissionId: number): Promise<Role[]>;
-  
   // Movie methods
   getMovies(page: number, limit: number, sortBy?: string): Promise<{ data: Movie[], total: number }>;
   getMovieBySlug(slug: string): Promise<Movie | undefined>;
   getMovieByMovieId(movieId: string): Promise<Movie | undefined>;
   saveMovie(movie: InsertMovie): Promise<Movie>;
+  updateMovieSection(movieId: string, section: Section): Promise<Movie | undefined>;
   searchMovies(query: string, normalizedQuery: string, page: number, limit: number, section?: string): Promise<{ data: Movie[], total: number }>;
   getMoviesByCategory(categorySlug: string, page: number, limit: number, sortBy?: string): Promise<{ data: Movie[], total: number }>;
   getMoviesBySection(section: string, page: number, limit: number): Promise<{ data: Movie[], total: number }>;
   updateMovieBySlug(slug: string, updateData: Partial<Movie>): Promise<Movie | undefined>;
+  updateMovieSection(movieId: string, section: Section): Promise<Movie | undefined>;
   
   // Episode methods
   getEpisodesByMovieSlug(movieSlug: string): Promise<Episode[]>;
@@ -397,8 +400,7 @@ export class DatabaseStorage implements IStorage {
       view: movie.view || 0,
       description: movie.description || null,
       status: movie.status || null,
-      trailerUrl: movie.trailerUrl || null,
-      sections: movie.sections || null,
+      trailerUrl: movie.trailerUrl || null,      section: movie.section || null,
       isRecommended: movie.isRecommended || false,
       categories: movie.categories || [],
       countries: movie.countries || [],
@@ -407,6 +409,86 @@ export class DatabaseStorage implements IStorage {
     }).returning();
 
     return newMovie;
+  }
+  
+  async updateMovieSection(movieId: string, section: Section): Promise<Movie | undefined> {
+    const [updatedMovie] = await db.update(movies)
+      .set({ section })
+      .where(eq(movies.movieId, movieId))
+      .returning();
+    return updatedMovie;
+  }
+  
+  async updateMovieBySlug(slug: string, updateData: Partial<Movie>): Promise<Movie | undefined> {    // Create a clean object that will map to the correct database columns
+    const dbUpdateData: Record<string, any> = {};
+    
+    // Handle section field
+    if ('section' in updateData) {
+      // Only allow valid section values or null
+      const validSections = ['trending_now', 'latest_movies', 'top_rated', 'popular_tv'];
+      dbUpdateData.section = validSections.includes(updateData.section) ? updateData.section : null;
+      console.log(`[DEBUG] Setting section to: ${dbUpdateData.section}, type: ${typeof dbUpdateData.section}`);
+    }
+    
+    // Handle isRecommended field
+    if ('isRecommended' in updateData) {
+      // Always ensure a boolean value is set, defaulting to false if invalid
+      dbUpdateData.isRecommended = updateData.isRecommended === true;
+      console.log(`[DEBUG] Setting isRecommended to: ${dbUpdateData.isRecommended}, type: ${typeof dbUpdateData.isRecommended}`);
+    }
+    
+    // Handle other fields that might come in API format vs DB format
+    if ('name' in updateData) dbUpdateData.name = updateData.name;
+    if ('originName' in updateData) dbUpdateData.originName = updateData.originName;
+    if ('description' in updateData) dbUpdateData.description = updateData.description;
+    if ('type' in updateData) dbUpdateData.type = updateData.type;
+    if ('status' in updateData) dbUpdateData.status = updateData.status;
+    if ('thumbUrl' in updateData) dbUpdateData.thumbUrl = updateData.thumbUrl;
+    if ('posterUrl' in updateData) dbUpdateData.posterUrl = updateData.posterUrl;
+    if ('trailerUrl' in updateData) dbUpdateData.trailerUrl = updateData.trailerUrl;
+    if ('time' in updateData) dbUpdateData.time = updateData.time;
+    if ('quality' in updateData) dbUpdateData.quality = updateData.quality;
+    if ('lang' in updateData) dbUpdateData.lang = updateData.lang;
+    if ('year' in updateData) dbUpdateData.year = updateData.year;
+    if ('view' in updateData) dbUpdateData.view = updateData.view;
+    
+    // Handle categories and countries (JSONB fields)
+    if ('categories' in updateData) dbUpdateData.categories = updateData.categories;
+    if ('countries' in updateData) dbUpdateData.countries = updateData.countries;
+    
+    // API format conversions for categories and countries
+    if ('category' in updateData) {
+      dbUpdateData.categories = Array.isArray(updateData.category) ? updateData.category : [];
+    }
+    if ('country' in updateData) {
+      dbUpdateData.countries = Array.isArray(updateData.country) ? updateData.country : [];
+    }
+    
+    // Handle special field conversions
+    if ('content' in updateData) dbUpdateData.description = updateData.content;
+    if ('origin_name' in updateData) dbUpdateData.originName = updateData.origin_name;
+    if ('thumb_url' in updateData) dbUpdateData.thumbUrl = updateData.thumb_url;
+    if ('poster_url' in updateData) dbUpdateData.posterUrl = updateData.poster_url;
+    
+    // Set modified timestamp
+    dbUpdateData.modifiedAt = new Date();
+    
+    console.log(`[DEBUG] Updating movie ${slug} with data:`, dbUpdateData);
+    
+    const [updatedMovie] = await db.update(movies)
+      .set(dbUpdateData)
+      .where(eq(movies.slug, slug))
+      .returning();
+        console.log(`[DEBUG] Updated movie ${slug}. DB returned:`, {
+      section: updatedMovie.section,
+      isRecommended: updatedMovie.isRecommended
+    });
+    
+    // Always clear the cache for this movie after update
+    await this.clearMovieDetailCache(slug);
+
+    // Return the actual updated movie from the database to ensure we're seeing the real state
+    return updatedMovie;
   }
   
   // Episode methods
@@ -781,82 +863,6 @@ export class DatabaseStorage implements IStorage {
     
     console.log(`[DEBUG] Found ${count} recommended movies`);
     return { data, total: count || 0 };
-  }
-
-  async updateMovieBySlug(slug: string, updateData: Partial<Movie>): Promise<Movie | undefined> {
-    // Create a clean object that will map to the correct database columns
-    const dbUpdateData: Record<string, any> = {};
-    
-    // Convert camelCase keys to snake_case for DB and handle special fields
-    if ('section' in updateData) {
-      // Handle section as a direct property (no conversion needed)
-      dbUpdateData.section = updateData.section || null;
-      console.log(`[DEBUG] Setting section to: ${dbUpdateData.section}`);
-    }
-    
-    if ('isRecommended' in updateData) {
-      // FIX: Use the correct field name 'isRecommended' instead of 'is_recommended'
-      dbUpdateData.isRecommended = updateData.isRecommended === true;
-      console.log(`[DEBUG] Setting isRecommended to: ${dbUpdateData.isRecommended}, type: ${typeof dbUpdateData.isRecommended}`);
-    }
-    
-    // Handle other fields that might come in API format vs DB format
-    if ('name' in updateData) dbUpdateData.name = updateData.name;
-    if ('originName' in updateData) dbUpdateData.originName = updateData.originName;
-    if ('description' in updateData) dbUpdateData.description = updateData.description;
-    if ('type' in updateData) dbUpdateData.type = updateData.type;
-    if ('status' in updateData) dbUpdateData.status = updateData.status;
-    if ('thumbUrl' in updateData) dbUpdateData.thumbUrl = updateData.thumbUrl;
-    if ('posterUrl' in updateData) dbUpdateData.posterUrl = updateData.posterUrl;
-    if ('trailerUrl' in updateData) dbUpdateData.trailerUrl = updateData.trailerUrl;
-    if ('time' in updateData) dbUpdateData.time = updateData.time;
-    if ('quality' in updateData) dbUpdateData.quality = updateData.quality;
-    if ('lang' in updateData) dbUpdateData.lang = updateData.lang;
-    if ('year' in updateData) dbUpdateData.year = updateData.year;
-    if ('view' in updateData) dbUpdateData.view = updateData.view;
-    
-    // API name conversion (special cases)
-    if ('content' in updateData) dbUpdateData.description = updateData.content;
-    if ('origin_name' in updateData) dbUpdateData.originName = updateData.origin_name;
-    if ('thumb_url' in updateData) dbUpdateData.thumbUrl = updateData.thumb_url;
-    if ('poster_url' in updateData) dbUpdateData.posterUrl = updateData.poster_url;
-    
-    // Categories and countries need special handling (they're JSONB)
-    if ('categories' in updateData) dbUpdateData.categories = updateData.categories;
-    if ('countries' in updateData) dbUpdateData.countries = updateData.countries;
-    
-    // Category and country can come from API format (explicit name conversion)
-    if ('category' in updateData) {
-      dbUpdateData.categories = Array.isArray(updateData.category) 
-        ? updateData.category
-        : [];
-    }
-    
-    if ('country' in updateData) {
-      dbUpdateData.countries = Array.isArray(updateData.country) 
-        ? updateData.country
-        : [];
-    }
-    
-    // Set modified timestamp
-    dbUpdateData.modifiedAt = new Date();
-    
-    console.log(`[DEBUG] Updating movie ${slug} with data:`, {
-      section: dbUpdateData.section,
-      isRecommended: dbUpdateData.isRecommended
-    });
-    
-    const [updatedMovie] = await db.update(movies)
-      .set(dbUpdateData)
-      .where(eq(movies.slug, slug))
-      .returning();
-      
-    console.log(`[DEBUG] Updated movie ${slug}. DB returned:`, {
-      section: updatedMovie.section,
-      isRecommended: updatedMovie.isRecommended
-    });
-    
-    return updatedMovie;
   }
 
   // Cache implementation - using Redis-like API

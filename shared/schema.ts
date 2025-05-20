@@ -19,10 +19,8 @@ export const movies = pgTable("movies", {
   time: text("time"), // Duration
   view: integer("view").default(0),
   description: text("description"),
-  status: text("status"),
-  trailerUrl: text("trailer_url"),
-  sections: text("sections"),  // Keep for backward compatibility
-  section: text("section"),    // Add explicit section field
+  status: text("status"),  trailerUrl: text("trailer_url"),
+  section: text("section"),    // Single section field
   isRecommended: boolean("is_recommended").default(false),
   categories: jsonb("categories").default([]),
   countries: jsonb("countries").default([]),
