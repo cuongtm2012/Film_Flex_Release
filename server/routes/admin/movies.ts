@@ -34,20 +34,20 @@ router.get('/sections/:section', isAdmin, async (req, res) => {
   }
 });
 
-// Update movie sections
-router.put('/:movieId/sections', isAdmin, async (req, res) => {
+// Update movie section
+router.put('/:movieId/section', isAdmin, async (req, res) => {
   try {
     const { movieId } = req.params;
     const schema = z.object({
-      sections: z.array(z.enum(Object.values(Section) as [string, ...string[]]))
+      section: z.enum(Object.values(Section) as [string, ...string[]])
     });
 
-    const { sections } = schema.parse(req.body);
-    await storage.updateMovieSections(movieId, sections as Section[]);
-    res.json({ status: true, message: 'Movie sections updated successfully' });
+    const { section } = schema.parse(req.body);
+    await storage.updateMovieSection(movieId, section as Section);
+    res.json({ status: true, message: 'Movie section updated successfully' });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: 'Invalid sections data' });
+      return res.status(400).json({ error: 'Invalid section data' });
     }
     console.error('Error updating movie sections:', error);
     res.status(500).json({ error: 'Failed to update movie sections' });

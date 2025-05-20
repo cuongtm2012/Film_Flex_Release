@@ -1,19 +1,19 @@
-import React, { useState, useEffect } from "react";
-import { useRoute } from "wouter";
+import { useState, useEffect } from "react";
+import { useRoute, useLocation } from "wouter";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
-import { MovieDetailResponse } from "@shared/schema";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useQueryClient } from "react-query";
+import { Loader2, ChevronLeft } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
-// Define Section type based on the database schema
-// and display names for the dropdown
+// Define Section type and options
 const sectionOptions = [
   { value: 'trending_now', label: 'Trending Now' },
   { value: 'latest_movies', label: 'Latest Movies' },
   { value: 'top_rated', label: 'Top Rated Movies' },
   { value: 'popular_tv', label: 'Popular TV Series' },
-] as const;
 type Section = typeof sectionOptions[number]['value'];
 
 interface MovieData {
@@ -21,7 +21,14 @@ interface MovieData {
   movieId: string;
   name: string;
   section: Section | null;
-  // marks: MovieMark[]; // Remove marks for this feature request
+  isRecommended: boolean;
+  type?: string;
+  status?: string;
+  active?: boolean;
+  thumb_url?: string;
+  poster_url?: string;
+  content?: string;
+  origin_name?: string;
 }
 
 export default function MovieEditScreen() {
@@ -56,14 +63,9 @@ export default function MovieEditScreen() {
       fetchMovieData();
     }
   }, [movieId]);
-
   // Save changes
   const handleSave = async () => {
     if (!movieData) return;
-    if (!section) {
-      toast.error("Please select a section.");
-      return;
-    }
 
     const loadingToast = toast.loading("Saving changes...");
 
@@ -72,10 +74,10 @@ export default function MovieEditScreen() {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
+        },        body: JSON.stringify({
           ...movieData,
-          section,
+          section: section || null,
+          isRecommended: movieData.isRecommended || false
         }),
       });
 

@@ -1430,13 +1430,16 @@ export function registerRoutes(app: Express): void {
         } else if (updateData.section !== null && !['trending_now', 'latest_movies', 'top_rated', 'popular_tv'].includes(updateData.section)) {
           return res.status(400).json({ message: "Invalid section value" });
         }
-      }
-
-      // Convert isRecommended to boolean explicitly
+      }      // Convert isRecommended to boolean explicitly
       if ('isRecommended' in updateData) {
         console.log(`[DEBUG] Original isRecommended value: '${updateData.isRecommended}' (${typeof updateData.isRecommended})`);
+        // Force boolean conversion by comparing with true
         updateData.isRecommended = updateData.isRecommended === true;
         console.log(`[DEBUG] Converted isRecommended to: ${updateData.isRecommended} (${typeof updateData.isRecommended})`);
+        // Ensure the property is included even if false
+        if (typeof updateData.isRecommended !== 'boolean') {
+          updateData.isRecommended = false;
+        }
       }
 
       // Only allow updating certain fields

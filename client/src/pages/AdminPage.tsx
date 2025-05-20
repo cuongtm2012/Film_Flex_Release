@@ -319,12 +319,15 @@ export default function AdminPage() {
       const formattedCategories = selectedCategories.map(name => ({ name }));
       const formattedCountries = selectedCountries.map(name => ({ name }));
 
-      // Format the data for the API - extract only the fields we want to update
+      // Format the data for the API with explicit type handling
       const updateData = {
         name: currentEditMovie.name,
         origin_name: currentEditMovie.origin_name || "",
         content: currentEditMovie.content || "",
-        // Handle section field - make sure we're using explicit value
+        // Handle section field - convert "none" to null
+        section: currentEditMovie.section === "none" ? null : currentEditMovie.section,
+        // Ensure isRecommended is explicitly included as a boolean
+        isRecommended: currentEditMovie.isRecommended === true,
         // Add categories and countries
         category: formattedCategories,
         country: formattedCountries,
@@ -332,7 +335,7 @@ export default function AdminPage() {
         status: currentEditMovie.status,
         thumb_url: currentEditMovie.thumb_url,
         poster_url: currentEditMovie.poster_url,
-        active: currentEditMovie.active
+        active: currentEditMovie.active === true
       };
 
       // Debug logging with type information
@@ -430,27 +433,23 @@ export default function AdminPage() {
         isRecommended: savedData.movie.isRecommended
       });
 
-      // Update the loading toast with success message
+      // Show success toast after the save
       toast.success("Movie updated successfully", { id: savingToastId });
-      
-      // Show a more prominent success message with more information
-      toast({
-        title: "Update Successful",
-        description: `"${currentEditMovie.name}" was updated successfully with section: ${savedData.movie.section ? savedData.movie.section : 'None'} and ${savedData.movie.isRecommended ? 'marked as recommended' : 'not marked as recommended'}`,
-        variant: "success",
-        duration: 5000, // Show for 5 seconds so it's more noticeable
-      });
-      
+
+      // Update the loading toast with success message
+      toast.success(
+        `"${currentEditMovie.name}" was updated successfully with section: ${savedData.movie.section ? savedData.movie.section : 'None'} and ${savedData.movie.isRecommended ? 'marked as recommended' : 'not marked as recommended'}`
+      );
+
       // Close the dialog after successful update
       setFullScreenEdit(false);
       
       // Invalidate queries to refresh the data
-      queryClient.invalidateQueries({ queryKey: [`/api/movies/${currentEditMovie.slug}`] });
-      queryClient.invalidateQueries({ queryKey: ['movies'] });
-      queryClient.invalidateQueries({ queryKey: ['featured'] });
+      queryClient.invalidateQueries({ queryKey: ["/api/movies"] }); // This invalidates all movie queries including the admin list
+      queryClient.invalidateQueries({ queryKey: [`/api/admin/movies`] }); // Invalidate admin-specific queries
       
       // Reload the movie details directly to ensure fresh data
-      fetchMovieDetails(currentEditMovie.slug);
+      await fetchMovieDetails(currentEditMovie.slug);
 
     } catch (error) {
       console.error("Error saving movie:", error);
