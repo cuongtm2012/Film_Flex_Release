@@ -49,6 +49,16 @@ echo -e "\n${BLUE}Starting database reset process...${NC}"
 # Create log directory if needed
 mkdir -p logs
 
+# Run episode fields migration
+echo -e "${BLUE}Adding episode fields to schema...${NC}"
+EPISODE_FIELDS_SQL="server/db/migrations/006_add_episode_fields.sql"
+if [ -f "$EPISODE_FIELDS_SQL" ]; then
+    psql "$DATABASE_URL" -f "$EPISODE_FIELDS_SQL" || {
+        echo -e "${RED}Error adding episode fields${NC}"
+        exit 1
+    }
+fi
+
 # First ensure database exists
 echo -e "${BLUE}Checking database existence...${NC}"
 node "$SCRIPT_DIR/ensure-db.cjs"
@@ -69,4 +79,4 @@ else
   echo "Check the log file for more details."
 fi
 
-echo -e "\n${BLUE}Done.${NC}" 
+echo -e "\n${BLUE}Done.${NC}"

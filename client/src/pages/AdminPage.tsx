@@ -1667,6 +1667,28 @@ export default function AdminPage() {
                   </div>
                   
                   <div>
+                    <Label htmlFor="slug">Slug</Label>
+                    <Input 
+                      id="slug"
+                      value={currentEditMovie.slug}
+                      readOnly
+                      className="bg-muted"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="year">Year</Label>
+                    <Input 
+                      id="year"
+                      value={currentEditMovie.year || ""}
+                      onChange={(e) => setCurrentEditMovie({
+                        ...currentEditMovie,
+                        year: e.target.value
+                      })}
+                    />
+                  </div>
+
+                  <div>
                     <Label htmlFor="origin-name">Original Title</Label>
                     <Input 
                       id="origin-name"
@@ -1701,15 +1723,6 @@ export default function AdminPage() {
                 </div>
 
                 <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="year">Year</Label>
-                    <Input 
-                      id="year"
-                      value={currentEditMovie.year || ""}
-                      readOnly
-                    />
-                  </div>
-
                   <div>
                     <Label htmlFor="section">Section</Label>
                     <Select 

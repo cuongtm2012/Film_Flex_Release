@@ -5,8 +5,7 @@ import { z } from "zod";
 
 // Movie model for caching movie data
 export const movies = pgTable("movies", {
-  id: serial("id").primaryKey(),
-  movieId: text("movie_id").notNull().unique(), // Original _id from API
+  id: serial("id").primaryKey(),  movieId: text("movie_id").notNull().unique(), // Original _id from API
   slug: text("slug").notNull().unique(),
   name: text("name").notNull(),
   originName: text("origin_name"),
@@ -19,6 +18,8 @@ export const movies = pgTable("movies", {
   time: text("time"), // Duration
   view: integer("view").default(0),
   description: text("description"),
+  episodeCurrent: text("episode_current"),
+  episodeTotal: text("episode_total"),
   status: text("status"),  trailerUrl: text("trailer_url"),
   section: text("section"),    // Single section field
   isRecommended: boolean("is_recommended").default(false),
@@ -555,6 +556,9 @@ export function convertToMovieModel(data: MovieDetailResponse): InsertMovie {
     actors: data.movie.actor?.join(", ") || null,
     directors: data.movie.director?.join(", ") || null,
     trailerUrl: data.movie.trailer_url || null,
+    // Add episode fields
+    episodeCurrent: data.movie.episode_current || 'Full',
+    episodeTotal: data.movie.episode_total || '1',
   };
 }
 

@@ -490,14 +490,35 @@ export function convertToMovieModel(movieDetail: MovieDetailResponse): InsertMov
   // Get movie ID - either from direct _id or from tmdb.id as a fallback
   const movieId = movie._id || 
                  (movie.tmdb && movie.tmdb.id ? `tmdb-${movie.tmdb.id}` : null);
-  
-  // Check if we have enough info to create a valid movie record
+    // Check if we have enough info to create a valid movie record
   if (!movieId || !movie.slug || !movie.name) {
     throw new Error(`Movie is missing required fields: ${JSON.stringify({
       id: movieId || "missing",
       slug: movie.slug || "missing",
       name: movie.name || "missing"
     })}`);
+  }
+  
+  // Calculate episode counts
+  let episodeTotal = "1";
+  let episodeCurrent = "Full";
+  
+  if (movieDetail.episodes && Array.isArray(movieDetail.episodes) && movieDetail.episodes.length > 0) {
+    // Calculate total episodes across all servers
+    const total = movieDetail.episodes.reduce((sum, server) => {
+      if (server.server_data && Array.isArray(server.server_data)) {
+        return sum + server.server_data.length;
+      }
+      return sum;
+    }, 0);
+    
+    // Set total episodes
+    episodeTotal = total.toString();
+    
+    // Set current episode - use the name of first episode or keep as "Full" for movies
+    if (movieDetail.episodes[0].server_data && movieDetail.episodes[0].server_data.length > 0) {
+      episodeCurrent = movieDetail.episodes[0].server_data[0].name || "Full";
+    }
   }
   
   // Extract the year from the name if not provided
@@ -523,15 +544,16 @@ export function convertToMovieModel(movieDetail: MovieDetailResponse): InsertMov
     type: (movie.tmdb && movie.tmdb.type === "tv") ? "tv" : "movie",
     quality: movie.quality || "",
     lang: movie.lang || "",
-    time: movie.time || "",
-    view: movie.view || 0,
+    time: movie.time || "",    view: movie.view || 0,
     description: movie.content || "",
     status: movie.status || "ongoing",
     trailerUrl: movie.trailer_url || "",
     categories: movie.category || [],
     countries: movie.country || [],
     actors: Array.isArray(movie.actor) ? movie.actor.join(", ") : "",
-    directors: Array.isArray(movie.director) ? movie.director.join(", ") : ""
+    directors: Array.isArray(movie.director) ? movie.director.join(", ") : "",
+    episodeCurrent: episodeCurrent,
+    episodeTotal: episodeTotal
     // Note: modifiedAt will be defaulted by the database
   };
 }
