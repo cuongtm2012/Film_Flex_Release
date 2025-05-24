@@ -25,6 +25,7 @@ const sectionOptions: SectionOption[] = [
   { value: 'latest_movies', label: 'Latest Movies' },
   { value: 'top_rated', label: 'Top Rated Movies' },
   { value: 'popular_tv', label: 'Popular TV Series' },
+  { value: 'anime', label: 'Anime' },
 ];
 
 const movieTypes = [

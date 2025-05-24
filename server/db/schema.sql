@@ -11,7 +11,8 @@ INSERT INTO featured_sections (section_name) VALUES
   ('trending_now'),
   ('latest_movies'),
   ('top_rated'),
-  ('popular_tv')
+  ('popular_tv'),
+  ('anime')
 ON CONFLICT (section_name) DO NOTHING;
 
 -- Add is_recommended column to movies table

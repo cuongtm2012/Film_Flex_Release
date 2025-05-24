@@ -13,7 +13,8 @@ import {
   type Country,
   convertToMovieModel,
   convertToEpisodeModels,
-  normalizeText
+  normalizeText,
+  Section
 } from "@shared/schema";
 
 const router = Router();
@@ -1490,8 +1491,8 @@ export function registerRoutes(app: Express): void {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 10;
 
-      // Validate section name
-      if (!['trending_now', 'latest_movies', 'top_rated', 'popular_tv'].includes(section)) {
+      // Validate section name using proper type check
+      if (!Object.values(Section).includes(section as any)) {
         return res.status(400).json({ status: false, message: "Invalid section" });
       }
 

@@ -8,7 +8,8 @@ export const Section = {
   TRENDING_NOW: 'trending_now',
   LATEST_MOVIES: 'latest_movies',
   TOP_RATED: 'top_rated',
-  POPULAR_TV: 'popular_tv'
+  POPULAR_TV: 'popular_tv',
+  ANIME: 'anime'
 } as const;
 
 // Movie model for caching movie data

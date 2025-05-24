@@ -1,22 +1,51 @@
-import React from 'react';
-import { Link } from 'wouter';
-import { MovieListItem } from '@shared/schema';
-import { Play, Star, Clock, Calendar, Film, Tv } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { AspectRatio } from '@/components/ui/aspect-ratio';
-import { Badge } from '@/components/ui/badge';
-
-interface Category {
-  name: string;
-  slug: string;
-}
+import { Link } from "wouter";
+import { MovieListItem } from "@shared/schema";
+import { AspectRatio } from "@/components/ui/aspect-ratio";
+import { Badge } from "@/components/ui/badge";
+import { Play, Star, ListVideo } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface MoviePosterCardProps {
   movie: MovieListItem & {
-    category?: Category[];
+    category?: { name: string; slug: string }[];
+    episode_current?: string;
+    episode_total?: string;
+    episodeCurrent?: string;
+    episodeTotal?: string;
   };
   className?: string;
 }
+
+// Utility function to extract current episode number from episodeCurrent string
+const extractEpisodeNumber = (episodeCurrent: string | null | undefined): number | null => {
+  if (!episodeCurrent) return null;
+  
+  // Handle "Full" or "Hoàn Tất" cases
+  if (episodeCurrent.toLowerCase().includes('full') || episodeCurrent.toLowerCase().includes('hoàn tất')) {
+    return null; // Don't show badge for completed series
+  }
+  
+  // Extract number from formats like:
+  // "Hoàn Tất (31/31)" -> 31
+  // "Tập 12" -> 12  
+  // "Episode 15" -> 15
+  // "12" -> 12
+  const patterns = [
+    /\((\d+)\/\d+\)/,           // (31/31) format
+    /tập\s*(\d+)/i,             // Tập 12 format
+    /episode\s*(\d+)/i,         // Episode 15 format
+    /^(\d+)$/                   // Plain number
+  ];
+  
+  for (const pattern of patterns) {
+    const match = episodeCurrent.match(pattern);
+    if (match) {
+      return parseInt(match[1]);
+    }
+  }
+  
+  return null;
+};
 
 export default function MoviePosterCard({ movie, className }: MoviePosterCardProps) {
   // Get rating if available
@@ -32,6 +61,19 @@ export default function MoviePosterCard({ movie, className }: MoviePosterCardPro
 
   // Determine if it's a TV series or movie
   const isTvSeries = movie.type?.toLowerCase() === 'tv';
+
+  // Enhanced episode badge logic with proper extraction
+  const episodeCurrent = movie.episode_current || movie.episodeCurrent;
+  const episodeTotal = movie.episode_total || movie.episodeTotal;
+  
+  const currentEpisodeNumber = extractEpisodeNumber(episodeCurrent);
+  const totalEpisodes = episodeTotal ? parseInt(episodeTotal) : 0;
+  
+  const shouldShowEpisodeBadge = 
+    totalEpisodes > 1 && 
+    currentEpisodeNumber && 
+    currentEpisodeNumber > 0 &&
+    totalEpisodes > 0;
 
   return (
     <Link href={`/movie/${movie.slug}`}>
@@ -55,98 +97,65 @@ export default function MoviePosterCard({ movie, className }: MoviePosterCardPro
             />
           </div>
 
-          {/* Type Badge - Always visible */}
-          <div className="absolute top-2 left-2 z-10">
+          {/* Episode Badge - Top Left */}
+          {shouldShowEpisodeBadge && (
             <Badge 
               variant="secondary" 
-              className={cn(
-                "flex items-center gap-1 px-2 py-1 text-xs font-medium",
-                isTvSeries 
-                  ? "bg-blue-500/80 hover:bg-blue-500/90" 
-                  : "bg-primary/80 hover:bg-primary/90"
-              )}
+              className="absolute top-2 left-2 bg-blue-600/90 hover:bg-blue-600 text-white z-10 flex items-center gap-1 text-xs font-medium shadow-lg"
             >
-              {isTvSeries ? (
-                <>
-                  <Tv className="w-3 h-3" />
-                  <span>TV Series</span>
-                </>
-              ) : (
-                <>
-                  <Film className="w-3 h-3" />
-                  <span>Movie</span>
-                </>
-              )}
+              <ListVideo size={10} />
+              {currentEpisodeNumber}/{totalEpisodes}
             </Badge>
-          </div>
+          )}
 
-          {/* Hover Overlay - Only visible on hover */}
-          <div 
-            className="absolute inset-0 bg-gradient-to-t from-black via-black/85 to-transparent 
-                       opacity-0 hover:opacity-100 transition-all duration-300 ease-in-out
-                       flex flex-col items-center justify-end p-4"
+          {/* Year Badge - Top Right */}
+          <Badge 
+            variant="outline" 
+            className="absolute top-2 right-2 bg-black/70 text-white border-white/20 text-xs"
           >
-            {/* Content Container */}
-            <div className="w-full space-y-2">
+            {year}
+          </Badge>
+
+          {/* Hover Overlay */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent opacity-0 hover:opacity-100 transition-all duration-300 ease-in-out">
+            {/* Content in bottom area */}
+            <div className="absolute bottom-0 left-0 right-0 p-4 text-white">
               {/* Title */}
-              <h3 className="text-base md:text-lg font-bold text-white text-center line-clamp-2">
+              <h3 className="font-bold text-sm mb-2 line-clamp-2">
                 {movie.name}
               </h3>
-
-              {/* Year and Rating Row */}
-              <div className="flex items-center justify-center gap-3 text-sm text-gray-300">
-                <div className="flex items-center gap-1">
-                  <Calendar className="w-3 h-3" />
-                  <span>{year}</span>
-                </div>
+              
+              {/* Rating and Categories */}
+              <div className="flex items-center justify-between text-xs mb-3">
                 {displayRating && (
                   <div className="flex items-center gap-1">
-                    <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
-                    <span>{displayRating}</span>
+                    <Star className="w-3 h-3 text-yellow-400" fill="currentColor" />
+                    <span className="font-medium">{displayRating}</span>
+                  </div>
+                )}
+                
+                {categories.length > 0 && (
+                  <div className="flex gap-1">
+                    {categories.map((category, index) => (
+                      <span key={index} className="text-xs bg-white/20 px-2 py-1 rounded">
+                        {category.name}
+                      </span>
+                    ))}
                   </div>
                 )}
               </div>
 
-              {/* Categories */}
-              {categories.length > 0 && (
-                <div className="flex flex-wrap justify-center gap-1">
-                  {categories.map((cat: Category) => (
-                    <Badge 
-                      key={cat.slug} 
-                      variant="secondary" 
-                      className="text-xs bg-white/10 hover:bg-white/20"
-                    >
-                      {cat.name}
-                    </Badge>
-                  ))}
-                </div>
-              )}
-
               {/* Play Button */}
-              <div className="pt-3 flex justify-center">
-                <button
-                  className="flex items-center justify-center gap-2 px-4 py-2 rounded-full bg-primary 
-                            transition-all duration-200 transform scale-95 hover:scale-100
-                            hover:bg-primary/90 active:scale-95 text-sm font-medium"
-                  aria-label={`Play ${movie.name}`}
-                >
+              <div className="flex justify-center">
+                <div className="flex items-center gap-2 bg-primary/90 hover:bg-primary text-white px-4 py-2 rounded-full text-sm font-medium transition-colors">
                   <Play className="w-4 h-4" fill="white" />
-                  <span>Watch Now</span>
-                </button>
+                  <span>{isTvSeries ? 'Watch Series' : 'Watch Movie'}</span>
+                </div>
               </div>
             </div>
-          </div>
-
-          {/* Accessibility Enhancement */}
-          <div className="sr-only">
-            {movie.name}
-            {isTvSeries ? ' - TV Series' : ' - Movie'}
-            {displayRating && ` - Rating: ${displayRating} out of 10`}
-            {year && ` - Released in ${year}`}
-            {categories.length > 0 && ` - Categories: ${categories.map((c: Category) => c.name).join(', ')}`}
           </div>
         </AspectRatio>
       </div>
     </Link>
   );
-} 
+}
