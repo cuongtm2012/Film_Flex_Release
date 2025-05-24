@@ -3,30 +3,47 @@ import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+// Section type definition
+export const Section = {
+  TRENDING_NOW: 'trending_now',
+  LATEST_MOVIES: 'latest_movies',
+  TOP_RATED: 'top_rated',
+  POPULAR_TV: 'popular_tv'
+} as const;
+
 // Movie model for caching movie data
 export const movies = pgTable("movies", {
-  id: serial("id").primaryKey(),  movieId: text("movie_id").notNull().unique(), // Original _id from API
+  // Base fields
+  id: serial("id").primaryKey(),
+  movieId: text("movie_id").notNull().unique(), // Original _id from API
   slug: text("slug").notNull().unique(),
   name: text("name").notNull(),
   originName: text("origin_name"),
   posterUrl: text("poster_url"),
   thumbUrl: text("thumb_url"),
   year: integer("year"),
-  type: text("type"), // 'movie' or 'tv'
+  type: text("type"),
   quality: text("quality"),
   lang: text("lang"),
   time: text("time"), // Duration
   view: integer("view").default(0),
   description: text("description"),
-  episodeCurrent: text("episode_current"),
-  episodeTotal: text("episode_total"),
-  status: text("status"),  trailerUrl: text("trailer_url"),
-  section: text("section"),    // Single section field
+  status: text("status").default("ongoing"),
+  trailerUrl: text("trailer_url"),
+  
+  // Section and recommendation fields
+  section: text("section"),
   isRecommended: boolean("is_recommended").default(false),
+  
+  // Additional metadata
   categories: jsonb("categories").default([]),
   countries: jsonb("countries").default([]),
   actors: text("actors"),
   directors: text("directors"),
+  episodeCurrent: text("episode_current"),
+  episodeTotal: text("episode_total"),
+  
+  // Tracking fields
   modifiedAt: timestamp("modified_at").defaultNow().notNull(),
 });
 
