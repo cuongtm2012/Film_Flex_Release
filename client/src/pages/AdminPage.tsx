@@ -1,10 +1,27 @@
-import React, { useState, useEffect } from "react";
+import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { MovieListResponse } from "@shared/schema";
-import { toast } from "react-hot-toast";
-
+import { useToast } from "@/hooks/use-toast";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
+import { 
+  Dialog, 
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription 
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { AvatarFallback } from "@/components/ui/avatar";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 // This is an extended type for the movie with all fields
 // We don't need to augment the original type as we're using casting
 
@@ -43,9 +60,10 @@ interface MovieDetailsType {
   year?: string;
   view?: number;
   actor?: CategoryType[];
-  director?: CategoryType[];
-  category?: CategoryType[];
+  director?: CategoryType[];  category?: CategoryType[];
   country?: CategoryType[];
+  categories?: string[];
+  countries?: string[];
   episodes?: any[];
   isRecommended?: boolean;
   active?: boolean;
@@ -62,14 +80,10 @@ interface MovieDetailsType {
   section?: string;
 }
 import UserManagement from "@/components/admin/UserManagement";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Users,
+import {  Users,
   Film,
   Settings,
   BarChart3,
@@ -78,26 +92,18 @@ import {
   AlertCircle,
   Search,
   Plus,
-  Filter,
-  Download,
   RefreshCw,
   ChevronLeft,
   ChevronRight,
   Star,
-  SlidersHorizontal,
-  CheckCircle,
-  XCircle,
   ArrowUpDown,
   Edit,
   Upload
 } from "lucide-react";
-import { Separator } from "@/components/ui/separator";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -203,31 +209,29 @@ function MultiSelectTags({ options, selectedValues, onChange, placeholder = "Sel
   );
 }
 
-export default function AdminPage() {
-  const { user } = useAuth();
-  const [, navigate] = useLocation();
-  // Changed default from "user-management" to "content-management"
-  const [activeTab, setActiveTab] = useState("content-management");
+export default function AdminPage() {  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  // State for pagination and filters
   const [currentPage, setCurrentPage] = useState(1);
   const [sectionFilter, setSectionFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string[]>([]);
   const [countryFilter, setCountryFilter] = useState<string[]>([]);
   const [recommendedFilter, setRecommendedFilter] = useState("all");
-  const [itemsPerPage, setItemsPerPage] = useState(20);
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
+
+  // State for movie editing
   const [fullScreenEdit, setFullScreenEdit] = useState(false);
   const [currentEditMovie, setCurrentEditMovie] = useState<MovieDetailsType | null>(null);
-  const [isLoadingMovieDetails, setIsLoadingMovieDetails] = useState(false);
-  
-  // State for multi-select values in edit dialog
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [selectedCountries, setSelectedCountries] = useState<string[]>([]);
+  const [isLoadingMovieDetails, setIsLoadingMovieDetails] = useState(false);  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedCountries, setSelectedCountries] = useState<string[]>([]);  // Constants
+  const itemsPerPage = 10;
+  const navigate = useLocation()[1];
+  const [activeTab, setActiveTab] = useState('content-management');
   
   // Add isAuthenticated variable to fix undefined error
   const isAuthenticated = !!user;
-  
-  const queryClient = useQueryClient();
   
   // Function to fetch full movie details
   const fetchMovieDetails = async (slug: string) => {
@@ -300,160 +304,81 @@ export default function AdminPage() {
 
       setIsLoadingMovieDetails(false);
     } catch (error) {
-      console.error("Error fetching movie details:", error);
-      toast.error(`Error fetching movie details: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error("Error fetching movie details:", error);      toast({
+        variant: "destructive",
+        title: "Error",
+        description: `Error fetching movie details: ${error instanceof Error ? error.message : 'Unknown error'}`
+      });
       setIsLoadingMovieDetails(false);
     }
-  };
-  
-  // Function to handle movie save
-  const handleMovieSave = async () => {
+  };    // Function to handle movie save
+    const handleMovieSave = async () => {
+    if (!currentEditMovie) return;
+    
     try {
-      // Validate required fields
-      if (!currentEditMovie?.name) {
-        toast.error("Movie title is required");
-        return;
-      }
-
-      // Convert selectedCategories and selectedCountries to the format expected by the API
-      const formattedCategories = selectedCategories.map(name => ({ name }));
-      const formattedCountries = selectedCountries.map(name => ({ name }));
-
-      // Format the data for the API with explicit type handling
-      const updateData = {
+      setIsLoadingMovieDetails(true);
+      
+      // Prepare a minimal payload with only the fields we want to update
+      const payload = {
         name: currentEditMovie.name,
-        origin_name: currentEditMovie.origin_name || "",
-        content: currentEditMovie.content || "",
-        // Handle section field - convert "none" to null
-        section: currentEditMovie.section === "none" ? null : currentEditMovie.section,
-        // Ensure isRecommended is explicitly included as a boolean
-        isRecommended: currentEditMovie.isRecommended === true,
-        // Add categories and countries
-        category: formattedCategories,
-        country: formattedCountries,
-        // other fields that might need updating
-        status: currentEditMovie.status,
-        thumb_url: currentEditMovie.thumb_url,
-        poster_url: currentEditMovie.poster_url,
-        active: currentEditMovie.active === true
+        slug: currentEditMovie.slug,
+        type: currentEditMovie.type || 'single',
+        status: currentEditMovie.status || 'ongoing',
+        // Handle section explicitly - if "none" is selected, set to null
+        section: currentEditMovie.section === 'none' ? null : currentEditMovie.section,
+        isRecommended: Boolean(currentEditMovie.isRecommended),
+        category: selectedCategories,
+        country: selectedCountries,
+        // Convert year to number if it's numeric, otherwise null
+        year: currentEditMovie.year ? Number(currentEditMovie.year) || null : null,
+        episode_current: currentEditMovie.episode_current || null,
+        episode_total: currentEditMovie.episode_total || null
       };
-
-      // Debug logging with type information
-      console.log("Saving movie with data:", {
-        section: updateData.section, 
-        sectionType: typeof updateData.section,
-        isRecommended: updateData.isRecommended,
-        isRecommendedType: typeof updateData.isRecommended,
-        categories: formattedCategories.length,
-        countries: formattedCountries.length
-      });
-
-      // Display "Saving..." toast that will be updated with success or error
-      const savingToastId = toast.loading("Saving movie data...");
-
-      // Send the update request with explicit no-cache headers
+      
       const response = await fetch(`/api/movies/${currentEditMovie.slug}`, {
-        method: "PUT",
-        headers: { 
-          "Content-Type": "application/json",
-          // Add cache control headers to prevent browser caching
-          "Cache-Control": "no-cache, no-store, must-revalidate",
-          "Pragma": "no-cache",
-          "Expires": "0"
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
         },
-        body: JSON.stringify(updateData)
+        body: JSON.stringify(payload)
       });
 
-      // Check for HTTP errors
       if (!response.ok) {
-        const errorData = await response.json();
-        const errorMessage = errorData.message || `Error: ${response.status} ${response.statusText}`;
-        console.error("Error saving movie:", errorMessage);
-        toast.error(`Failed to update movie: ${errorMessage}`, { id: savingToastId });
-        throw new Error(`Failed to update movie: ${errorMessage}`);
+        let errorMessage = 'Failed to update movie';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorMessage;
+        } catch (e) {
+          // Use default error message if we can't parse the error response
+        }
+        throw new Error(errorMessage);
       }
 
-      const savedData = await response.json();
-      
-      if (!savedData.status || !savedData.movie) {
-        toast.error("Server returned success but with invalid data", { id: savingToastId });
-        throw new Error("Server returned success but with invalid data");
+      const result = await response.json();
+      if (!result.status) {
+        throw new Error(result.message || 'Failed to update movie');
       }
 
-      // Log server response with details about types
-      console.log("Server response:", {
-        section: savedData.movie.section,
-        sectionType: typeof savedData.movie.section,
-        isRecommended: savedData.movie.isRecommended,
-        isRecommendedType: typeof savedData.movie.isRecommended,
-        categories: savedData.movie.category?.length || 0,
-        countries: savedData.movie.country?.length || 0
+      // Show success message
+      toast({
+        description: "Movie details updated successfully",
       });
       
-      // Update the current edit movie with the saved data
-      // Make sure we handle section and isRecommended properly
-      setCurrentEditMovie(prev => {
-        if (!prev) return savedData.movie;
-        
-        const updated = {
-          ...prev,
-          ...savedData.movie,
-          // Explicitly convert section to string or "none"
-          section: savedData.movie.section === null ? "none" : savedData.movie.section || "none",
-          // Explicitly convert isRecommended to boolean
-          isRecommended: Boolean(savedData.movie.isRecommended)
-        };
-        
-        console.log("Updated movie state:", { 
-          section: updated.section, 
-          isRecommended: updated.isRecommended
-        });
-        
-        return updated;
-      });
-
-      // Update categories and countries if present in the response
-      if (savedData.movie.category && Array.isArray(savedData.movie.category)) {
-        const categoryNames = savedData.movie.category
-          .filter((cat: any) => cat && (typeof cat === 'string' || cat.name))
-          .map((cat: any) => typeof cat === 'string' ? cat : cat.name);
-        setSelectedCategories(categoryNames);
-      }
-      
-      if (savedData.movie.country && Array.isArray(savedData.movie.country)) {
-        const countryNames = savedData.movie.country
-          .filter((country: any) => country && (typeof country === 'string' || country.name))
-          .map((country: any) => typeof country === 'string' ? country : country.name);
-        setSelectedCountries(countryNames);
-      }
-
-      // Log successful save
-      console.log("Movie saved successfully:", {
-        section: savedData.movie.section,
-        isRecommended: savedData.movie.isRecommended
-      });
-
-      // Show success toast after the save
-      toast.success("Movie updated successfully", { id: savingToastId });
-
-      // Update the loading toast with success message
-      toast.success(
-        `"${currentEditMovie.name}" was updated successfully with section: ${savedData.movie.section ? savedData.movie.section : 'None'} and ${savedData.movie.isRecommended ? 'marked as recommended' : 'not marked as recommended'}`
-      );
-
-      // Close the dialog after successful update
+      // Refresh data and close dialog
+      queryClient.invalidateQueries({ queryKey: ['/api/movies'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/movies/${currentEditMovie.slug}`] });
       setFullScreenEdit(false);
       
-      // Invalidate queries to refresh the data
-      queryClient.invalidateQueries({ queryKey: ["/api/movies"] }); // This invalidates all movie queries including the admin list
-      queryClient.invalidateQueries({ queryKey: [`/api/admin/movies`] }); // Invalidate admin-specific queries
-      
-      // Reload the movie details directly to ensure fresh data
-      await fetchMovieDetails(currentEditMovie.slug);
-
     } catch (error) {
-      console.error("Error saving movie:", error);
-      toast.error(error instanceof Error ? error.message : "An unknown error occurred");
+      console.error('Error updating movie:', error);
+      toast({
+        variant: "destructive",
+        title: "An error occurred",
+        description: "Failed to update movie details. Please try again.",
+      });
+    } finally {
+      setIsLoadingMovieDetails(false);
     }
   };
 
@@ -525,7 +450,7 @@ export default function AdminPage() {
             
           // Check if any of the selected categories match this movie
           return categoryFilter.some(selectedCat => 
-            movieCategories.some(cat => 
+            movieCategories.some((cat: CategoryType) => 
               (typeof cat === "string" && cat === selectedCat) || 
               (typeof cat === "object" && cat?.id === selectedCat)
             )
@@ -542,7 +467,7 @@ export default function AdminPage() {
             
           // Check if any of the selected countries match this movie
           return countryFilter.some(selectedCountry => 
-            movieCountries.some(country => 
+            movieCountries.some((country: CategoryType) => 
               (typeof country === "string" && country === selectedCountry) ||
               (typeof country === "object" && country?.id === selectedCountry)
             )
@@ -576,14 +501,6 @@ export default function AdminPage() {
     retry: 1
   });
 
-  // Mock data for users (keeping this for now)
-  const mockUsers = [
-    { id: 1, username: "admin", email: "admin@filmflex.com", role: "admin", status: "active", lastLogin: "2023-12-25 10:30" },
-    { id: 2, username: "moderator1", email: "mod1@filmflex.com", role: "moderator", status: "active", lastLogin: "2023-12-24 14:15" },
-    { id: 3, username: "john_doe", email: "john@example.com", role: "user", status: "active", lastLogin: "2023-12-23 09:45" },
-    { id: 4, username: "jane_smith", email: "jane@example.com", role: "user", status: "inactive", lastLogin: "2023-12-20 16:22" },
-    { id: 5, username: "viewer99", email: "viewer@example.com", role: "user", status: "active", lastLogin: "2023-12-22 11:05" },
-  ];
 
   // Mock data for audit logs
   const mockAuditLogs = [
@@ -1665,15 +1582,132 @@ export default function AdminPage() {
                       readOnly
                     />
                   </div>
-                  
+
                   <div>
                     <Label htmlFor="slug">Slug</Label>
                     <Input 
                       id="slug"
-                      value={currentEditMovie.slug}
-                      readOnly
-                      className="bg-muted"
+                      value={currentEditMovie.slug || ""}
+                      onChange={(e) => setCurrentEditMovie({
+                        ...currentEditMovie,
+                        slug: e.target.value
+                      })}
+                      placeholder="movie-slug-format"
                     />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="type">Content Type</Label>
+                    <Select 
+                      value={currentEditMovie.type || "single"}
+                      onValueChange={(value) => setCurrentEditMovie({
+                        ...currentEditMovie,
+                        type: value
+                      })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="single">Single Movie</SelectItem>
+                        <SelectItem value="series">TV Series</SelectItem>
+                        <SelectItem value="anime">Anime</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  {(currentEditMovie.type === "series" || currentEditMovie.type === "anime") && (
+                    <>
+                      <div>
+                        <Label htmlFor="episode_current">Current Episode</Label>
+                        <div className="relative">
+                          <Input 
+                            id="episode_current"
+                            value={currentEditMovie.episode_current || ""}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              if (value === "" || value === "Full" || /^\d+$/.test(value)) {
+                                setCurrentEditMovie({
+                                  ...currentEditMovie,
+                                  episode_current: value
+                                });
+                              }
+                            }}
+                            placeholder="e.g. 12 or Full"
+                          />
+                          <div className="text-xs text-muted-foreground mt-1">
+                            Enter a number or "Full" for completed series
+                          </div>
+                        </div>
+                      </div>
+                      <div>
+                        <Label htmlFor="episode_total">Total Episodes</Label>
+                        <div className="relative">
+                          <Input 
+                            id="episode_total"
+                            value={currentEditMovie.episode_total || ""}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              if (value === "" || /^\d+$/.test(value)) {
+                                setCurrentEditMovie({
+                                  ...currentEditMovie,
+                                  episode_total: value
+                                });
+                              }
+                            }}
+                            placeholder="e.g. 24"
+                          />
+                          <div className="text-xs text-muted-foreground mt-1">
+                            Enter total number of episodes in the series
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  <div>
+                    <Label htmlFor="status">Status</Label>
+                    <Select 
+                      value={currentEditMovie.status || "ongoing"}
+                      onValueChange={(value) => setCurrentEditMovie({
+                        ...currentEditMovie,
+                        status: value
+                      })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="completed">Completed</SelectItem>
+                        <SelectItem value="ongoing">Ongoing</SelectItem>
+                        <SelectItem value="upcoming">Upcoming</SelectItem>
+                        <SelectItem value="canceled">Canceled</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="section">Section</Label>
+                    <Select 
+                      value={currentEditMovie.section}
+                      onValueChange={(value) => setCurrentEditMovie({
+                        ...currentEditMovie,
+                        section: value
+                      })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select section" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">None</SelectItem>
+                        <SelectItem value="trending_now">Trending Now</SelectItem>
+                        <SelectItem value="latest_movies">Latest Movies</SelectItem>
+                        <SelectItem value="top_rated">Top Rated Movies</SelectItem>
+                        <SelectItem value="popular_tv">Popular TV Series</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div>
@@ -1718,39 +1752,6 @@ export default function AdminPage() {
                       selectedValues={selectedCountries}
                       onChange={setSelectedCountries}
                       placeholder="Select countries"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="section">Section</Label>
-                    <Select 
-                      value={currentEditMovie.section}
-                      onValueChange={(value) => setCurrentEditMovie({
-                        ...currentEditMovie,
-                        section: value
-                      })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select section" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">None</SelectItem>
-                        <SelectItem value="trending_now">Trending Now</SelectItem>
-                        <SelectItem value="latest_movies">Latest Movies</SelectItem>
-                        <SelectItem value="top_rated">Top Rated Movies</SelectItem>
-                        <SelectItem value="popular_tv">Popular TV Series</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="language">Language</Label>
-                    <Input 
-                      id="language"
-                      value={currentEditMovie.lang || ""}
-                      readOnly
                     />
                   </div>
 
