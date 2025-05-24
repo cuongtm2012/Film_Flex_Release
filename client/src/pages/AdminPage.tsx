@@ -100,132 +100,27 @@ import {  Users,
   Edit,
   Upload
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { X } from "lucide-react";
 
-// Predefined categories and countries for the multi-select components
-const predefinedCategories = [
-  "Hành Động", "Tình Cảm", "Hài Hước", "Cổ Trang", "Võ Thuật", "Kinh Dị", "Hình Sự", 
-  "Chiến Tranh", "Thể Thao", "Âm Nhạc", "Tâm Lý", "Viễn Tưởng", "Phiêu Lưu", "Khoa Học",
-  "Thần Thoại", "Hoạt Hình", "Gia Đình", "Bí Ẩn", "Học Đường", "Kinh Điển"
-];
-
-const predefinedCountries = [
-  "Trung Quốc", "Hàn Quốc", "Việt Nam", "Mỹ", "Thái Lan", "Hồng Kông", "Nhật Bản", 
-  "Ấn Độ", "Đài Loan", "Pháp", "Anh", "Canada", "Đức", "Nga", "Úc", "Brazil", "Malaysia",
-  "Indonesia", "Philippines", "Singapore", "Tây Ban Nha", "Ý", "Thổ Nhĩ Kỳ", "Mexico"
-];
-
-// Component for multi-select tags
-interface MultiSelectProps {
-  options: string[];
-  selectedValues: string[];
-  onChange: (values: string[]) => void;
-  placeholder?: string;
-}
-
-function MultiSelectTags({ options, selectedValues, onChange, placeholder = "Select options..." }: MultiSelectProps) {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button 
-          variant="outline" 
-          role="combobox" 
-          aria-expanded={open} 
-          className="w-full justify-between h-auto min-h-10 py-2"
-        >
-          {selectedValues.length > 0 ? (
-            <div className="flex flex-wrap gap-1">
-              {selectedValues.map((value) => (
-                <Badge 
-                  key={value} 
-                  variant="secondary"
-                  className="flex items-center gap-1 max-w-[150px] truncate"
-                >
-                  {value}
-                  <div
-                    className="ml-1 rounded-full outline-none focus:outline-none cursor-pointer inline-flex"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onChange(selectedValues.filter((v) => v !== value));
-                    }}
-                    role="button"
-                    tabIndex={0}
-                    aria-label={`Remove ${value}`}
-                  >
-                    <X className="h-3 w-3" />
-                  </div>
-                </Badge>
-              ))}
-            </div>
-          ) : (
-            <span className="text-muted-foreground">{placeholder}</span>
-          )}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-full p-0" align="start">
-        <Command>
-          <CommandInput placeholder="Search options..." />
-          <CommandEmpty>No options found.</CommandEmpty>
-          <CommandList>
-            <ScrollArea className="h-[200px]">
-              <CommandGroup>
-                {options.map((option) => {
-                  const isSelected = selectedValues.includes(option);
-                  return (
-                    <CommandItem
-                      key={option}
-                      value={option}
-                      onSelect={() => {
-                        onChange(
-                          isSelected
-                            ? selectedValues.filter((value) => value !== option)
-                            : [...selectedValues, option]
-                        );
-                      }}
-                    >
-                      <Checkbox
-                        checked={isSelected}
-                        className="mr-2"
-                      />
-                      {option}
-                    </CommandItem>
-                  );
-                })}
-              </CommandGroup>
-            </ScrollArea>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
-  );
-}
 
 export default function AdminPage() {  const { user } = useAuth();
   const queryClient = useQueryClient();
   const { toast } = useToast();
-
   // State for pagination and filters
-  const [currentPage, setCurrentPage] = useState(1);
-  const [sectionFilter, setSectionFilter] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);  const [sectionFilter, setSectionFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState<string[]>([]);
-  const [countryFilter, setCountryFilter] = useState<string[]>([]);
   const [recommendedFilter, setRecommendedFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
 
   // State for movie editing
   const [fullScreenEdit, setFullScreenEdit] = useState(false);
   const [currentEditMovie, setCurrentEditMovie] = useState<MovieDetailsType | null>(null);
-  const [isLoadingMovieDetails, setIsLoadingMovieDetails] = useState(false);  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [selectedCountries, setSelectedCountries] = useState<string[]>([]);  // Constants
+  const [isLoadingMovieDetails, setIsLoadingMovieDetails] = useState(false);
+
+  // Constants
   const itemsPerPage = 10;
   const navigate = useLocation()[1];
   const [activeTab, setActiveTab] = useState('content-management');
@@ -283,24 +178,8 @@ export default function AdminPage() {  const { user } = useAuth();
         section: formattedMovie.section,
         isRecommended: formattedMovie.isRecommended
       });
-      
-      // Store the formatted movie in state
+        // Store the formatted movie in state
       setCurrentEditMovie(formattedMovie);
-      
-      // Extract categories and countries
-      if (movieData.category && Array.isArray(movieData.category)) {
-        const categoryNames = movieData.category
-          .filter((cat: any) => cat && (typeof cat === 'string' || cat.name))
-          .map((cat: any) => typeof cat === 'string' ? cat : cat.name);
-        setSelectedCategories(categoryNames);
-      }
-      
-      if (movieData.country && Array.isArray(movieData.country)) {
-        const countryNames = movieData.country
-          .filter((country: any) => country && (typeof country === 'string' || country.name))
-          .map((country: any) => typeof country === 'string' ? country : country.name);
-        setSelectedCountries(countryNames);
-      }
 
       setIsLoadingMovieDetails(false);
     } catch (error) {
@@ -319,16 +198,13 @@ export default function AdminPage() {  const { user } = useAuth();
       setIsLoadingMovieDetails(true);
       
       // Prepare a minimal payload with only the fields we want to update
-      const payload = {
-        name: currentEditMovie.name,
+      const payload = {        name: currentEditMovie.name,
         slug: currentEditMovie.slug,
         type: currentEditMovie.type || 'single',
         status: currentEditMovie.status || 'ongoing',
         // Handle section explicitly - if "none" is selected, set to null
         section: currentEditMovie.section === 'none' ? null : currentEditMovie.section,
         isRecommended: Boolean(currentEditMovie.isRecommended),
-        category: selectedCategories,
-        country: selectedCountries,
         // Convert year to number if it's numeric, otherwise null
         year: currentEditMovie.year ? Number(currentEditMovie.year) || null : null,
         episode_current: currentEditMovie.episode_current || null,
@@ -376,125 +252,72 @@ export default function AdminPage() {  const { user } = useAuth();
         variant: "destructive",
         title: "An error occurred",
         description: "Failed to update movie details. Please try again.",
-      });
-    } finally {
+      });    } finally {
       setIsLoadingMovieDetails(false);
     }
   };
-
+  
   // Fetch real movie data
   const { data: moviesData, isLoading: isLoadingMovies, error: moviesError } = useQuery({
-    queryKey: ["/api/movies", currentPage, sectionFilter, categoryFilter, countryFilter, recommendedFilter, searchQuery, itemsPerPage],
+    queryKey: ["/api/movies", currentPage, sectionFilter, recommendedFilter, typeFilter, searchQuery, itemsPerPage],
     queryFn: async () => {
-      // If there are no specific filters active and we're on the content management tab,
-      // use the admin endpoint to fetch all movies by default
-      if (activeTab === "content-management" && 
-          !searchQuery.trim() && 
-          sectionFilter === "all" && 
-          categoryFilter.length === 0 && 
-          countryFilter.length === 0 && 
-          recommendedFilter === "all") {
-        
-        // Use the admin endpoint that fetches all movies
-        const params = new URLSearchParams({
-          page: String(currentPage),
-          limit: String(itemsPerPage)
-        });
-        
-        const url = `/api/admin/movies?${params.toString()}`;
-        console.log(`Fetching all movies from admin endpoint: ${url}`);
-        
-        const response = await fetch(url);
-        if (!response.ok) {
-          throw new Error("Failed to fetch movies");
-        }
-        
-        return await response.json() as MovieListResponse;
-      }
-      
-      // Construct base query parameters for filtered searches
+      // Construct base query parameters
       const params = new URLSearchParams({
         page: String(currentPage),
         limit: String(itemsPerPage)
       });
       
-      // Add section filter if specified
+      // Add filter parameters
       if (sectionFilter !== "all") {
         params.append("section", sectionFilter);
       }
       
-      // If search query exists, use full-text search across multiple fields
-      if (searchQuery.trim()) {
-        params.append("q", searchQuery.trim());
-        params.append("fields", "name,origin_name,content,description,actor,director,category,country");
+      if (recommendedFilter === "yes") {
+        params.append("isRecommended", "true");
+      } else if (recommendedFilter === "no") {
+        params.append("isRecommended", "false");
+      }
+        if (typeFilter !== "all") {
+        // Map frontend type values to backend database values
+        if (typeFilter === "movie") {
+          params.append("type", "single");
+        } else if (typeFilter === "series") {
+          params.append("type", "series");
+        } else if (typeFilter === "anime") {
+          params.append("type", "hoathinh");
+        }
       }
       
-      let url = `/api/search?${params.toString()}`;
+      let url: string;
+      
+      // If there are no specific filters active and we're on the content management tab,
+      // use the admin endpoint to fetch all movies by default
+      if (activeTab === "content-management" && 
+          !searchQuery.trim() && 
+          sectionFilter === "all" && 
+          recommendedFilter === "all" && 
+          typeFilter === "all") {
+        
+        url = `/api/admin/movies?${params.toString()}`;
+        console.log(`Fetching all movies from admin endpoint: ${url}`);
+      } else if (searchQuery.trim()) {
+        // If search query exists, use full-text search across multiple fields
+        params.append("q", searchQuery.trim());
+        params.append("fields", "name,origin_name,content,description,actor,director,category,country");
+        url = `/api/search?${params.toString()}`;
+        console.log(`Searching movies with filters: ${url}`);
+      } else {
+        // Use admin endpoint with filters for content management
+        url = `/api/admin/movies?${params.toString()}`;
+        console.log(`Fetching filtered movies from admin endpoint: ${url}`);
+      }
       
       const response = await fetch(url);
       if (!response.ok) {
         throw new Error("Failed to fetch movies");
       }
       
-      const data = await response.json() as MovieListResponse;
-      
-      // Apply client-side filters for categories, countries, and recommendation status
-      let filteredItems = [...data.items];
-      
-      // Apply category filter if any categories are selected
-      if (categoryFilter.length > 0) {
-        filteredItems = filteredItems.filter(movie => {
-          const movieCategories = Array.isArray((movie as any).category) 
-            ? (movie as any).category 
-            : (movie as unknown as MovieDetailsType).categories || [];
-            
-          // Check if any of the selected categories match this movie
-          return categoryFilter.some(selectedCat => 
-            movieCategories.some((cat: CategoryType) => 
-              (typeof cat === "string" && cat === selectedCat) || 
-              (typeof cat === "object" && cat?.id === selectedCat)
-            )
-          );
-        });
-      }
-      
-      // Apply country filter if any countries are selected
-      if (countryFilter.length > 0) {
-        filteredItems = filteredItems.filter(movie => {
-          const movieCountries = Array.isArray((movie as any).country) 
-            ? (movie as any).country 
-            : (movie as unknown as MovieDetailsType).countries || [];
-            
-          // Check if any of the selected countries match this movie
-          return countryFilter.some(selectedCountry => 
-            movieCountries.some((country: CategoryType) => 
-              (typeof country === "string" && country === selectedCountry) ||
-              (typeof country === "object" && country?.id === selectedCountry)
-            )
-          );
-        });
-      }
-      
-      // Apply recommended filter if enabled
-      if (recommendedFilter === "yes") {
-        filteredItems = filteredItems.filter(movie => 
-          (movie as unknown as MovieDetailsType).isRecommended === true
-        );
-      } else if (recommendedFilter === "no") {
-        filteredItems = filteredItems.filter(movie => 
-          (movie as unknown as MovieDetailsType).isRecommended !== true
-        );
-      }
-      
-      return {
-        ...data,
-        items: filteredItems,
-        pagination: {
-          ...data.pagination,
-          totalItems: filteredItems.length,
-          totalPages: Math.ceil(filteredItems.length / itemsPerPage)
-        }
-      };
+      return await response.json() as MovieListResponse;
     },
     enabled: isAuthenticated,
     staleTime: 1000 * 60 * 5, // 5 minutes
@@ -626,13 +449,11 @@ export default function AdminPage() {  const { user } = useAuth();
                         onChange={(e) => setSearchQuery(e.target.value)}
                       />
                     </div>
-                    <div className="flex gap-2">
-                      <Button variant="outline" onClick={() => {
+                    <div className="flex gap-2">                      <Button variant="outline" onClick={() => {
                         // Reset filters
                         setSectionFilter("all");
-                        setCategoryFilter([]);
-                        setCountryFilter([]);
                         setRecommendedFilter("all");
+                        setTypeFilter("all");
                         setSearchQuery("");
                         setCurrentPage(1);
                       }} className="flex items-center gap-1">
@@ -648,10 +469,8 @@ export default function AdminPage() {  const { user } = useAuth();
                       <Plus className="mr-2 h-4 w-4" />
                       Add Content
                     </Button>
-                  </div>
-
-                  {/* Advanced Filter Panel */}
-                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 p-4 bg-muted/20 rounded-md mb-4">
+                  </div>                  {/* Advanced Filter Panel */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 bg-muted/20 rounded-md mb-4">
                     <div>
                       <Label htmlFor="section-filter" className="text-sm font-medium block mb-2">
                         Section
@@ -676,30 +495,6 @@ export default function AdminPage() {  const { user } = useAuth();
                     </div>
 
                     <div>
-                      <Label htmlFor="category-filter" className="text-sm font-medium block mb-2">
-                        Categories
-                      </Label>
-                      <MultiSelectTags
-                        options={predefinedCategories}
-                        selectedValues={categoryFilter}
-                        onChange={setCategoryFilter}
-                        placeholder="Select categories"
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="country-filter" className="text-sm font-medium block mb-2">
-                        Country
-                      </Label>
-                      <MultiSelectTags
-                        options={predefinedCountries}
-                        selectedValues={countryFilter}
-                        onChange={setCountryFilter}
-                        placeholder="Select countries"
-                      />
-                    </div>
-
-                    <div>
                       <Label htmlFor="recommended-filter" className="text-sm font-medium block mb-2">
                         Recommended
                       </Label>
@@ -715,6 +510,26 @@ export default function AdminPage() {  const { user } = useAuth();
                           <SelectItem key="all-rec" value="all">All</SelectItem>
                           <SelectItem key="yes-rec" value="yes">Recommended</SelectItem>
                           <SelectItem key="no-rec" value="no">Not Recommended</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="type-filter" className="text-sm font-medium block mb-2">
+                        Type
+                      </Label>
+                      <Select 
+                        defaultValue="all" 
+                        value={typeFilter}
+                        onValueChange={(value) => setTypeFilter(value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select content type" />
+                        </SelectTrigger>                        <SelectContent>
+                          <SelectItem key="all-types" value="all">All Types</SelectItem>
+                          <SelectItem key="movie-type" value="movie">Movies</SelectItem>
+                          <SelectItem key="series-type" value="series">TV Series</SelectItem>
+                          <SelectItem key="anime-type" value="anime">Anime</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -1732,26 +1547,6 @@ export default function AdminPage() {  const { user } = useAuth();
                         origin_name: e.target.value
                       })}
                       readOnly
-                    />
-                  </div>
-
-                  <div>
-                    <Label>Categories</Label>
-                    <MultiSelectTags 
-                      options={predefinedCategories}
-                      selectedValues={selectedCategories}
-                      onChange={setSelectedCategories}
-                      placeholder="Select categories"
-                    />
-                  </div>
-
-                  <div>
-                    <Label>Countries</Label>
-                    <MultiSelectTags 
-                      options={predefinedCountries}
-                      selectedValues={selectedCountries}
-                      onChange={setSelectedCountries}
-                      placeholder="Select countries"
                     />
                   </div>
 

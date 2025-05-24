@@ -52,14 +52,13 @@ export interface IStorage {
   assignPermissionToRole(roleId: number, permissionId: number): Promise<RolePermission>;
   removePermissionFromRole(roleId: number, permissionId: number): Promise<void>;
   getPermissionsByRole(roleId: number): Promise<Permission[]>;
-  getRolesByPermission(permissionId: number): Promise<Role[]>;
-  // Movie methods
-  getMovies(page: number, limit: number, sortBy?: string): Promise<{ data: Movie[], total: number }>;
+  getRolesByPermission(permissionId: number): Promise<Role[]>;  // Movie methods
+  getMovies(page: number, limit: number, sortBy?: string, filters?: {isRecommended?: boolean, type?: string, section?: string}): Promise<{ data: Movie[], total: number }>;
   getMovieBySlug(slug: string): Promise<Movie | undefined>;
   getMovieByMovieId(movieId: string): Promise<Movie | undefined>;
   saveMovie(movie: InsertMovie): Promise<Movie>;
   updateMovieSection(movieId: string, section: Section): Promise<Movie | undefined>;
-  searchMovies(query: string, normalizedQuery: string, page: number, limit: number, section?: string): Promise<{ data: Movie[], total: number }>;
+  searchMovies(query: string, normalizedQuery: string, page: number, limit: number, filters?: {section?: string, isRecommended?: boolean, type?: string}): Promise<{ data: Movie[], total: number }>;
   getMoviesByCategory(categorySlug: string, page: number, limit: number, sortBy?: string): Promise<{ data: Movie[], total: number }>;
   getMoviesBySection(section: string, page: number, limit: number): Promise<{ data: Movie[], total: number }>;
   updateMovieBySlug(slug: string, updateData: Partial<Movie>): Promise<Movie | undefined>;
@@ -320,14 +319,31 @@ export class DatabaseStorage implements IStorage {
     
     return result.map(r => r.role);
   }
-
   // Movie methods
-  async getMovies(page: number, limit: number, sortBy: string = 'latest'): Promise<{ data: Movie[], total: number }> {
+  async getMovies(page: number, limit: number, sortBy: string = 'latest', filters?: {isRecommended?: boolean, type?: string, section?: string}): Promise<{ data: Movie[], total: number }> {
     const offset = (page - 1) * limit;
+    
+    // Build filter conditions
+    let filterConditions = sql`TRUE`;
+    
+    if (filters?.isRecommended !== undefined) {
+      filterConditions = sql`${filterConditions} AND ${movies.isRecommended} = ${filters.isRecommended}`;
+      console.log(`[DEBUG] Adding isRecommended filter: ${filters.isRecommended}`);
+    }
+    
+    if (filters?.type) {
+      filterConditions = sql`${filterConditions} AND ${movies.type} = ${filters.type}`;
+      console.log(`[DEBUG] Adding type filter: ${filters.type}`);
+    }
+    
+    if (filters?.section) {
+      filterConditions = sql`${filterConditions} AND ${movies.section} = ${filters.section}`;
+      console.log(`[DEBUG] Adding section filter: ${filters.section}`);
+    }
     
     // For the year sorting case, we need to get all movies and sort manually
     if (sortBy === 'year') {
-      const allMovies = await db.select().from(movies);
+      const allMovies = await db.select().from(movies).where(filterConditions);
       const currentYear = new Date().getFullYear();
       
       const sortedMovies = allMovies.sort((a: Movie, b: Movie) => {
@@ -347,21 +363,21 @@ export class DatabaseStorage implements IStorage {
     }
 
     // For all other sorting options
-    const baseQuery = db.select().from(movies);
+    const baseQuery = db.select().from(movies).where(filterConditions);
     const sortedQuery = (() => {
       switch (sortBy) {
         case 'latest':
-          return db.select().from(movies).orderBy(desc(movies.modifiedAt));
+          return baseQuery.orderBy(desc(movies.modifiedAt));
         case 'popular':
         case 'rating': // Fall back to popularity for now
-          return db.select().from(movies).orderBy(desc(movies.view));
+          return baseQuery.orderBy(desc(movies.view));
         default:
-          return db.select().from(movies).orderBy(desc(movies.modifiedAt));
+          return baseQuery.orderBy(desc(movies.modifiedAt));
       }
     })();
 
     const paginatedQuery = sortedQuery.limit(limit).offset(offset);
-    const [{ count }] = await db.select({ count: sql<number>`count(*)` }).from(movies);
+    const [{ count }] = await db.select({ count: sql<number>`count(*)` }).from(movies).where(filterConditions);
     const data = await paginatedQuery;
     
     return { 
@@ -771,9 +787,8 @@ export class DatabaseStorage implements IStorage {
     const [{ count }] = await db.select({ count: sql<number>`count(*)` }).from(auditLogs);
     return { data, total: count || 0 };
   }
-
   // Add search and category methods
-  async searchMovies(query: string, _normalizedQuery: string, page: number, limit: number, section?: string): Promise<{ data: Movie[], total: number }> {
+  async searchMovies(query: string, _normalizedQuery: string, page: number, limit: number, filters?: {section?: string, isRecommended?: boolean, type?: string}): Promise<{ data: Movie[], total: number }> {
     const offset = (page - 1) * limit;
 
     // Convert query to lowercase for case-insensitive search
@@ -790,10 +805,20 @@ export class DatabaseStorage implements IStorage {
 
     let conditions = searchConditions;
     
-    // Add section filter if specified
-    if (section) {
-      conditions = sql`${searchConditions} AND ${movies.section} = ${section}`;
-      console.log(`[DEBUG] Adding section filter: ${section} to search query`);
+    // Add filters if specified
+    if (filters?.section) {
+      conditions = sql`${conditions} AND ${movies.section} = ${filters.section}`;
+      console.log(`[DEBUG] Adding section filter: ${filters.section} to search query`);
+    }
+    
+    if (filters?.isRecommended !== undefined) {
+      conditions = sql`${conditions} AND ${movies.isRecommended} = ${filters.isRecommended}`;
+      console.log(`[DEBUG] Adding isRecommended filter: ${filters.isRecommended} to search query`);
+    }
+    
+    if (filters?.type) {
+      conditions = sql`${conditions} AND ${movies.type} = ${filters.type}`;
+      console.log(`[DEBUG] Adding type filter: ${filters.type} to search query`);
     }
 
     const baseQuery = db.select()
