@@ -5,7 +5,6 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Search as SearchIcon, X } from "lucide-react";
-import CategoryFilter, { Category } from "@/components/CategoryFilter";
 import MovieGrid from "@/components/MovieGrid";
 import { MovieListResponse } from "@shared/schema";
 
@@ -13,42 +12,26 @@ export default function Search() {
   const [location] = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [selectedCategory, setSelectedCategory] = useState("all");
   
   // Parse search parameters from URL
   useEffect(() => {
     const params = new URLSearchParams(location.split("?")[1]);
     const queryParam = params.get("q");
-    const categoryParam = params.get("category");
     const pageParam = params.get("page");
     
     if (queryParam) setSearchTerm(queryParam);
-    if (categoryParam) setSelectedCategory(categoryParam);
     if (pageParam) setCurrentPage(parseInt(pageParam) || 1);
   }, [location]);
-  
-  // Fetch search results
+    // Fetch search results
   const {
     data: searchResults,
     isLoading: isSearchLoading,
     isError: isSearchError
   } = useQuery<MovieListResponse>({
-    queryKey: [`/api/search`, { q: searchTerm, page: currentPage, category: selectedCategory }],
+    queryKey: [`/api/search`, { q: searchTerm, page: currentPage }],
     enabled: searchTerm.length > 0
   });
-  
-  // Fetch categories
-  const {
-    data: categoriesData,
-  } = useQuery<{ categories: Category[] }>({
-    queryKey: [`/api/categories`],
-    enabled: true,
-  });
-  
-  // Default empty categories array if no data
-  const categories = categoriesData?.categories || [];
-  
-  // Handle search submit
+    // Handle search submit
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setCurrentPage(1);
@@ -57,13 +40,11 @@ export default function Search() {
     const [basePath] = location.split("?");
     const params = new URLSearchParams();
     if (searchTerm) params.set("q", searchTerm);
-    if (selectedCategory !== "all") params.set("category", selectedCategory);
     
     const newLocation = params.toString() ? `${basePath}?${params.toString()}` : basePath;
     window.history.pushState(null, "", newLocation);
   };
-  
-  // Handle page change
+    // Handle page change
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -77,32 +58,10 @@ export default function Search() {
     window.history.pushState(null, "", newLocation);
   };
   
-  // Handle category selection
-  const handleCategorySelect = (categorySlug: string) => {
-    setSelectedCategory(categorySlug);
-    setCurrentPage(1);
-    
-    // Update URL with new category parameter
-    const [basePath] = location.split("?");
-    const params = new URLSearchParams(location.split("?")[1]);
-    
-    if (categorySlug === "all") {
-      params.delete("category");
-    } else {
-      params.set("category", categorySlug);
-    }
-    
-    params.delete("page"); // Reset page when changing category
-    
-    const newLocation = params.toString() ? `${basePath}?${params.toString()}` : basePath;
-    window.history.pushState(null, "", newLocation);
-  };
-  
   // Clear search
   const handleClearSearch = () => {
     setSearchTerm("");
     setCurrentPage(1);
-    setSelectedCategory("all");
     
     // Update URL to remove search parameters
     const [basePath] = location.split("?");
@@ -139,17 +98,8 @@ export default function Search() {
           <Button type="submit" className="h-12 px-6 bg-primary hover:bg-primary/90">
             <SearchIcon className="h-5 w-5 mr-2" />
             Search
-          </Button>
-        </form>
+          </Button>        </form>
       </div>
-      
-      {/* Category Filter */}
-      <CategoryFilter
-        categories={categories}
-        selectedCategory={selectedCategory}
-        onSelectCategory={handleCategorySelect}
-        isLoading={false}
-      />
       
       {/* Search Results */}
       {isSearchLoading ? (
@@ -163,12 +113,11 @@ export default function Search() {
           <h2 className="text-xl font-medium text-muted-foreground">Error loading search results</h2>
           <p className="text-muted-foreground mt-2">Please try again later</p>
         </div>
-      ) : searchTerm && searchResults ? (
-        <MovieGrid
+      ) : searchTerm && searchResults ? (        <MovieGrid
           title={`Search Results for "${searchTerm}"`}
           movies={searchResults.items}
           currentPage={currentPage}
-          totalPages={searchResults.pagination.totalPages}
+          totalPages={searchResults.pagination?.totalPages || 1}
           onPageChange={handlePageChange}
           isLoading={false}
         />

@@ -457,14 +457,14 @@ export type MovieListItem = {
   movieId?: string; // Alternative API ID
   name: string;
   slug: string;
-  origin_name?: string;
-  originName?: string;
-  poster_url?: string;
-  posterUrl?: string;
-  thumb_url?: string;
-  thumbUrl?: string;
-  year?: number;
-  type?: string;
+  origin_name?: string | null;
+  originName?: string | null;
+  poster_url?: string | null;
+  posterUrl?: string | null;
+  thumb_url?: string | null;
+  thumbUrl?: string | null;
+  year?: number | null;
+  type?: string | null;
   tmdb?: {
     type?: 'movie' | 'tv';
     id?: string;
@@ -528,6 +528,7 @@ export type MovieDetailResponse = {
     time: string;
     quality: string;
     lang: string;
+    year?: number | null;
     episode_current: string;
     episode_total: string;
     view: number;

@@ -70,6 +70,10 @@ export default function Home() {
   const { data: trendingMovies, isLoading: trendingLoading } = useQuery<MovieListResponse>({
     queryKey: ['/api/movies/sections/trending_now', { page: 1, limit: 10 }],
   });
+  // Fetch recommended movies for hero carousel
+  const { data: recommendedMovies, isLoading: recommendedLoading } = useQuery<MovieListResponse>({
+    queryKey: ['/api/movies/recommended', { page: 1, limit: 5 }],
+  });
 
   // Fetch latest movies section
   const { data: latestMovies, isLoading: latestLoading } = useQuery<MovieListResponse>({
@@ -103,18 +107,16 @@ export default function Home() {
       console.error('Error fetching popular TV series:', tvSeriesError);
     }
   }, [popularTvSeries, tvSeriesError]);
-
   // Loading state
-  if (trendingLoading || latestLoading || topRatedLoading || tvSeriesLoading) {
+  if (trendingLoading || latestLoading || topRatedLoading || tvSeriesLoading || recommendedLoading) {
     return (
       <div className="flex items-center justify-center min-h-[70vh]">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
-
-  // Prepare featured movies for the carousel
-  const featuredMovies: MovieDetailResponse[] = (latestMovies?.items || [])
+  // Prepare featured movies for the carousel (using recommended movies)
+  const featuredMovies: MovieDetailResponse[] = (recommendedMovies?.items || [])
     .slice(0, 5)
     .map(movie => ({
       movie: {
