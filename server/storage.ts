@@ -14,7 +14,6 @@ import {
   users, movies, episodes, comments, watchlist, viewHistory, contentApprovals, auditLogs,
   roles, permissions, rolePermissions,
   UserRole, UserStatus, ContentStatus,
-  Section,
   User, InsertUser
 } from "@shared/schema";
 import { db } from "./db";
@@ -57,12 +56,11 @@ export interface IStorage {
   getMovieBySlug(slug: string): Promise<Movie | undefined>;
   getMovieByMovieId(movieId: string): Promise<Movie | undefined>;
   saveMovie(movie: InsertMovie): Promise<Movie>;
-  updateMovieSection(movieId: string, section: Section): Promise<Movie | undefined>;
+  updateMovieSection(movieId: string, section: string): Promise<Movie | undefined>;
   searchMovies(query: string, normalizedQuery: string, page: number, limit: number, filters?: {section?: string, isRecommended?: boolean, type?: string}): Promise<{ data: Movie[], total: number }>;
   getMoviesByCategory(categorySlug: string, page: number, limit: number, sortBy?: string): Promise<{ data: Movie[], total: number }>;
   getMoviesBySection(section: string, page: number, limit: number): Promise<{ data: Movie[], total: number }>;
   updateMovieBySlug(slug: string, updateData: Partial<Movie>): Promise<Movie | undefined>;
-  updateMovieSection(movieId: string, section: Section): Promise<Movie | undefined>;
   
   // Episode methods
   getEpisodesByMovieSlug(movieSlug: string): Promise<Episode[]>;
@@ -427,7 +425,7 @@ export class DatabaseStorage implements IStorage {
     return newMovie;
   }
   
-  async updateMovieSection(movieId: string, section: Section): Promise<Movie | undefined> {
+  async updateMovieSection(movieId: string, section: string): Promise<Movie | undefined> {
     const [updatedMovie] = await db.update(movies)
       .set({ section })
       .where(eq(movies.movieId, movieId))
@@ -441,7 +439,7 @@ export class DatabaseStorage implements IStorage {
 
     // Handle section field with validation
     if ('section' in updateData) {
-      const validSections = ['trending_now', 'latest_movies', 'top_rated', 'popular_tv', null];
+      const validSections = ['trending_now', 'latest_movies', 'top_rated', 'popular_tv', 'anime', null];
       dbUpdateData.section = validSections.includes(updateData.section as string) 
         ? updateData.section as string
         : null;
@@ -468,8 +466,8 @@ export class DatabaseStorage implements IStorage {
     if ('lang' in updateData) dbUpdateData.lang = updateData.lang;
     if ('view' in updateData) dbUpdateData.view = updateData.view;
     if ('year' in updateData) {
-      const yearValue = updateData.year === '' ? null : Number(updateData.year);
-      dbUpdateData.year = !isNaN(yearValue) ? yearValue : null;
+      const yearValue = typeof updateData.year === 'string' && updateData.year === '' ? null : Number(updateData.year);
+      dbUpdateData.year = (yearValue !== null && !isNaN(yearValue)) ? yearValue : null;
     }
 
     // Handle arrays with type safety
@@ -860,7 +858,7 @@ export class DatabaseStorage implements IStorage {
   async getMoviesBySection(section: string, page: number, limit: number): Promise<{ data: Movie[], total: number }> {
     const offset = (page - 1) * limit;
     
-    // Query movies by section field
+    // Query movies by section field first
     const data = await db.select()
       .from(movies)
       .where(eq(movies.section, section))
@@ -872,6 +870,39 @@ export class DatabaseStorage implements IStorage {
     const [{ count }] = await db.select({ count: sql<number>`count(*)` })
       .from(movies)
       .where(eq(movies.section, section));
+    
+    // If anime section is requested but no movies found, fall back to type-based search
+    if (section === 'anime' && data.length === 0) {
+      console.log('[DEBUG] No movies found with section=anime, falling back to type-based search');
+      
+      // Search for anime/animation content by type and name patterns
+      const animeConditions = sql`(
+        LOWER(${movies.type}) LIKE '%anime%' OR 
+        LOWER(${movies.type}) LIKE '%animation%' OR
+        LOWER(${movies.name}) LIKE '%anime%' OR
+        LOWER(${movies.name}) LIKE '%doraemon%' OR
+        LOWER(${movies.name}) LIKE '%naruto%' OR
+        LOWER(${movies.name}) LIKE '%pokemon%' OR
+        LOWER(${movies.name}) LIKE '%one piece%' OR
+        LOWER(${movies.name}) LIKE '%dragon ball%' OR
+        LOWER(${movies.description}) LIKE '%anime%' OR
+        LOWER(${movies.description}) LIKE '%animation%'
+      )`;
+      
+      const animeData = await db.select()
+        .from(movies)
+        .where(animeConditions)
+        .orderBy(desc(movies.modifiedAt))
+        .limit(limit)
+        .offset(offset);
+      
+      const [{ animeCount }] = await db.select({ animeCount: sql<number>`count(*)` })
+        .from(movies)
+        .where(animeConditions);
+      
+      console.log(`[DEBUG] Found ${animeData.length} anime movies using fallback search`);
+      return { data: animeData, total: animeCount || 0 };
+    }
     
     return { data, total: count || 0 };
   }

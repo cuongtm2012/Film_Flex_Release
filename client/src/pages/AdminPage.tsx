@@ -62,7 +62,6 @@ interface MovieDetailsType {
   actor?: CategoryType[];
   director?: CategoryType[];  category?: CategoryType[];
   country?: CategoryType[];
-  categories?: string[];
   countries?: string[];
   episodes?: any[];
   isRecommended?: boolean;
@@ -489,6 +488,7 @@ export default function AdminPage() {  const { user } = useAuth();
                           <SelectItem key="latest" value="latest_movies">Latest Movies</SelectItem>
                           <SelectItem key="top-rated" value="top_rated">Top Rated Movies</SelectItem>
                           <SelectItem key="popular-tv" value="popular_tv">Popular TV Series</SelectItem>
+                          <SelectItem key="anime" value="anime">Anime</SelectItem>
                           <SelectItem key="none-section" value="none">None</SelectItem>
                         </SelectContent>
                       </Select>
@@ -1521,6 +1521,7 @@ export default function AdminPage() {  const { user } = useAuth();
                         <SelectItem value="latest_movies">Latest Movies</SelectItem>
                         <SelectItem value="top_rated">Top Rated Movies</SelectItem>
                         <SelectItem value="popular_tv">Popular TV Series</SelectItem>
+                        <SelectItem value="anime">Anime</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

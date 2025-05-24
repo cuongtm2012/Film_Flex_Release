@@ -1,7 +1,6 @@
-import React from 'react';
 import { Link } from 'wouter';
 import { MovieListItem } from '@shared/schema';
-import { Play, Star, Calendar, Tv, ListVideo } from 'lucide-react';
+import { Play, Star, Calendar, ListVideo } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
 import { Badge } from '@/components/ui/badge';
@@ -16,9 +15,42 @@ interface TvSeriesCardProps {
     category?: Category[];
     episode_current?: string;
     episode_total?: string;
+    episodeCurrent?: string;
+    episodeTotal?: string;
   };
   className?: string;
 }
+
+// Utility function to extract current episode number from episodeCurrent string
+const extractEpisodeNumber = (episodeCurrent: string | null | undefined): number | null => {
+  if (!episodeCurrent) return null;
+  
+  // Handle "Full" or "Hoàn Tất" cases
+  if (episodeCurrent.toLowerCase().includes('full') || episodeCurrent.toLowerCase().includes('hoàn tất')) {
+    return null; // Don't show badge for completed series
+  }
+  
+  // Extract number from formats like:
+  // "Hoàn Tất (31/31)" -> 31
+  // "Tập 12" -> 12  
+  // "Episode 15" -> 15
+  // "12" -> 12
+  const patterns = [
+    /\((\d+)\/\d+\)/,           // (31/31) format
+    /tập\s*(\d+)/i,             // Tập 12 format
+    /episode\s*(\d+)/i,         // Episode 15 format
+    /^(\d+)$/                   // Plain number
+  ];
+  
+  for (const pattern of patterns) {
+    const match = episodeCurrent.match(pattern);
+    if (match) {
+      return parseInt(match[1]);
+    }
+  }
+  
+  return null;
+};
 
 export default function TvSeriesCard({ movie, className }: TvSeriesCardProps) {
   // Get rating if available
@@ -32,10 +64,18 @@ export default function TvSeriesCard({ movie, className }: TvSeriesCardProps) {
   const year = movie.year || new Date().getFullYear();
   const categories = movie.category?.slice(0, 2) || [];
 
-  // Get episode information
-  const episodeDisplay = movie.episode_current ? 
-    (movie.episode_total ? `${movie.episode_current}/${movie.episode_total}` : movie.episode_current) 
-    : '1';
+  // Enhanced episode badge logic with proper extraction - handle both property naming conventions
+  const episodeCurrent = movie.episode_current || movie.episodeCurrent;
+  const episodeTotal = movie.episode_total || movie.episodeTotal;
+  
+  const currentEpisodeNumber = extractEpisodeNumber(episodeCurrent);
+  const totalEpisodes = episodeTotal ? parseInt(episodeTotal) : 0;
+  
+  const shouldShowEpisodeBadge = 
+    totalEpisodes > 1 && 
+    currentEpisodeNumber && 
+    currentEpisodeNumber > 0 &&
+    totalEpisodes > 0;
 
   return (
     <Link href={`/movie/${movie.slug}`}>
@@ -59,16 +99,18 @@ export default function TvSeriesCard({ movie, className }: TvSeriesCardProps) {
             />
           </div>
 
-          {/* Episode Badge - Always visible */}
-          <div className="absolute top-2 left-2 z-10">
-            <Badge 
-              variant="secondary" 
-              className="flex items-center gap-1.5 px-2 py-1 text-xs font-medium bg-blue-500/80 hover:bg-blue-500/90"
-            >
-              <ListVideo className="w-3 h-3" />
-              <span>EP {episodeDisplay}</span>
-            </Badge>
-          </div>
+          {/* Episode Badge - Only show when conditions are met */}
+          {shouldShowEpisodeBadge && (
+            <div className="absolute top-2 left-2 z-10">
+              <Badge 
+                variant="secondary" 
+                className="flex items-center gap-1.5 px-2 py-1 text-xs font-medium bg-blue-600/90 hover:bg-blue-600 text-white shadow-lg"
+              >
+                <ListVideo className="w-3 h-3" />
+                <span>{currentEpisodeNumber}/{totalEpisodes}</span>
+              </Badge>
+            </div>
+          )}
 
           {/* Hover Overlay - Only visible on hover */}
           <div 
@@ -130,7 +172,8 @@ export default function TvSeriesCard({ movie, className }: TvSeriesCardProps) {
           {/* Accessibility Enhancement */}
           <div className="sr-only">
             {movie.name}
-            {` - TV Series - Episode ${episodeDisplay}`}
+            {` - TV Series`}
+            {shouldShowEpisodeBadge && ` - Episode ${currentEpisodeNumber}/${totalEpisodes}`}
             {displayRating && ` - Rating: ${displayRating} out of 10`}
             {year && ` - Released in ${year}`}
             {categories.length > 0 && ` - Categories: ${categories.map((c: Category) => c.name).join(', ')}`}
@@ -139,4 +182,4 @@ export default function TvSeriesCard({ movie, className }: TvSeriesCardProps) {
       </div>
     </Link>
   );
-} 
+}
