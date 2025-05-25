@@ -50,7 +50,7 @@ BEGIN
             id SERIAL PRIMARY KEY,
             movie_slug TEXT,
             name TEXT,
-            slug TEXT,
+            slug TEXT UNIQUE,  -- Make slug unique for ON CONFLICT to work
             filename TEXT,
             link_embed TEXT,
             link_m3u8 TEXT,
@@ -58,7 +58,7 @@ BEGIN
             created_at TIMESTAMP DEFAULT NOW(),
             modified_at TIMESTAMP DEFAULT NOW()
         );
-        RAISE NOTICE 'Created episodes table';
+        RAISE NOTICE 'Created episodes table with unique slug constraint';
     ELSE
         RAISE NOTICE 'Episodes table already exists';
     END IF;
@@ -146,6 +146,29 @@ BEGIN
     ) THEN
         ALTER TABLE episodes ADD COLUMN link_m3u8 TEXT;
         RAISE NOTICE 'Added link_m3u8 column to episodes table';
+    END IF;
+
+    -- Add unique constraint to slug column if it doesn't exist
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint 
+        WHERE conname = 'episodes_slug_key' AND conrelid = 'episodes'::regclass
+    ) THEN
+        -- First, remove any duplicate slugs by updating them to be unique
+        UPDATE episodes 
+        SET slug = slug || '-' || id::text 
+        WHERE id IN (
+            SELECT id FROM (
+                SELECT id, ROW_NUMBER() OVER (PARTITION BY slug ORDER BY id) as rn 
+                FROM episodes 
+                WHERE slug IS NOT NULL
+            ) t WHERE rn > 1
+        );
+        
+        -- Now add the unique constraint
+        ALTER TABLE episodes ADD CONSTRAINT episodes_slug_key UNIQUE (slug);
+        RAISE NOTICE 'Added unique constraint to slug column in episodes table';
+    ELSE
+        RAISE NOTICE 'Unique constraint on slug column already exists';
     END IF;
 
     RAISE NOTICE 'Episodes table schema fix completed';
