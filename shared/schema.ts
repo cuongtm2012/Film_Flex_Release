@@ -320,7 +320,7 @@ export const auditLogs = pgTable("audit_logs", {
 });
 
 // Insert schemas
-export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true, updatedAt: true, lastLogin: true });
+export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertMovieSchema = createInsertSchema(movies).omit({ id: true, modifiedAt: true });
 export const insertEpisodeSchema = createInsertSchema(episodes).omit({ id: true });
 export const insertCommentSchema = createInsertSchema(comments).omit({ id: true, likes: true, dislikes: true, createdAt: true });

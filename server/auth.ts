@@ -126,6 +126,9 @@ export function setupAuth(app: Express): void {
           return done(null, false, { message: "Invalid username or password" });
         }
 
+        // Update last_login timestamp
+        await storage.updateUser(user.id, { lastLogin: new Date() });
+
         // Log the activity
         await logUserActivity(user.id, "login", null, null, null);
 
