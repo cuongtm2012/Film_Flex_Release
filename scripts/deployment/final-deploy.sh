@@ -122,6 +122,156 @@ BEGIN
     END IF;
 END$$;
 
+-- Create users table if it doesn't exist (CRITICAL for authentication)
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'users') THEN
+        CREATE TABLE users (
+            id SERIAL PRIMARY KEY,
+            username TEXT UNIQUE NOT NULL,
+            email TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            display_name TEXT,
+            profile_image_url TEXT,
+            role TEXT DEFAULT 'Viewer',
+            status TEXT DEFAULT 'active',
+            email_verified BOOLEAN DEFAULT FALSE,
+            two_factor_enabled BOOLEAN DEFAULT FALSE,
+            created_at TIMESTAMP DEFAULT NOW(),
+            updated_at TIMESTAMP DEFAULT NOW()
+        );
+        RAISE NOTICE 'Created users table';
+    END IF;
+END$$;
+
+-- Create roles table for RBAC system
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'roles') THEN
+        CREATE TABLE roles (
+            id SERIAL PRIMARY KEY,
+            name TEXT UNIQUE NOT NULL,
+            description TEXT,
+            created_at TIMESTAMP DEFAULT NOW(),
+            updated_at TIMESTAMP DEFAULT NOW()
+        );
+        RAISE NOTICE 'Created roles table';
+    END IF;
+END$$;
+
+-- Create permissions table for RBAC system
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'permissions') THEN
+        CREATE TABLE permissions (
+            id SERIAL PRIMARY KEY,
+            name TEXT UNIQUE NOT NULL,
+            description TEXT,
+            module TEXT NOT NULL,
+            action TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT NOW()
+        );
+        RAISE NOTICE 'Created permissions table';
+    END IF;
+END$$;
+
+-- Create role_permissions junction table
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'role_permissions') THEN
+        CREATE TABLE role_permissions (
+            id SERIAL PRIMARY KEY,
+            role_id INTEGER REFERENCES roles(id) ON DELETE CASCADE,
+            permission_id INTEGER REFERENCES permissions(id) ON DELETE CASCADE,
+            created_at TIMESTAMP DEFAULT NOW(),
+            UNIQUE(role_id, permission_id)
+        );
+        RAISE NOTICE 'Created role_permissions table';
+    END IF;
+END$$;
+
+-- Create comments table
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'comments') THEN
+        CREATE TABLE comments (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            movie_slug TEXT NOT NULL,
+            content TEXT NOT NULL,
+            parent_id INTEGER REFERENCES comments(id) ON DELETE CASCADE,
+            status TEXT DEFAULT 'active',
+            created_at TIMESTAMP DEFAULT NOW(),
+            updated_at TIMESTAMP DEFAULT NOW()
+        );
+        RAISE NOTICE 'Created comments table';
+    END IF;
+END$$;
+
+-- Create watchlist table
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'watchlist') THEN
+        CREATE TABLE watchlist (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            movie_slug TEXT NOT NULL,
+            added_at TIMESTAMP DEFAULT NOW(),
+            UNIQUE(user_id, movie_slug)
+        );
+        RAISE NOTICE 'Created watchlist table';
+    END IF;
+END$$;
+
+-- Create view_history table
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'view_history') THEN
+        CREATE TABLE view_history (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            movie_slug TEXT NOT NULL,
+            episode_number INTEGER,
+            watch_time INTEGER DEFAULT 0,
+            completed BOOLEAN DEFAULT FALSE,
+            last_watched TIMESTAMP DEFAULT NOW()
+        );
+        RAISE NOTICE 'Created view_history table';
+    END IF;
+END$$;
+
+-- Create audit_logs table
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'audit_logs') THEN
+        CREATE TABLE audit_logs (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+            activity_type TEXT NOT NULL,
+            details JSONB,
+            ip_address TEXT,
+            created_at TIMESTAMP DEFAULT NOW()
+        );
+        RAISE NOTICE 'Created audit_logs table';
+    END IF;
+END$$;
+
+-- Create featured_sections table
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'featured_sections') THEN
+        CREATE TABLE featured_sections (
+            id SERIAL PRIMARY KEY,
+            section_name TEXT UNIQUE NOT NULL,
+            film_ids JSONB DEFAULT '[]',
+            display_order JSONB DEFAULT '[]',
+            created_at TIMESTAMP DEFAULT NOW(),
+            updated_at TIMESTAMP DEFAULT NOW()
+        );
+        RAISE NOTICE 'Created featured_sections table';
+    END IF;
+END$$;
+
 -- Now proceed with the regular schema fixes
 ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS movie_id TEXT;
 ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS name TEXT;
@@ -242,6 +392,117 @@ CREATE INDEX IF NOT EXISTS idx_movies_type ON movies(type);
 CREATE INDEX IF NOT EXISTS idx_movies_year ON movies(year);
 CREATE INDEX IF NOT EXISTS idx_movies_modified_at ON movies(modified_at);
 CREATE INDEX IF NOT EXISTS idx_episodes_movie_slug ON episodes(movie_slug);
+CREATE INDEX IF NOT EXISTS idx_role_permissions_role_id ON role_permissions(role_id);
+CREATE INDEX IF NOT EXISTS idx_role_permissions_permission_id ON role_permissions(permission_id);
+CREATE INDEX IF NOT EXISTS idx_comments_movie_slug ON comments(movie_slug);
+CREATE INDEX IF NOT EXISTS idx_watchlist_user_id ON watchlist(user_id);
+CREATE INDEX IF NOT EXISTS idx_view_history_user_id ON view_history(user_id);
+
+-- Insert default permissions for the RBAC system
+INSERT INTO permissions (name, description, module, action) VALUES 
+-- User Management Permissions
+('user.create', 'Create new users', 'user_management', 'create'),
+('user.read', 'View user information', 'user_management', 'read'),
+('user.update', 'Update user information', 'user_management', 'update'),
+('user.delete', 'Delete users', 'user_management', 'delete'),
+('user.manage_roles', 'Assign and modify user roles', 'user_management', 'manage_roles'),
+('user.view_activity', 'View user activity logs', 'user_management', 'view_activity'),
+
+-- Content Management Permissions
+('content.create', 'Add new movies and content', 'content_management', 'create'),
+('content.read', 'View content details', 'content_management', 'read'),
+('content.update', 'Edit existing content', 'content_management', 'update'),
+('content.delete', 'Remove content', 'content_management', 'delete'),
+('content.approve', 'Approve pending content', 'content_management', 'approve'),
+('content.reject', 'Reject submitted content', 'content_management', 'reject'),
+('content.moderate', 'Moderate user comments and reviews', 'content_management', 'moderate'),
+
+-- System Administration Permissions
+('system.admin', 'Full system administration access', 'system', 'admin'),
+('system.analytics', 'View analytics and reports', 'system', 'analytics'),
+('system.settings', 'Modify system settings', 'system', 'settings'),
+('system.api_keys', 'Manage API keys', 'system', 'api_keys'),
+('system.audit_logs', 'View audit logs', 'system', 'audit_logs'),
+
+-- Role Management Permissions
+('role.create', 'Create new roles', 'role_management', 'create'),
+('role.read', 'View role information', 'role_management', 'read'),
+('role.update', 'Modify existing roles', 'role_management', 'update'),
+('role.delete', 'Delete roles', 'role_management', 'delete'),
+('role.assign_permissions', 'Assign permissions to roles', 'role_management', 'assign_permissions'),
+
+-- Viewing Permissions
+('content.view', 'View movies and content', 'viewing', 'view'),
+('content.search', 'Search for content', 'viewing', 'search'),
+('content.watchlist', 'Manage personal watchlist', 'viewing', 'watchlist'),
+('content.comment', 'Comment on content', 'viewing', 'comment'),
+('content.rate', 'Rate movies and content', 'viewing', 'rate')
+
+ON CONFLICT (name) DO NOTHING;
+
+-- Insert the three default roles
+INSERT INTO roles (name, description) VALUES 
+('Admin', 'Full administrative access to all system functions'),
+('Content Manager', 'Manages content creation, editing, and moderation'),
+('Viewer', 'Standard user with viewing and basic interaction capabilities')
+ON CONFLICT (name) DO NOTHING;
+
+-- Assign permissions to Admin role (full access)
+INSERT INTO role_permissions (role_id, permission_id)
+SELECT r.id, p.id
+FROM roles r, permissions p
+WHERE r.name = 'Admin'
+ON CONFLICT (role_id, permission_id) DO NOTHING;
+
+-- Assign permissions to Content Manager role
+INSERT INTO role_permissions (role_id, permission_id)
+SELECT r.id, p.id
+FROM roles r, permissions p
+WHERE r.name = 'Content Manager'
+AND p.name IN (
+    'content.create',
+    'content.read', 
+    'content.update',
+    'content.delete',
+    'content.approve',
+    'content.reject',
+    'content.moderate',
+    'content.view',
+    'content.search',
+    'user.read',
+    'user.view_activity',
+    'system.analytics'
+)
+ON CONFLICT (role_id, permission_id) DO NOTHING;
+
+-- Assign permissions to Viewer role
+INSERT INTO role_permissions (role_id, permission_id)
+SELECT r.id, p.id
+FROM roles r, permissions p
+WHERE r.name = 'Viewer'
+AND p.name IN (
+    'content.view',
+    'content.search',
+    'content.watchlist',
+    'content.comment',
+    'content.rate',
+    'content.read'
+)
+ON CONFLICT (role_id, permission_id) DO NOTHING;
+
+-- Add anime section to featured_sections table
+INSERT INTO featured_sections (section_name, film_ids, display_order, created_at, updated_at)
+VALUES ('anime', '[]', '[]', NOW(), NOW())
+ON CONFLICT (section_name) DO NOTHING;
+
+-- Create a default admin user if none exists
+INSERT INTO users (username, email, password_hash, display_name, role, status, email_verified)
+VALUES ('admin', 'admin@filmflex.local', '$2b$10$defaulthashedpassword', 'Administrator', 'Admin', 'active', TRUE)
+ON CONFLICT (username) DO NOTHING;
+
+-- Insert audit log entry for this migration
+INSERT INTO audit_logs (user_id, activity_type, details, ip_address)
+VALUES (1, 'SYSTEM_MIGRATION', '{"migration": "final_deploy_schema_setup", "action": "Created complete database schema with RBAC system"}', '127.0.0.1');
 EOSQL
 
 # Execute SQL fix
