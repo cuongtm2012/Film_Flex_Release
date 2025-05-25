@@ -115,11 +115,84 @@ async function fetchMoviesByCountry(_countrySlug: string, page: number): Promise
   };
 }
 
-async function fetchRecommendedMovies(slug: string, limit: number): Promise<MovieListResponse> {
-  // Get movie to find its category
-  const movie = await storage.getMovieBySlug(slug);
-  if (!movie || !Array.isArray(movie.categories) || movie.categories.length === 0) {
-    // Return empty response if no movie or categories
+async function fetchRecommendedMovies(slug: string, limit: number = 10): Promise<MovieListResponse> {
+  try {
+    console.log(`Fetching recommendations for movie ${slug} with limit ${limit}`);
+    
+    // Get the current movie to find its categories/genres
+    const currentMovie = await storage.getMovieBySlug(slug);
+    if (!currentMovie) {
+      console.log(`Movie ${slug} not found, returning empty recommendations`);
+      return {
+        status: true,
+        items: [],
+        pagination: {
+          totalItems: 0,
+          totalPages: 0,
+          currentPage: 1,
+          totalItemsPerPage: limit
+        }
+      };
+    }
+
+    // Get the movie's categories/genres
+    const movieCategories = currentMovie.categories as any[] || [];
+    
+    if (movieCategories.length === 0) {
+      console.log(`Movie ${slug} has no categories, returning recommended movies without genre filter`);
+      // If current movie has no genres, just return recommended movies
+      const result = await storage.getRecommendedMovies(1, limit);
+      return {
+        status: true,
+        items: result.data.filter(movie => movie.slug !== slug).slice(0, limit), // Exclude current movie and limit
+        pagination: {
+          totalItems: result.total,
+          totalPages: Math.ceil(result.total / limit),
+          currentPage: 1,
+          totalItemsPerPage: limit
+        }
+      };
+    }
+
+    // Get all recommended movies (isRecommended = true) - fetch more to allow for filtering
+    const recommendedMovies = await storage.getRecommendedMovies(1, Math.max(50, limit * 3)); // Get more to filter by genre
+    
+    // Filter recommended movies by matching genres and exclude current movie
+    const matchingRecommendations = recommendedMovies.data.filter(movie => {
+      // Exclude the current movie
+      if (movie.slug === slug) return false;
+      
+      // Check if movie has matching categories/genres
+      const movieGenres = movie.categories as any[] || [];
+      
+      // Find if there's any genre overlap
+      return movieCategories.some(currentGenre => 
+        movieGenres.some(movieGenre => 
+          (currentGenre.slug === movieGenre.slug) || 
+          (currentGenre.name === movieGenre.name)
+        )
+      );
+    });
+
+    // Sort by creation date (modifiedAt) in descending order and limit results to exactly the requested limit
+    const sortedRecommendations = matchingRecommendations
+      .sort((a, b) => new Date(b.modifiedAt || 0).getTime() - new Date(a.modifiedAt || 0).getTime())
+      .slice(0, limit);
+
+    console.log(`Found ${sortedRecommendations.length} matching recommended movies for ${slug} with genres: ${movieCategories.map(c => c.name || c.slug).join(', ')}`);
+
+    return {
+      status: true,
+      items: sortedRecommendations,
+      pagination: {
+        totalItems: matchingRecommendations.length,
+        totalPages: Math.ceil(matchingRecommendations.length / limit),
+        currentPage: 1,
+        totalItemsPerPage: limit
+      }
+    };
+  } catch (error) {
+    console.error(`Error fetching recommendations for movie ${slug}:`, error);
     return {
       status: true,
       items: [],
@@ -131,24 +204,6 @@ async function fetchRecommendedMovies(slug: string, limit: number): Promise<Movi
       }
     };
   }
-
-  // Use first category to get similar movies
-  const category = movie.categories[0];
-  const similar = await storage.getMoviesByCategory(category, 1, limit);
-
-  // Filter out the current movie
-  const recommendations = similar.data.filter(m => m.slug !== slug);
-
-  return {
-    status: true,
-    items: recommendations,
-    pagination: {
-      totalItems: similar.total - 1, // Subtract 1 for the filtered movie
-      totalPages: Math.ceil((similar.total - 1) / limit),
-      currentPage: 1,
-      totalItemsPerPage: limit
-    }
-  };
 }
 
 export function registerRoutes(app: Express): void {
@@ -593,7 +648,7 @@ export function registerRoutes(app: Express): void {
             const formattedEpisodes = [];
             if (episodes && episodes.length > 0) {
               // Group episodes by server name
-              const episodesByServer: { [key: string]: any[] } = {};
+              const episodesByServer: { [key: string]: any } = {};
               for (const ep of episodes) {
                 if (!episodesByServer[ep.serverName]) {
                   episodesByServer[ep.serverName] = [];
