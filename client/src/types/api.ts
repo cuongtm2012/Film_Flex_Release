@@ -66,11 +66,43 @@ export interface Comment {
   replies?: Comment[];
 }
 
+// User Management Types
+export interface User {
+  id: number;
+  username: string;
+  email: string;
+  role: 'admin' | 'user' | 'moderator';
+  status: 'active' | 'inactive' | 'banned';
+  created_at: string;
+  updated_at: string;
+  last_login?: string;
+  profile_image?: string;
+  subscription_status?: 'free' | 'premium' | 'vip';
+}
+
+export interface UserFilters {
+  role?: string;
+  status?: string;
+  search?: string;
+}
+
 export interface Pagination {
-  totalItems: number;
-  totalPages: number;
-  currentPage: number;
+  page: number;
   limit: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface UserListResponse {
+  status: boolean;
+  users: User[];
+  pagination: Pagination;
+}
+
+export interface UserResponse {
+  status: boolean;
+  user: User;
+  message?: string;
 }
 
 export interface MovieListResponse {
