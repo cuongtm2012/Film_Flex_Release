@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FilmFlex Direct Fix Player</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #111;
+            color: #fff;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        h1 {
+            color: #e50914;
+            margin-bottom: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .video-container {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 16/9;
+            background: #000;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+        video {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .panel {
+            background: #222;
+            padding: 15px;
+            border-radius: 8px;
+        }
+        .status {
+            background: #333;
+            padding: 8px 12px;
+            border-radius: 4px;
+            display: inline-block;
+            margin: 10px 0;
+        }
+        .error { background: #b00; }
+        .success { background: #080; }
+        .buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        button, input[type="text"], input[type="submit"] {
+            padding: 10px;
+            border: 0;
+            border-radius: 4px;
+            background: #333;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        button:hover, input[type="submit"]:hover {
+            background: #444;
+        }
+        input[type="text"] {
+            width: 100%;
+            box-sizing: border-box;
+            margin-bottom: 10px;
+            background: #333;
+        }
+        .url-display {
+            font-family: monospace;
+            word-break: break-all;
+            background: #1a1a1a;
+            padding: 10px;
+            border-radius: 4px;
+            max-height: 80px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+        .loader {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: #e50914;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+        .hidden {
+            display: none;
+        }
+        .samples {
+            background: #222;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        .sample-url {
+            display: inline-block;
+            background: #e50914;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            margin: 5px;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .sample-url:hover {
+            background: #ff0a16;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>FilmFlex Direct Fix Player</h1>
+        
+        <div class="video-container">
+            <div id="loading" class="loader"></div>
+            <video id="video" controls></video>
+        </div>
+        
+        <div class="controls">
+            <div class="panel">
+                <h2>Player Status</h2>
+                <div id="status" class="status">Ready to play</div>
+                <div class="buttons">
+                    <button id="play-button">Play</button>
+                    <button id="reload-button">Reload Player</button>
+                </div>
+            </div>
+            
+            <div class="panel">
+                <h2>Stream URL</h2>
+                <form id="url-form">
+                    <input type="text" id="url-input" placeholder="Enter m3u8 stream URL...">
+                    <input type="submit" value="Load Stream">
+                </form>
+                <div id="url-display" class="url-display">No stream loaded</div>
+            </div>
+        </div>
+        
+        <div class="samples">
+            <h2>Sample Movies</h2>
+            <p>Click on any movie to load it:</p>
+            <a href="#" class="sample-url" data-url="https://s4.phim1280.tv/20250516/KG64Bzp1/index.m3u8">Ma Búp Bê 6</a>
+            <a href="#" class="sample-url" data-url="https://s5.phim1280.tv/20250516/aZBpSlob/index.m3u8">Cá Mập Con Bão</a>
+            <a href="#" class="sample-url" data-url="https://s5.phim1280.tv/20250516/8tp7hbUn/index.m3u8">Cuộc Chiến Sống Còn</a>
+        </div>
+    </div>
+
+    <script>
+        // Player elements
+        const video = document.getElementById('video');
+        const status = document.getElementById('status');
+        const loading = document.getElementById('loading');
+        const urlForm = document.getElementById('url-form');
+        const urlInput = document.getElementById('url-input');
+        const urlDisplay = document.getElementById('url-display');
+        const playButton = document.getElementById('play-button');
+        const reloadButton = document.getElementById('reload-button');
+        const sampleUrls = document.querySelectorAll('.sample-url');
+        
+        // HLS instance
+        let hls = null;
+        
+        // Update status display
+        function updateStatus(message, type = 'info') {
+            status.textContent = message;
+            status.className = 'status';
+            
+            if (type === 'error') {
+                status.classList.add('error');
+                loading.classList.add('hidden');
+            } else if (type === 'success') {
+                status.classList.add('success');
+                loading.classList.add('hidden');
+            } else {
+                loading.classList.remove('hidden');
+            }
+            
+            console.log(`[Player] ${type.toUpperCase()}: ${message}`);
+        }
+        
+        // Load and play a stream
+        function loadStream(url) {
+            if (!url) {
+                updateStatus('No URL provided', 'error');
+                return;
+            }
+            
+            // Display the URL
+            urlDisplay.textContent = url;
+            urlInput.value = url;
+            
+            // Clean up existing HLS instance if any
+            if (hls) {
+                hls.destroy();
+                hls = null;
+            }
+            
+            // Reset video element
+            video.pause();
+            video.removeAttribute('src');
+            video.load();
+            
+            updateStatus('Loading stream...', 'info');
+            
+            try {
+                if (Hls.isSupported()) {
+                    // Create a new HLS instance with improved settings
+                    hls = new Hls({
+                        maxBufferLength: 30,
+                        maxMaxBufferLength: 600,
+                        maxBufferSize: 60 * 1000 * 1000,
+                        maxBufferHole: 0.5,
+                        lowLatencyMode: false,
+                        fragLoadingTimeOut: 20000,
+                        manifestLoadingTimeOut: 20000,
+                        levelLoadingTimeOut: 20000,
+                        fragLoadingMaxRetry: 6,
+                        manifestLoadingMaxRetry: 6,
+                        levelLoadingMaxRetry: 6,
+                        fragLoadingRetryDelay: 1000,
+                        manifestLoadingRetryDelay: 1000,
+                        levelLoadingRetryDelay: 1000
+                    });
+                    
+                    // Load the stream
+                    hls.loadSource(url);
+                    hls.attachMedia(video);
+                    
+                    // Setup HLS events
+                    hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                        updateStatus('Stream manifest loaded, ready to play', 'success');
+                    });
+                    
+                    hls.on(Hls.Events.ERROR, (event, data) => {
+                        console.error('HLS Error:', data);
+                        
+                        if (data.fatal) {
+                            updateStatus(`HLS error: ${data.type}`, 'error');
+                            
+                            switch(data.type) {
+                                case Hls.ErrorTypes.NETWORK_ERROR:
+                                    updateStatus('Network error, trying to recover...', 'error');
+                                    hls.startLoad();
+                                    break;
+                                case Hls.ErrorTypes.MEDIA_ERROR:
+                                    updateStatus('Media error, trying to recover...', 'error');
+                                    hls.recoverMediaError();
+                                    break;
+                                default:
+                                    updateStatus('Fatal error in HLS player', 'error');
+                                    break;
+                            }
+                        }
+                    });
+                    
+                } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                    // Use native HLS support
+                    updateStatus('Using native HLS support...', 'info');
+                    video.src = url;
+                    video.addEventListener('loadedmetadata', () => {
+                        updateStatus('Stream loaded, ready to play', 'success');
+                    });
+                    
+                } else {
+                    updateStatus('Your browser does not support HLS playback', 'error');
+                }
+            } catch (error) {
+                console.error('Player error:', error);
+                updateStatus(`Player error: ${error.message}`, 'error');
+            }
+        }
+        
+        // Play video
+        function playVideo() {
+            if (video.src || hls) {
+                updateStatus('Starting playback...', 'info');
+                
+                const playPromise = video.play();
+                if (playPromise !== undefined) {
+                    playPromise
+                        .then(() => {
+                            updateStatus('Playback started', 'success');
+                        })
+                        .catch(err => {
+                            updateStatus(`Autoplay blocked: ${err.message}. Click play button.`, 'error');
+                        });
+                }
+            } else {
+                updateStatus('No stream loaded', 'error');
+            }
+        }
+        
+        // Event listeners
+        playButton.addEventListener('click', playVideo);
+        
+        reloadButton.addEventListener('click', () => {
+            if (urlInput.value) {
+                loadStream(urlInput.value);
+            } else {
+                updateStatus('No URL to reload', 'error');
+            }
+        });
+        
+        urlForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            loadStream(urlInput.value);
+        });
+        
+        // Sample URL click handlers
+        sampleUrls.forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const url = link.getAttribute('data-url');
+                loadStream(url);
+            });
+        });
+        
+        // Video event listeners
+        video.addEventListener('playing', () => {
+            updateStatus('Video is playing', 'success');
+            loading.classList.add('hidden');
+        });
+        
+        video.addEventListener('waiting', () => {
+            updateStatus('Buffering...', 'info');
+            loading.classList.remove('hidden');
+        });
+        
+        video.addEventListener('error', () => {
+            const errMessage = video.error ? `Error: ${video.error.code} - ${video.error.message}` : 'Unknown error';
+            updateStatus(errMessage, 'error');
+        });
+        
+        // Parse URL from query string if present
+        const urlParams = new URLSearchParams(window.location.search);
+        const streamParam = urlParams.get('stream');
+        
+        if (streamParam) {
+            loadStream(streamParam);
+        } else {
+            updateStatus('Ready to play. Enter a URL or select a sample movie.', 'success');
+            loading.classList.add('hidden');
+        }
+    </script>
+</body>
+</html> 

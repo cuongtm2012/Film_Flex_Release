@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import MovieCard from "./MovieCard";
 import Pagination from "./Pagination";
 import { MovieListItem } from "@shared/schema";
@@ -15,25 +15,14 @@ import {
   Flame, 
   ThumbsUp, 
   CalendarDays, 
-  X,
-  ArrowUpDown,
   SlidersHorizontal
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogClose
-} from "@/components/ui/dialog";
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
-  SheetTrigger,
   SheetClose,
   SheetFooter
 } from "@/components/ui/sheet";
@@ -49,6 +38,7 @@ interface MovieGridProps {
   itemsPerPage?: number;
   onPageChange: (page: number) => void;
   onSortChange?: (sortBy: string) => void;
+  currentSort?: string;
   isLoading?: boolean;
 }
 
@@ -61,13 +51,12 @@ export default function MovieGrid({
   itemsPerPage = 50,
   onPageChange,
   onSortChange,
+  currentSort = "latest",
   isLoading = false,
 }: MovieGridProps) {
   const [isSortSheetOpen, setIsSortSheetOpen] = useState(false);
-  const [currentSort, setCurrentSort] = useState("modified");
   
   const handleSortSelection = (value: string) => {
-    setCurrentSort(value);
     if (onSortChange) {
       onSortChange(value);
     }
@@ -75,7 +64,7 @@ export default function MovieGrid({
   
   // Map sort options to display names and icons
   const sortOptions = [
-    { value: "modified", label: "Recently Updated", icon: <ArrowDownAZ className="h-5 w-5" /> },
+    { value: "latest", label: "Latest Added", icon: <ArrowDownAZ className="h-5 w-5" /> },
     { value: "popular", label: "Most Popular", icon: <Flame className="h-5 w-5" /> },
     { value: "rating", label: "Highest Rated", icon: <ThumbsUp className="h-5 w-5" /> },
     { value: "year", label: "Release Year", icon: <CalendarDays className="h-5 w-5" /> }
