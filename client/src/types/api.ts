@@ -87,10 +87,10 @@ export interface UserFilters {
 }
 
 export interface Pagination {
-  page: number;
-  limit: number;
-  total: number;
+  totalItems: number;
   totalPages: number;
+  currentPage: number;
+  totalItemsPerPage: number;
 }
 
 export interface UserListResponse {
