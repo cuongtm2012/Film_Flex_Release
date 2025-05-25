@@ -55,12 +55,65 @@ export const sessions = pgTable("sessions", {
   expire: timestamp("expire", { precision: 6 }).notNull(),
 });
 
-// User roles enum
+// User roles enum - Updated with default RBAC roles
 export const UserRole = {
-  ADMIN: 'admin',
+  ADMIN: 'Admin',
+  CONTENT_MANAGER: 'Content Manager', 
+  VIEWER: 'Viewer',
+  // Legacy roles for backward compatibility
   MODERATOR: 'moderator',
   PREMIUM: 'premium',
   NORMAL: 'normal',
+} as const;
+
+// Permission modules for organizing permissions
+export const PermissionModule = {
+  USER_MANAGEMENT: 'user_management',
+  CONTENT_MANAGEMENT: 'content_management',
+  SYSTEM: 'system',
+  ROLE_MANAGEMENT: 'role_management',
+  VIEWING: 'viewing',
+} as const;
+
+// Common permissions enum for type safety
+export const Permissions = {
+  // User Management
+  USER_CREATE: 'user.create',
+  USER_READ: 'user.read',
+  USER_UPDATE: 'user.update',
+  USER_DELETE: 'user.delete',
+  USER_MANAGE_ROLES: 'user.manage_roles',
+  USER_VIEW_ACTIVITY: 'user.view_activity',
+  
+  // Content Management
+  CONTENT_CREATE: 'content.create',
+  CONTENT_READ: 'content.read',
+  CONTENT_UPDATE: 'content.update',
+  CONTENT_DELETE: 'content.delete',
+  CONTENT_APPROVE: 'content.approve',
+  CONTENT_REJECT: 'content.reject',
+  CONTENT_MODERATE: 'content.moderate',
+  
+  // System Administration
+  SYSTEM_ADMIN: 'system.admin',
+  SYSTEM_ANALYTICS: 'system.analytics',
+  SYSTEM_SETTINGS: 'system.settings',
+  SYSTEM_API_KEYS: 'system.api_keys',
+  SYSTEM_AUDIT_LOGS: 'system.audit_logs',
+  
+  // Role Management
+  ROLE_CREATE: 'role.create',
+  ROLE_READ: 'role.read',
+  ROLE_UPDATE: 'role.update',
+  ROLE_DELETE: 'role.delete',
+  ROLE_ASSIGN_PERMISSIONS: 'role.assign_permissions',
+  
+  // Viewing
+  CONTENT_VIEW: 'content.view',
+  CONTENT_SEARCH: 'content.search',
+  CONTENT_WATCHLIST: 'content.watchlist',
+  CONTENT_COMMENT: 'content.comment',
+  CONTENT_RATE: 'content.rate',
 } as const;
 
 // User status enum
