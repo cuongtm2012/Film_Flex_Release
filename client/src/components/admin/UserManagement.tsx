@@ -1,16 +1,17 @@
-import { useState } from "react";
+import React, { useState } from 'react';
+import { Search, Edit, Trash2, Filter, UserPlus, Users, Settings, TrendingUp, Eye, Activity, Calendar, Check, Key } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Separator } from "@/components/ui/separator";
-import { Users, UserPlus, Settings, Search, Activity, Filter, TrendingUp, Edit, Eye, Trash2, Calendar, Check } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
+import { toast } from '@/hooks/use-toast';
 
 // Types
 interface User {
@@ -18,19 +19,19 @@ interface User {
   username: string;
   email: string;
   role: string;
-  status: "active" | "inactive" | "suspended";
-  createdAt?: string;
+  status: 'active' | 'inactive' | 'suspended';
+  createdAt: string;
   lastLogin?: string;
   loginCount?: number;
-  contentCreated?: number;
   lastActivity?: string;
+  contentCreated?: number;
 }
 
 interface Role {
   id: string;
   name: string;
-  description?: string;
   permissions: string[];
+  description: string;
 }
 
 interface Permission {
@@ -39,36 +40,61 @@ interface Permission {
   description: string;
 }
 
-export function UserManagement() {
-  const { toast } = useToast();
+interface NewUser {
+  username: string;
+  email: string;
+  password: string;
+  role: string;
+}
+
+const UserManagement: React.FC = () => {
   const queryClient = useQueryClient();
+  const [users, setUsers] = useState<User[]>([]);
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [permissions] = useState<Permission[]>([
+    { id: '1', name: 'read', description: 'Read access' },
+    { id: '2', name: 'write', description: 'Write access' },
+    { id: '3', name: 'delete', description: 'Delete access' }
+  ]);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [roleFilter, setRoleFilter] = useState("all");
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [newUser, setNewUser] = useState({
+  const [isNewUserDialogOpen, setIsNewUserDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editUser, setEditUser] = useState<any>(null);
+  const [newUser, setNewUser] = useState<NewUser>({
     username: "",
     email: "",
-    password: "",
+    password: "12345678", // Default password
     role: ""
   });
 
   // Fetch users
-  const { data: usersResponse, isLoading: usersLoading } = useQuery({
-    queryKey: ['admin-users'],
+  const { data: usersData, isLoading: usersLoading } = useQuery({
+    queryKey: ['admin-users', searchTerm, statusFilter, roleFilter],
     queryFn: async () => {
-      const response = await fetch('/api/admin/users');
+      const params = new URLSearchParams();
+      if (searchTerm) params.append('search', searchTerm);
+      if (statusFilter !== 'all') params.append('status', statusFilter);
+      if (roleFilter !== 'all') params.append('role', roleFilter);
+      
+      const url = `/api/admin/users${params.toString() ? `?${params.toString()}` : ''}`;
+      const response = await fetch(url);
       if (!response.ok) throw new Error('Failed to fetch users');
       return response.json();
     }
   });
 
-  // Extract users array from the response structure
-  const users = usersResponse?.data || [];
+  // Update users state when data changes
+  React.useEffect(() => {
+    if (usersData?.data) {
+      setUsers(usersData.data);
+    }
+  }, [usersData]);
 
   // Fetch roles
-  const { data: roles = [] } = useQuery({
+  const { data: rolesData } = useQuery({
     queryKey: ['admin-roles'],
     queryFn: async () => {
       const response = await fetch('/api/admin/roles');
@@ -77,35 +103,65 @@ export function UserManagement() {
     }
   });
 
-  // Fetch permissions
-  const { data: permissions = [] } = useQuery({
-    queryKey: ['admin-permissions'],
-    queryFn: async () => {
-      const response = await fetch('/api/admin/permissions');
-      if (!response.ok) throw new Error('Failed to fetch permissions');
-      return response.json();
+  // Update roles state when data changes
+  React.useEffect(() => {
+    if (rolesData?.data) {
+      setRoles(rolesData.data);
     }
-  });
+  }, [rolesData]);
+
+  // Generate default password function
+  const handleGenerateDefaultPassword = () => {
+    setNewUser({ ...newUser, password: "12345678" });
+    toast({ title: "Default password generated: 12345678" });
+  };
+
+  // Validate form before submission
+  const validateNewUserForm = () => {
+    if (!newUser.username.trim()) {
+      toast({ title: "Username is required", variant: "destructive" });
+      return false;
+    }
+    if (!newUser.email.trim()) {
+      toast({ title: "Email is required", variant: "destructive" });
+      return false;
+    }
+    if (!newUser.role) {
+      toast({ title: "Role is required", variant: "destructive" });
+      return false;
+    }
+    if (!newUser.password) {
+      toast({ title: "Please generate a default password", variant: "destructive" });
+      return false;
+    }
+    return true;
+  };
 
   // Create user mutation
   const createUserMutation = useMutation({
     mutationFn: async (userData: typeof newUser) => {
       const response = await fetch('/api/admin/users', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
         body: JSON.stringify(userData)
       });
-      if (!response.ok) throw new Error('Failed to create user');
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to create user');
+      }
       return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       toast({ title: "User created successfully" });
-      setIsCreateDialogOpen(false);
-      setNewUser({ username: "", email: "", password: "", role: "" });
+      setIsNewUserDialogOpen(false);
+      setNewUser({ username: "", email: "", password: "12345678", role: "" });
     },
-    onError: () => {
-      toast({ title: "Failed to create user", variant: "destructive" });
+    onError: (error: any) => {
+      toast({ title: error.message || "Failed to create user", variant: "destructive" });
     }
   });
 
@@ -126,6 +182,45 @@ export function UserManagement() {
       toast({ title: "Failed to delete user", variant: "destructive" });
     }
   });
+
+  // Update user mutation
+  const updateUserMutation = useMutation({
+    mutationFn: async (userData: { id: string; username: string; email: string; role: string; status: string; resetPassword?: boolean }) => {
+      const response = await fetch(`/api/admin/users/${userData.id}`, {
+        method: 'PUT',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          username: userData.username,
+          email: userData.email,
+          role: userData.role,
+          status: userData.status,
+          resetPassword: userData.resetPassword
+        })
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to update user');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      toast({ title: "User updated successfully" });
+      setIsEditDialogOpen(false);
+      setEditUser(null);
+    },
+    onError: (error: any) => {
+      toast({ title: error.message || "Failed to update user", variant: "destructive" });
+    }
+  });
+
+  // Handle reset password
+  const handleResetPassword = () => {
+    toast({ title: "Password will be reset to default (12345678) when saving" });
+  };
 
   // Handle loading and error states
   if (usersLoading) {
@@ -152,6 +247,23 @@ export function UserManagement() {
 
   // Ensure users is an array
   const userList = Array.isArray(users) ? users : [];
+
+  // Apply filters to the user list
+  const filteredUsers = userList.filter((user: User) => {
+    // Search filter - check username and email
+    const searchLower = searchTerm.toLowerCase();
+    const matchesSearch = searchTerm === "" || 
+      user.username.toLowerCase().includes(searchLower) ||
+      user.email.toLowerCase().includes(searchLower);
+
+    // Status filter
+    const matchesStatus = statusFilter === "all" || user.status === statusFilter;
+
+    // Role filter
+    const matchesRole = roleFilter === "all" || user.role === roleFilter;
+
+    return matchesSearch && matchesStatus && matchesRole;
+  });
 
   return (
     <div className="space-y-6">
@@ -245,6 +357,7 @@ export function UserManagement() {
                       <SelectItem value="all">All Status</SelectItem>
                       <SelectItem value="active">Active</SelectItem>
                       <SelectItem value="inactive">Inactive</SelectItem>
+                      <SelectItem value="suspended">Suspended</SelectItem>
                     </SelectContent>
                   </Select>
                   <Select 
@@ -256,11 +369,9 @@ export function UserManagement() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Roles</SelectItem>
-                      {Array.isArray(roles) ? roles.map((role: Role) => (
-                        <SelectItem key={role.id} value={role.name}>
-                          {role.name}
-                        </SelectItem>
-                      )) : null}
+                      <SelectItem value="admin">Admin</SelectItem>
+                      <SelectItem value="moderator">Moderator</SelectItem>
+                      <SelectItem value="normal">User</SelectItem>
                     </SelectContent>
                   </Select>
                   <Button onClick={() => {
@@ -272,7 +383,7 @@ export function UserManagement() {
                     Reset
                   </Button>
                 </div>
-                <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+                <Dialog open={isNewUserDialogOpen} onOpenChange={setIsNewUserDialogOpen}>
                   <DialogTrigger asChild>
                     <Button>
                       <UserPlus className="mr-2 h-4 w-4" />
@@ -288,7 +399,7 @@ export function UserManagement() {
                     </DialogHeader>
                     <div className="space-y-4 py-4">
                       <div className="space-y-2">
-                        <label className="text-sm font-medium">Username</label>
+                        <label className="text-sm font-medium">Username *</label>
                         <Input 
                           placeholder="Enter username" 
                           value={newUser.username}
@@ -296,7 +407,7 @@ export function UserManagement() {
                         />
                       </div>
                       <div className="space-y-2">
-                        <label className="text-sm font-medium">Email</label>
+                        <label className="text-sm font-medium">Email *</label>
                         <Input 
                           type="email" 
                           placeholder="Enter email" 
@@ -305,20 +416,7 @@ export function UserManagement() {
                         />
                       </div>
                       <div className="space-y-2">
-                        <label className="text-sm font-medium">Password</label>
-                        <Input 
-                          type="password" 
-                          placeholder="Enter password" 
-                          value={newUser.password}
-                          onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Confirm Password</label>
-                        <Input type="password" placeholder="Confirm password" />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Role</label>
+                        <label className="text-sm font-medium">Role *</label>
                         <Select 
                           value={newUser.role}
                           onValueChange={(value) => setNewUser({ ...newUser, role: value })}
@@ -327,19 +425,33 @@ export function UserManagement() {
                             <SelectValue placeholder="Select role" />
                           </SelectTrigger>
                           <SelectContent>
-                            {Array.isArray(roles) ? roles.map((role: Role) => (
-                              <SelectItem key={role.id} value={role.name}>
-                                {role.name}
-                              </SelectItem>
-                            )) : null}
+                            <SelectItem value="user">User</SelectItem>
+                            <SelectItem value="mod">Moderator</SelectItem>
+                            <SelectItem value="admin">Admin</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Password</label>
+                        <div className="flex flex-col gap-2">
+                          <Button 
+                            type="button"
+                            variant="outline" 
+                            onClick={handleGenerateDefaultPassword}
+                            className="w-full"
+                          >
+                            <Key className="mr-2 h-4 w-4" />
+                            Generate Default Password
+                          </Button>
+                        </div>
+                      </div>
                     </div>
                     <DialogFooter>
-                      <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>Cancel</Button>
+                      <Button variant="outline" onClick={() => setIsNewUserDialogOpen(false)}>Cancel</Button>
                       <Button onClick={() => {
-                        createUserMutation.mutate(newUser);
+                        if (validateNewUserForm()) {
+                          createUserMutation.mutate(newUser);
+                        }
                       }}>Create User</Button>
                     </DialogFooter>
                   </DialogContent>
@@ -368,7 +480,7 @@ export function UserManagement() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {userList.map((user: User) => (
+                    {filteredUsers.map((user: User) => (
                       <TableRow key={user.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedUser(user)}>
                         <TableCell className="py-4 px-2">
                           <input 
@@ -408,7 +520,16 @@ export function UserManagement() {
                             <Button 
                               variant="outline" 
                               size="sm"
-                              onClick={() => {}}
+                              onClick={() => {
+                                setEditUser({
+                                  id: user.id,
+                                  username: user.username,
+                                  email: user.email,
+                                  role: user.role,
+                                  status: user.status
+                                });
+                                setIsEditDialogOpen(true);
+                              }}
                             >
                               <Edit className="h-4 w-4" />
                             </Button>
@@ -440,7 +561,7 @@ export function UserManagement() {
 
               <div className="flex justify-between items-center mt-6">
                 <div className="text-sm text-muted-foreground">
-                  Showing {userList.length} users
+                  Showing {filteredUsers.length} of {userList.length} users
                 </div>
                 <div className="flex gap-2">
                   <Button 
@@ -477,7 +598,6 @@ export function UserManagement() {
                   <div key={role.id} className="flex items-center justify-between p-4 border rounded-lg">
                     <div>
                       <h3 className="font-medium">{role.name}</h3>
-                      <p className="text-sm text-muted-foreground">{role.description}</p>
                     </div>
                     <div className="flex gap-2">
                       <Button variant="outline" size="sm" onClick={() => {}}>
@@ -633,117 +753,100 @@ export function UserManagement() {
       </Dialog>
 
       {/* Edit User Dialog */}
-      <Dialog open={false} onOpenChange={() => {}}>
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>Edit User</DialogTitle>
             <DialogDescription>
-              Update user information and permissions
+              Update user information and manage access
             </DialogDescription>
           </DialogHeader>
-          {selectedUser && (
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Username</label>
-                <Input defaultValue={selectedUser.username} />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Email</label>
-                <Input type="email" defaultValue={selectedUser.email} />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Role</label>
-                <Select defaultValue={selectedUser.role}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {roles.map((role: Role) => (
-                      <SelectItem key={role.id} value={role.name}>
-                        {role.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Status</label>
-                <Select defaultValue={selectedUser.status}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Reset Password</label>
-                <Button variant="outline" className="w-full">Send Password Reset Email</Button>
-              </div>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-username">Username *</Label>
+              <Input
+                id="edit-username"
+                value={editUser?.username || ''}
+                onChange={(e) => setEditUser((prev: any) => prev ? {...prev, username: e.target.value} : null)}
+                placeholder="Enter username"
+              />
             </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => {}}>Cancel</Button>
-            <Button onClick={() => {
-              toast({
-                title: "User Updated",
-                description: `User ${selectedUser?.username} has been updated successfully`,
-              });
-              // Close dialog
-            }}>Save Changes</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Role Dialog */}
-      <Dialog open={false} onOpenChange={() => {}}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Role</DialogTitle>
-            <DialogDescription>
-              Update role information and permissions
-            </DialogDescription>
-          </DialogHeader>
-          {selectedUser && (
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Role Name</label>
-                <Input defaultValue={selectedUser.role} />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Description</label>
-                <Input defaultValue={selectedUser.role} />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Permissions</label>
-                <div className="border rounded-md p-4 space-y-2 max-h-40 overflow-y-auto">
-                  {permissions.map((permission: Permission) => (
-                    <div key={permission.id} className="flex items-center space-x-2">
-                      <input 
-                        type="checkbox" 
-                        id={`edit-perm-${permission.id}`} 
-                        defaultChecked={parseInt(permission.id) % 2 === 0} // Simple demo logic
-                      />
-                      <label htmlFor={`edit-perm-${permission.id}`} className="text-sm">
-                        {permission.name} - {permission.description}
-                      </label>
-                    </div>
-                  ))}
-                </div>
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-email">Email *</Label>
+              <Input
+                id="edit-email"
+                type="email"
+                value={editUser?.email || ''}
+                onChange={(e) => setEditUser((prev: any) => prev ? {...prev, email: e.target.value} : null)}
+                placeholder="Enter email"
+              />
             </div>
-          )}
+            <div className="space-y-2">
+              <Label htmlFor="edit-role">Role *</Label>
+              <Select 
+                value={editUser?.role || ''} 
+                onValueChange={(value) => setEditUser((prev: any) => prev ? {...prev, role: value} : null)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="normal">User</SelectItem>
+                  <SelectItem value="moderator">Moderator</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-status">Status</Label>
+              <Select 
+                value={editUser?.status || ''} 
+                onValueChange={(value) => setEditUser((prev: any) => prev ? {...prev, status: value} : null)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                  <SelectItem value="suspended">Suspended</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Password Management</Label>
+              <Button 
+                type="button"
+                variant="outline" 
+                onClick={handleResetPassword}
+                className="w-full"
+              >
+                <Key className="mr-2 h-4 w-4" />
+                Reset Password to Default
+              </Button>
+            </div>
+          </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => {}}>Cancel</Button>
+            <Button variant="outline" onClick={() => {
+              setIsEditDialogOpen(false);
+              setEditUser(null);
+            }}>
+              Cancel
+            </Button>
             <Button onClick={() => {
-              toast({
-                title: "Role Updated",
-                description: `Role ${selectedUser?.role} has been updated successfully`,
-              });
-              // Close dialog
-            }}>Save Changes</Button>
+              if (editUser) {
+                updateUserMutation.mutate({
+                  id: editUser.id,
+                  username: editUser.username,
+                  email: editUser.email,
+                  role: editUser.role,
+                  status: editUser.status,
+                  resetPassword: true
+                });
+              }
+            }}>
+              Update User
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

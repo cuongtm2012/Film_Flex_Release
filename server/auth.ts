@@ -126,18 +126,6 @@ export function setupAuth(app: Express): void {
           return done(null, false, { message: "Invalid username or password" });
         }
 
-        // Validate lastLogin to ensure it is a valid Date object
-        const lastLoginDate = new Date();
-        if (isNaN(lastLoginDate.getTime())) {
-          console.error("Invalid lastLogin date");
-          return done(new Error("Invalid lastLogin date"));
-        }
-
-        // Update last login time - use Date object instead of string
-        await storage.updateUser(user.id, {
-          lastLogin: lastLoginDate
-        });
-
         // Log the activity
         await logUserActivity(user.id, "login", null, null, null);
 
@@ -334,6 +322,71 @@ export function setupAuth(app: Express): void {
     }
   });
 
+  app.post("/api/admin/users", isAuthenticated, isAdmin, async (req: Request, res: Response) => {
+    try {
+      const adminId = (req.user as Express.User).id;
+      const { username, email, role, password = "12345678" } = req.body;
+
+      // Validate required fields
+      if (!username || !email || !role) {
+        return res.status(400).json({ message: "Username, email, and role are required" });
+      }
+
+      // Validate role
+      if (!["user", "mod", "admin"].includes(role)) {
+        return res.status(400).json({ message: "Invalid role. Must be user, mod, or admin" });
+      }
+
+      // Check if user already exists
+      const existingUser = await storage.getUserByUsername(username);
+      if (existingUser) {
+        return res.status(400).json({ message: "Username already exists" });
+      }
+
+      // Check if email already exists
+      const existingEmailUser = await storage.getUserByEmail(email);
+      if (existingEmailUser) {
+        return res.status(400).json({ message: "Email already exists" });
+      }
+
+      // Hash the password (default or provided)
+      const hashedPassword = await hashPassword(password);
+
+      // Map frontend role to backend role format
+      let mappedRole = role;
+      if (role === "mod") {
+        mappedRole = "moderator";
+      } else if (role === "user") {
+        mappedRole = "normal";
+      }
+
+      // Create the user
+      const newUser = await storage.createUser({
+        username,
+        email,
+        password: hashedPassword,
+        role: mappedRole,
+        status: "active",
+      });
+
+      // Log the activity
+      await logUserActivity(
+        adminId,
+        "create_user",
+        newUser.id,
+        { newUserRole: mappedRole, createdBy: "admin" },
+        req.ip
+      );
+
+      // Omit password from response
+      const { password: _, ...userWithoutPassword } = newUser;
+      res.status(201).json(userWithoutPassword);
+    } catch (error) {
+      console.error("Admin create user error:", error);
+      res.status(500).json({ message: "Failed to create user" });
+    }
+  });
+
   app.put("/api/admin/users/:userId/role", isAuthenticated, isAdmin, async (req: Request, res: Response) => {
     try {
       const adminId = (req.user as Express.User).id;
@@ -414,6 +467,97 @@ export function setupAuth(app: Express): void {
     } catch (error) {
       console.error("Audit logs error:", error);
       res.status(500).json({ message: "Failed to fetch audit logs" });
+    }
+  });
+
+  app.put("/api/admin/users/:userId", isAuthenticated, isAdmin, async (req: Request, res: Response) => {
+    try {
+      const adminId = (req.user as Express.User).id;
+      const userId = parseInt(req.params.userId);
+      const { username, email, role, status, resetPassword } = req.body;
+
+      // Validate required fields
+      if (!username || !email || !role) {
+        return res.status(400).json({ message: "Username, email, and role are required" });
+      }
+
+      // Validate role
+      const validRoles = ["normal", "moderator", "admin"];
+      if (!validRoles.includes(role)) {
+        return res.status(400).json({ message: "Invalid role. Must be normal, moderator, or admin" });
+      }
+
+      // Validate status
+      const validStatuses = ["active", "inactive", "suspended"];
+      if (status && !validStatuses.includes(status)) {
+        return res.status(400).json({ message: "Invalid status" });
+      }
+
+      // Check if user exists
+      const existingUser = await storage.getUser(userId);
+      if (!existingUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Check if username is taken by another user
+      if (username !== existingUser.username) {
+        const userWithUsername = await storage.getUserByUsername(username);
+        if (userWithUsername && userWithUsername.id !== userId) {
+          return res.status(400).json({ message: "Username already exists" });
+        }
+      }
+
+      // Check if email is taken by another user
+      if (email !== existingUser.email) {
+        const userWithEmail = await storage.getUserByEmail(email);
+        if (userWithEmail && userWithEmail.id !== userId) {
+          return res.status(400).json({ message: "Email already exists" });
+        }
+      }
+
+      // Prepare update data
+      const updateData: any = {
+        username,
+        email,
+        role,
+        ...(status && { status })
+      };
+
+      // Handle password reset if requested
+      if (resetPassword) {
+        const hashedPassword = await hashPassword("12345678");
+        updateData.password = hashedPassword;
+      }
+
+      // Update the user
+      const updatedUser = await storage.updateUser(userId, updateData);
+      if (!updatedUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Log the activity
+      const activityDetails: any = { 
+        updatedFields: Object.keys(updateData).filter(key => key !== 'password'),
+        updatedBy: "admin"
+      };
+      if (resetPassword) {
+        activityDetails.passwordReset = true;
+      }
+
+      await logUserActivity(
+        adminId,
+        "update_user",
+        userId,
+        activityDetails,
+        req.ip
+      );
+
+      // Omit password from response
+      const { password: _, ...userWithoutPassword } = updatedUser;
+      res.json(userWithoutPassword);
+    } catch (error) {
+      console.error("Update user error:", error);
+      res.status(500).json({ message: "Failed to update user" });
     }
   });
 }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Search, Filter, Plus, Trash2, Edit, Eye, UserCheck, UserX, Download, Upload, RefreshCw, MoreVertical, Shield, Clock, Mail, Lock, Unlock } from 'lucide-react';
+import { Search, Plus, Trash2, Edit, UserCheck, UserX, Download, RefreshCw, Clock, Mail, X } from 'lucide-react';
 
 // Enhanced User interface with additional fields
 interface User {
@@ -69,7 +69,70 @@ const UserManagement: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
 
-  // ...existing fetchUsers function...
+  // Fetch users from API
+  const fetchUsers = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await fetch('/api/users', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch users');
+      }
+
+      const userData = await response.json();
+      setUsers(userData);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch users');
+      // Fallback to mock data for development
+      setUsers([
+        {
+          id: 1,
+          username: 'admin',
+          email: 'admin@filmflex.com',
+          role: 'admin' as const,
+          status: 'active' as const,
+          displayName: 'Administrator',
+          lastLogin: new Date('2024-01-15T10:30:00'),
+          createdAt: new Date('2024-01-01T00:00:00'),
+          emailVerified: true,
+          loginCount: 45
+        },
+        {
+          id: 2,
+          username: 'moderator1',
+          email: 'mod@filmflex.com',
+          role: 'moderator' as const,
+          status: 'active' as const,
+          displayName: 'Content Moderator',
+          lastLogin: new Date('2024-01-14T15:45:00'),
+          createdAt: new Date('2024-01-05T00:00:00'),
+          emailVerified: true,
+          loginCount: 23
+        },
+        {
+          id: 3,
+          username: 'user123',
+          email: 'user@example.com',
+          role: 'normal' as const,
+          status: 'suspended' as const,
+          displayName: 'Regular User',
+          lastLogin: new Date('2024-01-10T09:20:00'),
+          createdAt: new Date('2024-01-10T00:00:00'),
+          emailVerified: false,
+          loginCount: 12
+        }
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Enhanced user creation/editing
   const handleSaveUser = async (userData: Partial<User>) => {
@@ -102,6 +165,40 @@ const UserManagement: React.FC = () => {
       setEditingUser(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Delete user function
+  const handleDeleteUser = async (userId: number) => {
+    if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      
+      const response = await fetch(`/api/users/${userId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete user');
+      }
+
+      setUsers(prev => prev.filter(user => user.id !== userId));
+      setSelectedUsers(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(userId);
+        return newSet;
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete user');
     } finally {
       setLoading(false);
     }
