@@ -284,8 +284,6 @@ ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS trailer_url TEXT;
 ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS time TEXT;
 ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS quality TEXT;
 ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS lang TEXT;
-ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS episode_current TEXT;
-ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS episode_total TEXT;
 ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS year TEXT;
 ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS view TEXT;
 ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS actors TEXT;
@@ -378,7 +376,7 @@ BEGIN
         WHERE conname = 'episodes_movie_slug_fkey' AND conrelid = 'episodes'::regclass
     ) THEN
         -- Make sure all existing movie_slug values exist in movies.slug
-        DELETE FROM episodes WHERE movie_slug NOT IN (SELECT slug FROM movies WHERE slug IS NOT NULL);
+        DELETE FROM episodes WHERE movie_slug IS NOT NULL AND movie_slug NOT IN (SELECT slug FROM movies WHERE slug IS NOT NULL);
         -- Add the foreign key constraint
         ALTER TABLE episodes ADD CONSTRAINT episodes_movie_slug_fkey 
             FOREIGN KEY (movie_slug) REFERENCES movies(slug) ON DELETE CASCADE;
