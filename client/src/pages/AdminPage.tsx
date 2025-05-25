@@ -1,9 +1,27 @@
-import React, { useState, useEffect } from "react";
+import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
-import { useQuery, useMutation } from "@tanstack/react-query";
 import { MovieListResponse } from "@shared/schema";
-
+import { useToast } from "@/hooks/use-toast";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
+import { 
+  Dialog, 
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription 
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { AvatarFallback } from "@/components/ui/avatar";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 // This is an extended type for the movie with all fields
 // We don't need to augment the original type as we're using casting
 
@@ -42,9 +60,9 @@ interface MovieDetailsType {
   year?: string;
   view?: number;
   actor?: CategoryType[];
-  director?: CategoryType[];
-  category?: CategoryType[];
+  director?: CategoryType[];  category?: CategoryType[];
   country?: CategoryType[];
+  countries?: string[];
   episodes?: any[];
   isRecommended?: boolean;
   active?: boolean;
@@ -58,16 +76,13 @@ interface MovieDetailsType {
     id?: number;
     type?: string;
   };
+  section?: string;
 }
 import UserManagement from "@/components/admin/UserManagement";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Users,
+import {  Users,
   Film,
   Settings,
   BarChart3,
@@ -76,229 +91,224 @@ import {
   AlertCircle,
   Search,
   Plus,
-  Filter,
-  Download,
   RefreshCw,
   ChevronLeft,
+  ChevronRight,
   Star,
-  SlidersHorizontal,
-  CheckCircle,
-  XCircle,
-  ArrowUpDown
+  ArrowUpDown,
+  Edit,
+  Upload
 } from "lucide-react";
-import { Separator } from "@/components/ui/separator";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
+
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { X } from "lucide-react";
 
-// Predefined categories and countries for the multi-select components
-const predefinedCategories = [
-  "Hành Động", "Tình Cảm", "Hài Hước", "Cổ Trang", "Võ Thuật", "Kinh Dị", "Hình Sự", 
-  "Chiến Tranh", "Thể Thao", "Âm Nhạc", "Tâm Lý", "Viễn Tưởng", "Phiêu Lưu", "Khoa Học",
-  "Thần Thoại", "Hoạt Hình", "Gia Đình", "Bí Ẩn", "Học Đường", "Kinh Điển"
-];
 
-const predefinedCountries = [
-  "Trung Quốc", "Hàn Quốc", "Việt Nam", "Mỹ", "Thái Lan", "Hồng Kông", "Nhật Bản", 
-  "Ấn Độ", "Đài Loan", "Pháp", "Anh", "Canada", "Đức", "Nga", "Úc", "Brazil", "Malaysia",
-  "Indonesia", "Philippines", "Singapore", "Tây Ban Nha", "Ý", "Thổ Nhĩ Kỳ", "Mexico"
-];
 
-// Component for multi-select tags
-interface MultiSelectProps {
-  options: string[];
-  selectedValues: string[];
-  onChange: (values: string[]) => void;
-  placeholder?: string;
-}
-
-function MultiSelectTags({ options, selectedValues, onChange, placeholder = "Select options..." }: MultiSelectProps) {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button 
-          variant="outline" 
-          role="combobox" 
-          aria-expanded={open} 
-          className="w-full justify-between h-auto min-h-10 py-2"
-        >
-          {selectedValues.length > 0 ? (
-            <div className="flex flex-wrap gap-1">
-              {selectedValues.map((value) => (
-                <Badge 
-                  key={value} 
-                  variant="secondary"
-                  className="flex items-center gap-1 max-w-[150px] truncate"
-                >
-                  {value}
-                  <div
-                    className="ml-1 rounded-full outline-none focus:outline-none cursor-pointer inline-flex"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onChange(selectedValues.filter((v) => v !== value));
-                    }}
-                    role="button"
-                    tabIndex={0}
-                    aria-label={`Remove ${value}`}
-                  >
-                    <X className="h-3 w-3" />
-                  </div>
-                </Badge>
-              ))}
-            </div>
-          ) : (
-            <span className="text-muted-foreground">{placeholder}</span>
-          )}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-full p-0" align="start">
-        <Command>
-          <CommandInput placeholder="Search options..." />
-          <CommandEmpty>No options found.</CommandEmpty>
-          <CommandList>
-            <ScrollArea className="h-[200px]">
-              <CommandGroup>
-                {options.map((option) => {
-                  const isSelected = selectedValues.includes(option);
-                  return (
-                    <CommandItem
-                      key={option}
-                      value={option}
-                      onSelect={() => {
-                        onChange(
-                          isSelected
-                            ? selectedValues.filter((value) => value !== option)
-                            : [...selectedValues, option]
-                        );
-                      }}
-                    >
-                      <Checkbox
-                        checked={isSelected}
-                        className="mr-2"
-                      />
-                      {option}
-                    </CommandItem>
-                  );
-                })}
-              </CommandGroup>
-            </ScrollArea>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
-  );
-}
-
-export default function AdminPage() {
-  const { user } = useAuth();
-  const [, navigate] = useLocation();
-  const [activeTab, setActiveTab] = useState("user-management");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [contentType, setContentType] = useState("all");
+export default function AdminPage() {  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  // State for pagination and filters
+  const [currentPage, setCurrentPage] = useState(1);  const [sectionFilter, setSectionFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [categoryFilter, setCategoryFilter] = useState<string[]>([]);
   const [recommendedFilter, setRecommendedFilter] = useState("all");
-  const [itemsPerPage, setItemsPerPage] = useState(20);
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [typeFilter, setTypeFilter] = useState("all");
+
+  // State for movie editing
   const [fullScreenEdit, setFullScreenEdit] = useState(false);
   const [currentEditMovie, setCurrentEditMovie] = useState<MovieDetailsType | null>(null);
   const [isLoadingMovieDetails, setIsLoadingMovieDetails] = useState(false);
+
+  // Constants
+  const itemsPerPage = 10;
+  const navigate = useLocation()[1];
+  const [activeTab, setActiveTab] = useState('content-management');
   
-  // State for multi-select values in edit dialog
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [selectedCountries, setSelectedCountries] = useState<string[]>([]);
+  // Add isAuthenticated variable to fix undefined error
+  const isAuthenticated = !!user;
   
   // Function to fetch full movie details
   const fetchMovieDetails = async (slug: string) => {
     setIsLoadingMovieDetails(true);
     try {
-      const response = await fetch(`/api/movies/${slug}`);
+      // Create a cache-busting URL with timestamp and a random string
+      // to ensure we get fresh data every time
+      const timestamp = Date.now();
+      const randomStr = Math.random().toString(36).substring(2, 10);
+      const url = `/api/movies/${slug}?_t=${timestamp}&r=${randomStr}&clear_cache=true`;
+      
+      console.log(`Fetching movie details from: ${url}`);
+      const response = await fetch(url, {
+        cache: 'no-store', // Tell browser to never use cache 
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      });
+      
       if (!response.ok) {
         throw new Error("Failed to fetch movie details");
       }
+      
       const data = await response.json();
-      if (data.status && data.movie) {
-        console.log("Movie data:", data.movie);
-        console.log("Category type:", Array.isArray(data.movie.category), typeof data.movie.category?.[0]);
-        console.log("Country type:", Array.isArray(data.movie.country), typeof data.movie.country?.[0]);
-        
-        setCurrentEditMovie(data.movie);
-        
-        // Ensure we're working with arrays of strings for our multi-select
-        const categories = Array.isArray(data.movie.category) 
-          ? data.movie.category.map((cat: any) => typeof cat === 'string' ? cat : (cat.name || String(cat)))
-          : [];
-        
-        const countries = Array.isArray(data.movie.country)
-          ? data.movie.country.map((country: any) => typeof country === 'string' ? country : (country.name || String(country)))
-          : [];
-        
-        setSelectedCategories(categories);
-        setSelectedCountries(countries);
-      } else {
-        throw new Error("Invalid movie data received");
+      
+      // Check if response has movie data - it could be in a few different formats
+      // depending on the API implementation
+      const movieData = data.movie || (data.status !== false && data);
+      
+      if (!movieData) {
+        throw new Error("Invalid or missing movie data");
       }
+      
+      console.log("Raw movie data from API:", movieData);
+      
+      // Ensure we have proper default values for section and isRecommended
+      const formattedMovie = {
+        ...movieData,
+        // Convert null/undefined section to "none" for the UI dropdown
+        section: movieData.section || "none", 
+        // Ensure isRecommended is a boolean - use strict equality
+        isRecommended: movieData.isRecommended === true 
+      };
+      
+      console.log("Fetched movie data:", movieData);
+      console.log("Formatted movie for editing:", {
+        section: formattedMovie.section,
+        isRecommended: formattedMovie.isRecommended
+      });
+        // Store the formatted movie in state
+      setCurrentEditMovie(formattedMovie);
+
+      setIsLoadingMovieDetails(false);
     } catch (error) {
-      console.error("Error fetching movie details:", error);
-      // If we fail to fetch details, don't clear the current movie so 
-      // we at least show what we already have
-    } finally {
+      console.error("Error fetching movie details:", error);      toast({
+        variant: "destructive",
+        title: "Error",
+        description: `Error fetching movie details: ${error instanceof Error ? error.message : 'Unknown error'}`
+      });
+      setIsLoadingMovieDetails(false);
+    }
+  };    // Function to handle movie save
+    const handleMovieSave = async () => {
+    if (!currentEditMovie) return;
+    
+    try {
+      setIsLoadingMovieDetails(true);
+      
+      // Prepare a minimal payload with only the fields we want to update
+      const payload = {        name: currentEditMovie.name,
+        slug: currentEditMovie.slug,
+        type: currentEditMovie.type || 'single',
+        status: currentEditMovie.status || 'ongoing',
+        // Handle section explicitly - if "none" is selected, set to null
+        section: currentEditMovie.section === 'none' ? null : currentEditMovie.section,
+        isRecommended: Boolean(currentEditMovie.isRecommended),
+        // Convert year to number if it's numeric, otherwise null
+        year: currentEditMovie.year ? Number(currentEditMovie.year) || null : null,
+        episode_current: currentEditMovie.episode_current || null,
+        episode_total: currentEditMovie.episode_total || null
+      };
+      
+      const response = await fetch(`/api/movies/${currentEditMovie.slug}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        let errorMessage = 'Failed to update movie';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorMessage;
+        } catch (e) {
+          // Use default error message if we can't parse the error response
+        }
+        throw new Error(errorMessage);
+      }
+
+      const result = await response.json();
+      if (!result.status) {
+        throw new Error(result.message || 'Failed to update movie');
+      }
+
+      // Show success message
+      toast({
+        description: "Movie details updated successfully",
+      });
+      
+      // Refresh data and close dialog
+      queryClient.invalidateQueries({ queryKey: ['/api/movies'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/movies/${currentEditMovie.slug}`] });
+      setFullScreenEdit(false);
+      
+    } catch (error) {
+      console.error('Error updating movie:', error);
+      toast({
+        variant: "destructive",
+        title: "An error occurred",
+        description: "Failed to update movie details. Please try again.",
+      });    } finally {
       setIsLoadingMovieDetails(false);
     }
   };
   
-  // Function to handle saving movie data
-  const handleMovieSave = () => {
-    if (!currentEditMovie) return;
-    
-    // Convert string category/country values back to objects if needed for the API
-    // This depends on what format the backend expects
-    
-    // Get form values and create updated movie object
-    // In a real implementation, we would get all form field values here
-    const updatedMovie = {
-      ...currentEditMovie,
-      category: selectedCategories,
-      country: selectedCountries,
-      // Add other form fields here
-    };
-    
-    // Here we would typically call an API to update the movie
-    console.log("Saving movie with processed data:", updatedMovie);
-    
-    // In a real implementation, we would make an API call:
-    // fetch(`/api/movies/${currentEditMovie.slug}`, {
-    //   method: 'PUT',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify(updatedMovie)
-    // })
-    
-    // Close the dialog
-    setEditDialogOpen(false);
-    
-    // Show a toast or notification
-    // toast({ title: "Success", description: "Movie updated successfully" });
-  };
-
   // Fetch real movie data
   const { data: moviesData, isLoading: isLoadingMovies, error: moviesError } = useQuery({
-    queryKey: ["/api/movies", currentPage, contentType, statusFilter, recommendedFilter, searchQuery, itemsPerPage],
+    queryKey: ["/api/movies", currentPage, sectionFilter, recommendedFilter, typeFilter, searchQuery, itemsPerPage],
     queryFn: async () => {
-      let url = `/api/movies?page=${currentPage}&limit=${itemsPerPage}`;
+      // Construct base query parameters
+      const params = new URLSearchParams({
+        page: String(currentPage),
+        limit: String(itemsPerPage)
+      });
       
-      // If search query exists, use search endpoint instead
-      if (searchQuery.trim()) {
-        url = `/api/search?keyword=${encodeURIComponent(searchQuery)}&page=${currentPage}&limit=${itemsPerPage}`;
+      // Add filter parameters
+      if (sectionFilter !== "all") {
+        params.append("section", sectionFilter);
+      }
+      
+      if (recommendedFilter === "yes") {
+        params.append("isRecommended", "true");
+      } else if (recommendedFilter === "no") {
+        params.append("isRecommended", "false");
+      }
+        if (typeFilter !== "all") {
+        // Map frontend type values to backend database values
+        if (typeFilter === "movie") {
+          params.append("type", "single");
+        } else if (typeFilter === "series") {
+          params.append("type", "series");
+        } else if (typeFilter === "anime") {
+          params.append("type", "hoathinh");
+        }
+      }
+      
+      let url: string;
+      
+      // If there are no specific filters active and we're on the content management tab,
+      // use the admin endpoint to fetch all movies by default
+      if (activeTab === "content-management" && 
+          !searchQuery.trim() && 
+          sectionFilter === "all" && 
+          recommendedFilter === "all" && 
+          typeFilter === "all") {
+        
+        url = `/api/admin/movies?${params.toString()}`;
+        console.log(`Fetching all movies from admin endpoint: ${url}`);
+      } else if (searchQuery.trim()) {
+        // If search query exists, use full-text search across multiple fields
+        params.append("q", searchQuery.trim());
+        params.append("fields", "name,origin_name,content,description,actor,director,category,country");
+        url = `/api/search?${params.toString()}`;
+        console.log(`Searching movies with filters: ${url}`);
+      } else {
+        // Use admin endpoint with filters for content management
+        url = `/api/admin/movies?${params.toString()}`;
+        console.log(`Fetching filtered movies from admin endpoint: ${url}`);
       }
       
       const response = await fetch(url);
@@ -306,61 +316,13 @@ export default function AdminPage() {
         throw new Error("Failed to fetch movies");
       }
       
-      const data = await response.json() as MovieListResponse;
-      
-      // Apply filters on client-side
-      let filteredItems = [...data.items];
-      
-      // Filter by content type
-      if (contentType !== "all") {
-        filteredItems = filteredItems.filter(movie => movie.tmdb?.type === contentType);
-      }
-      
-      // Filter by status (active/inactive)
-      if (statusFilter !== "all") {
-        const isActive = statusFilter === "active";
-        filteredItems = filteredItems.filter(movie => 
-          (movie as unknown as MovieDetailsType).active === isActive
-        );
-      }
-      
-      // Filter by recommendation status
-      if (recommendedFilter !== "all") {
-        const isRecommended = recommendedFilter === "yes";
-        filteredItems = filteredItems.filter(movie => 
-          (movie as unknown as MovieDetailsType).isRecommended === isRecommended
-        );
-      }
-      
-      // Only update totalItems/totalPages if we've applied filtering
-      if (contentType !== "all" || statusFilter !== "all" || recommendedFilter !== "all") {
-        return {
-          ...data,
-          items: filteredItems,
-          pagination: {
-            ...data.pagination,
-            totalItems: filteredItems.length,
-            totalPages: Math.ceil(filteredItems.length / itemsPerPage)
-          }
-        };
-      }
-      
-      // Otherwise keep the server-provided pagination 
-      return {
-        ...data,
-        items: filteredItems
-      };
+      return await response.json() as MovieListResponse;
     },
+    enabled: isAuthenticated,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    retry: 1
   });
 
-  // Mock data for users (keeping this for now)
-  const mockUsers = [
-    { id: 1, username: "admin", email: "admin@filmflex.com", role: "admin", status: "active", lastLogin: "2023-12-25 10:30" },
-    { id: 2, username: "moderator1", email: "mod1@filmflex.com", role: "moderator", status: "active", lastLogin: "2023-12-24 14:15" },
-    { id: 3, username: "john_doe", email: "john@example.com", role: "user", status: "active", lastLogin: "2023-12-23 09:45" },
-    { id: 4, username: "jane_smith", email: "jane@example.com", role: "user", status: "inactive", lastLogin: "2023-12-20 16:22" },
-    { id: 5, username: "viewer99", email: "viewer@example.com", role: "user", status: "active", lastLogin: "2023-12-22 11:05" },
-  ];
 
   // Mock data for audit logs
   const mockAuditLogs = [
@@ -480,67 +442,54 @@ export default function AdminPage() {
                     <div className="relative flex-1">
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input 
-                        placeholder="Search by title..." 
+                        placeholder="Search across titles, description, actors, directors, categories..." 
                         className="pl-10" 
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                       />
                     </div>
-                    <div className="flex gap-2">
-                      <Button variant="outline" onClick={() => {}} className="flex items-center gap-1">
-                        <SlidersHorizontal className="h-4 w-4" />
-                        Filters
+                    <div className="flex gap-2">                      <Button variant="outline" onClick={() => {
+                        // Reset filters
+                        setSectionFilter("all");
+                        setRecommendedFilter("all");
+                        setTypeFilter("all");
+                        setSearchQuery("");
+                        setCurrentPage(1);
+                      }} className="flex items-center gap-1">
+                        <RefreshCw className="h-4 w-4" />
+                        Reset Filters
                       </Button>
                       <Button onClick={() => setCurrentPage(1)}>
-                        <RefreshCw className="mr-2 h-4 w-4" />
-                        Refresh
+                        <Search className="mr-2 h-4 w-4" />
+                        Search
                       </Button>
                     </div>
                     <Button>
                       <Plus className="mr-2 h-4 w-4" />
                       Add Content
                     </Button>
-                  </div>
-
-                  {/* Advanced Filter Panel */}
-                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 p-4 bg-muted/20 rounded-md mb-4">
+                  </div>                  {/* Advanced Filter Panel */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 bg-muted/20 rounded-md mb-4">
                     <div>
-                      <Label htmlFor="content-type" className="text-sm font-medium block mb-2">
-                        Content Type
+                      <Label htmlFor="section-filter" className="text-sm font-medium block mb-2">
+                        Section
                       </Label>
                       <Select 
                         defaultValue="all" 
-                        value={contentType}
-                        onValueChange={(value) => setContentType(value)}
+                        value={sectionFilter}
+                        onValueChange={(value) => setSectionFilter(value)}
                       >
-                        <SelectTrigger id="content-type">
-                          <SelectValue placeholder="Select type" />
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select section" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem key="all" value="all">All Types</SelectItem>
-                          <SelectItem key="movie" value="movie">Movies</SelectItem>
-                          <SelectItem key="tv" value="tv">TV Series</SelectItem>
-                          <SelectItem key="documentary" value="documentary">Documentary</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div>
-                      <Label htmlFor="status-filter" className="text-sm font-medium block mb-2">
-                        Status
-                      </Label>
-                      <Select 
-                        defaultValue="all" 
-                        value={statusFilter}
-                        onValueChange={(value) => setStatusFilter(value)}
-                      >
-                        <SelectTrigger id="status-filter">
-                          <SelectValue placeholder="Select status" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem key="all-statuses" value="all">All Statuses</SelectItem>
-                          <SelectItem key="active-status" value="active">Active</SelectItem>
-                          <SelectItem key="inactive-status" value="inactive">Inactive</SelectItem>
+                          <SelectItem key="all-sections" value="all">All Sections</SelectItem>
+                          <SelectItem key="trending" value="trending_now">Trending Now</SelectItem>
+                          <SelectItem key="latest" value="latest_movies">Latest Movies</SelectItem>
+                          <SelectItem key="top-rated" value="top_rated">Top Rated Movies</SelectItem>
+                          <SelectItem key="popular-tv" value="popular_tv">Popular TV Series</SelectItem>
+                          <SelectItem key="anime" value="anime">Anime</SelectItem>
+                          <SelectItem key="none-section" value="none">None</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -554,7 +503,7 @@ export default function AdminPage() {
                         value={recommendedFilter}
                         onValueChange={(value) => setRecommendedFilter(value)}
                       >
-                        <SelectTrigger id="recommended-filter">
+                        <SelectTrigger>
                           <SelectValue placeholder="Recommendation status" />
                         </SelectTrigger>
                         <SelectContent>
@@ -566,22 +515,21 @@ export default function AdminPage() {
                     </div>
 
                     <div>
-                      <Label htmlFor="items-per-page" className="text-sm font-medium block mb-2">
-                        Items Per Page
+                      <Label htmlFor="type-filter" className="text-sm font-medium block mb-2">
+                        Type
                       </Label>
                       <Select 
-                        defaultValue="20" 
-                        value={itemsPerPage.toString()}
-                        onValueChange={(value) => setItemsPerPage(parseInt(value))}
+                        defaultValue="all" 
+                        value={typeFilter}
+                        onValueChange={(value) => setTypeFilter(value)}
                       >
-                        <SelectTrigger id="items-per-page">
-                          <SelectValue placeholder="Items per page" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem key="10-items" value="10">10</SelectItem>
-                          <SelectItem key="20-items" value="20">20</SelectItem>
-                          <SelectItem key="50-items" value="50">50</SelectItem>
-                          <SelectItem key="100-items" value="100">100</SelectItem>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select content type" />
+                        </SelectTrigger>                        <SelectContent>
+                          <SelectItem key="all-types" value="all">All Types</SelectItem>
+                          <SelectItem key="movie-type" value="movie">Movies</SelectItem>
+                          <SelectItem key="series-type" value="series">TV Series</SelectItem>
+                          <SelectItem key="anime-type" value="anime">Anime</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -597,9 +545,7 @@ export default function AdminPage() {
                         Error loading content data. Please try again.
                       </div>
                     ) : (
-                      <table className="w-full border-collapse">
-                        <thead>
-                          <tr className="border-b">
+                      <table className="w-full border-collapse">                        <thead>                          <tr className="border-b">
                             <th className="py-3 px-2 text-left font-medium">ID</th>
                             <th className="py-3 px-2 text-left font-medium">
                               <div className="flex items-center gap-1 cursor-pointer">
@@ -607,13 +553,7 @@ export default function AdminPage() {
                                 <ArrowUpDown className="h-3 w-3" />
                               </div>
                             </th>
-                            <th className="py-3 px-2 text-left font-medium">
-                              <div className="flex items-center gap-1 cursor-pointer">
-                                Year
-                                <ArrowUpDown className="h-3 w-3" />
-                              </div>
-                            </th>
-                            <th className="py-3 px-2 text-left font-medium">Status</th>
+                            <th className="py-3 px-2 text-left font-medium">Section</th>
                             <th className="py-3 px-2 text-center font-medium">Recommend</th>
                             <th className="py-3 px-2 text-left font-medium">Actions</th>
                           </tr>
@@ -625,8 +565,7 @@ export default function AdminPage() {
                             // Use a reliable unique key combining multiple properties
                             const uniqueKey = `movie-${movieDetails.id || movieDetails._id || movieDetails.slug || index}`;
                             return (
-                              <tr key={uniqueKey} className="border-b hover:bg-muted/10">
-                                <td className="py-4 px-2">{movieDetails.id || index + 1}</td>
+                              <tr key={uniqueKey} className="border-b hover:bg-muted/10">                                <td className="py-4 px-2">{movieDetails.id || index + 1}</td>
                                 <td className="py-4 px-2 font-medium">
                                   <div className="flex items-center">
                                     {movieDetails.thumb_url && (
@@ -641,28 +580,23 @@ export default function AdminPage() {
                                     <span>{movieDetails.name}</span>
                                   </div>
                                 </td>
-                                <td className="py-4 px-2">{movieDetails.year || "N/A"}</td>
                                 <td className="py-4 px-2">
-                                  <Badge 
-                                    variant={movieDetails.active === false ? "destructive" : "outline"}
-                                    className="flex items-center gap-1"
-                                  >
-                                    {movieDetails.active === false ? (
-                                      <>
-                                        <XCircle className="h-3 w-3" />
-                                        <span>Inactive</span>
-                                      </>
-                                    ) : (
-                                      <>
-                                        <CheckCircle className="h-3 w-3" />
-                                        <span>Active</span>
-                                      </>
-                                    )}
-                                  </Badge>
-                                </td>
-                                <td className="py-4 px-2 text-center">
+                                  {(() => {
+                                    // Convert section value to readable format
+                                    if (!movieDetails.section) return 'None';
+                                    
+                                    const sectionNames = {
+                                      'trending_now': 'Trending Now',
+                                      'latest_movies': 'Latest Movies',
+                                      'top_rated': 'Top Rated Movies',
+                                      'popular_tv': 'Popular TV Series'
+                                    };
+                                    
+                                    return sectionNames[movieDetails.section as keyof typeof sectionNames] || movieDetails.section;
+                                  })()}
+                                </td>                                <td className="py-4 px-2 text-center">
                                   <div className="flex justify-center">
-                                    {movieDetails.isRecommended ? (
+                                    {movieDetails.isRecommended === true ? (
                                       <Star className="h-5 w-5 text-amber-500 fill-amber-500" />
                                     ) : (
                                       <Star className="h-5 w-5 text-muted-foreground" />
@@ -675,24 +609,18 @@ export default function AdminPage() {
                                       variant="outline" 
                                       size="sm"
                                       onClick={() => {
-                                        // First set the basic movie data we have
-                                        setCurrentEditMovie(movie as unknown as MovieDetailsType);
-                                        // Set fullscreen edit mode
+                                        // Set loading state first
+                                        setIsLoadingMovieDetails(true);
+                                        
+                                        // Fetch movie details
+                                        fetchMovieDetails(movieDetails.slug);
+                                        
+                                        // Open the edit dialog
                                         setFullScreenEdit(true);
-                                        // Then open the dialog
-                                        setEditDialogOpen(true);
-                                        // And finally fetch the full details
-                                        fetchMovieDetails(movie.slug);
                                       }}
                                     >
+                                      <Edit className="h-4 w-4" />
                                       Edit
-                                    </Button>
-                                    <Button 
-                                      variant="outline" 
-                                      size="sm"
-                                      onClick={() => window.open(`/movie/${movie.slug}`, '_blank')}
-                                    >
-                                      Preview
                                     </Button>
                                   </div>
                                 </td>
@@ -704,214 +632,34 @@ export default function AdminPage() {
                     )}
                   </div>
 
-                  <div className="flex justify-between items-center mt-6">
+                  {/* Pagination Controls */}
+                  <div className="flex flex-col sm:flex-row items-center justify-between py-4">
                     <div className="text-sm text-muted-foreground">
-                      {moviesData?.pagination ? (
-                        <>
-                          {/* Calculate start and end item numbers more accurately */}
-                          Showing {(currentPage - 1) * itemsPerPage + 1}-
-                          {Math.min(
-                            currentPage * itemsPerPage, 
-                            // For accuracy, use items.length for filtered results instead of relying on pagination
-                            (contentType !== "all" || statusFilter !== "all" || recommendedFilter !== "all") 
-                              ? (currentPage - 1) * itemsPerPage + (moviesData?.items?.length || 0)
-                              : moviesData.pagination.totalItems
-                          )} of {moviesData.pagination.totalItems} items
-                          
-                          {/* Display whether we're using filtered counts */}
-                          {(contentType !== "all" || statusFilter !== "all" || recommendedFilter !== "all") && (
-                            <span className="ml-1 text-xs font-medium">(Filtered results)</span>
-                          )}
-                        </>
-                      ) : (
-                        "Loading..."
-                      )}
+                      Showing {moviesData?.pagination?.currentPage ?? 1} of {moviesData?.pagination?.totalPages ?? 1} pages
                     </div>
-                    <div className="flex items-center gap-4">
-                      <div className="text-sm text-muted-foreground">
-                        {/* Show a more descriptive page counter with filtering indication */}
-                        Page {currentPage} of {
-                          // When filtering is applied, use the recalculated pages
-                          (contentType !== "all" || statusFilter !== "all" || recommendedFilter !== "all")
-                            ? Math.max(Math.ceil((moviesData?.items?.length || 0) / itemsPerPage), 1)
-                            : (moviesData?.pagination?.totalPages || 1)
-                        }
-                      </div>
-                      <div className="flex gap-2">
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          disabled={currentPage <= 1 || isLoadingMovies}
-                          onClick={() => setCurrentPage(1)}
-                        >
-                          First
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          disabled={currentPage <= 1 || isLoadingMovies}
-                          onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                        >
-                          Previous
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          disabled={
-                            !moviesData?.pagination || 
-                            isLoadingMovies || 
-                            (
-                              // When filtering, use the calculated page count based on filtered items
-                              (contentType !== "all" || statusFilter !== "all" || recommendedFilter !== "all")
-                                ? currentPage >= Math.max(Math.ceil((moviesData?.items?.length || 0) / itemsPerPage), 1) 
-                                : currentPage >= moviesData.pagination.totalPages
-                            )
-                          }
-                          onClick={() => setCurrentPage(prev => prev + 1)}
-                        >
-                          Next
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          disabled={
-                            !moviesData?.pagination || 
-                            isLoadingMovies || 
-                            (
-                              // When filtering, use the calculated page count based on filtered items
-                              (contentType !== "all" || statusFilter !== "all" || recommendedFilter !== "all") 
-                                ? currentPage >= Math.max(Math.ceil((moviesData?.items?.length || 0) / itemsPerPage), 1)
-                                : currentPage >= moviesData.pagination.totalPages
-                            )
-                          }
-                          onClick={() => {
-                            if (!moviesData?.pagination) return;
-                            
-                            // When filtering, go to max calculated page, otherwise go to server-provided max page
-                            if (contentType !== "all" || statusFilter !== "all" || recommendedFilter !== "all") {
-                              const maxPage = Math.max(Math.ceil((moviesData?.items?.length || 0) / itemsPerPage), 1);
-                              setCurrentPage(maxPage);
-                            } else {
-                              setCurrentPage(moviesData.pagination.totalPages);
-                            }
-                          }}
-                        >
-                          Last
-                        </Button>
-                      </div>
+                    <div className="flex gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                        disabled={currentPage === 1}
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                        Previous
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => setCurrentPage((prev) => Math.min(prev + 1, moviesData?.pagination?.totalPages ?? 1))}
+                        disabled={currentPage === (moviesData?.pagination?.totalPages ?? 1)}
+                      >
+                        Next
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
                 </CardContent>
               </Card>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Content Approval</CardTitle>
-                    <CardDescription>Review and approve new content</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="p-3 border rounded-md">
-                        <div className="flex justify-between mb-2">
-                          <div className="font-medium">Interstellar</div>
-                          <Badge variant="warning">Pending</Badge>
-                        </div>
-                        <div className="text-sm text-muted-foreground mb-2">Submitted by: content_editor</div>
-                        <div className="flex gap-2 mt-2">
-                          <Button size="sm" variant="default">Approve</Button>
-                          <Button size="sm" variant="outline">Reject</Button>
-                        </div>
-                      </div>
-                      <div className="p-3 border rounded-md">
-                        <div className="flex justify-between mb-2">
-                          <div className="font-medium">The Witcher S3</div>
-                          <Badge variant="warning">Pending</Badge>
-                        </div>
-                        <div className="text-sm text-muted-foreground mb-2">Submitted by: netflix_admin</div>
-                        <div className="flex gap-2 mt-2">
-                          <Button size="sm" variant="default">Approve</Button>
-                          <Button size="sm" variant="outline">Reject</Button>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Content Categories</CardTitle>
-                    <CardDescription>Manage content categories and tags</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex flex-col space-y-2 mb-4">
-                      <label className="text-sm font-medium">Create Category</label>
-                      <div className="flex gap-2">
-                        <Input placeholder="New category name" />
-                        <Button>Add</Button>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-center p-2 border rounded">
-                        <div>Action</div>
-                        <Button size="sm" variant="ghost">Edit</Button>
-                      </div>
-                      <div className="flex justify-between items-center p-2 border rounded">
-                        <div>Comedy</div>
-                        <Button size="sm" variant="ghost">Edit</Button>
-                      </div>
-                      <div className="flex justify-between items-center p-2 border rounded">
-                        <div>Drama</div>
-                        <Button size="sm" variant="ghost">Edit</Button>
-                      </div>
-                      <div className="flex justify-between items-center p-2 border rounded">
-                        <div>Sci-Fi</div>
-                        <Button size="sm" variant="ghost">Edit</Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Content Guidelines</CardTitle>
-                    <CardDescription>Set content standards and guidelines</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="flex flex-col space-y-2">
-                        <div className="flex items-center justify-between">
-                          <div className="font-medium">Age Rating Requirements</div>
-                          <Button variant="ghost" size="sm">Edit</Button>
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          All content must have appropriate age ratings
-                        </div>
-                      </div>
-                      <Separator />
-                      <div className="flex flex-col space-y-2">
-                        <div className="flex items-center justify-between">
-                          <div className="font-medium">Content Quality Standards</div>
-                          <Button variant="ghost" size="sm">Edit</Button>
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          Minimum video quality: 720p, clear audio required
-                        </div>
-                      </div>
-                      <Separator />
-                      <div className="flex flex-col space-y-2">
-                        <div className="flex items-center justify-between">
-                          <div className="font-medium">Prohibited Content</div>
-                          <Button variant="ghost" size="sm">Edit</Button>
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          Guidelines for content that violates platform terms
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
             </>
           )}
 
@@ -921,267 +669,420 @@ export default function AdminPage() {
               <Card>
                 <CardHeader>
                   <CardTitle>System Settings</CardTitle>
-                  <CardDescription>Configure platform-wide settings including notifications and branding</CardDescription>
+                  <CardDescription>Configure system-wide settings and preferences</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <Tabs defaultValue="general">
-                    <TabsList className="grid w-full grid-cols-4">
-                      <TabsTrigger value="general">General</TabsTrigger>
-                      <TabsTrigger value="emails">Email Templates</TabsTrigger>
-                      <TabsTrigger value="themes">Theme Settings</TabsTrigger>
-                      <TabsTrigger value="integrations">Integrations</TabsTrigger>
-                    </TabsList>
-                    
-                    <TabsContent value="general" className="space-y-6 pt-4">
-                      <div className="grid gap-4">
-                        <div className="space-y-2">
-                          <h3 className="text-lg font-medium">Platform Settings</h3>
-                          <div className="flex justify-between items-center border p-4 rounded-md">
-                            <div>
-                              <div className="font-medium">Maintenance Mode</div>
-                              <div className="text-sm text-muted-foreground">
-                                Enable maintenance mode to prevent user access
-                              </div>
-                            </div>
-                            <Switch />
-                          </div>
-                          
-                          <div className="flex justify-between items-center border p-4 rounded-md">
-                            <div>
-                              <div className="font-medium">User Registration</div>
-                              <div className="text-sm text-muted-foreground">
-                                Allow new user registrations
-                              </div>
-                            </div>
-                            <Switch defaultChecked />
-                          </div>
-                          
-                          <div className="flex justify-between items-center border p-4 rounded-md">
-                            <div>
-                              <div className="font-medium">Content Moderation</div>
-                              <div className="text-sm text-muted-foreground">
-                                Enable manual review for user-submitted content
-                              </div>
-                            </div>
-                            <Switch defaultChecked />
-                          </div>
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <h3 className="text-lg font-medium">Cache Settings</h3>
-                          <div className="grid gap-2">
-                            <div className="flex items-center justify-between border p-4 rounded-md">
-                              <div>
-                                <div className="font-medium">Clear Application Cache</div>
-                                <div className="text-sm text-muted-foreground">
-                                  Last cleared: 2 days ago
-                                </div>
-                              </div>
-                              <Button>
-                                <RefreshCw className="mr-2 h-4 w-4" />
-                                Clear Cache
-                              </Button>
-                            </div>
-                            
-                            <div className="flex items-center justify-between border p-4 rounded-md">
-                              <div>
-                                <div className="font-medium">Cache Expiry (hours)</div>
-                                <div className="text-sm text-muted-foreground">
-                                  How long to cache API responses
-                                </div>
-                              </div>
-                              <div className="w-32">
-                                <Input type="number" defaultValue="24" />
-                              </div>
-                            </div>
-                          </div>
-                        </div>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="site-title" className="block text-sm font-medium mb-2">
+                        Site Title
+                      </Label>
+                      <Input 
+                        id="site-title"
+                        placeholder="Enter the site title"
+                        value="FilmFlex Admin"
+                        onChange={() => {}}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="site-url" className="block text-sm font-medium mb-2">
+                        Site URL
+                      </Label>
+                      <Input 
+                        id="site-url"
+                        placeholder="Enter the site URL"
+                        value="https://admin.filmflex.com"
+                        onChange={() => {}}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="admin-email" className="block text-sm font-medium mb-2">
+                        Admin Email
+                      </Label>
+                      <Input 
+                        id="admin-email"
+                        placeholder="Enter the admin email"
+                        value="admin@filmflex.com"
+                        onChange={() => {}}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="support-email" className="block text-sm font-medium mb-2">
+                        Support Email
+                      </Label>
+                      <Input 
+                        id="support-email"
+                        placeholder="Enter the support email"
+                        value="support@filmflex.com"
+                        onChange={() => {}}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="site-description" className="block text-sm font-medium mb-2">
+                        Site Description
+                      </Label>
+                      <Textarea 
+                        id="site-description"
+                        placeholder="Enter a brief description of the site"
+                        value="A premier platform for watching and sharing films and TV shows."
+                        onChange={() => {}}
+                        rows={3}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="site-keywords" className="block text-sm font-medium mb-2">
+                        Site Keywords
+                      </Label>
+                      <Input 
+                        id="site-keywords"
+                        placeholder="Enter keywords separated by commas"
+                        value="films, movies, tv shows, streaming"
+                        onChange={() => {}}
+                      />
+                    </div>
+                    <div>
+                      <Label id="timezone-label" className="block text-sm font-medium mb-2">
+                        Timezone
+                      </Label>
+                      <Select 
+                        defaultValue="UTC"
+                        onValueChange={() => {}}
+                        aria-labelledby="timezone-label"
+                      >
+                        <SelectTrigger aria-label="timezone">
+                          <SelectValue placeholder="Select timezone" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="UTC">UTC</SelectItem>
+                          <SelectItem value="GMT">GMT</SelectItem>
+                          <SelectItem value="CET">CET</SelectItem>
+                          <SelectItem value="EST">EST</SelectItem>
+                          <SelectItem value="PST">PST</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label id="language-label" className="block text-sm font-medium mb-2">
+                        Language
+                      </Label>
+                      <Select 
+                        defaultValue="en"
+                        onValueChange={() => {}}
+                        aria-labelledby="language-label"
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select language" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="en">English</SelectItem>
+                          <SelectItem value="vi">Vietnamese</SelectItem>
+                          <SelectItem value="fr">French</SelectItem>
+                          <SelectItem value="es">Spanish</SelectItem>
+                          <SelectItem value="de">German</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label id="currency-label" className="block text-sm font-medium mb-2">
+                        Currency
+                      </Label>
+                      <Select 
+                        defaultValue="USD"
+                        onValueChange={() => {}}
+                        aria-labelledby="currency-label"
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select currency" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="USD">USD</SelectItem>
+                          <SelectItem value="EUR">EUR</SelectItem>
+                          <SelectItem value="GBP">GBP</SelectItem>
+                          <SelectItem value="JPY">JPY</SelectItem>
+                          <SelectItem value="VND">VND</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label id="payment-gateway-label" className="block text-sm font-medium mb-2">
+                        Payment Gateway
+                      </Label>
+                      <Select 
+                        defaultValue="stripe"
+                        onValueChange={() => {}}
+                        aria-labelledby="payment-gateway-label"
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select payment gateway" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="stripe">Stripe</SelectItem>
+                          <SelectItem value="paypal">PayPal</SelectItem>
+                          <SelectItem value="square">Square</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="site-logo" className="block text-sm font-medium mb-2">
+                        Site Logo
+                      </Label>
+                      <div className="flex items-center gap-2">
+                        <AvatarFallback className="w-12 h-12 rounded-full bg-muted">
+                          <span className="text-xl font-semibold">FL</span>
+                        </AvatarFallback>
+                        <Button variant="outline" size="sm">
+                          <Upload className="mr-2 h-4 w-4" />
+                          Upload Logo
+                        </Button>
                       </div>
-                    </TabsContent>
-                    
-                    <TabsContent value="emails" className="space-y-6 pt-4">
-                      <div className="grid gap-4">
-                        <div className="space-y-2">
-                          <h3 className="text-lg font-medium">Email Templates</h3>
-                          <div className="grid gap-2">
-                            <div className="flex items-center justify-between border p-4 rounded-md">
-                              <div>
-                                <div className="font-medium">Welcome Email</div>
-                                <div className="text-sm text-muted-foreground">
-                                  Sent when new users register
-                                </div>
-                              </div>
-                              <Button variant="outline">Edit Template</Button>
-                            </div>
-                            
-                            <div className="flex items-center justify-between border p-4 rounded-md">
-                              <div>
-                                <div className="font-medium">Password Reset</div>
-                                <div className="text-sm text-muted-foreground">
-                                  Sent when users request password reset
-                                </div>
-                              </div>
-                              <Button variant="outline">Edit Template</Button>
-                            </div>
-                            
-                            <div className="flex items-center justify-between border p-4 rounded-md">
-                              <div>
-                                <div className="font-medium">New Content Alert</div>
-                                <div className="text-sm text-muted-foreground">
-                                  Sent when new content is available
-                                </div>
-                              </div>
-                              <Button variant="outline">Edit Template</Button>
-                            </div>
-                          </div>
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <h3 className="text-lg font-medium">Email Settings</h3>
-                          <div className="grid gap-2">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              <div className="space-y-2">
-                                <label className="text-sm font-medium">SMTP Server</label>
-                                <Input placeholder="smtp.example.com" />
-                              </div>
-                              <div className="space-y-2">
-                                <label className="text-sm font-medium">SMTP Port</label>
-                                <Input type="number" placeholder="587" />
-                              </div>
-                              <div className="space-y-2">
-                                <label className="text-sm font-medium">Email From</label>
-                                <Input placeholder="noreply@filmflex.com" />
-                              </div>
-                              <div className="space-y-2">
-                                <label className="text-sm font-medium">Reply-To Email</label>
-                                <Input placeholder="support@filmflex.com" />
-                              </div>
-                            </div>
-                            <Button className="mt-2">Save Email Settings</Button>
-                          </div>
-                        </div>
+                    </div>
+                    <div>
+                      <Label htmlFor="favicon" className="block text-sm font-medium mb-2">
+                        Favicon
+                      </Label>
+                      <div className="flex items-center gap-2">
+                        <AvatarFallback className="w-10 h-10 rounded-full bg-muted">
+                          <span className="text-xl font-semibold">F</span>
+                        </AvatarFallback>
+                        <Button variant="outline" size="sm">
+                          <Upload className="mr-2 h-4 w-4" />
+                          Upload Favicon
+                        </Button>
                       </div>
-                    </TabsContent>
-                    
-                    <TabsContent value="themes" className="space-y-6 pt-4">
-                      <div className="grid gap-4">
-                        <div className="space-y-2">
-                          <h3 className="text-lg font-medium">Theme Configuration</h3>
-                          <div className="grid gap-4">
-                            <div className="space-y-2">
-                              <label className="text-sm font-medium">Primary Color</label>
-                              <div className="flex gap-2">
-                                <div className="w-8 h-8 rounded bg-primary"></div>
-                                <Input type="text" defaultValue="#0070f3" />
-                              </div>
-                            </div>
-                            
-                            <div className="space-y-2">
-                              <label className="text-sm font-medium">Logo</label>
-                              <div className="flex items-center gap-4">
-                                <div className="w-16 h-16 border rounded flex items-center justify-center font-bold text-xl">
-                                  FF
-                                </div>
-                                <Button variant="outline">Upload New Logo</Button>
-                              </div>
-                            </div>
-                            
-                            <div className="space-y-2">
-                              <label className="text-sm font-medium">Default Theme</label>
-                              <Select defaultValue="dark">
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select theme" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="light">Light Theme</SelectItem>
-                                  <SelectItem value="dark">Dark Theme</SelectItem>
-                                  <SelectItem value="system">System Preference</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            
-                            <div className="flex justify-between items-center border p-4 rounded-md">
-                              <div>
-                                <div className="font-medium">Allow User Theme Selection</div>
-                                <div className="text-sm text-muted-foreground">
-                                  Users can choose their preferred theme
-                                </div>
-                              </div>
-                              <Switch defaultChecked />
-                            </div>
-                            
-                            <Button>Save Theme Settings</Button>
-                          </div>
-                        </div>
-                      </div>
-                    </TabsContent>
-                    
-                    <TabsContent value="integrations" className="space-y-6 pt-4">
-                      <div className="grid gap-4">
-                        <div className="space-y-2">
-                          <h3 className="text-lg font-medium">API Integrations</h3>
-                          <div className="grid gap-2">
-                            <div className="flex items-center justify-between border p-4 rounded-md">
-                              <div>
-                                <div className="font-medium">TMDB Integration</div>
-                                <div className="text-sm text-muted-foreground">
-                                  The Movie Database API for movie information
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <Badge variant="success">Connected</Badge>
-                                <Button variant="outline" size="sm">Configure</Button>
-                              </div>
-                            </div>
-                            
-                            <div className="flex items-center justify-between border p-4 rounded-md">
-                              <div>
-                                <div className="font-medium">PayPal Integration</div>
-                                <div className="text-sm text-muted-foreground">
-                                  Payment processing with PayPal
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <Badge variant="outline">Disconnected</Badge>
-                                <Button variant="outline" size="sm">Connect</Button>
-                              </div>
-                            </div>
-                            
-                            <div className="flex items-center justify-between border p-4 rounded-md">
-                              <div>
-                                <div className="font-medium">Google Analytics</div>
-                                <div className="text-sm text-muted-foreground">
-                                  Track user behavior and site metrics
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <Badge variant="success">Connected</Badge>
-                                <Button variant="outline" size="sm">Configure</Button>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <h3 className="text-lg font-medium">Add New Integration</h3>
-                          <div className="grid gap-4">
-                            <Select>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select integration type" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="payment">Payment Gateway</SelectItem>
-                                <SelectItem value="analytics">Analytics Service</SelectItem>
-                                <SelectItem value="content">Content Provider</SelectItem>
-                                <SelectItem value="social">Social Media</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <Button>Add Integration</Button>
-                          </div>
-                        </div>
-                      </div>
-                    </TabsContent>
-                  </Tabs>
+                    </div>
+                    <div>
+                      <Label htmlFor="email-smtp" className="block text-sm font-medium mb-2">
+                        SMTP Server
+                      </Label>
+                      <Input 
+                        id="email-smtp"
+                        placeholder="Enter SMTP server address"
+                        value="smtp.filmflex.com"
+                        onChange={() => {}}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="email-port" className="block text-sm font-medium mb-2">
+                        SMTP Port
+                      </Label>
+                      <Input 
+                        id="email-port"
+                        placeholder="Enter SMTP server port"
+                        value="587"
+                        onChange={() => {}}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="email-user" className="block text-sm font-medium mb-2">
+                        SMTP Username
+                      </Label>
+                      <Input 
+                        id="email-user"
+                        placeholder="Enter SMTP username"
+                        value="admin@filmflex.com"
+                        onChange={() => {}}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="email-pass" className="block text-sm font-medium mb-2">
+                        SMTP Password
+                      </Label>
+                      <Input 
+                        id="email-pass"
+                        placeholder="Enter SMTP password"
+                        value="********"
+                        onChange={() => {}}
+                        type="password"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="email-from" className="block text-sm font-medium mb-2">
+                        Email From Address
+                      </Label>
+                      <Input 
+                        id="email-from"
+                        placeholder="Enter the from address for emails"
+                        value="no-reply@filmflex.com"
+                        onChange={() => {}}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="email-name" className="block text-sm font-medium mb-2">
+                        Email From Name
+                      </Label>
+                      <Input 
+                        id="email-name"
+                        placeholder="Enter the from name for emails"
+                        value="FilmFlex Support"
+                        onChange={() => {}}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="recaptcha-site" className="block text-sm font-medium mb-2">
+                        reCAPTCHA Site Key
+                      </Label>
+                      <Input 
+                        id="recaptcha-site"
+                        placeholder="Enter reCAPTCHA site key"
+                        value="6Lc_aCQUAAAAA..."
+                        onChange={() => {}}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="recaptcha-secret" className="block text-sm font-medium mb-2">
+                        reCAPTCHA Secret Key
+                      </Label>
+                      <Input 
+                        id="recaptcha-secret"
+                        placeholder="Enter reCAPTCHA secret key"
+                        value="6Lc_aCQUAAAAA..."
+                        onChange={() => {}}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="maintenance-mode" className="block text-sm font-medium mb-2">
+                        Maintenance Mode
+                      </Label>
+                      <Switch 
+                        id="maintenance-mode"
+                        checked={false}
+                        onCheckedChange={() => {}}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="analytics-id" className="block text-sm font-medium mb-2">
+                        Google Analytics ID
+                      </Label>
+                      <Input 
+                        id="analytics-id"
+                        placeholder="Enter Google Analytics ID"
+                        value="UA-XXXXXXXXX-X"
+                        onChange={() => {}}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="stripe-key" className="block text-sm font-medium mb-2">
+                        Stripe Publishable Key
+                      </Label>
+                      <Input 
+                        id="stripe-key"
+                        placeholder="Enter Stripe publishable key"
+                        value="pk_test_XXXXXXXXXXXXXXXX"
+                        onChange={() => {}}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="stripe-secret" className="block text-sm font-medium mb-2">
+                        Stripe Secret Key
+                      </Label>
+                      <Input 
+                        id="stripe-secret"
+                        placeholder="Enter Stripe secret key"
+                        value="sk_test_XXXXXXXXXXXXXXXX"
+                        onChange={() => {}}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="paypal-client" className="block text-sm font-medium mb-2">
+                        PayPal Client ID
+                      </Label>
+                      <Input 
+                        id="paypal-client"
+                        placeholder="Enter PayPal client ID"
+                        value="AXXXXXXXXXXXXXXXXXX"
+                        onChange={() => {}}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="paypal-secret" className="block text-sm font-medium mb-2">
+                        PayPal Secret
+                      </Label>
+                      <Input 
+                        id="paypal-secret"
+                        placeholder="Enter PayPal secret"
+                        value="XXXXXXXXXXXXXXXXX"
+                        onChange={() => {}}
+                      />
+                    </div>
+                    <div>
+                      <Label id="site-status-label" className="block text-sm font-medium mb-2">
+                        Site Status
+                      </Label>
+                      <Select 
+                        defaultValue="online"
+                        onValueChange={() => {}}
+                        aria-labelledby="site-status-label"
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select site status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="online">Online</SelectItem>
+                          <SelectItem value="offline">Offline</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label id="admin-lockout-label" className="block text-sm font-medium mb-2">
+                        Admin Lockout Duration
+                      </Label>
+                      <Select 
+                        defaultValue="15"
+                        onValueChange={() => {}}
+                        aria-labelledby="admin-lockout-label"
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select duration" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="5">5 minutes</SelectItem>
+                          <SelectItem value="15">15 minutes</SelectItem>
+                          <SelectItem value="30">30 minutes</SelectItem>
+                          <SelectItem value="60">1 hour</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label id="session-timeout-label" className="block text-sm font-medium mb-2">
+                        Session Timeout
+                      </Label>
+                      <Select 
+                        defaultValue="30"
+                        onValueChange={() => {}}
+                        aria-labelledby="session-timeout-label"
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select timeout" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="5">5 minutes</SelectItem>
+                          <SelectItem value="15">15 minutes</SelectItem>
+                          <SelectItem value="30">30 minutes</SelectItem>
+                          <SelectItem value="60">1 hour</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="password-requirements" className="block text-sm font-medium mb-2">
+                        Password Requirements
+                      </Label>
+                      <Textarea 
+                        id="password-requirements"
+                        placeholder="Enter password requirements"
+                        value="Minimum 8 characters, at least 1 uppercase letter, 1 lowercase letter, 1 number, 1 special character"
+                        onChange={() => {}}
+                        rows={3}
+                      />
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <Button variant="default" onClick={() => {}}>
+                        Save Changes
+                      </Button>
+                      <Button variant="outline" onClick={() => {}}>
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             </>
@@ -1192,187 +1093,110 @@ export default function AdminPage() {
             <>
               <Card>
                 <CardHeader>
-                  <CardTitle>Analytics Dashboard</CardTitle>
-                  <CardDescription>View platform usage, revenue, and growth metrics</CardDescription>
+                  <CardTitle>Analytics</CardTitle>
+                  <CardDescription>View and analyze site usage and performance</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                    <Card>
-                      <CardContent className="pt-6">
-                        <div className="text-2xl font-bold">28.5K</div>
-                        <p className="text-xs text-muted-foreground">Total Users</p>
-                        <div className="text-xs text-green-500 mt-2">
-                          +12.4% from last month
-                        </div>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="pt-6">
-                        <div className="text-2xl font-bold">186K</div>
-                        <p className="text-xs text-muted-foreground">Total Views</p>
-                        <div className="text-xs text-green-500 mt-2">
-                          +5.8% from last month
-                        </div>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="pt-6">
-                        <div className="text-2xl font-bold">$28.4K</div>
-                        <p className="text-xs text-muted-foreground">Monthly Revenue</p>
-                        <div className="text-xs text-green-500 mt-2">
-                          +18.2% from last month
-                        </div>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="pt-6">
-                        <div className="text-2xl font-bold">4.7/5</div>
-                        <p className="text-xs text-muted-foreground">Average Rating</p>
-                        <div className="text-xs text-green-500 mt-2">
-                          +0.3 from last month
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-
-                  <div className="border rounded-md p-6 mb-6">
-                    <h3 className="font-medium mb-4">User Growth</h3>
-                    <div className="h-64 flex items-center justify-center bg-muted/20 rounded">
-                      <p className="text-muted-foreground">Graph visualization would be here</p>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="analytics-google" className="block text-sm font-medium mb-2">
+                        Google Analytics
+                      </Label>
+                      <Input 
+                        id="analytics-google"
+                        placeholder="Enter your Google Analytics ID"
+                        value="UA-XXXXXXXXX-X"
+                        onChange={() => {}}
+                      />
                     </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="border rounded-md p-6">
-                      <h3 className="font-medium mb-4">Most Watched Content</h3>
-                      <div className="space-y-4">
-                        {isLoadingMovies ? (
-                          <div className="text-sm text-muted-foreground">Loading content data...</div>
-                        ) : moviesError ? (
-                          <div className="text-sm text-destructive">Error loading content data</div>
-                        ) : moviesData?.items.slice(0, 3).map((movie, index) => (
-                          <div key={movie._id} className="flex justify-between items-center">
-                            <div>
-                              <div className="font-medium">{movie.name}</div>
-                              <div className="text-sm text-muted-foreground">
-                                {(1000 * (3 - index)).toLocaleString()} views
-                              </div>
-                            </div>
-                            <Badge variant={movie.tmdb?.type === "movie" ? "default" : "secondary"}>
-                              {movie.tmdb?.type || "unknown"}
-                            </Badge>
-                          </div>
-                        ))}
-                      </div>
+                    <div>
+                      <Label htmlFor="analytics-facebook" className="block text-sm font-medium mb-2">
+                        Facebook Pixel
+                      </Label>
+                      <Input 
+                        id="analytics-facebook"
+                        placeholder="Enter your Facebook Pixel ID"
+                        value="1234567890"
+                        onChange={() => {}}
+                      />
                     </div>
-
-                    <div className="border rounded-md p-6">
-                      <h3 className="font-medium mb-4">User Demographics</h3>
-                      <div className="h-48 flex items-center justify-center bg-muted/20 rounded">
-                        <p className="text-muted-foreground">Demographics chart would be here</p>
-                      </div>
+                    <div>
+                      <Label htmlFor="analytics-twitter" className="block text-sm font-medium mb-2">
+                        Twitter Analytics
+                      </Label>
+                      <Input 
+                        id="analytics-twitter"
+                        placeholder="Enter your Twitter Analytics ID"
+                        value="XXXXXXXXXXXX"
+                        onChange={() => {}}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="analytics-linkedin" className="block text-sm font-medium mb-2">
+                        LinkedIn Insight Tag
+                      </Label>
+                      <Input 
+                        id="analytics-linkedin"
+                        placeholder="Enter your LinkedIn Insight Tag ID"
+                        value="123456789"
+                        onChange={() => {}}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="analytics-pinterest" className="block text-sm font-medium mb-2">
+                        Pinterest Tag
+                      </Label>
+                      <Input 
+                        id="analytics-pinterest"
+                        placeholder="Enter your Pinterest Tag ID"
+                        value="1234567890"
+                        onChange={() => {}}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="analytics-tiktok" className="block text-sm font-medium mb-2">
+                        TikTok Pixel
+                      </Label>
+                      <Input 
+                        id="analytics-tiktok"
+                        placeholder="Enter your TikTok Pixel ID"
+                        value="1234567890"
+                        onChange={() => {}}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="analytics-snapchat" className="block text-sm font-medium mb-2">
+                        Snapchat Pixel
+                      </Label>
+                      <Input 
+                        id="analytics-snapchat"
+                        placeholder="Enter your Snapchat Pixel ID"
+                        value="1234567890"
+                        onChange={() => {}}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="analytics-utm" className="block text-sm font-medium mb-2">
+                        UTM Parameters
+                      </Label>
+                      <Input 
+                        id="analytics-utm"
+                        placeholder="Enter default UTM parameters"
+                        value="utm_source=filmflex&utm_medium=admin&utm_campaign=analytics"
+                        onChange={() => {}}
+                      />
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <Button variant="default" onClick={() => {}}>
+                        Save Changes
+                      </Button>
+                      <Button variant="outline" onClick={() => {}}>
+                        Cancel
+                      </Button>
                     </div>
                   </div>
                 </CardContent>
               </Card>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Custom Reports</CardTitle>
-                    <CardDescription>Generate and schedule custom reports</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="grid gap-2">
-                        <label className="text-sm font-medium">Report Type</label>
-                        <Select defaultValue="user-activity">
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select report type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="user-activity">User Activity Report</SelectItem>
-                            <SelectItem value="content-performance">Content Performance</SelectItem>
-                            <SelectItem value="revenue">Revenue Analysis</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="grid gap-2">
-                        <label className="text-sm font-medium">Date Range</label>
-                        <div className="grid grid-cols-2 gap-2">
-                          <Input type="date" />
-                          <Input type="date" />
-                        </div>
-                      </div>
-
-                      <div className="grid gap-2">
-                        <label className="text-sm font-medium">Format</label>
-                        <Select defaultValue="csv">
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select format" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="csv">CSV</SelectItem>
-                            <SelectItem value="pdf">PDF</SelectItem>
-                            <SelectItem value="xlsx">Excel</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <Button className="w-full">Generate Report</Button>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Scheduled Reports</CardTitle>
-                    <CardDescription>Manage your scheduled reports</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-center p-3 border rounded-md">
-                        <div>
-                          <div className="font-medium">Weekly User Activity</div>
-                          <div className="text-sm text-muted-foreground">Every Monday at 9:00 AM</div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline">Active</Badge>
-                          <Button variant="ghost" size="sm">Edit</Button>
-                        </div>
-                      </div>
-
-                      <div className="flex justify-between items-center p-3 border rounded-md">
-                        <div>
-                          <div className="font-medium">Monthly Revenue Report</div>
-                          <div className="text-sm text-muted-foreground">1st of each month</div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline">Active</Badge>
-                          <Button variant="ghost" size="sm">Edit</Button>
-                        </div>
-                      </div>
-
-                      <div className="flex justify-between items-center p-3 border rounded-md">
-                        <div>
-                          <div className="font-medium">Content Performance</div>
-                          <div className="text-sm text-muted-foreground">Every Friday at 5:00 PM</div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline">Active</Badge>
-                          <Button variant="ghost" size="sm">Edit</Button>
-                        </div>
-                      </div>
-
-                      <Button variant="outline" className="w-full">
-                        <Plus className="mr-2 h-4 w-4" />
-                        Add Scheduled Report
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
             </>
           )}
 
@@ -1382,234 +1206,117 @@ export default function AdminPage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Security Settings</CardTitle>
-                  <CardDescription>Configure security and compliance settings</CardDescription>
+                  <CardDescription>Manage security settings and access controls</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <Tabs defaultValue="authentication">
-                    <TabsList className="grid w-full grid-cols-3">
-                      <TabsTrigger value="authentication">Authentication</TabsTrigger>
-                      <TabsTrigger value="privacy">Privacy Settings</TabsTrigger>
-                      <TabsTrigger value="monitoring">Monitoring</TabsTrigger>
-                    </TabsList>
-                    
-                    <TabsContent value="authentication" className="space-y-6 pt-4">
-                      <div className="grid gap-4">
-                        <div className="space-y-2">
-                          <h3 className="text-lg font-medium">Password Policies</h3>
-                          <div className="space-y-4">
-                            <div className="flex justify-between items-center border p-4 rounded-md">
-                              <div>
-                                <div className="font-medium">Minimum Password Length</div>
-                                <div className="text-sm text-muted-foreground">
-                                  Minimum characters required for passwords
-                                </div>
-                              </div>
-                              <div className="w-20">
-                                <Input type="number" defaultValue="8" min="6" max="24" />
-                              </div>
-                            </div>
-                            
-                            <div className="flex justify-between items-center border p-4 rounded-md">
-                              <div>
-                                <div className="font-medium">Password Complexity</div>
-                                <div className="text-sm text-muted-foreground">
-                                  Require uppercase, lowercase, numbers, and special characters
-                                </div>
-                              </div>
-                              <Switch defaultChecked />
-                            </div>
-                            
-                            <div className="flex justify-between items-center border p-4 rounded-md">
-                              <div>
-                                <div className="font-medium">Password Expiry</div>
-                                <div className="text-sm text-muted-foreground">
-                                  Force password changes every 90 days
-                                </div>
-                              </div>
-                              <Switch />
-                            </div>
-                          </div>
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <h3 className="text-lg font-medium">Two-Factor Authentication</h3>
-                          <div className="space-y-4">
-                            <div className="flex justify-between items-center border p-4 rounded-md">
-                              <div>
-                                <div className="font-medium">Enable 2FA</div>
-                                <div className="text-sm text-muted-foreground">
-                                  Require two-factor authentication for all admin users
-                                </div>
-                              </div>
-                              <Switch defaultChecked />
-                            </div>
-                            
-                            <div className="flex justify-between items-center border p-4 rounded-md">
-                              <div>
-                                <div className="font-medium">2FA Methods</div>
-                                <div className="text-sm text-muted-foreground">
-                                  Select available authentication methods
-                                </div>
-                              </div>
-                              <Button variant="outline">Configure</Button>
-                            </div>
-                          </div>
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <h3 className="text-lg font-medium">Login Attempts</h3>
-                          <div className="flex justify-between items-center border p-4 rounded-md">
-                            <div>
-                              <div className="font-medium">Login Lockout</div>
-                              <div className="text-sm text-muted-foreground">
-                                Lock account after 5 failed attempts
-                              </div>
-                            </div>
-                            <Switch defaultChecked />
-                          </div>
-                        </div>
-                      </div>
-                    </TabsContent>
-                    
-                    <TabsContent value="privacy" className="space-y-6 pt-4">
-                      <div className="grid gap-4">
-                        <div className="space-y-2">
-                          <h3 className="text-lg font-medium">Data Retention</h3>
-                          <div className="space-y-4">
-                            <div className="flex justify-between items-center border p-4 rounded-md">
-                              <div>
-                                <div className="font-medium">User Data Retention</div>
-                                <div className="text-sm text-muted-foreground">
-                                  How long to keep inactive user data (months)
-                                </div>
-                              </div>
-                              <div className="w-20">
-                                <Input type="number" defaultValue="24" />
-                              </div>
-                            </div>
-                            
-                            <div className="flex justify-between items-center border p-4 rounded-md">
-                              <div>
-                                <div className="font-medium">Activity Logs Retention</div>
-                                <div className="text-sm text-muted-foreground">
-                                  How long to keep activity logs (months)
-                                </div>
-                              </div>
-                              <div className="w-20">
-                                <Input type="number" defaultValue="12" />
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <h3 className="text-lg font-medium">Cookie & Privacy Settings</h3>
-                          <div className="space-y-4">
-                            <div className="flex justify-between items-center border p-4 rounded-md">
-                              <div>
-                                <div className="font-medium">Cookie Consent</div>
-                                <div className="text-sm text-muted-foreground">
-                                  Require cookie consent banner
-                                </div>
-                              </div>
-                              <Switch defaultChecked />
-                            </div>
-                            
-                            <div className="flex justify-between items-center border p-4 rounded-md">
-                              <div>
-                                <div className="font-medium">Privacy Policy</div>
-                                <div className="text-sm text-muted-foreground">
-                                  Last updated: Dec 12, 2023
-                                </div>
-                              </div>
-                              <Button variant="outline">Update</Button>
-                            </div>
-                            
-                            <div className="flex justify-between items-center border p-4 rounded-md">
-                              <div>
-                                <div className="font-medium">Terms of Service</div>
-                                <div className="text-sm text-muted-foreground">
-                                  Last updated: Nov 30, 2023
-                                </div>
-                              </div>
-                              <Button variant="outline">Update</Button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </TabsContent>
-                    
-                    <TabsContent value="monitoring" className="space-y-6 pt-4">
-                      <div className="grid gap-4">
-                        <div className="space-y-2">
-                          <h3 className="text-lg font-medium">Security Monitoring</h3>
-                          <div className="space-y-4">
-                            <div className="flex justify-between items-center border p-4 rounded-md">
-                              <div>
-                                <div className="font-medium">Admin Login Alerts</div>
-                                <div className="text-sm text-muted-foreground">
-                                  Send alerts for admin account logins
-                                </div>
-                              </div>
-                              <Switch defaultChecked />
-                            </div>
-                            
-                            <div className="flex justify-between items-center border p-4 rounded-md">
-                              <div>
-                                <div className="font-medium">Suspicious Activity Detection</div>
-                                <div className="text-sm text-muted-foreground">
-                                  Alert on potentially malicious activities
-                                </div>
-                              </div>
-                              <Switch defaultChecked />
-                            </div>
-                            
-                            <div className="flex justify-between items-center border p-4 rounded-md">
-                              <div>
-                                <div className="font-medium">IP Restrictions</div>
-                                <div className="text-sm text-muted-foreground">
-                                  Limit admin access to specific IP ranges
-                                </div>
-                              </div>
-                              <Button variant="outline">Configure</Button>
-                            </div>
-                          </div>
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <h3 className="text-lg font-medium">Security Alerts Recipients</h3>
-                          <div className="space-y-4">
-                            <div className="flex items-center gap-2 border p-4 rounded-md">
-                              <Avatar className="h-8 w-8">
-                                <AvatarFallback>A</AvatarFallback>
-                              </Avatar>
-                              <div className="flex-1">
-                                <div className="font-medium">admin@filmflex.com</div>
-                                <div className="text-sm text-muted-foreground">All alerts</div>
-                              </div>
-                              <Button variant="ghost" size="sm">Remove</Button>
-                            </div>
-                            
-                            <div className="flex items-center gap-2 border p-4 rounded-md">
-                              <Avatar className="h-8 w-8">
-                                <AvatarFallback>S</AvatarFallback>
-                              </Avatar>
-                              <div className="flex-1">
-                                <div className="font-medium">security@filmflex.com</div>
-                                <div className="text-sm text-muted-foreground">High priority only</div>
-                              </div>
-                              <Button variant="ghost" size="sm">Remove</Button>
-                            </div>
-                            
-                            <Button variant="outline" className="w-full">
-                              <Plus className="mr-2 h-4 w-4" />
-                              Add Recipient
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    </TabsContent>
-                  </Tabs>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="admin-password" className="block text-sm font-medium mb-2">
+                        Admin Password
+                      </Label>
+                      <Input 
+                        id="admin-password"
+                        placeholder="Enter new admin password"
+                        value="********"
+                        onChange={() => {}}
+                        type="password"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="admin-password-confirm" className="block text-sm font-medium mb-2">
+                        Confirm Password
+                      </Label>
+                      <Input 
+                        id="admin-password-confirm"
+                        placeholder="Confirm new admin password"
+                        value="********"
+                        onChange={() => {}}
+                        type="password"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="two-factor-auth" className="block text-sm font-medium mb-2">
+                        Two-Factor Authentication
+                      </Label>
+                      <Switch 
+                        id="two-factor-auth"
+                        checked={true}
+                        onCheckedChange={() => {}}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="ip-whitelist" className="block text-sm font-medium mb-2">
+                        IP Whitelist
+                      </Label>
+                      <Textarea 
+                        id="ip-whitelist"
+                        placeholder="Enter IP addresses to whitelist, separated by commas"
+                        value="192.168.1.1, 192.168.1.2"
+                        onChange={() => {}}
+                        rows={3}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="admin-lockout" className="block text-sm font-medium mb-2">
+                        Admin Lockout Duration
+                      </Label>
+                      <Select 
+                        defaultValue="15"
+                        onValueChange={() => {}}
+                        aria-labelledby="admin-lockout-label"
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select duration" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="5">5 minutes</SelectItem>
+                          <SelectItem value="15">15 minutes</SelectItem>
+                          <SelectItem value="30">30 minutes</SelectItem>
+                          <SelectItem value="60">1 hour</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="session-timeout" className="block text-sm font-medium mb-2">
+                        Session Timeout
+                      </Label>
+                      <Select 
+                        defaultValue="30"
+                        onValueChange={() => {}}
+                        aria-labelledby="session-timeout-label"
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select timeout" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="5">5 minutes</SelectItem>
+                          <SelectItem value="15">15 minutes</SelectItem>
+                          <SelectItem value="30">30 minutes</SelectItem>
+                          <SelectItem value="60">1 hour</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="password-requirements" className="block text-sm font-medium mb-2">
+                        Password Requirements
+                      </Label>
+                      <Textarea 
+                        id="password-requirements"
+                        placeholder="Enter password requirements"
+                        value="Minimum 8 characters, at least 1 uppercase letter, 1 lowercase letter, 1 number, 1 special character"
+                        onChange={() => {}}
+                        rows={3}
+                      />
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <Button variant="default" onClick={() => {}}>
+                        Save Changes
+                      </Button>
+                      <Button variant="outline" onClick={() => {}}>
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             </>
@@ -1621,37 +1328,9 @@ export default function AdminPage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Audit Logs</CardTitle>
-                  <CardDescription>View system activity and security events</CardDescription>
+                  <CardDescription>View system audit logs and user activity</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex flex-col sm:flex-row gap-4 mb-6">
-                    <div className="relative flex-1">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input placeholder="Search audit logs..." className="pl-10" />
-                    </div>
-                    <div className="flex gap-2">
-                      <Select defaultValue="all">
-                        <SelectTrigger className="w-[150px]">
-                          <SelectValue placeholder="Action type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Actions</SelectItem>
-                          <SelectItem value="user">User Actions</SelectItem>
-                          <SelectItem value="content">Content Actions</SelectItem>
-                          <SelectItem value="system">System Actions</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <Button>
-                        <Filter className="mr-2 h-4 w-4" />
-                        Filter
-                      </Button>
-                    </div>
-                    <Button variant="outline">
-                      <Download className="mr-2 h-4 w-4" />
-                      Export
-                    </Button>
-                  </div>
-
                   <div className="overflow-x-auto">
                     <table className="w-full border-collapse">
                       <thead>
@@ -1666,20 +1345,10 @@ export default function AdminPage() {
                       </thead>
                       <tbody>
                         {mockAuditLogs.map((log) => (
-                          <tr key={log.id} className="border-b">
+                          <tr key={log.id} className="border-b hover:bg-muted/10">
                             <td className="py-4 px-2">{log.id}</td>
-                            <td className="py-4 px-2 font-medium">{log.user}</td>
-                            <td className="py-4 px-2">
-                              <Badge 
-                                variant={
-                                  log.action.startsWith("USER") ? "default" : 
-                                  log.action.startsWith("CONTENT") ? "secondary" : 
-                                  "outline"
-                                }
-                              >
-                                {log.action}
-                              </Badge>
-                            </td>
+                            <td className="py-4 px-2">{log.user}</td>
+                            <td className="py-4 px-2">{log.action}</td>
                             <td className="py-4 px-2">{log.details}</td>
                             <td className="py-4 px-2">{log.timestamp}</td>
                             <td className="py-4 px-2">{log.ip}</td>
@@ -1688,442 +1357,244 @@ export default function AdminPage() {
                       </tbody>
                     </table>
                   </div>
-
-                  <div className="flex justify-between items-center mt-6">
-                    <div className="text-sm text-muted-foreground">
-                      Showing 1-5 of 5 entries
-                    </div>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" disabled>Previous</Button>
-                      <Button variant="outline" size="sm" disabled>Next</Button>
-                    </div>
-                  </div>
                 </CardContent>
               </Card>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Audit Settings</CardTitle>
-                    <CardDescription>Configure audit logging preferences</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="grid gap-2">
-                        <label className="text-sm font-medium">Events to Log</label>
-                        <div className="space-y-2">
-                          <div className="flex items-center space-x-2">
-                            <Checkbox id="log-user" defaultChecked />
-                            <label htmlFor="log-user">User Management Events</label>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <Checkbox id="log-content" defaultChecked />
-                            <label htmlFor="log-content">Content Management Events</label>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <Checkbox id="log-settings" defaultChecked />
-                            <label htmlFor="log-settings">System Settings Changes</label>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <Checkbox id="log-login" defaultChecked />
-                            <label htmlFor="log-login">Login/Logout Events</label>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <Checkbox id="log-view" />
-                            <label htmlFor="log-view">Content View Events</label>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="grid gap-2">
-                        <label className="text-sm font-medium">Retention Period (days)</label>
-                        <Input type="number" defaultValue="365" />
-                      </div>
-
-                      <Button>Save Audit Settings</Button>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Activity Summary</CardTitle>
-                    <CardDescription>Recent activity highlights</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="flex justify-between">
-                        <div className="text-sm font-medium">Today's Activities</div>
-                        <Badge>8 events</Badge>
-                      </div>
-                      <div className="space-y-2">
-                        <div className="flex justify-between items-center p-2 rounded-md bg-muted/20">
-                          <div className="text-sm">User logins</div>
-                          <div className="font-medium">3</div>
-                        </div>
-                        <div className="flex justify-between items-center p-2 rounded-md bg-muted/20">
-                          <div className="text-sm">Content changes</div>
-                          <div className="font-medium">2</div>
-                        </div>
-                        <div className="flex justify-between items-center p-2 rounded-md bg-muted/20">
-                          <div className="text-sm">System settings</div>
-                          <div className="font-medium">1</div>
-                        </div>
-                        <div className="flex justify-between items-center p-2 rounded-md bg-muted/20">
-                          <div className="text-sm">Security alerts</div>
-                          <div className="font-medium">2</div>
-                        </div>
-                      </div>
-                      <Separator />
-                      <div className="flex justify-between">
-                        <div className="text-sm font-medium">Most Active Admin</div>
-                        <Badge variant="outline">admin</Badge>
-                      </div>
-                      <div className="flex justify-between">
-                        <div className="text-sm font-medium">Most Common Action</div>
-                        <Badge variant="secondary">CONTENT_UPDATE</Badge>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
             </>
           )}
         </div>
       </div>
-      
-      {/* Edit Movie Dialog */}
-      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className={fullScreenEdit ? "max-w-[95vw] h-[90vh] overflow-y-auto" : "sm:max-w-[600px]"}>
+
+      {/* Full Screen Edit Dialog */}
+      <Dialog 
+        open={fullScreenEdit} 
+        onOpenChange={setFullScreenEdit}
+      >
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-xl flex items-center justify-between">
-              <span>Edit Movie Information</span>
-              <div>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="ml-2" 
-                  onClick={() => setFullScreenEdit(!fullScreenEdit)}
-                >
-                  {fullScreenEdit ? "Compact View" : "Full Screen"}
-                </Button>
-              </div>
-            </DialogTitle>
+            <DialogTitle>Edit Content</DialogTitle>
             <DialogDescription>
-              Make changes to the movie details below. Click save when you're done.
+              Edit movie or TV show details
             </DialogDescription>
           </DialogHeader>
+
           {isLoadingMovieDetails ? (
-            <div className="py-8 text-center">
-              <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full mx-auto mb-2"></div>
-              <p className="text-sm text-muted-foreground">Loading movie details...</p>
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
             </div>
-          ) : currentEditMovie && (
-            <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="movie-title" className="text-right">
-                  Title
-                </Label>
-                <Input
-                  id="movie-title"
-                  defaultValue={currentEditMovie.name}
-                  className="col-span-3"
-                />
-              </div>
-              
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="movie-slug" className="text-right">
-                  Slug
-                </Label>
-                <Input
-                  id="movie-slug"
-                  defaultValue={currentEditMovie.slug}
-                  className="col-span-3"
-                />
-              </div>
-              
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="original-title" className="text-right">
-                  Original Title
-                </Label>
-                <Input
-                  id="original-title"
-                  defaultValue={currentEditMovie.origin_name || ""}
-                  className="col-span-3"
-                />
-              </div>
-              
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="content-type" className="text-right">
-                  Content Type
-                </Label>
-                <Select defaultValue={currentEditMovie.tmdb?.type || "movie"}>
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="movie">Movie</SelectItem>
-                    <SelectItem value="tv">TV Series</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="categories" className="text-right">
-                  Categories
-                </Label>
-                <div className="col-span-3">
-                  <MultiSelectTags
-                    options={predefinedCategories}
-                    selectedValues={selectedCategories}
-                    onChange={setSelectedCategories}
-                    placeholder="Select categories..."
-                  />
-                </div>
-              </div>
+          ) : currentEditMovie ? (
+            <div className="space-y-6 py-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="title">Title</Label>
+                    <Input 
+                      id="title"
+                      value={currentEditMovie.name}
+                      onChange={(e) => setCurrentEditMovie({
+                        ...currentEditMovie,
+                        name: e.target.value
+                      })}
+                      readOnly
+                    />
+                  </div>
 
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="actors" className="text-right">
-                  Actors
-                </Label>
-                <Input
-                  id="actors"
-                  defaultValue={currentEditMovie.actor?.join(", ") || ""}
-                  placeholder="Actor names (comma separated)"
-                  className="col-span-3"
-                />
-              </div>
+                  <div>
+                    <Label htmlFor="slug">Slug</Label>
+                    <Input 
+                      id="slug"
+                      value={currentEditMovie.slug || ""}
+                      onChange={(e) => setCurrentEditMovie({
+                        ...currentEditMovie,
+                        slug: e.target.value
+                      })}
+                      placeholder="movie-slug-format"
+                    />
+                  </div>
 
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="directors" className="text-right">
-                  Directors
-                </Label>
-                <Input
-                  id="directors"
-                  defaultValue={currentEditMovie.director?.join(", ") || ""}
-                  placeholder="Director names (comma separated)"
-                  className="col-span-3"
-                />
-              </div>
-              
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="movie-year" className="text-right">
-                  Year
-                </Label>
-                <Input
-                  id="movie-year"
-                  type="number"
-                  defaultValue={currentEditMovie.year || ""}
-                  className="col-span-3"
-                />
-              </div>
-              
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="country" className="text-right">
-                  Country
-                </Label>
-                <div className="col-span-3">
-                  <MultiSelectTags
-                    options={predefinedCountries}
-                    selectedValues={selectedCountries}
-                    onChange={setSelectedCountries}
-                    placeholder="Select countries..."
-                  />
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="poster-url" className="text-right">
-                  Poster URL
-                </Label>
-                <div className="col-span-3 flex gap-2">
-                  <Input
-                    id="poster-url"
-                    defaultValue={currentEditMovie.poster_url || ""}
-                    className="flex-1"
-                  />
-                  {currentEditMovie.poster_url && (
-                    <div className="w-12 h-16 border rounded overflow-hidden flex-shrink-0">
-                      <img 
-                        src={currentEditMovie.poster_url} 
-                        alt="Poster" 
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
+                  <div>
+                    <Label htmlFor="type">Content Type</Label>
+                    <Select 
+                      value={currentEditMovie.type || "single"}
+                      onValueChange={(value) => setCurrentEditMovie({
+                        ...currentEditMovie,
+                        type: value
+                      })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="single">Single Movie</SelectItem>
+                        <SelectItem value="series">TV Series</SelectItem>
+                        <SelectItem value="anime">Anime</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  {(currentEditMovie.type === "series" || currentEditMovie.type === "anime") && (
+                    <>
+                      <div>
+                        <Label htmlFor="episode_current">Current Episode</Label>
+                        <div className="relative">
+                          <Input 
+                            id="episode_current"
+                            value={currentEditMovie.episode_current || ""}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              if (value === "" || value === "Full" || /^\d+$/.test(value)) {
+                                setCurrentEditMovie({
+                                  ...currentEditMovie,
+                                  episode_current: value
+                                });
+                              }
+                            }}
+                            placeholder="e.g. 12 or Full"
+                          />
+                          <div className="text-xs text-muted-foreground mt-1">
+                            Enter a number or "Full" for completed series
+                          </div>
+                        </div>
+                      </div>
+                      <div>
+                        <Label htmlFor="episode_total">Total Episodes</Label>
+                        <div className="relative">
+                          <Input 
+                            id="episode_total"
+                            value={currentEditMovie.episode_total || ""}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              if (value === "" || /^\d+$/.test(value)) {
+                                setCurrentEditMovie({
+                                  ...currentEditMovie,
+                                  episode_total: value
+                                });
+                              }
+                            }}
+                            placeholder="e.g. 24"
+                          />
+                          <div className="text-xs text-muted-foreground mt-1">
+                            Enter total number of episodes in the series
+                          </div>
+                        </div>
+                      </div>
+                    </>
                   )}
+
+                  <div>
+                    <Label htmlFor="status">Status</Label>
+                    <Select 
+                      value={currentEditMovie.status || "ongoing"}
+                      onValueChange={(value) => setCurrentEditMovie({
+                        ...currentEditMovie,
+                        status: value
+                      })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="completed">Completed</SelectItem>
+                        <SelectItem value="ongoing">Ongoing</SelectItem>
+                        <SelectItem value="upcoming">Upcoming</SelectItem>
+                        <SelectItem value="canceled">Canceled</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="section">Section</Label>
+                    <Select 
+                      value={currentEditMovie.section}
+                      onValueChange={(value) => setCurrentEditMovie({
+                        ...currentEditMovie,
+                        section: value
+                      })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select section" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">None</SelectItem>
+                        <SelectItem value="trending_now">Trending Now</SelectItem>
+                        <SelectItem value="latest_movies">Latest Movies</SelectItem>
+                        <SelectItem value="top_rated">Top Rated Movies</SelectItem>
+                        <SelectItem value="popular_tv">Popular TV Series</SelectItem>
+                        <SelectItem value="anime">Anime</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="year">Year</Label>
+                    <Input 
+                      id="year"
+                      value={currentEditMovie.year || ""}
+                      onChange={(e) => setCurrentEditMovie({
+                        ...currentEditMovie,
+                        year: e.target.value
+                      })}
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="origin-name">Original Title</Label>
+                    <Input 
+                      id="origin-name"
+                      value={currentEditMovie.origin_name || ""}
+                      onChange={(e) => setCurrentEditMovie({
+                        ...currentEditMovie,
+                        origin_name: e.target.value
+                      })}
+                      readOnly
+                    />
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <Checkbox 
+                      id="recommended"
+                      checked={currentEditMovie.isRecommended === true}
+                      onCheckedChange={(checked) => setCurrentEditMovie({
+                        ...currentEditMovie,
+                        isRecommended: checked === true
+                      })}
+                    />
+                    <Label htmlFor="recommended">Recommended</Label>
+                  </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="thumbnail-url" className="text-right">
-                  Thumbnail URL
-                </Label>
-                <div className="col-span-3 flex gap-2">
-                  <Input
-                    id="thumbnail-url"
-                    defaultValue={currentEditMovie.thumb_url || ""}
-                    className="flex-1"
-                  />
-                  {currentEditMovie.thumb_url && (
-                    <div className="w-12 h-16 border rounded overflow-hidden flex-shrink-0">
-                      <img 
-                        src={currentEditMovie.thumb_url} 
-                        alt="Thumbnail" 
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid grid-cols-2 items-center gap-4">
-                  <Label htmlFor="quality" className="text-right">
-                    Quality
-                  </Label>
-                  <Input
-                    id="quality"
-                    defaultValue={currentEditMovie.quality || ""}
-                    placeholder="HD, FHD, etc."
-                  />
-                </div>
-                
-                <div className="grid grid-cols-2 items-center gap-4">
-                  <Label htmlFor="language" className="text-right">
-                    Language
-                  </Label>
-                  <Input
-                    id="language"
-                    defaultValue={currentEditMovie.lang || ""}
-                    placeholder="VN, EN, etc."
-                  />
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="status" className="text-right">
-                  Status
-                </Label>
-                <Select defaultValue={currentEditMovie.active === false ? "inactive" : "active"}>
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
-                    <SelectItem value="pending">Pending Review</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label className="text-right">
-                  Recommendation
-                </Label>
-                <div className="flex items-center space-x-2 col-span-3">
-                  <Checkbox 
-                    id="movie-recommended" 
-                    checked={currentEditMovie.isRecommended} 
-                  />
-                  <Label htmlFor="movie-recommended" className="cursor-pointer flex items-center">
-                    Mark as Recommended 
-                    {currentEditMovie.isRecommended && (
-                      <Star className="ml-2 h-4 w-4 text-amber-500 fill-amber-500" />
-                    )}
-                  </Label>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="description" className="text-right">
-                  Description
-                </Label>
-                <Textarea
-                  id="description"
-                  defaultValue={currentEditMovie.content || ""}
-                  className="col-span-3"
+              <div>
+                <Label htmlFor="content">Description</Label>
+                <Textarea 
+                  id="content"
+                  value={currentEditMovie.content || ""}
                   rows={5}
+                  readOnly
                 />
               </div>
-              
-              <div className="grid grid-cols-4 items-start gap-4">
-                <Label htmlFor="episode-count" className="text-right pt-2">
-                  Episode Info
-                </Label>
-                <div className="col-span-3">
-                  <div className="text-sm p-3 bg-muted/30 rounded mb-2">
-                    <div className="font-medium">Episode Count: {currentEditMovie.episodes?.length || 0}</div>
-                    {currentEditMovie.episodes && currentEditMovie.episodes.length > 0 && (
-                      <div className="mt-1 text-xs text-muted-foreground">
-                        Latest episode: {currentEditMovie.episodes[currentEditMovie.episodes.length - 1]?.name || "N/A"}
-                      </div>
-                    )}
-                    {currentEditMovie.episode_current && (
-                      <div className="mt-1 text-xs text-muted-foreground">
-                        Current/Latest: {currentEditMovie.episode_current}
-                      </div>
-                    )}
-                    {currentEditMovie.episode_total && (
-                      <div className="mt-1 text-xs text-muted-foreground">
-                        Total Episodes: {currentEditMovie.episode_total}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-4 items-start gap-4">
-                <Label htmlFor="view-stats" className="text-right pt-2">
-                  View Statistics
-                </Label>
-                <div className="col-span-3">
-                  <div className="text-sm p-3 bg-muted/30 rounded mb-2">
-                    <div className="font-medium">Total Views: {currentEditMovie.view?.toLocaleString() || "0"}</div>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-4 items-start gap-4">
-                <Label htmlFor="metadata" className="text-right pt-2">
-                  Metadata
-                </Label>
-                <div className="col-span-3">
-                  <div className="text-xs space-y-1 p-3 bg-muted/30 rounded">
-                    {currentEditMovie.created?.time ? (
-                      <div>Created: {new Date(currentEditMovie.created.time).toLocaleString()}</div>
-                    ) : (
-                      <div>Created: Not available</div>
-                    )}
-                    {currentEditMovie.modified?.time ? (
-                      <div>Last Updated: {new Date(currentEditMovie.modified.time).toLocaleString()}</div>
-                    ) : (
-                      <div>Last Updated: Not available</div>
-                    )}
-                    <div>ID: {currentEditMovie._id}</div>
-                    {currentEditMovie.tmdb?.id && (
-                      <div>TMDB ID: {currentEditMovie.tmdb.id}</div>
-                    )}
-                    {currentEditMovie.time && (
-                      <div>Duration: {currentEditMovie.time}</div>
-                    )}
-                    {currentEditMovie.is_copyright && (
-                      <div>Copyright: Protected</div>
-                    )}
-                  </div>
-                </div>
-              </div>
+
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setFullScreenEdit(false)}>
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={handleMovieSave}
+                  disabled={!currentEditMovie.name}
+                >
+                  Save Changes
+                </Button>
+              </DialogFooter>
+            </div>
+          ) : (
+            <div className="py-8 text-center text-muted-foreground">
+              No content selected for editing
             </div>
           )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" onClick={handleMovieSave}>
-              Save Changes
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
+
     </div>
   );
 }

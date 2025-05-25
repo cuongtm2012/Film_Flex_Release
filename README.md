@@ -211,3 +211,57 @@ For more details, see the [Maintenance Guide](scripts/maintenance/README.md).
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
+
+# FilmFlex Setup Instructions
+
+## Prerequisites
+- Node.js (latest LTS version)
+- PostgreSQL 17
+- Windows PowerShell
+
+## Setup Steps
+
+1. Ensure PostgreSQL is running:
+```powershell
+# Check PostgreSQL service status
+Get-Service postgresql-x64-17
+```
+
+2. Set up the database:
+```powershell
+# Connect to PostgreSQL as postgres user and create the filmflex user
+psql -U postgres
+CREATE USER filmflex WITH PASSWORD 'filmflex2024' CREATEDB;
+\q
+```
+
+3. Run the setup script:
+```powershell
+# Run as Administrator
+.\setup-complete.ps1
+```
+
+## Troubleshooting
+
+If you encounter any issues:
+
+1. Check PostgreSQL service:
+   - Ensure postgresql-x64-17 service is running
+   - If not, start it using: `Start-Service postgresql-x64-17`
+
+2. Database connection issues:
+   - Verify PostgreSQL is running on port 5432
+   - Check if filmflex user exists
+   - Ensure password matches in DATABASE_URL
+
+3. Server startup issues:
+   - Check if port 3000 is available
+   - Look in logs directory for error messages
+   - Ensure all dependencies are installed
+
+## Development
+
+Once setup is complete, the application will be available at:
+- Frontend: http://localhost:3000
+- Backend API: http://localhost:3000/api
+- Debug interface: chrome://inspect

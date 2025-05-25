@@ -1,0 +1,22 @@
+# FilmFlex MIME type configuration
+# Ensure proper MIME types for streaming media files
+
+<IfModule mod_mime.c>
+  # HLS streaming
+  AddType application/vnd.apple.mpegurl .m3u8
+  AddType application/octet-stream .ts
+  
+  # Video formats
+  AddType video/mp4 .mp4
+  AddType video/webm .webm
+  AddType video/ogg .ogv
+</IfModule>
+
+# Allow cross-origin requests for streaming media
+<IfModule mod_headers.c>
+  <FilesMatch "\.(m3u8|ts)$">
+    Header set Access-Control-Allow-Origin "*"
+    Header set Access-Control-Allow-Methods "GET, OPTIONS"
+    Header set Access-Control-Allow-Headers "Origin, X-Requested-With, Content-Type, Accept"
+  </FilesMatch>
+</IfModule>

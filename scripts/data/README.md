@@ -1,6 +1,57 @@
-# FilmFlex Data Import Scripts
+# FilmFlex Data Scripts
 
-This directory contains scripts for importing movie data from the phimapi.com API into the FilmFlex database.
+This directory contains scripts for managing and manipulating the FilmFlex database and data.
+
+## Available Scripts
+
+### Database Reset (`reset-db.sh` / `reset-db.cmd`)
+
+Reset and reinitialize the film database from scratch. This script:
+- Checks and creates the database if it doesn't exist
+- Drops all existing tables in the database
+- Applies the schema directly using drizzle-kit push
+- Seeds the database with initial data (admin user, roles, permissions)
+
+**Usage:**
+```bash
+# On macOS/Linux
+./scripts/data/reset-db.sh
+
+# On Windows
+scripts\data\reset-db.cmd
+```
+
+See [`DB_RESET.md`](../../DB_RESET.md) in the project root for detailed documentation.
+
+### Database Initialization Check (`ensure-db.cjs`)
+
+This script ensures the database exists before running the reset process:
+- Connects to PostgreSQL with the default 'postgres' database
+- Checks if the target database exists
+- Creates the database if it doesn't exist
+- Grants necessary privileges to the database user
+
+**Usage:**
+```bash
+# Run directly (normally called by reset-db scripts)
+node scripts/data/ensure-db.cjs
+```
+
+### TypeScript Reset Script (`reset-film-database.ts`)
+
+This is the core TypeScript implementation of the database reset functionality. It can be called directly with:
+
+```bash
+# Run directly
+npx tsx scripts/data/reset-film-database.ts
+
+# Or through npm script
+npm run db:reset
+```
+
+## Running Scripts
+
+All scripts should be run from the project root directory. The shell scripts will automatically change to the correct directory if run from elsewhere.
 
 ## Script Overview
 

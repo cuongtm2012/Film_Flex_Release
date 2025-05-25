@@ -1,17 +1,16 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { MovieListResponse } from "@/types/api";
 import MovieGrid from "@/components/MovieGrid";
 import { Separator } from "@/components/ui/separator";
 import { Loader2 } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function MoviesPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [sortBy, setSortBy] = useState("latest");
   const [limit] = useState(50);
 
-  // Fetch movie list with pagination
+  // Fetch movie list with pagination and sorting
   const {
     data: moviesData,
     isLoading,
@@ -21,6 +20,19 @@ export default function MoviesPage() {
       "/api/movies",
       { page: currentPage, sort: sortBy, limit },
     ],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        sort: sortBy,
+        limit: limit.toString(),
+      });
+      
+      const response = await fetch(`/api/movies?${params}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch movies');
+      }
+      return response.json();
+    },
   });
 
   // Handle page change
@@ -65,20 +77,6 @@ export default function MoviesPage() {
     <div className="container mx-auto px-4 py-8">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
         <h1 className="text-3xl font-bold mb-4 md:mb-0">Movies & TV Shows</h1>
-        
-        <div className="flex items-center space-x-2">
-          <span className="text-sm text-muted-foreground">Sort By:</span>
-          <Select value={sortBy} onValueChange={handleSortChange}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Sort by" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="latest">Latest Added</SelectItem>
-              <SelectItem value="popularity">Popularity</SelectItem>
-              <SelectItem value="rating">Rating</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
       </div>
 
       <Separator className="mb-6" />
@@ -88,10 +86,11 @@ export default function MoviesPage() {
         movies={moviesData?.items || []}
         currentPage={currentPage}
         totalPages={moviesData?.pagination?.totalPages || 1}
-        totalItems={moviesData?.pagination?.totalItems || 0}
+        totalItems={moviesData?.pagination?.totalItems || moviesData?.items?.length || 0}
         itemsPerPage={limit}
         onPageChange={handlePageChange}
         onSortChange={handleSortChange}
+        currentSort={sortBy}
         isLoading={isLoading}
       />
     </div>
