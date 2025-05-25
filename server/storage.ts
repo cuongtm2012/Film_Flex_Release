@@ -97,6 +97,11 @@ export interface IStorage {
   addAuditLog(log: InsertAuditLog): Promise<AuditLog>;
   getAuditLogs(page: number, limit: number, filters?: {activityType?: string, userId?: number}): Promise<{ data: AuditLog[], total: number }>;
   
+  // Featured Sections methods
+  getFeaturedSections(): Promise<any[]>;
+  getFeaturedSectionMovies(sectionName: string): Promise<Movie[]>;
+  updateFeaturedSection(sectionName: string, filmIds: number[], displayOrder: number[]): Promise<void>;
+  
   // Cache methods
   cacheMovieList(data: MovieListResponse, page: number): Promise<void>;
   cacheMovieDetail(data: MovieDetailResponse): Promise<void>;
@@ -1019,6 +1024,93 @@ export class DatabaseStorage implements IStorage {
 
   async getMovieCategoryCache(categorySlug: string, page: number): Promise<MovieListResponse | null> {
     return this.getCache(this.getCacheKey('movieCategory', categorySlug, page));
+  }
+
+  // Featured Sections methods
+  async getFeaturedSections(): Promise<any[]> {
+    try {
+      const result = await db.execute(sql`
+        SELECT id, section_name, film_ids, display_order, updated_at 
+        FROM featured_sections 
+        ORDER BY section_name
+      `);
+      
+      return result.rows.map((row: any) => ({
+        id: row.id,
+        sectionName: row.section_name,
+        filmIds: Array.isArray(row.film_ids) ? row.film_ids : [],
+        displayOrder: Array.isArray(row.display_order) ? row.display_order : [],
+        updatedAt: row.updated_at
+      }));
+    } catch (error) {
+      console.error('Error fetching featured sections:', error);
+      throw error;
+    }
+  }
+
+  async getFeaturedSectionMovies(sectionName: string): Promise<Movie[]> {
+    try {
+      // First get the section data
+      const sectionResult = await db.execute(sql`
+        SELECT film_ids, display_order 
+        FROM featured_sections 
+        WHERE section_name = ${sectionName}
+      `);
+
+      if (!sectionResult.rows.length) {
+        return [];
+      }
+
+      const section = sectionResult.rows[0] as any;
+      const filmIds = Array.isArray(section.film_ids) ? section.film_ids : [];
+      
+      if (filmIds.length === 0) {
+        return [];
+      }
+
+      // Get movies by IDs
+      const moviesResult = await db.select()
+        .from(movies)
+        .where(sql`${movies.id} = ANY(${filmIds})`);
+
+      // Sort movies according to display order
+      const displayOrder = Array.isArray(section.display_order) ? section.display_order : [];
+      
+      if (displayOrder.length > 0) {
+        return moviesResult.sort((a, b) => {
+          const indexA = displayOrder.indexOf(a.id);
+          const indexB = displayOrder.indexOf(b.id);
+          
+          // If not in display order, put at end
+          if (indexA === -1) return 1;
+          if (indexB === -1) return -1;
+          
+          return indexA - indexB;
+        });
+      }
+
+      return moviesResult;
+    } catch (error) {
+      console.error('Error fetching featured section movies:', error);
+      throw error;
+    }
+  }
+
+  async updateFeaturedSection(sectionName: string, filmIds: number[], displayOrder: number[]): Promise<void> {
+    try {
+      await db.execute(sql`
+        UPDATE featured_sections 
+        SET film_ids = ${filmIds}, 
+            display_order = ${displayOrder}, 
+            updated_at = NOW()
+        WHERE section_name = ${sectionName}
+      `);
+      
+      console.log(`[DEBUG] Updated featured section ${sectionName} with ${filmIds.length} movies`);
+    } catch (error) {
+      console.error('Error updating featured section:', error);
+      throw error;
+    }
   }
 }
 
