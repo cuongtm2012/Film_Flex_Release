@@ -2,7 +2,7 @@ name: FilmFlex Full Deployment
 
 on:
   push:
-    branches: [main]
+    branches: [main, Production]
     paths-ignore:
       - '**.md'
       - '.gitignore'
