@@ -1,0 +1,33 @@
+# IMMEDIATE FIX COMMANDS FOR LINUX SERVER
+# Copy and paste these commands one by one into your SSH session
+
+# 1. Check current status
+echo "=== Current Status Check ==="
+cd /root/Film_Flex_Release
+git log --oneline -3
+git status
+
+# 2. Pull latest fixes
+echo "=== Pulling Latest Fixes ==="
+git fetch origin
+git checkout Production  
+git pull origin Production
+
+# 3. Show what changed
+echo "=== Recent Changes ==="
+git log --oneline -5
+
+# 4. Quick deployment
+echo "=== Deploying Fixes ==="
+pm2 stop filmflex
+npm ci
+npm run build
+pm2 start ecosystem.config.js
+pm2 save
+
+# 5. Test the fix
+echo "=== Testing Fix ==="
+sleep 3
+curl -s http://localhost:5000/api/movies/recommended
+
+# If you see movie data instead of error, the fix worked!
