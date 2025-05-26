@@ -5,7 +5,6 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Search as SearchIcon, X } from "lucide-react";
-import CategoryFilter, { Category } from "@/components/CategoryFilter";
 import MovieGrid from "@/components/MovieGrid";
 import { MovieListResponse } from "@shared/schema";
 import Layout from "@/components/Layout";
@@ -18,7 +17,6 @@ export default function SearchPage() {
   
   const [query, setQuery] = useState(initialQuery);
   const [currentPage, setCurrentPage] = useState(1);
-  const [selectedCategorySlug, setSelectedCategorySlug] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState(initialQuery); // Actual search term to be used for API calls
   
   // Ensure we refresh the search when URL changes
@@ -29,11 +27,10 @@ export default function SearchPage() {
       setSearchTerm(newQuery);
     }
   }, [location]);
-  
-  // Reset to page 1 when query or category changes
+    // Reset to page 1 when query changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, selectedCategorySlug]);
+  }, [searchTerm]);
   
   // Update URL whenever searchTerm changes
   useEffect(() => {
@@ -46,20 +43,15 @@ export default function SearchPage() {
       );
     }
   }, [searchTerm, location, initialQuery]);
-  
-  // Search query
+    // Search query
   const {
     data: searchResults,
     isLoading,
     isError,
   } = useQuery({
-    queryKey: ["/api/search", searchTerm, currentPage, selectedCategorySlug],
+    queryKey: ["/api/search", searchTerm, currentPage],
     queryFn: async () => {
       let url = `/api/search?q=${encodeURIComponent(searchTerm)}&page=${currentPage}`;
-      
-      if (selectedCategorySlug && selectedCategorySlug !== "all") {
-        url += `&category=${selectedCategorySlug}`;
-      }
       
       console.log("Fetching search results from:", url);
       const response = await fetch(url);
@@ -119,17 +111,7 @@ export default function SearchPage() {
               >
                 <SearchIcon className="h-5 w-5" />
               </Button>
-            </div>
-          </form>
-          
-          {/* Category Filters */}
-          <div className="mb-6">
-            <CategoryFilter
-              selectedCategory={selectedCategorySlug}
-              onSelectCategory={setSelectedCategorySlug}
-              categories={[]}
-            />
-          </div>
+            </div>          </form>
           
           {/* Results */}
           {searchTerm ? (

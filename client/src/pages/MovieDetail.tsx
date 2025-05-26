@@ -118,7 +118,7 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
     data: recommendationsData,
     isLoading: isRecommendationsLoading
   } = useQuery<MovieListResponse>({
-    queryKey: [`/api/movies/${slug}/recommendations`],
+    queryKey: [`/api/movies/${slug}/recommendations?limit=10`],
     enabled: !!slug
   });
   

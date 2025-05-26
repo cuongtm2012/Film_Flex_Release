@@ -165,14 +165,15 @@ export async function fetchMovieDetail(slug: string): Promise<MovieDetailRespons
 function normalizeText(text: string): string {
   if (!text) return '';
   
+  // First convert to lowercase to ensure case-insensitive comparison
+  text = text.toLowerCase();
+  
   // Normalize to NFD form where accented chars are separated into base char + accent
   return text.normalize('NFD')
     // Remove combining diacritical marks (accents, etc.)
     .replace(/[\u0300-\u036f]/g, '')
-    // Remove other special characters and normalize to lowercase
-    .toLowerCase()
-    // Replace đ/Đ with d
-    .replace(/[đĐ]/g, 'd');
+    // Replace đ/Đ with d (already lowercase from earlier conversion)
+    .replace(/đ/g, 'd');
 }
 
 export async function searchMovies(keyword: string, normalizedQuery: string | null = null, page: number = 1, limit: number = 50): Promise<MovieListResponse> {
@@ -489,14 +490,35 @@ export function convertToMovieModel(movieDetail: MovieDetailResponse): InsertMov
   // Get movie ID - either from direct _id or from tmdb.id as a fallback
   const movieId = movie._id || 
                  (movie.tmdb && movie.tmdb.id ? `tmdb-${movie.tmdb.id}` : null);
-  
-  // Check if we have enough info to create a valid movie record
+    // Check if we have enough info to create a valid movie record
   if (!movieId || !movie.slug || !movie.name) {
     throw new Error(`Movie is missing required fields: ${JSON.stringify({
       id: movieId || "missing",
       slug: movie.slug || "missing",
       name: movie.name || "missing"
     })}`);
+  }
+  
+  // Calculate episode counts
+  let episodeTotal = "1";
+  let episodeCurrent = "Full";
+  
+  if (movieDetail.episodes && Array.isArray(movieDetail.episodes) && movieDetail.episodes.length > 0) {
+    // Calculate total episodes across all servers
+    const total = movieDetail.episodes.reduce((sum, server) => {
+      if (server.server_data && Array.isArray(server.server_data)) {
+        return sum + server.server_data.length;
+      }
+      return sum;
+    }, 0);
+    
+    // Set total episodes
+    episodeTotal = total.toString();
+    
+    // Set current episode - use the name of first episode or keep as "Full" for movies
+    if (movieDetail.episodes[0].server_data && movieDetail.episodes[0].server_data.length > 0) {
+      episodeCurrent = movieDetail.episodes[0].server_data[0].name || "Full";
+    }
   }
   
   // Extract the year from the name if not provided
@@ -522,15 +544,16 @@ export function convertToMovieModel(movieDetail: MovieDetailResponse): InsertMov
     type: (movie.tmdb && movie.tmdb.type === "tv") ? "tv" : "movie",
     quality: movie.quality || "",
     lang: movie.lang || "",
-    time: movie.time || "",
-    view: movie.view || 0,
+    time: movie.time || "",    view: movie.view || 0,
     description: movie.content || "",
     status: movie.status || "ongoing",
     trailerUrl: movie.trailer_url || "",
     categories: movie.category || [],
     countries: movie.country || [],
     actors: Array.isArray(movie.actor) ? movie.actor.join(", ") : "",
-    directors: Array.isArray(movie.director) ? movie.director.join(", ") : ""
+    directors: Array.isArray(movie.director) ? movie.director.join(", ") : "",
+    episodeCurrent: episodeCurrent,
+    episodeTotal: episodeTotal
     // Note: modifiedAt will be defaulted by the database
   };
 }
@@ -682,60 +705,4 @@ async function generateRecommendations(movie: Movie, limit: number): Promise<Mov
         if (categoryMovies && categoryMovies.items && categoryMovies.items.length > 0) {
           // Add movies from this category to recommendations, but exclude the current movie
           categoryMovies.items.forEach(item => {
-            if (item.slug !== movie.slug) {
-              recommendedMovies.push(item);
-            }
-          });
-        }
-      } catch (error) {
-        console.error(`Error fetching movies from category ${category.slug}:`, error);
-        // Continue with other categories
-      }
-      
-      // Break if we have enough recommendations
-      if (recommendedMovies.length >= limit * 2) {
-        break;
-      }
-    }
-  }
-  
-  // Strategy 2: If we don't have enough recommendations, add some recent movies
-  if (recommendedMovies.length < limit) {
-    console.log(`Not enough recommendations (${recommendedMovies.length}), adding recent movies`);
-    try {
-      const recentMovies = await fetchMovieList(1, 20);
-      if (recentMovies && recentMovies.items && recentMovies.items.length > 0) {
-        recentMovies.items.forEach(item => {
-          if (item.slug !== movie.slug) {
-            recommendedMovies.push(item);
-          }
-        });
-      }
-    } catch (error) {
-      console.error(`Error fetching recent movies for recommendations:`, error);
-    }
-  }
-  
-  // Deduplicate recommendations by slug
-  const uniqueRecommendations = Array.from(
-    new Map(recommendedMovies.map(item => [item.slug, item])).values()
-  );
-  
-  // Limit to requested number
-  const limitedRecommendations = uniqueRecommendations.slice(0, limit);
-  
-  // Create the response
-  const response: MovieListResponse = {
-    status: true,
-    items: limitedRecommendations,
-    pagination: {
-      totalItems: limitedRecommendations.length,
-      totalPages: 1,
-      currentPage: 1,
-      totalItemsPerPage: limit
-    }
-  };
-  
-  console.log(`Returning ${limitedRecommendations.length} recommendations for movie ${movie.slug}`);
-  return response;
-}
+            if
