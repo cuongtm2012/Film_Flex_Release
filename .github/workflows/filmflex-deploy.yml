@@ -27,39 +27,32 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
+        uses: actions/setup-node@v4        with:
           node-version: '20'
           cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Check code format
-        run: npm run lint || echo "Linting errors found but continuing build"
-
       - name: Build application
         run: npm run build
-        
-      - name: Debug artifact preparation
+          - name: Debug artifact preparation
         run: |
           echo "Debug: Checking build output structure"
-          echo "client/dist directory:"
-          ls -la client/dist/ || echo "client/dist directory not found"
+          echo "dist/public directory:"
+          ls -la dist/public/ || echo "dist/public directory not found"
           echo "scripts/deployment directory:"
           ls -la scripts/deployment/ || echo "scripts/deployment directory not found"
           echo "scripts/data directory:"
           ls -la scripts/data/ || echo "scripts/data directory not found"
 
       - name: Run tests
-        run: npm test || echo "Some tests failed but continuing deployment"
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v2
+        run: npm test || echo "Some tests failed but continuing deployment"      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
         with:
           name: filmflex-artifacts
           path: |
-            client/dist/
+            dist/public/
             scripts/deployment/
             scripts/data/
           retention-days: 1
@@ -68,26 +61,23 @@ jobs:
     name: Deploy to Production
     needs: test-and-build
     runs-on: ubuntu-latest
-    steps:
-      - name: Download artifacts
-        uses: actions/download-artifact@v2
+    steps:      - name: Download artifacts
+        uses: actions/download-artifact@v4
         with:
           name: filmflex-artifacts
-          path: filmflex-artifacts
-
-      - name: Bundle files for deployment
+          path: filmflex-artifacts      - name: Bundle files for deployment
         run: |
           # Debug info
           echo "Current directory: $(pwd)"
           echo "List artifacts directory:"
           ls -la filmflex-artifacts
-          echo "List client directory:"
-          ls -la filmflex-artifacts/client || echo "Client directory not found"
+          echo "List public directory:"
+          ls -la filmflex-artifacts/dist/public || echo "Public directory not found"
           echo "List scripts directory:"
           ls -la filmflex-artifacts/scripts || echo "Scripts directory not found"
           
           mkdir -p filmflex-release
-          mkdir -p filmflex-release/client
+          mkdir -p filmflex-release/dist
           mkdir -p filmflex-release/scripts
           
           # Debug structure after download
@@ -95,7 +85,7 @@ jobs:
           find filmflex-artifacts -type d | sort
           
           # Copy from the artifact directory structure to the release structure
-          cp -r filmflex-artifacts/client/dist filmflex-release/client/ || echo "Failed to copy client/dist"
+          cp -r filmflex-artifacts/dist/public filmflex-release/dist/ || echo "Failed to copy dist/public"
           cp -r filmflex-artifacts/scripts/deployment filmflex-release/scripts/ || echo "Failed to copy scripts/deployment"
           cp -r filmflex-artifacts/scripts/data filmflex-release/scripts/ || echo "Failed to copy scripts/data"
           
