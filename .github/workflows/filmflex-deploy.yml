@@ -12,11 +12,11 @@ on:
         description: 'Type of deployment to perform'
         required: true
         default: 'standard'
-        type: choice
-        options:
+        type: choice        options:
           - standard
           - full-rebuild
           - db-fix-only
+          - db-sync
 
 jobs:
   test-and-build:
@@ -136,14 +136,18 @@ jobs:
             # Extract release files
             tar -xzf ~/filmflex-release.tar.gz -C ~/
             cp -r ~/filmflex-release/* ~/Film_Flex_Release/
-            rm -rf ~/filmflex-release ~/filmflex-release.tar.gz
-            
-            # Set permissions
+            rm -rf ~/filmflex-release ~/filmflex-release.tar.gz            # Set permissions
             chmod +x ~/Film_Flex_Release/scripts/deployment/*.sh
             chmod +x ~/Film_Flex_Release/scripts/data/*.sh
-            
-            # Select deployment mode
-            if [ "${{ github.event.inputs.deploy_mode }}" = "db-fix-only" ]; then
+            chmod +x ~/Film_Flex_Release/scripts/production-db-fix-complete.sh
+            chmod +x ~/Film_Flex_Release/scripts/sync-production-db-schema.sh
+              # Select deployment mode
+            if [ "${{ github.event.inputs.deploy_mode }}" = "db-sync" ]; then
+              echo "Running database schema sync to match local DB"
+              cd ~/Film_Flex_Release
+              ./scripts/sync-production-db-schema.sh
+              echo "Database schema sync completed at $(date)" >> /var/log/filmflex/github-deploy.log
+            elif [ "${{ github.event.inputs.deploy_mode }}" = "db-fix-only" ]; then
               echo "Running database fix only"
               # Generate a DB fix script
               cat > /tmp/db-fix-only.sh << 'EOF'
@@ -161,9 +165,15 @@ jobs:
               
               chmod +x /tmp/db-fix-only.sh
               bash /tmp/db-fix-only.sh
-              echo "Database fix completed at $(date)" >> /var/log/filmflex/github-deploy.log
-            else
+              echo "Database fix completed at $(date)" >> /var/log/filmflex/github-deploy.log            else
               echo "Running full deployment script"
+              
+              # Apply database schema fixes first
+              echo "Applying database schema fixes..."
+              cd ~/Film_Flex_Release
+              ./scripts/production-db-fix-complete.sh || echo "Schema fix completed with warnings"
+              
+              # Run main deployment
               cd ~/Film_Flex_Release/scripts/deployment
               ./final-deploy.sh
               echo "Full deployment completed at $(date)" >> /var/log/filmflex/github-deploy.log

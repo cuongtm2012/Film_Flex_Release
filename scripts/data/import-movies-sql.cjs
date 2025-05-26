@@ -430,9 +430,18 @@ async function processAndSaveMovies(items, pool) {
           
           // Save progress
           fs.writeFileSync(resumeFile, JSON.stringify(Array.from(processedSlugs)));
-          
-        } catch (dbError) {
+            } catch (dbError) {
           console.error(`${logPrefix} Database error when saving movie ${item.slug}:`, dbError.message);
+          
+          // Log additional details for JSON errors
+          if (dbError.message.includes('invalid input syntax for type json')) {
+            console.error(`${logPrefix} JSON Error Details for movie ${item.slug}:`);
+            console.error(`${logPrefix} - Categories:`, movie.categories);
+            console.error(`${logPrefix} - Countries:`, movie.countries);
+            console.error(`${logPrefix} - Raw category data:`, movieDetail.movie.category);
+            console.error(`${logPrefix} - Raw country data:`, movieDetail.movie.country);
+          }
+          
           errors.push({ slug: item.slug, error: dbError.message });
           failedCount++;
           continue;
@@ -459,11 +468,65 @@ async function processAndSaveMovies(items, pool) {
 }
 
 /**
+ * Validate and clean array data for JSON storage
+ * Ensures the data is a valid array and removes any problematic elements
+ */
+function validateAndCleanArray(data) {
+  if (!data) return [];
+  
+  // If it's already an array, clean it
+  if (Array.isArray(data)) {
+    return data.filter(item => {
+      // Remove null, undefined, and non-string items
+      if (item == null || typeof item !== 'string') return false;
+      // Remove items with problematic characters that might break JSON
+      try {
+        JSON.stringify(item);
+        return true;
+      } catch (e) {
+        console.warn(`${logPrefix} Skipping invalid array item:`, item);
+        return false;
+      }
+    });
+  }
+  
+  // If it's a string, try to parse it as JSON array
+  if (typeof data === 'string') {
+    try {
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed)) {
+        return validateAndCleanArray(parsed);
+      }
+    } catch (e) {
+      // If parsing fails, treat as single item
+      console.warn(`${logPrefix} Converting string to array:`, data);
+      return [data];
+    }
+  }
+  
+  // For any other type, return empty array
+  return [];
+}
+
+/**
  * Convert API movie detail to movie database model
  */
 function convertToMovieModel(movieDetail) {
   const movie = movieDetail.movie;
+    const categoriesJson = JSON.stringify(validateAndCleanArray(movie.category));
+  const countriesJson = JSON.stringify(validateAndCleanArray(movie.country));
   
+  // Validate that the JSON strings are valid
+  try {
+    JSON.parse(categoriesJson);
+    JSON.parse(countriesJson);
+  } catch (e) {
+    console.error(`${logPrefix} JSON validation failed for movie ${movie.slug}:`, e.message);
+    console.error(`${logPrefix} Categories:`, categoriesJson);
+    console.error(`${logPrefix} Countries:`, countriesJson);
+    throw new Error(`Invalid JSON format: ${e.message}`);
+  }
+
   // Return movie object with episode data directly from API
   return {
     movie_id: movie._id,
@@ -480,11 +543,10 @@ function convertToMovieModel(movieDetail) {
     quality: movie.quality || '',
     lang: movie.lang || '',
     year: movie.year ? parseInt(movie.year) : new Date().getFullYear(),
-    view: movie.view || 0,
-    directors: movie.director ? movie.director.join(',') : '',
+    view: movie.view || 0,    directors: movie.director ? movie.director.join(',') : '',
     actors: movie.actor ? movie.actor.join(',') : '',
-    categories: JSON.stringify(movie.category || []),
-    countries: JSON.stringify(movie.country || []),
+    categories: categoriesJson,
+    countries: countriesJson,
     // Use episode fields directly from API, exactly as provided
     episode_current: movie.episode_current || 'Full',
     episode_total: movie.episode_total || '1',
