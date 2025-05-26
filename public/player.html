@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simple HLS Player</title>
+  <style>
+    body{margin:0;padding:0;background:#111;color:#fff;font-family:sans-serif}
+    .player{width:100%;height:100vh;max-height:calc(100vw*9/16);position:relative;}
+    video{width:100%;height:100%}
+    .controls{padding:15px;background:#222;border-top:1px solid #333;}
+    .status{background:#333;color:#fff;padding:4px 8px;border-radius:4px;display:inline-block;margin:8px 0;}
+    .error{background:#b00;color:#fff;}
+    .success{background:#080;color:#fff;}
+    .loading{
+      position:absolute;
+      top:50%;left:50%;
+      transform:translate(-50%,-50%);
+      width:48px;height:48px;
+      border:5px solid rgba(255,255,255,0.3);
+      border-radius:50%;
+      border-top-color:#e50914;
+      animation:spin 1s linear infinite;
+      z-index:10;
+    }
+    @keyframes spin{to{transform:translate(-50%,-50%) rotate(360deg);}}
+    .hidden{display:none;}
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+</head>
+<body>
+  <div class="player">
+    <div id="loading" class="loading"></div>
+    <video id="video" controls></video>
+  </div>
+  <div class="controls">
+    <div id="status" class="status">Initializing...</div>
+    <p>URL: <span id="url"></span></p>
+    <div>
+      <button onclick="location.reload()">Refresh Player</button>
+      <button id="vlc-btn">Open in VLC</button>
+    </div>
+  </div>
+  <script>
+    const video = document.getElementById('video');
+    const urlDisplay = document.getElementById('url');
+    const status = document.getElementById('status');
+    const loading = document.getElementById('loading');
+    const vlcBtn = document.getElementById('vlc-btn');
+    
+    const urlParams = new URLSearchParams(window.location.search);
+    const streamUrl = urlParams.get('stream');
+    
+    // Set up VLC button
+    vlcBtn.addEventListener('click', function() {
+      if (streamUrl) {
+        window.location.href = `vlc://${streamUrl}`;
+      }
+    });
+    
+    // Update status
+    function updateStatus(message, type = 'info') {
+      status.textContent = message;
+      status.className = 'status';
+      
+      if (type === 'error') {
+        status.classList.add('error');
+        loading.classList.add('hidden');
+      } else if (type === 'success') {
+        status.classList.add('success');
+        loading.classList.add('hidden');
+      } else {
+        loading.classList.remove('hidden');
+      }
+    }
+    
+    // Display URL
+    if (streamUrl) {
+      urlDisplay.textContent = streamUrl;
+      
+      try {
+        if (Hls.isSupported()) {
+          updateStatus('Loading HLS stream...');
+          
+          const hls = new Hls({
+            fragLoadingTimeOut: 15000,
+            manifestLoadingTimeOut: 15000,
+            levelLoadingTimeOut: 15000
+          });
+          
+          hls.loadSource(streamUrl);
+          hls.attachMedia(video);
+          
+          hls.on(Hls.Events.MANIFEST_PARSED, () => {
+            updateStatus('Stream loaded, starting playback...', 'success');
+            video.play()
+              .catch(err => updateStatus(`Autoplay blocked: ${err.message}. Click play.`, 'error'));
+          });
+          
+          hls.on(Hls.Events.ERROR, (event, data) => {
+            if (data.fatal) {
+              updateStatus(`HLS error: ${data.type}`, 'error');
+              console.error('HLS error:', data);
+              
+              if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+                updateStatus('Network error, trying to recover...', 'error');
+                hls.startLoad();
+              } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+                updateStatus('Media error, trying to recover...', 'error');
+                hls.recoverMediaError();
+              } else {
+                updateStatus('Fatal error in HLS player. Try VLC.', 'error');
+              }
+            }
+          });
+          
+        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+          updateStatus('Using native HLS support...');
+          video.src = streamUrl;
+          
+          video.addEventListener('loadedmetadata', () => {
+            updateStatus('Stream loaded natively, starting playback...', 'success');
+            video.play()
+              .catch(err => updateStatus(`Autoplay blocked: ${err.message}. Click play.`, 'error'));
+          });
+          
+          video.addEventListener('error', () => {
+            updateStatus(`Playback error: ${video.error.message}`, 'error');
+          });
+          
+        } else {
+          updateStatus('Your browser does not support HLS playback. Try VLC.', 'error');
+        }
+      } catch (error) {
+        console.error('Player error:', error);
+        updateStatus(`Player initialization error: ${error.message}`, 'error');
+      }
+      
+      // Video event listeners
+      video.addEventListener('playing', () => {
+        updateStatus('Video is playing', 'success');
+      });
+      
+      video.addEventListener('waiting', () => {
+        updateStatus('Buffering video...');
+      });
+      
+      video.addEventListener('ended', () => {
+        updateStatus('Playback finished', 'info');
+      });
+      
+      video.addEventListener('error', () => {
+        updateStatus(`Video error: ${video.error ? video.error.message : 'Unknown error'}`, 'error');
+      });
+      
+    } else {
+      urlDisplay.textContent = 'No stream URL provided';
+      updateStatus('Error: Missing stream URL parameter. Add ?stream=YOUR_M3U8_URL to the URL.', 'error');
+    }
+  </script>
+</body>
+</html>

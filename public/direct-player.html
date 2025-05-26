@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FilmFlex Direct Player</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <!-- Latest version of HLS.js -->
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.4.8/dist/hls.min.js"></script>
+    <!-- Player UI styling -->
+    <style>
+        body { background: #111; }
+        .video-container {
+            position: relative;
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: #000;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        video {
+            width: 100%;
+            display: block;
+        }
+        .player-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: rgba(0, 0, 0, 0.6);
+            z-index: 10;
+        }
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top-color: #e50914;
+            animation: spin 1s infinite linear;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body class="text-gray-200">
+    <div class="container mx-auto px-4 py-8">
+        <div class="flex items-center justify-between mb-6">
+            <h1 class="text-2xl md:text-3xl font-bold text-red-600">FilmFlex Direct Player</h1>
+            <div id="stream-status" class="px-3 py-1 text-sm rounded-full bg-yellow-600">Initializing...</div>
+        </div>
+
+        <!-- Video Player -->
+        <div class="video-container aspect-video">
+            <div id="loading-overlay" class="player-overlay">
+                <div class="spinner"></div>
+            </div>
+            <video id="video" controls crossorigin="anonymous" playsinline></video>
+        </div>
+
+        <!-- Controls and Info -->
+        <div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="bg-gray-900 p-4 rounded-lg">
+                <h3 class="text-xl font-semibold mb-3">Stream Information</h3>
+                <div class="space-y-2 text-sm">
+                    <p>Status: <span id="player-status" class="font-mono">Initializing player...</span></p>
+                    <p>URL: <span id="stream-url" class="font-mono break-all text-xs"></span></p>
+                    <div id="error-message" class="mt-2 p-2 bg-red-900 rounded hidden"></div>
+                </div>
+            </div>
+            <div class="bg-gray-900 p-4 rounded-lg">
+                <h3 class="text-xl font-semibold mb-3">Alternative Players</h3>
+                <p class="mb-3 text-sm">If playback fails, try these options:</p>
+                <div class="space-y-2">
+                    <button id="vlc-btn" class="bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded w-full">
+                        Open in VLC Player
+                    </button>
+                    <button id="refresh-btn" class="bg-blue-700 hover:bg-blue-600 text-white py-2 px-4 rounded w-full">
+                        Refresh Player
+                    </button>
+                    <a id="direct-link" href="#" target="_blank" class="inline-block bg-green-700 hover:bg-green-600 text-white py-2 px-4 rounded w-full text-center">
+                        Open Direct Stream
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Player elements
+            const video = document.getElementById('video');
+            const loadingOverlay = document.getElementById('loading-overlay');
+            const streamUrl = document.getElementById('stream-url');
+            const playerStatus = document.getElementById('player-status');
+            const streamStatus = document.getElementById('stream-status');
+            const errorMessage = document.getElementById('error-message');
+            const vlcBtn = document.getElementById('vlc-btn');
+            const refreshBtn = document.getElementById('refresh-btn');
+            const directLink = document.getElementById('direct-link');
+            
+            // Get stream URL from query parameter
+            const urlParams = new URLSearchParams(window.location.search);
+            const videoSrc = urlParams.get('stream');
+            
+            if (!videoSrc) {
+                updateStatus('No stream URL provided. Add ?stream=YOUR_M3U8_URL to the URL.', 'error');
+                return;
+            }
+            
+            // Set stream URL in UI
+            streamUrl.textContent = videoSrc;
+            directLink.href = videoSrc;
+            
+            // Set up VLC link
+            vlcBtn.addEventListener('click', function() {
+                const vlcUrl = `vlc://${videoSrc}`;
+                window.location.href = vlcUrl;
+            });
+            
+            // Refresh player
+            refreshBtn.addEventListener('click', function() {
+                location.reload();
+            });
+
+            // Utility to update status
+            function updateStatus(message, type = 'info') {
+                playerStatus.textContent = message;
+                
+                // Update the status pill
+                streamStatus.textContent = type === 'error' ? 'Error' : 
+                                          type === 'success' ? 'Playing' : 'Loading';
+                streamStatus.className = 'px-3 py-1 text-sm rounded-full ' + 
+                    (type === 'error' ? 'bg-red-600' : 
+                     type === 'success' ? 'bg-green-600' : 'bg-yellow-600');
+                
+                // Show error message if applicable
+                if (type === 'error') {
+                    errorMessage.textContent = message;
+                    errorMessage.classList.remove('hidden');
+                } else {
+                    errorMessage.classList.add('hidden');
+                }
+            }
+
+            // Initialize player with multiple fallback methods
+            function initializePlayer() {
+                updateStatus('Initializing player...');
+                
+                // Create timeout to detect if loading takes too long
+                const timeoutId = setTimeout(() => {
+                    if (!video.canPlay) {
+                        updateStatus('Stream loading timeout. Try an alternative player.', 'error');
+                    }
+                }, 15000);
+                
+                // Method 1: HLS.js (for browsers that don't support HLS natively)
+                if (Hls.isSupported()) {
+                    try {
+                        updateStatus('Using HLS.js player...');
+                        const hls = new Hls({
+                            maxBufferLength: 30,
+                            maxMaxBufferLength: 60,
+                            fragLoadingTimeOut: 20000, // Increase timeout for slow connections
+                            manifestLoadingTimeOut: 20000,
+                            levelLoadingTimeOut: 20000
+                        });
+                        
+                        hls.loadSource(videoSrc);
+                        hls.attachMedia(video);
+                        
+                        hls.on(Hls.Events.MANIFEST_PARSED, function() {
+                            updateStatus('HLS manifest loaded, starting playback...');
+                            
+                            // Try to play the video
+                            const playPromise = video.play();
+                            if (playPromise !== undefined) {
+                                playPromise
+                                    .then(() => {
+                                        loadingOverlay.classList.add('hidden');
+                                        updateStatus('Playback started successfully', 'success');
+                                        clearTimeout(timeoutId);
+                                    })
+                                    .catch(err => {
+                                        updateStatus(`Autoplay failed: ${err.message}. Click play button to start.`, 'error');
+                                    });
+                            }
+                        });
+                        
+                        // Error handling
+                        hls.on(Hls.Events.ERROR, function(event, data) {
+                            if (data.fatal) {
+                                updateStatus(`HLS fatal error: ${data.type}`, 'error');
+                                switch(data.type) {
+                                    case Hls.ErrorTypes.NETWORK_ERROR:
+                                        updateStatus('Network error, trying to recover...', 'error');
+                                        hls.startLoad();
+                                        break;
+                                    case Hls.ErrorTypes.MEDIA_ERROR:
+                                        updateStatus('Media error, trying to recover...', 'error');
+                                        hls.recoverMediaError();
+                                        break;
+                                    default:
+                                        updateStatus('Unrecoverable HLS error. Try alternative player.', 'error');
+                                        break;
+                                }
+                            }
+                        });
+                        
+                        return; // HLS.js handling is complete
+                    } catch (err) {
+                        updateStatus(`HLS.js error: ${err.message}`, 'error');
+                        // Continue to fallback methods
+                    }
+                }
+                
+                // Method 2: Native HLS support (Safari, iOS, etc.)
+                try {
+                    if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                        updateStatus('Using native HLS playback...');
+                        video.src = videoSrc;
+                        
+                        video.addEventListener('loadedmetadata', function() {
+                            updateStatus('Video metadata loaded, starting playback...');
+                            loadingOverlay.classList.add('hidden');
+                            video.play()
+                                .then(() => {
+                                    updateStatus('Playback started successfully', 'success');
+                                    clearTimeout(timeoutId);
+                                })
+                                .catch(err => {
+                                    updateStatus(`Autoplay failed: ${err.message}. Click play button to start.`, 'error');
+                                });
+                        });
+                        
+                        video.addEventListener('error', function() {
+                            updateStatus(`Native playback error: ${video.error.message}`, 'error');
+                        });
+                        
+                        return; // Native HLS handling is complete
+                    }
+                } catch (err) {
+                    updateStatus(`Native HLS error: ${err.message}`, 'error');
+                    // Continue to fallback methods
+                }
+                
+                // Method 3: Final fallback - direct the user to external player
+                updateStatus('Your browser does not support HLS. Try VLC or another player.', 'error');
+            }
+            
+            // Start the player if we have a valid stream URL
+            if (videoSrc) {
+                initializePlayer();
+                
+                // Add event listeners for video element
+                video.addEventListener('playing', () => {
+                    loadingOverlay.classList.add('hidden');
+                    updateStatus('Video is playing', 'success');
+                });
+                
+                video.addEventListener('waiting', () => {
+                    loadingOverlay.classList.remove('hidden');
+                    updateStatus('Buffering video...');
+                });
+                
+                video.addEventListener('error', (e) => {
+                    updateStatus(`Video error: ${video.error ? video.error.message : 'Unknown error'}`, 'error');
+                });
+            }
+        });
+    </script>
+</body>
+</html>

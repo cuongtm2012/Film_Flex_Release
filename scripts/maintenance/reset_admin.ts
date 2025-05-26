@@ -1,5 +1,5 @@
-import { db } from "./server/db";
-import { users } from "./shared/schema";
+import { db } from "../../server/db";
+import { users } from "../../shared/schema";
 import { eq } from "drizzle-orm";
 
 async function resetAdmin() {
@@ -11,6 +11,7 @@ async function resetAdmin() {
     
     console.log(`Deleted ${deletedCount.length} admin users.`);
     console.log("Admin user will be recreated on next server start with username: admin and password: Cuongtm2012$");
+    console.log("NOTE: You'll need to run the complete database reset script to recreate the admin user.");
   } catch (error) {
     console.error("Error resetting admin user:", error);
   }
