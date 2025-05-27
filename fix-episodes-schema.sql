@@ -149,19 +149,54 @@ BEGIN
     END;
 END$$;
 
--- Add unique constraint on slug if it doesn't exist
+-- Remove any existing unique constraint on slug alone
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM pg_constraint 
+        WHERE conname = 'episodes_slug_unique' AND conrelid = 'episodes'::regclass
+    ) THEN
+        ALTER TABLE episodes DROP CONSTRAINT episodes_slug_unique;
+        RAISE NOTICE 'Dropped old unique constraint on slug alone';
+    END IF;
+END$$;
+
+-- Add composite unique constraint on (movie_slug, slug) for proper conflict resolution
 DO $$
 BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM pg_constraint 
-        WHERE conname = 'episodes_slug_unique' AND conrelid = 'episodes'::regclass
+        WHERE conname = 'episodes_movie_slug_slug_unique' AND conrelid = 'episodes'::regclass
+    ) THEN
+        -- First remove any duplicate combinations of movie_slug + slug
+        DELETE FROM episodes a USING episodes b 
+        WHERE a.id < b.id 
+        AND a.movie_slug = b.movie_slug 
+        AND a.slug = b.slug 
+        AND a.movie_slug != '' 
+        AND a.slug != '';
+        
+        -- Add composite unique constraint
+        ALTER TABLE episodes ADD CONSTRAINT episodes_movie_slug_slug_unique UNIQUE (movie_slug, slug);
+        RAISE NOTICE 'Added composite unique constraint on (movie_slug, slug)';
+    ELSE
+        RAISE NOTICE 'Composite unique constraint on (movie_slug, slug) already exists';
+    END IF;
+END$$;
+
+-- Also add a simple unique constraint on slug if your application expects it
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint 
+        WHERE conname = 'episodes_slug_key' AND conrelid = 'episodes'::regclass
     ) THEN
         -- First remove any duplicate slugs
         DELETE FROM episodes a USING episodes b 
         WHERE a.id < b.id AND a.slug = b.slug AND a.slug != '';
         
-        -- Add unique constraint
-        ALTER TABLE episodes ADD CONSTRAINT episodes_slug_unique UNIQUE (slug);
+        -- Add unique constraint on slug
+        ALTER TABLE episodes ADD CONSTRAINT episodes_slug_key UNIQUE (slug);
         RAISE NOTICE 'Added unique constraint to slug column';
     ELSE
         RAISE NOTICE 'Unique constraint on slug already exists';
@@ -171,6 +206,7 @@ END$$;
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_episodes_movie_slug ON episodes(movie_slug);
 CREATE INDEX IF NOT EXISTS idx_episodes_server_name ON episodes(server_name);
+CREATE INDEX IF NOT EXISTS idx_episodes_slug ON episodes(slug);
 
 \echo 'Episodes table schema fix completed!'
 
