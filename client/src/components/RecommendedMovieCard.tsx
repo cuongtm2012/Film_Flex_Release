@@ -18,7 +18,7 @@ interface RecommendedMovieCardProps {
 
 // Utility function to extract current episode number from episodeCurrent string
 const extractEpisodeNumber = (episodeCurrent: string | null | undefined): number | null => {
-  if (!episodeCurrent) return null;
+  if (!episodeCurrent) return null; 
   
   // Handle "Full" or "Hoàn Tất" cases
   if (episodeCurrent.toLowerCase().includes('full') || episodeCurrent.toLowerCase().includes('hoàn tất')) {
@@ -74,6 +74,9 @@ export default function RecommendedMovieCard({ movie, size = "medium" }: Recomme
     currentEpisodeNumber > 0 &&
     totalEpisodes > 0;
 
+  // Get the correct image URL with proper fallbacks
+  const imageUrl = movie.posterUrl || movie.poster_url || movie.thumbUrl || movie.thumb_url || "https://via.placeholder.com/300x450?text=No+Image";
+
   return (
     <Link href={`/movie/${movie.slug}`}>
       <TooltipProvider>
@@ -83,11 +86,26 @@ export default function RecommendedMovieCard({ movie, size = "medium" }: Recomme
               <div className="w-full overflow-hidden rounded-md mb-2 relative bg-gray-900">
                 <AspectRatio ratio={aspectRatio}>
                   <img
-                    src={movie.thumb_url || movie.poster_url || "https://via.placeholder.com/300x450?text=No+Image"}
+                    src={imageUrl}
                     alt={movie.name}
                     className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                    loading="lazy"
                     onError={(e) => {
-                      e.currentTarget.src = "https://via.placeholder.com/300x450?text=No+Image";
+                      const target = e.currentTarget;
+                      // Try fallback URLs in order
+                      if (target.src !== "https://via.placeholder.com/300x450?text=No+Image") {
+                        if (movie.thumbUrl && target.src !== movie.thumbUrl) {
+                          target.src = movie.thumbUrl;
+                        } else if (movie.thumb_url && target.src !== movie.thumb_url) {
+                          target.src = movie.thumb_url;
+                        } else if (movie.posterUrl && target.src !== movie.posterUrl) {
+                          target.src = movie.posterUrl;
+                        } else if (movie.poster_url && target.src !== movie.poster_url) {
+                          target.src = movie.poster_url;
+                        } else {
+                          target.src = "https://via.placeholder.com/300x450?text=No+Image";
+                        }
+                      }
                     }}
                   />
                   

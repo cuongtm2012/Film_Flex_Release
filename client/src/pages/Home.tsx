@@ -2,12 +2,15 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import MovieSection from '@/components/MovieSection';
 import HeroCarousel from '@/components/HeroCarousel';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { MovieListResponse, MovieDetailResponse } from '@shared/schema';
 import TvSeriesCard from '@/components/TvSeriesCard';
+import { Button } from '@/components/ui/button';
 
-// TV Series Section Component
+// TV Series Section Component with navigation buttons
 function TvSeriesSection({ title, movies }: { title: string; movies: MovieListResponse['items'] }) {
+  const scrollContainerRef = React.useRef<HTMLDivElement>(null);
+
   // Filter for TV series with more flexible type checking and data validation
   const tvSeries = React.useMemo(() => {
     if (!Array.isArray(movies)) {
@@ -30,7 +33,7 @@ function TvSeriesSection({ title, movies }: { title: string; movies: MovieListRe
       }
 
       return isTV;
-    });
+    }).slice(0, 30); // Limit to 30 items
   }, [movies]);
 
   // Add debug logging
@@ -42,6 +45,18 @@ function TvSeriesSection({ title, movies }: { title: string; movies: MovieListRe
     }
   }, [movies, tvSeries]);
 
+  const scroll = (direction: 'left' | 'right') => {
+    if (!scrollContainerRef.current) return;
+
+    const container = scrollContainerRef.current;
+    const scrollAmount = container.clientWidth * 0.8;
+
+    container.scrollBy({
+      left: direction === 'left' ? -scrollAmount : scrollAmount,
+      behavior: 'smooth'
+    });
+  };
+
   // If no TV series or invalid data, don't render the section
   if (!movies?.length || !tvSeries.length) return null;
 
@@ -51,13 +66,39 @@ function TvSeriesSection({ title, movies }: { title: string; movies: MovieListRe
         <h2 className="text-2xl font-bold">{title}</h2>
       </div>
       <div className="relative">
-        <div className="container mx-auto px-4 overflow-hidden">
-          <div className="flex gap-4 overflow-x-auto scrollbar-hide -mx-4 px-4">
-            {tvSeries.map((movie) => (
-              <div key={movie.slug} className="flex-none w-[200px]">
-                <TvSeriesCard movie={movie} />
-              </div>
-            ))}
+        {/* Navigation controls wrapper - group for showing/hiding arrows */}
+        <div className="group">
+          {/* Left scroll button - More visible */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute left-4 top-1/2 -translate-y-1/2 z-10 h-14 w-14 rounded-full bg-black/70 hover:bg-black/90 opacity-80 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200 border border-white/20"
+            onClick={() => scroll('left')}
+          >
+            <ChevronLeft className="h-8 w-8 text-white" />
+          </Button>
+
+          {/* Right scroll button - More visible */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute right-4 top-1/2 -translate-y-1/2 z-10 h-14 w-14 rounded-full bg-black/70 hover:bg-black/90 opacity-80 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200 border border-white/20"
+            onClick={() => scroll('right')}
+          >
+            <ChevronRight className="h-8 w-8 text-white" />
+          </Button>
+
+          <div className="container mx-auto px-4 overflow-hidden">
+            <div 
+              ref={scrollContainerRef}
+              className="flex gap-4 overflow-x-auto scrollbar-hide -mx-4 px-4"
+            >
+              {tvSeries.map((movie) => (
+                <div key={movie.slug} className="flex-none w-[200px]">
+                  <TvSeriesCard movie={movie} />
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -65,8 +106,10 @@ function TvSeriesSection({ title, movies }: { title: string; movies: MovieListRe
   );
 }
 
-// Dedicated Anime Section Component
+// Dedicated Anime Section Component with navigation buttons
 function AnimeSection({ title, movies }: { title: string; movies: MovieListResponse['items'] }) {
+  const scrollContainerRef = React.useRef<HTMLDivElement>(null);
+
   // Since the API endpoint /api/movies/sections/anime should already return anime content,
   // we don't need aggressive filtering. Just ensure valid movie data.
   const animeContent = React.useMemo(() => {
@@ -82,7 +125,7 @@ function AnimeSection({ title, movies }: { title: string; movies: MovieListRespo
         return false;
       }
       return true;
-    });
+    }).slice(0, 30); // Limit to 30 items
   }, [movies]);
 
   // Add debug logging for anime
@@ -98,6 +141,18 @@ function AnimeSection({ title, movies }: { title: string; movies: MovieListRespo
     }
   }, [movies, animeContent]);
 
+  const scroll = (direction: 'left' | 'right') => {
+    if (!scrollContainerRef.current) return;
+
+    const container = scrollContainerRef.current;
+    const scrollAmount = container.clientWidth * 0.8;
+
+    container.scrollBy({
+      left: direction === 'left' ? -scrollAmount : scrollAmount,
+      behavior: 'smooth'
+    });
+  };
+
   // Always render the section with proper fallback
   return (
     <section className="py-8">
@@ -105,20 +160,46 @@ function AnimeSection({ title, movies }: { title: string; movies: MovieListRespo
         <h2 className="text-2xl font-bold">{title}</h2>
       </div>
       <div className="relative">
-        <div className="container mx-auto px-4 overflow-hidden">
-          {animeContent.length > 0 ? (
-            <div className="flex gap-4 overflow-x-auto scrollbar-hide -mx-4 px-4">
-              {animeContent.map((movie) => (
-                <div key={movie.slug} className="flex-none w-[200px]">
-                  <TvSeriesCard movie={movie} />
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center text-muted-foreground py-8">
-              <p>No anime content available at the moment.</p>
-            </div>
-          )}
+        {/* Navigation controls wrapper - group for showing/hiding arrows */}
+        <div className="group">
+          {/* Left scroll button - More visible */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute left-4 top-1/2 -translate-y-1/2 z-10 h-14 w-14 rounded-full bg-black/70 hover:bg-black/90 opacity-80 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200 border border-white/20"
+            onClick={() => scroll('left')}
+          >
+            <ChevronLeft className="h-8 w-8 text-white" />
+          </Button>
+
+          {/* Right scroll button - More visible */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute right-4 top-1/2 -translate-y-1/2 z-10 h-14 w-14 rounded-full bg-black/70 hover:bg-black/90 opacity-80 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200 border border-white/20"
+            onClick={() => scroll('right')}
+          >
+            <ChevronRight className="h-8 w-8 text-white" />
+          </Button>
+
+          <div className="container mx-auto px-4 overflow-hidden">
+            {animeContent.length > 0 ? (
+              <div 
+                ref={scrollContainerRef}
+                className="flex gap-4 overflow-x-auto scrollbar-hide -mx-4 px-4"
+              >
+                {animeContent.map((movie) => (
+                  <div key={movie.slug} className="flex-none w-[200px]">
+                    <TvSeriesCard movie={movie} />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center text-muted-foreground py-8">
+                <p>No anime content available at the moment.</p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </section>
@@ -126,9 +207,9 @@ function AnimeSection({ title, movies }: { title: string; movies: MovieListRespo
 }
 
 export default function Home() {
-  // Fetch movies by sections
+  // Fetch movies by sections - limit to 30 items each
   const { data: trendingMovies, isLoading: trendingLoading } = useQuery<MovieListResponse>({
-    queryKey: ['/api/movies/sections/trending_now', { page: 1, limit: 10 }],
+    queryKey: ['/api/movies/sections/trending_now', { page: 1, limit: 30 }],
   });
   // Fetch recommended movies for hero carousel
   const { data: recommendedMovies, isLoading: recommendedLoading } = useQuery<MovieListResponse>({
@@ -137,17 +218,17 @@ export default function Home() {
 
   // Fetch latest movies section
   const { data: latestMovies, isLoading: latestLoading } = useQuery<MovieListResponse>({
-    queryKey: ['/api/movies/sections/latest_movies', { page: 1, limit: 10 }],
+    queryKey: ['/api/movies/sections/latest_movies', { page: 1, limit: 30 }],
   });
 
   // Fetch top rated movies section
   const { data: topRatedMovies, isLoading: topRatedLoading } = useQuery<MovieListResponse>({
-    queryKey: ['/api/movies/sections/top_rated', { page: 1, limit: 10 }],
+    queryKey: ['/api/movies/sections/top_rated', { page: 1, limit: 30 }],
   });
   
   // Fetch popular TV series with improved error handling
   const { data: popularTvSeries, isLoading: tvSeriesLoading, error: tvSeriesError } = useQuery<MovieListResponse>({
-    queryKey: ['/api/movies/sections/popular_tv', { page: 1, limit: 10 }],
+    queryKey: ['/api/movies/sections/popular_tv', { page: 1, limit: 30 }],
     retry: 2, // Retry failed requests up to 2 times
     staleTime: 1000 * 60 * 5, // Consider data fresh for 5 minutes
     gcTime: 1000 * 60 * 30, // Keep data in cache for 30 minutes
@@ -156,7 +237,7 @@ export default function Home() {
 
   // Fetch anime section with proper error handling
   const { data: animeMovies, isLoading: animeLoading, error: animeError } = useQuery<MovieListResponse>({
-    queryKey: ['/api/movies/sections/anime', { page: 1, limit: 10 }],
+    queryKey: ['/api/movies/sections/anime', { page: 1, limit: 30 }],
     retry: 2,
     staleTime: 1000 * 60 * 5,
     gcTime: 1000 * 60 * 30,
@@ -228,7 +309,7 @@ export default function Home() {
         {trendingMovies?.items && trendingMovies.items.length > 0 && (
           <MovieSection
             title="Trending Now"
-            movies={trendingMovies.items.filter(movie => movie.type?.toLowerCase() !== 'tv')}
+            movies={trendingMovies.items.filter(movie => movie.type?.toLowerCase() !== 'tv').slice(0, 30)}
           />
         )}
 
@@ -236,7 +317,7 @@ export default function Home() {
         {latestMovies?.items && latestMovies.items.length > 0 && (
           <MovieSection
             title="Latest Movies"
-            movies={latestMovies.items.filter(movie => movie.type?.toLowerCase() !== 'tv')}
+            movies={latestMovies.items.filter(movie => movie.type?.toLowerCase() !== 'tv').slice(0, 30)}
           />
         )}
 
@@ -244,7 +325,7 @@ export default function Home() {
         {topRatedMovies?.items && topRatedMovies.items.length > 0 && (
           <MovieSection
             title="Top Rated Movies"
-            movies={topRatedMovies.items.filter(movie => movie.type?.toLowerCase() !== 'tv')}
+            movies={topRatedMovies.items.filter(movie => movie.type?.toLowerCase() !== 'tv').slice(0, 30)}
           />
         )}
 

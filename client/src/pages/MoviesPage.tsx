@@ -8,7 +8,7 @@ import { Loader2 } from "lucide-react";
 export default function MoviesPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [sortBy, setSortBy] = useState("latest");
-  const [limit] = useState(50);
+  const [limit] = useState(48);
 
   // Fetch movie list with pagination and sorting
   const {

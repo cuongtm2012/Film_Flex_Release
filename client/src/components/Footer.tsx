@@ -1,29 +1,22 @@
 import React, { useState, useEffect } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { 
   Film, 
   Tv,
   Calendar,
   Star,
-  List,
   HelpCircle,
   Monitor,
   FileText,
   Mail,
   Info,
   Briefcase,
-  Newspaper,
   BookOpen,
-  Users,
   FileTerminal,
   Shield,
   Cookie,
-  CheckSquare,
-  ShieldAlert,
-  ArrowUp,
   ChevronUp,
-  ChevronDown,
-  X
+  ChevronDown
 } from "lucide-react";
 
 // Helper component for footer links
@@ -32,13 +25,15 @@ const FooterLink = ({
   icon, 
   children, 
   isScrollTop = false,
-  onScrollTop
+  onScrollTop,
+  onCustomClick
 }: { 
   href: string, 
   icon: React.ReactNode, 
   children: React.ReactNode,
   isScrollTop?: boolean,
-  onScrollTop?: () => void
+  onScrollTop?: () => void,
+  onCustomClick?: () => void
 }) => {
   
   if (isScrollTop) {
@@ -57,6 +52,22 @@ const FooterLink = ({
           <div className="absolute -top-8 left-0 bg-black text-white text-xs py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap">
             Scroll to top
           </div>
+        </div>
+      </li>
+    );
+  }
+
+  if (onCustomClick) {
+    return (
+      <li>
+        <div 
+          onClick={onCustomClick}
+          className="text-gray-300 hover:text-primary flex items-center cursor-pointer transition-colors duration-200"
+          role="button"
+          aria-label={`Navigate to ${children}`}
+        >
+          {icon}
+          <span>{children}</span>
         </div>
       </li>
     );
@@ -103,6 +114,7 @@ const FooterSection = ({ title, children }: FooterSectionProps) => {
 
 const Footer = () => {
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [, setLocation] = useLocation();
 
   // Function to handle scrolling to top
   const scrollToTop = () => {
@@ -110,6 +122,21 @@ const Footer = () => {
       top: 0,
       behavior: 'smooth'
     });
+  };
+
+  // Function to handle Movies link click with smooth scroll-to-top before navigation
+  const handleMoviesClick = () => {
+    // First scroll to top smoothly
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+
+    // Wait for scroll animation to complete before navigating
+    // Use a timeout that matches the typical smooth scroll duration
+    setTimeout(() => {
+      setLocation('/movies');
+    }, 600); // 600ms should be enough for smooth scroll to complete
   };
 
   // Show button when page is scrolled down
@@ -168,8 +195,7 @@ const Footer = () => {
               <FooterLink 
                 href="/movies" 
                 icon={<Film className="h-4 w-4 mr-2" />}
-                isScrollTop={true}
-                onScrollTop={scrollToTop}
+                onCustomClick={handleMoviesClick}
               >
                 Movies
               </FooterLink>
