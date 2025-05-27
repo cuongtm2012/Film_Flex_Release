@@ -12,8 +12,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { ChevronDown, LogOut, User, Settings, BookmarkPlus, Clock, Search, ChevronRight } from "lucide-react";
+import { ChevronDown, LogOut, User, Settings, BookmarkPlus, Clock, Search, ChevronRight, Menu, Home, Film, Newspaper } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useQuery } from "@tanstack/react-query";
@@ -31,6 +38,7 @@ export default function Navbar() {
   const [search, setSearch] = useState("");
   const [isScrolled, setIsScrolled] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [, navigate] = useLocation();
   const isMobile = useIsMobile();
   const { user, logoutMutation } = useAuth();
@@ -118,6 +126,64 @@ export default function Navbar() {
       <div className="container mx-auto px-4 py-3">
         <div className="flex justify-between items-center">
           <div className="flex items-center space-x-8">
+            {/* Mobile Menu Button */}
+            {isMobile && (
+              <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+                <SheetTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="md:hidden text-white hover:bg-white/10"
+                  >
+                    <Menu className="h-6 w-6" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="left" className="w-80 bg-background border-gray-800">
+                  <SheetHeader>
+                    <SheetTitle className="text-left text-primary font-bold text-xl">
+                      FilmFlex
+                    </SheetTitle>
+                  </SheetHeader>
+                  <nav className="mt-8 space-y-4">
+                    <Link 
+                      to="/" 
+                      className="flex items-center space-x-3 text-white hover:text-primary transition p-3 rounded-lg hover:bg-white/5"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      <Home className="h-5 w-5" />
+                      <span className="font-medium">Home</span>
+                    </Link>
+                    <Link 
+                      to="/movies" 
+                      className="flex items-center space-x-3 text-muted-foreground hover:text-white transition p-3 rounded-lg hover:bg-white/5"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      <Film className="h-5 w-5" />
+                      <span className="font-medium">Movies</span>
+                    </Link>
+                    <Link 
+                      to="/news" 
+                      className="flex items-center space-x-3 text-muted-foreground hover:text-white transition p-3 rounded-lg hover:bg-white/5"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      <Newspaper className="h-5 w-5" />
+                      <span className="font-medium">News & Popular</span>
+                    </Link>
+                    {user && (
+                      <Link 
+                        to="/my-list" 
+                        className="flex items-center space-x-3 text-muted-foreground hover:text-white transition p-3 rounded-lg hover:bg-white/5"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        <BookmarkPlus className="h-5 w-5" />
+                        <span className="font-medium">My List</span>
+                      </Link>
+                    )}
+                  </nav>
+                </SheetContent>
+              </Sheet>
+            )}
+
             {/* Logo */}
             <Link to="/" className="text-primary font-bold text-2xl">
               FilmFlex
@@ -144,14 +210,14 @@ export default function Navbar() {
             )}
           </div>
 
-          <div className="flex items-center space-x-4">
-            {/* Search Box */}
+          <div className="flex items-center space-x-2 md:space-x-4">
+            {/* Search Box - Improved mobile layout */}
             <div ref={searchBoxRef} className="relative">
               <form onSubmit={handleSubmitSearch} className="relative">
                 <Input
                   type="search"
                   data-testid="search-input"
-                  placeholder="Search movies..."
+                  placeholder={isMobile ? "Search..." : "Search movies..."}
                   value={search}
                   onChange={(e) => {
                     setSearch(e.target.value);
@@ -166,16 +232,22 @@ export default function Navbar() {
                       setShowSuggestions(true);
                     }
                   }}
-                  className="bg-black/60 border border-muted/30 text-white rounded px-4 py-1 w-32 md:w-64 focus:outline-none focus:ring-1 focus:ring-primary transition-all duration-300"
+                  className={`bg-black/60 border border-muted/30 text-white rounded px-4 py-2 focus:outline-none focus:ring-1 focus:ring-primary transition-all duration-300 ${
+                    isMobile 
+                      ? 'w-32 text-sm placeholder:text-xs' 
+                      : 'w-64'
+                  }`}
                 />
                 <Button
                   type="submit"
                   data-testid="search-submit"
                   variant="ghost"
-                  size="icon" 
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-white"
+                  size={isMobile ? "sm" : "icon"}
+                  className={`absolute right-1 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-white ${
+                    isMobile ? 'h-7 w-7' : 'h-8 w-8'
+                  }`}
                 >
-                  <Search className="h-4 w-4" />
+                  <Search className={isMobile ? "h-4 w-4" : "h-4 w-4"} />
                 </Button>
               </form>
 
@@ -251,7 +323,7 @@ export default function Navbar() {
                       {user ? user.username.substring(0, 2).toUpperCase() : "GU"}
                     </AvatarFallback>
                   </Avatar>
-                  <ChevronDown className="ml-2 h-4 w-4" />
+                  <ChevronDown className={`ml-2 h-4 w-4 ${isMobile ? 'hidden' : ''}`} />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
