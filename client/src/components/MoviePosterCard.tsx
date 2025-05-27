@@ -18,7 +18,7 @@ interface MoviePosterCardProps {
 
 // Utility function to extract current episode number from episodeCurrent string
 const extractEpisodeNumber = (episodeCurrent: string | null | undefined): number | null => {
-  if (!episodeCurrent) return null;
+  if (!episodeCurrent) return null; 
   
   // Handle "Full" or "Hoàn Tất" cases
   if (episodeCurrent.toLowerCase().includes('full') || episodeCurrent.toLowerCase().includes('hoàn tất')) {
