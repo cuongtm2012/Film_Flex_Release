@@ -1,6 +1,6 @@
 import { Link } from 'wouter';
 import { MovieListItem } from '@shared/schema';
-import { Play, Star, Calendar, ListVideo } from 'lucide-react';
+import { Play, Star, ListVideo } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
 import { Badge } from '@/components/ui/badge';
@@ -117,110 +117,125 @@ export default function TvSeriesCard({ movie, className }: TvSeriesCardProps) {
     <Link href={`/movie/${movie.slug}`}>
       <div 
         className={cn(
-          "relative w-full overflow-hidden rounded-lg cursor-pointer hover:ring-2 hover:ring-blue-500/50",
+          "group relative w-full overflow-hidden cursor-pointer",
           className
         )}
       >
-        <AspectRatio ratio={2/3}>
-          {/* TV Series Poster Image */}
-          <div className="w-full h-full bg-black/20">
-            <img
-              src={imageUrl}
-              alt={`${movie.name} Poster`}
-              className="w-full h-full object-cover transition-transform duration-300 ease-out hover:scale-105"
-              loading="lazy"
-              onError={(e) => {
-                e.currentTarget.src = '/placeholder-poster.jpg';
-              }}
-            />
-          </div>          {/* Episode Badge - Only show when conditions are met */}
-          {shouldShowEpisodeBadge && (
-            <div className="absolute top-2 left-2 z-10">
-              <Badge 
-                variant="secondary" 
-                className="flex items-center gap-1.5 px-2 py-1 text-xs font-medium bg-blue-600/90 hover:bg-blue-600 text-white shadow-lg"
-              >
-                <ListVideo className="w-3 h-3" />
-                <span className="truncate">{getBadgeText()}</span>
-              </Badge>
+        {/* TV Series Poster Container */}
+        <div className="rounded-lg overflow-hidden hover:ring-2 hover:ring-blue-500/50">
+          <AspectRatio ratio={2/3}>
+            {/* TV Series Poster Image */}
+            <div className="w-full h-full bg-black/20">
+              <img
+                src={imageUrl}
+                alt={`${movie.name} Poster`}
+                className="w-full h-full object-cover transition-transform duration-300 ease-out hover:scale-105"
+                loading="lazy"
+                onError={(e) => {
+                  e.currentTarget.src = '/placeholder-poster.jpg';
+                }}
+              />
             </div>
-          )}          {/* Status Badge - Top Right (Visible on hover) */}
-          {statusBadgeInfo && (
-            <div className="absolute top-2 right-2 z-10">
-              <Badge 
-                variant={statusBadgeInfo.variant}
-                className="text-xs font-medium shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-              >
-                {statusBadgeInfo.text}
-              </Badge>
-            </div>
-          )}
 
-          {/* Hover Overlay - Only visible on hover */}
-          <div 
-            className="absolute inset-0 bg-gradient-to-t from-black via-black/85 to-transparent 
-                       opacity-0 hover:opacity-100 transition-all duration-300 ease-in-out
-                       flex flex-col items-center justify-end p-4"
-          >
-            {/* Content Container */}
-            <div className="w-full space-y-2">
-              {/* Title */}
-              <h3 className="text-base md:text-lg font-bold text-white text-center line-clamp-2">
-                {movie.name}
-              </h3>
+            {/* Episode Badge - Top Left */}
+            {shouldShowEpisodeBadge && (
+              <div className="absolute top-2 left-2 z-10">
+                <Badge 
+                  variant="secondary" 
+                  className="flex items-center gap-1.5 px-2 py-1 text-xs font-medium bg-blue-600/90 hover:bg-blue-600 text-white shadow-lg"
+                >
+                  <ListVideo className="w-3 h-3" />
+                  <span className="truncate">{getBadgeText()}</span>
+                </Badge>
+              </div>
+            )}
 
-              {/* Year and Rating Row */}
-              <div className="flex items-center justify-center gap-3 text-sm text-gray-300">
-                <div className="flex items-center gap-1">
-                  <Calendar className="w-3 h-3" />
-                  <span>{year}</span>
-                </div>
-                {displayRating && (
-                  <div className="flex items-center gap-1">
-                    <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
-                    <span>{displayRating}</span>
+            {/* Status Badge - Below Episode Badge on Left */}
+            {statusBadgeInfo && (
+              <div className={`absolute left-2 z-10 ${shouldShowEpisodeBadge ? 'top-11' : 'top-2'}`}>
+                <Badge 
+                  variant={statusBadgeInfo.variant}
+                  className="text-xs font-medium shadow-lg"
+                >
+                  {statusBadgeInfo.text}
+                </Badge>
+              </div>
+            )}
+
+            {/* Year Badge - Top Right Corner */}
+            <Badge 
+              variant="outline" 
+              className="absolute top-2 right-2 bg-black/70 text-white border-white/20 text-xs z-10"
+            >
+              {year}
+            </Badge>
+
+            {/* Hover Overlay - Only visible on hover */}
+            <div 
+              className="absolute inset-0 bg-gradient-to-t from-black via-black/85 to-transparent 
+                         opacity-0 hover:opacity-100 transition-all duration-300 ease-in-out
+                         flex flex-col items-center justify-end p-4"
+            >
+              {/* Content Container */}
+              <div className="w-full space-y-2">
+                {/* Categories */}
+                {categories.length > 0 && (
+                  <div className="flex flex-wrap justify-center gap-1">
+                    {categories.map((cat: Category) => (
+                      <Badge 
+                        key={cat.slug} 
+                        variant="secondary" 
+                        className="text-xs bg-white/10 hover:bg-white/20"
+                      >
+                        {cat.name}
+                      </Badge>
+                    ))}
                   </div>
                 )}
-              </div>
 
-              {/* Categories */}
-              {categories.length > 0 && (
-                <div className="flex flex-wrap justify-center gap-1">
-                  {categories.map((cat: Category) => (
-                    <Badge 
-                      key={cat.slug} 
-                      variant="secondary" 
-                      className="text-xs bg-white/10 hover:bg-white/20"
-                    >
-                      {cat.name}
-                    </Badge>
-                  ))}
+                {/* Watch Button */}
+                <div className="pt-3 flex justify-center">
+                  <button
+                    className="flex items-center justify-center gap-2 px-4 py-2 rounded-full bg-blue-500 
+                              transition-all duration-200 transform scale-95 hover:scale-100
+                              hover:bg-blue-500/90 active:scale-95 text-sm font-medium"
+                    aria-label={`Watch ${movie.name}`}
+                  >
+                    <Play className="w-4 h-4" fill="white" />
+                    <span>Watch Now</span>
+                  </button>
                 </div>
-              )}
-
-              {/* Watch Button */}
-              <div className="pt-3 flex justify-center">
-                <button
-                  className="flex items-center justify-center gap-2 px-4 py-2 rounded-full bg-blue-500 
-                            transition-all duration-200 transform scale-95 hover:scale-100
-                            hover:bg-blue-500/90 active:scale-95 text-sm font-medium"
-                  aria-label={`Watch ${movie.name}`}
-                >
-                  <Play className="w-4 h-4" fill="white" />
-                  <span>Watch Now</span>
-                </button>
               </div>
             </div>
-          </div>          {/* Accessibility Enhancement */}
-          <div className="sr-only">
+
+            {/* Accessibility Enhancement */}
+            <div className="sr-only">
+              {movie.name}
+              {` - TV Series`}
+              {shouldShowEpisodeBadge && ` - ${getBadgeText()}`}
+              {displayRating && ` - Rating: ${displayRating} out of 10`}
+              {year && ` - Released in ${year}`}
+              {categories.length > 0 && ` - Categories: ${categories.map((c: Category) => c.name).join(', ')}`}
+            </div>
+          </AspectRatio>
+        </div>
+
+        {/* Always Visible Title Below Image */}
+        <div className="mt-3 px-1">
+          <h3 className="font-semibold text-sm leading-tight line-clamp-2 text-foreground">
             {movie.name}
-            {` - TV Series`}
-            {shouldShowEpisodeBadge && ` - ${getBadgeText()}`}
-            {displayRating && ` - Rating: ${displayRating} out of 10`}
-            {year && ` - Released in ${year}`}
-            {categories.length > 0 && ` - Categories: ${categories.map((c: Category) => c.name).join(', ')}`}
+          </h3>
+          <div className="flex items-center justify-between mt-1">
+            {displayRating ? (
+              <div className="flex items-center gap-1">
+                <Star className="w-3 h-3 text-yellow-400" fill="currentColor" />
+                <span className="text-xs font-medium">{displayRating}</span>
+              </div>
+            ) : (
+              <div></div>
+            )}
           </div>
-        </AspectRatio>
+        </div>
       </div>
     </Link>
   );
