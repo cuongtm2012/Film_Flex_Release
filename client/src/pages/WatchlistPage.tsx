@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { BookmarkPlus, X, Play, Film, ArrowLeft, CheckCircle, Circle } from "lucide-react";
+import { BookmarkPlus, X, Play, ArrowLeft, CheckCircle, Circle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -10,64 +10,79 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 
-// Type for movie in watchlist
-type WatchlistMovie = {
-  id: number;
+interface WatchlistMovie {
+  id: string;
   title: string;
-  posterUrl: string;
+  image: string;
+  posterUrl?: string;
   year: number;
-  genres: string[];
-  watched: boolean;
-};
+  duration: string;
+  genre: string;
+  genres?: string[];
+  rating: number;
+  watched?: boolean;
+}
 
-// Mock data for watchlist - in a real app, this would come from the API
-const mockWatchlist: WatchlistMovie[] = [
+// Mock data for demonstration - using real movie slugs from database
+const mockWatchlistMovies: WatchlistMovie[] = [
   {
-    id: 1,
-    title: "The Dark Knight",
-    posterUrl: "https://image.tmdb.org/t/p/w500/qJ2tW6WMUDux911r6m7haRef0WH.jpg",
-    year: 2008,
-    genres: ["Action", "Crime", "Drama"],
+    id: 'hoi-lam-vuon-grosse-pointe',
+    title: 'Hội Làm Vườn Grosse Pointe',
+    image: 'https://img.phimapi.com/upload/vod/20241220-1/b40e3ffd3c906aacfee68e8a5f85b851.jpg',
+    posterUrl: 'https://img.phimapi.com/upload/vod/20241220-1/b40e3ffd3c906aacfee68e8a5f85b851.jpg',
+    year: 2024,
+    duration: '120 min',
+    genre: 'Drama',
+    genres: ['Drama'],
+    rating: 7.8,
     watched: false
   },
   {
-    id: 2,
-    title: "Inception",
-    posterUrl: "https://image.tmdb.org/t/p/w500/9gk7adHYeDvHkCSEqAvQNLV5Uge.jpg",
-    year: 2010,
-    genres: ["Action", "Sci-Fi", "Adventure"],
+    id: 'quy-co-seon-ju-phuc-thu',
+    title: 'Quý Cô Seon Ju Phục Thù',
+    image: 'https://img.phimapi.com/upload/vod/20241220-1/a8e7b9c2d4f1e8a6b9c8d7e6f5a4b3c2.jpg',
+    posterUrl: 'https://img.phimapi.com/upload/vod/20241220-1/a8e7b9c2d4f1e8a6b9c8d7e6f5a4b3c2.jpg',
+    year: 2024,
+    duration: '45 min',
+    genre: 'Thriller',
+    genres: ['Thriller'],
+    rating: 8.2,
     watched: true
   },
   {
-    id: 3,
-    title: "Interstellar",
-    posterUrl: "https://image.tmdb.org/t/p/w500/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg",
-    year: 2014,
-    genres: ["Adventure", "Drama", "Sci-Fi"],
+    id: 'chuyen-tinh-cay-son-tra',
+    title: 'Chuyện Tình Cây Sơn Tra',
+    image: 'https://img.phimapi.com/upload/vod/20241220-1/c9d8e7f6a5b4c3d2e1f0a9b8c7d6e5f4.jpg',
+    posterUrl: 'https://img.phimapi.com/upload/vod/20241220-1/c9d8e7f6a5b4c3d2e1f0a9b8c7d6e5f4.jpg',
+    year: 2024,
+    duration: '90 min',
+    genre: 'Romance',
+    genres: ['Romance'],
+    rating: 7.5,
     watched: false
   },
   {
-    id: 4,
-    title: "The Shawshank Redemption",
-    posterUrl: "https://image.tmdb.org/t/p/w500/q6y0Go1tsGEsmtFryDOJo3dEmqu.jpg",
-    year: 1994,
-    genres: ["Drama", "Crime"],
-    watched: false
-  },
-  {
-    id: 5,
-    title: "Pulp Fiction",
-    posterUrl: "https://image.tmdb.org/t/p/w500/d5iIlFn5s0ImszYzBPb8JPIfbXD.jpg",
-    year: 1994,
-    genres: ["Crime", "Thriller"],
+    id: 'tinh-yeu-gia-tao',
+    title: 'Tình Yêu Giả Tạo',
+    image: 'https://img.phimapi.com/upload/vod/20241220-1/d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6.jpg',
+    posterUrl: 'https://img.phimapi.com/upload/vod/20241220-1/d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6.jpg',
+    year: 2024,
+    duration: '105 min',
+    genre: 'Romance',
+    genres: ['Romance'],
+    rating: 7.9,
     watched: true
   },
   {
-    id: 6,
-    title: "The Godfather",
-    posterUrl: "https://image.tmdb.org/t/p/w500/3bhkrj58Vtu7enYsRolD1fZdja1.jpg",
-    year: 1972,
-    genres: ["Crime", "Drama"],
+    id: 'ban-an-tu-qua-khu',
+    title: 'Bản Án Từ Quá Khứ',
+    image: 'https://img.phimapi.com/upload/vod/20241220-1/e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7.jpg',
+    posterUrl: 'https://img.phimapi.com/upload/vod/20241220-1/e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7.jpg',
+    year: 2024,
+    duration: '110 min',
+    genre: 'Crime',
+    genres: ['Crime'],
+    rating: 8.1,
     watched: false
   }
 ];
@@ -76,7 +91,7 @@ export default function WatchlistPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [, navigate] = useLocation();
-  const [watchlist, setWatchlist] = useState<WatchlistMovie[]>(mockWatchlist);
+  const [watchlist, setWatchlist] = useState<WatchlistMovie[]>(mockWatchlistMovies);
   const [isLoading, setIsLoading] = useState(false);
   
   // Handle removing a movie from watchlist
@@ -159,7 +174,7 @@ export default function WatchlistPage() {
       <CardContent className="p-4">
         <h3 className="font-bold text-lg line-clamp-1">{movie.title}</h3>
         <div className="flex flex-wrap gap-1 mt-2">
-          {movie.genres.slice(0, 2).map((genre) => (
+          {movie.genres?.slice(0, 2).map((genre) => (
             <Badge key={genre} variant="outline" className="text-xs">
               {genre}
             </Badge>

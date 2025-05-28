@@ -8,11 +8,90 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { MovieListResponse } from "@/types/api";
 import { queryClient } from "@/lib/queryClient";
+import { useLocation } from "wouter";
+
+interface MyListMovie {
+  id: string;
+  title: string;
+  image: string;
+  posterUrl?: string;
+  year: number;
+  duration: string;
+  genre: string;
+  genres?: string[];
+  rating: number;
+  watched?: boolean;
+}
 
 export default function MyListPage() {
   const { user } = useAuth();
+  const [, navigate] = useLocation();
   const userId = user?.id;
   const [activeTab, setActiveTab] = useState("all");
+
+  // Mock data for demonstration - using real movie slugs from database
+  const mockMyListMovies: MyListMovie[] = [
+    {
+      id: 'hoi-lam-vuon-grosse-pointe',
+      title: 'Hội Làm Vườn Grosse Pointe',
+      image: 'https://img.phimapi.com/upload/vod/20241220-1/b40e3ffd3c906aacfee68e8a5f85b851.jpg',
+      posterUrl: 'https://img.phimapi.com/upload/vod/20241220-1/b40e3ffd3c906aacfee68e8a5f85b851.jpg',
+      year: 2024,
+      duration: '120 min',
+      genre: 'Drama',
+      genres: ['Drama'],
+      rating: 7.8,
+      watched: false
+    },
+    {
+      id: 'quy-co-seon-ju-phuc-thu',
+      title: 'Quý Cô Seon Ju Phục Thù',
+      image: 'https://img.phimapi.com/upload/vod/20241220-1/a8e7b9c2d4f1e8a6b9c8d7e6f5a4b3c2.jpg',
+      posterUrl: 'https://img.phimapi.com/upload/vod/20241220-1/a8e7b9c2d4f1e8a6b9c8d7e6f5a4b3c2.jpg',
+      year: 2024,
+      duration: '45 min',
+      genre: 'Thriller',
+      genres: ['Thriller'],
+      rating: 8.2,
+      watched: true
+    },
+    {
+      id: 'chuyen-tinh-cay-son-tra',
+      title: 'Chuyện Tình Cây Sơn Tra',
+      image: 'https://img.phimapi.com/upload/vod/20241220-1/c9d8e7f6a5b4c3d2e1f0a9b8c7d6e5f4.jpg',
+      posterUrl: 'https://img.phimapi.com/upload/vod/20241220-1/c9d8e7f6a5b4c3d2e1f0a9b8c7d6e5f4.jpg',
+      year: 2024,
+      duration: '90 min',
+      genre: 'Romance',
+      genres: ['Romance'],
+      rating: 7.5,
+      watched: false
+    },
+    {
+      id: 'tinh-yeu-gia-tao',
+      title: 'Tình Yêu Giả Tạo',
+      image: 'https://img.phimapi.com/upload/vod/20241220-1/d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6.jpg',
+      posterUrl: 'https://img.phimapi.com/upload/vod/20241220-1/d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6.jpg',
+      year: 2024,
+      duration: '105 min',
+      genre: 'Romance',
+      genres: ['Romance'],
+      rating: 7.9,
+      watched: true
+    },
+    {
+      id: 'ban-an-tu-qua-khu',
+      title: 'Bản Án Từ Quá Khứ',
+      image: 'https://img.phimapi.com/upload/vod/20241220-1/e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7.jpg',
+      posterUrl: 'https://img.phimapi.com/upload/vod/20241220-1/e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7.jpg',
+      year: 2024,
+      duration: '110 min',
+      genre: 'Crime',
+      genres: ['Crime'],
+      rating: 8.1,
+      watched: false
+    }
+  ];
 
   // Fetch user's watchlist
   const {
@@ -49,6 +128,11 @@ export default function MyListPage() {
       queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/watchlist`] });
     },
   });
+
+  // Handle navigation to movie player
+  const handlePlayMovie = (movieSlug: string) => {
+    navigate(`/movie/${movieSlug}`);
+  };
 
   // Filter movies based on the active tab
   const getFilteredMovies = () => {
@@ -135,7 +219,12 @@ export default function MyListPage() {
                       className="w-full h-full object-cover transition-transform group-hover:scale-105"
                     />
                     <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <Button size="icon" variant="ghost" className="text-white">
+                      <Button 
+                        size="icon" 
+                        variant="ghost" 
+                        className="text-white"
+                        onClick={() => handlePlayMovie(movie.slug)}
+                      >
                         <PlayCircle className="h-12 w-12" />
                       </Button>
                     </div>
