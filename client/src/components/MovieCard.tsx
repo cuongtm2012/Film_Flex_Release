@@ -119,7 +119,9 @@ export default function MovieCard({ movie }: MovieCardProps) {
             onError={(e) => {
               e.currentTarget.src = "https://via.placeholder.com/300x450?text=No+Image";
             }}
-          />            {/* Episode Badge - Top Left */}
+          />
+
+          {/* Episode Badge - Top Left */}
           {shouldShowEpisodeBadge && (
             <Badge 
               variant="secondary" 
@@ -128,15 +130,25 @@ export default function MovieCard({ movie }: MovieCardProps) {
               <ListVideo size={12} />
               <span className="truncate">{getBadgeText()}</span>
             </Badge>
-          )}          {/* Status Badge - Top Right (Visible on hover) */}
+          )}
+
+          {/* Status Badge - Below Episode Badge on Left */}
           {statusBadgeInfo && (
             <Badge 
               variant={statusBadgeInfo.variant}
-              className="absolute top-2 right-2 z-10 text-xs font-medium shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+              className={`absolute left-2 z-10 text-xs font-medium shadow-lg ${shouldShowEpisodeBadge ? 'top-11' : 'top-2'}`}
             >
               {statusBadgeInfo.text}
             </Badge>
           )}
+
+          {/* Year Badge - Top Right Corner */}
+          <Badge 
+            variant="outline" 
+            className="absolute top-2 right-2 bg-black/70 text-white border-white/20 text-xs z-10"
+          >
+            {year}
+          </Badge>
           
           {/* Hover Overlay */}
           <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center pb-4">
@@ -146,8 +158,6 @@ export default function MovieCard({ movie }: MovieCardProps) {
               </div>
               <p className="text-sm font-medium mb-1">{movie.name}</p>
               <div className="flex items-center justify-center space-x-3 text-xs">
-                <span>{year}</span>
-                <span>•</span>
                 <span>{typeFormatted}</span>
                 {displayRating && (
                   <>
