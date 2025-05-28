@@ -17,17 +17,28 @@ interface TvSeriesCardProps {
     episode_total?: string;
     episodeCurrent?: string;
     episodeTotal?: string;
+    status?: string;
   };
   className?: string;
 }
 
-// Utility function to extract current episode number from episodeCurrent string
-const extractEpisodeNumber = (episodeCurrent: string | null | undefined): number | null => {
-  if (!episodeCurrent) return null;
+// Utility function to extract episode information from episodeCurrent string
+const extractEpisodeInfo = (episodeCurrent: string | null | undefined, episodeTotal: string | null | undefined): { current: number | null, total: number | null, isCompleted: boolean } => {
+  if (!episodeCurrent) return { current: null, total: null, isCompleted: false };
   
-  // Handle "Full" or "Hoàn Tất" cases
+  const totalEpisodes = episodeTotal ? parseInt(episodeTotal) : 0;
+  
+  // Handle "Full" or "Hoàn Tất" cases - these are completed series
   if (episodeCurrent.toLowerCase().includes('full') || episodeCurrent.toLowerCase().includes('hoàn tất')) {
-    return null; // Don't show badge for completed series
+    // For completed series, extract total from the string if available
+    const completedMatch = episodeCurrent.match(/\((\d+)\/(\d+)\)/);
+    if (completedMatch) {
+      const current = parseInt(completedMatch[1]);
+      const total = parseInt(completedMatch[2]);
+      return { current, total, isCompleted: true };
+    }
+    // If no pattern match but we have episodeTotal, use that
+    return { current: totalEpisodes, total: totalEpisodes, isCompleted: true };
   }
   
   // Extract number from formats like:
@@ -45,11 +56,11 @@ const extractEpisodeNumber = (episodeCurrent: string | null | undefined): number
   for (const pattern of patterns) {
     const match = episodeCurrent.match(pattern);
     if (match) {
-      return parseInt(match[1]);
+      return { current: parseInt(match[1]), total: totalEpisodes, isCompleted: false };
     }
   }
   
-  return null;
+  return { current: null, total: totalEpisodes, isCompleted: false };
 };
 
 export default function TvSeriesCard({ movie, className }: TvSeriesCardProps) {
@@ -63,19 +74,44 @@ export default function TvSeriesCard({ movie, className }: TvSeriesCardProps) {
   // Get year and categories
   const year = movie.year || new Date().getFullYear();
   const categories = movie.category?.slice(0, 2) || [];
-
   // Enhanced episode badge logic with proper extraction - handle both property naming conventions
   const episodeCurrent = movie.episode_current || movie.episodeCurrent;
   const episodeTotal = movie.episode_total || movie.episodeTotal;
   
-  const currentEpisodeNumber = extractEpisodeNumber(episodeCurrent);
-  const totalEpisodes = episodeTotal ? parseInt(episodeTotal) : 0;
+  const episodeInfo = extractEpisodeInfo(episodeCurrent, episodeTotal);
   
   const shouldShowEpisodeBadge = 
-    totalEpisodes > 1 && 
-    currentEpisodeNumber && 
-    currentEpisodeNumber > 0 &&
-    totalEpisodes > 0;
+    episodeInfo.total && episodeInfo.total > 1;
+      // Determine badge text
+  const getBadgeText = () => {
+    if (episodeInfo.isCompleted) {
+      return `Ep ${episodeInfo.total}`;
+    } else if (episodeInfo.current && episodeInfo.total) {
+      return `${episodeInfo.current}/${episodeInfo.total}`;
+    } else if (episodeInfo.total) {
+      return `Ep ${episodeInfo.total}`;
+    }
+    return '';
+  };
+
+  // Status badge logic
+  const getStatusBadgeInfo = () => {
+    const status = movie.status?.toLowerCase();
+    switch (status) {
+      case 'completed':
+        return { text: 'Completed', variant: 'success' as const };
+      case 'ongoing':
+        return { text: 'Ongoing', variant: 'warning' as const };
+      case 'upcoming':
+        return { text: 'Upcoming', variant: 'secondary' as const };
+      case 'canceled':
+        return { text: 'Canceled', variant: 'destructive' as const };
+      default:
+        return null;
+    }
+  };
+
+  const statusBadgeInfo = getStatusBadgeInfo();
 
   return (
     <Link href={`/movie/${movie.slug}`}>
@@ -97,9 +133,7 @@ export default function TvSeriesCard({ movie, className }: TvSeriesCardProps) {
                 e.currentTarget.src = '/placeholder-poster.jpg';
               }}
             />
-          </div>
-
-          {/* Episode Badge - Only show when conditions are met */}
+          </div>          {/* Episode Badge - Only show when conditions are met */}
           {shouldShowEpisodeBadge && (
             <div className="absolute top-2 left-2 z-10">
               <Badge 
@@ -107,7 +141,17 @@ export default function TvSeriesCard({ movie, className }: TvSeriesCardProps) {
                 className="flex items-center gap-1.5 px-2 py-1 text-xs font-medium bg-blue-600/90 hover:bg-blue-600 text-white shadow-lg"
               >
                 <ListVideo className="w-3 h-3" />
-                <span>{currentEpisodeNumber}/{totalEpisodes}</span>
+                <span className="truncate">{getBadgeText()}</span>
+              </Badge>
+            </div>
+          )}          {/* Status Badge - Top Right (Visible on hover) */}
+          {statusBadgeInfo && (
+            <div className="absolute top-2 right-2 z-10">
+              <Badge 
+                variant={statusBadgeInfo.variant}
+                className="text-xs font-medium shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+              >
+                {statusBadgeInfo.text}
               </Badge>
             </div>
           )}
@@ -167,13 +211,11 @@ export default function TvSeriesCard({ movie, className }: TvSeriesCardProps) {
                 </button>
               </div>
             </div>
-          </div>
-
-          {/* Accessibility Enhancement */}
+          </div>          {/* Accessibility Enhancement */}
           <div className="sr-only">
             {movie.name}
             {` - TV Series`}
-            {shouldShowEpisodeBadge && ` - Episode ${currentEpisodeNumber}/${totalEpisodes}`}
+            {shouldShowEpisodeBadge && ` - ${getBadgeText()}`}
             {displayRating && ` - Rating: ${displayRating} out of 10`}
             {year && ` - Released in ${year}`}
             {categories.length > 0 && ` - Categories: ${categories.map((c: Category) => c.name).join(', ')}`}
