@@ -11,16 +11,27 @@ interface MovieCardProps {
     episode_total?: string;
     episodeCurrent?: string;
     episodeTotal?: string;
+    status?: string;
   };
 }
 
-// Utility function to extract current episode number from episodeCurrent string
-const extractEpisodeNumber = (episodeCurrent: string | null | undefined): number | null => {
-  if (!episodeCurrent) return null;
+// Utility function to extract episode information from episodeCurrent string
+const extractEpisodeInfo = (episodeCurrent: string | null | undefined, episodeTotal: string | null | undefined): { current: number | null, total: number | null, isCompleted: boolean } => {
+  if (!episodeCurrent) return { current: null, total: null, isCompleted: false };
   
-  // Handle "Full" or "Hoàn Tất" cases
+  const totalEpisodes = episodeTotal ? parseInt(episodeTotal) : 0;
+  
+  // Handle "Full" or "Hoàn Tất" cases - these are completed series
   if (episodeCurrent.toLowerCase().includes('full') || episodeCurrent.toLowerCase().includes('hoàn tất')) {
-    return null; // Don't show badge for completed series
+    // For completed series, extract total from the string if available
+    const completedMatch = episodeCurrent.match(/\((\d+)\/(\d+)\)/);
+    if (completedMatch) {
+      const current = parseInt(completedMatch[1]);
+      const total = parseInt(completedMatch[2]);
+      return { current, total, isCompleted: true };
+    }
+    // If no pattern match but we have episodeTotal, use that
+    return { current: totalEpisodes, total: totalEpisodes, isCompleted: true };
   }
   
   // Extract number from formats like:
@@ -38,11 +49,11 @@ const extractEpisodeNumber = (episodeCurrent: string | null | undefined): number
   for (const pattern of patterns) {
     const match = episodeCurrent.match(pattern);
     if (match) {
-      return parseInt(match[1]);
+      return { current: parseInt(match[1]), total: totalEpisodes, isCompleted: false };
     }
   }
   
-  return null;
+  return { current: null, total: totalEpisodes, isCompleted: false };
 };
 
 export default function MovieCard({ movie }: MovieCardProps) {
@@ -58,19 +69,44 @@ export default function MovieCard({ movie }: MovieCardProps) {
   // Get rating if available
   const rating = movie.tmdb?.vote_average || 0;
   const displayRating = rating > 0 ? rating.toFixed(1) : null;
-  
-  // Enhanced episode badge logic with proper extraction
+    // Enhanced episode badge logic with proper extraction
   const episodeCurrent = movie.episode_current || movie.episodeCurrent;
   const episodeTotal = movie.episode_total || movie.episodeTotal;
   
-  const currentEpisodeNumber = extractEpisodeNumber(episodeCurrent);
-  const totalEpisodes = episodeTotal ? parseInt(episodeTotal) : 0;
+  const episodeInfo = extractEpisodeInfo(episodeCurrent, episodeTotal);
   
   const shouldShowEpisodeBadge = 
-    totalEpisodes > 1 && 
-    currentEpisodeNumber && 
-    currentEpisodeNumber > 0 &&
-    totalEpisodes > 0;
+    episodeInfo.total && episodeInfo.total > 1;
+      // Determine badge text
+  const getBadgeText = () => {
+    if (episodeInfo.isCompleted) {
+      return `Ep ${episodeInfo.total}`;
+    } else if (episodeInfo.current && episodeInfo.total) {
+      return `${episodeInfo.current}/${episodeInfo.total}`;
+    } else if (episodeInfo.total) {
+      return `Ep ${episodeInfo.total}`;
+    }
+    return '';
+  };
+
+  // Status badge logic
+  const getStatusBadgeInfo = () => {
+    const status = movie.status?.toLowerCase();
+    switch (status) {
+      case 'completed':
+        return { text: 'Completed', variant: 'success' as const };
+      case 'ongoing':
+        return { text: 'Ongoing', variant: 'warning' as const };
+      case 'upcoming':
+        return { text: 'Upcoming', variant: 'secondary' as const };
+      case 'canceled':
+        return { text: 'Canceled', variant: 'destructive' as const };
+      default:
+        return null;
+    }
+  };
+
+  const statusBadgeInfo = getStatusBadgeInfo();
 
   return (
     <Link href={`/movie/${movie.slug}`}>
@@ -83,16 +119,22 @@ export default function MovieCard({ movie }: MovieCardProps) {
             onError={(e) => {
               e.currentTarget.src = "https://via.placeholder.com/300x450?text=No+Image";
             }}
-          />
-          
-          {/* Episode Badge - Top Left */}
+          />            {/* Episode Badge - Top Left */}
           {shouldShowEpisodeBadge && (
             <Badge 
               variant="secondary" 
               className="absolute top-2 left-2 bg-blue-600/90 hover:bg-blue-600 text-white z-10 flex items-center gap-1 text-xs font-medium shadow-lg"
             >
               <ListVideo size={12} />
-              {currentEpisodeNumber}/{totalEpisodes}
+              <span className="truncate">{getBadgeText()}</span>
+            </Badge>
+          )}          {/* Status Badge - Top Right (Visible on hover) */}
+          {statusBadgeInfo && (
+            <Badge 
+              variant={statusBadgeInfo.variant}
+              className="absolute top-2 right-2 z-10 text-xs font-medium shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+            >
+              {statusBadgeInfo.text}
             </Badge>
           )}
           
