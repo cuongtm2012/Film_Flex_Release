@@ -31,7 +31,9 @@ const extractEpisodeInfo = (episodeCurrent: string | null | undefined, episodeTo
       return { current, total, isCompleted: true };
     }
     // If no pattern match but we have episodeTotal, use that
-    return { current: totalEpisodes, total: totalEpisodes, isCompleted: true };
+    // Only mark as completed if it's actually a series (more than 1 episode)
+    const isCompleted = totalEpisodes > 1;
+    return { current: totalEpisodes, total: totalEpisodes, isCompleted };
   }
   
   // Extract number from formats like:
@@ -75,8 +77,12 @@ export default function MovieCard({ movie }: MovieCardProps) {
   
   const episodeInfo = extractEpisodeInfo(episodeCurrent, episodeTotal);
   
+  // Hide badge if episodeCurrent is 'Full' and episodeTotal equals '1'
+  const isFullSingleMovie = episodeCurrent?.toLowerCase().includes('full') && 
+                           (episodeTotal === '1' || parseInt(episodeTotal || '0') === 1);
+  
   const shouldShowEpisodeBadge = 
-    episodeInfo.total && episodeInfo.total > 1;
+    episodeInfo.total && episodeInfo.total > 1 && !isFullSingleMovie;
       // Determine badge text
   const getBadgeText = () => {
     if (episodeInfo.isCompleted) {
@@ -89,12 +95,28 @@ export default function MovieCard({ movie }: MovieCardProps) {
     return '';
   };
 
-  // Status badge logic
+  // Status badge logic - hide "Completed" for single-episode movies
   const getStatusBadgeInfo = () => {
     const status = movie.status?.toLowerCase();
+    
+    // For "Completed" status, check if it's a single-episode movie
+    if (status === 'completed') {
+      // Get episode information
+      const episodeTotal = movie.episode_total || movie.episodeTotal;
+      
+      // Check if it's a single-episode movie (total episodes = 1 or no episode info)
+      const totalEpisodes = episodeTotal ? parseInt(episodeTotal) : 1;
+      const isSingleEpisode = totalEpisodes <= 1;
+      
+      // Hide "Completed" badge for single-episode movies
+      if (isSingleEpisode) {
+        return null;
+      }
+      
+      return { text: 'Completed', variant: 'success' as const };
+    }
+    
     switch (status) {
-      case 'completed':
-        return { text: 'Completed', variant: 'success' as const };
       case 'ongoing':
         return { text: 'Ongoing', variant: 'warning' as const };
       case 'upcoming':
