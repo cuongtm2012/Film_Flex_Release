@@ -94,12 +94,29 @@ export default function TvSeriesCard({ movie, className }: TvSeriesCardProps) {
     return '';
   };
 
-  // Status badge logic
+  // Status badge logic - hide "Completed" for single-episode series
   const getStatusBadgeInfo = () => {
     const status = movie.status?.toLowerCase();
+    
+    // For "Completed" status, check if it's a single-episode series
+    if (status === 'completed') {
+      // Get episode information
+      const episodeCurrent = movie.episode_current || movie.episodeCurrent;
+      const episodeTotal = movie.episode_total || movie.episodeTotal;
+      
+      // Check if it's a single-episode series (total episodes = 1 or no episode info)
+      const totalEpisodes = episodeTotal ? parseInt(episodeTotal) : 1;
+      const isSingleEpisode = totalEpisodes <= 1;
+      
+      // Hide "Completed" badge for single-episode series
+      if (isSingleEpisode) {
+        return null;
+      }
+      
+      return { text: 'Completed', variant: 'success' as const };
+    }
+    
     switch (status) {
-      case 'completed':
-        return { text: 'Completed', variant: 'success' as const };
       case 'ongoing':
         return { text: 'Ongoing', variant: 'warning' as const };
       case 'upcoming':
