@@ -31,7 +31,9 @@ const extractEpisodeInfo = (episodeCurrent: string | null | undefined, episodeTo
       return { current, total, isCompleted: true };
     }
     // If no pattern match but we have episodeTotal, use that
-    return { current: totalEpisodes, total: totalEpisodes, isCompleted: true };
+    // Only mark as completed if it's actually a series (more than 1 episode)
+    const isCompleted = totalEpisodes > 1;
+    return { current: totalEpisodes, total: totalEpisodes, isCompleted };
   }
   
   // Extract number from formats like:
@@ -75,8 +77,12 @@ export default function MovieCard({ movie }: MovieCardProps) {
   
   const episodeInfo = extractEpisodeInfo(episodeCurrent, episodeTotal);
   
+  // Hide badge if episodeCurrent is 'Full' and episodeTotal equals '1'
+  const isFullSingleMovie = episodeCurrent?.toLowerCase().includes('full') && 
+                           (episodeTotal === '1' || parseInt(episodeTotal || '0') === 1);
+  
   const shouldShowEpisodeBadge = 
-    episodeInfo.total && episodeInfo.total > 1;
+    episodeInfo.total && episodeInfo.total > 1 && !isFullSingleMovie;
       // Determine badge text
   const getBadgeText = () => {
     if (episodeInfo.isCompleted) {
@@ -89,12 +95,28 @@ export default function MovieCard({ movie }: MovieCardProps) {
     return '';
   };
 
-  // Status badge logic
+  // Status badge logic - hide "Completed" for single-episode movies
   const getStatusBadgeInfo = () => {
     const status = movie.status?.toLowerCase();
+    
+    // For "Completed" status, check if it's a single-episode movie
+    if (status === 'completed') {
+      // Get episode information
+      const episodeTotal = movie.episode_total || movie.episodeTotal;
+      
+      // Check if it's a single-episode movie (total episodes = 1 or no episode info)
+      const totalEpisodes = episodeTotal ? parseInt(episodeTotal) : 1;
+      const isSingleEpisode = totalEpisodes <= 1;
+      
+      // Hide "Completed" badge for single-episode movies
+      if (isSingleEpisode) {
+        return null;
+      }
+      
+      return { text: 'Completed', variant: 'success' as const };
+    }
+    
     switch (status) {
-      case 'completed':
-        return { text: 'Completed', variant: 'success' as const };
       case 'ongoing':
         return { text: 'Ongoing', variant: 'warning' as const };
       case 'upcoming':
@@ -119,7 +141,9 @@ export default function MovieCard({ movie }: MovieCardProps) {
             onError={(e) => {
               e.currentTarget.src = "https://via.placeholder.com/300x450?text=No+Image";
             }}
-          />            {/* Episode Badge - Top Left */}
+          />
+
+          {/* Episode Badge - Top Left */}
           {shouldShowEpisodeBadge && (
             <Badge 
               variant="secondary" 
@@ -128,15 +152,25 @@ export default function MovieCard({ movie }: MovieCardProps) {
               <ListVideo size={12} />
               <span className="truncate">{getBadgeText()}</span>
             </Badge>
-          )}          {/* Status Badge - Top Right (Visible on hover) */}
+          )}
+
+          {/* Status Badge - Below Episode Badge on Left */}
           {statusBadgeInfo && (
             <Badge 
               variant={statusBadgeInfo.variant}
-              className="absolute top-2 right-2 z-10 text-xs font-medium shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+              className={`absolute left-2 z-10 text-xs font-medium shadow-lg ${shouldShowEpisodeBadge ? 'top-11' : 'top-2'}`}
             >
               {statusBadgeInfo.text}
             </Badge>
           )}
+
+          {/* Year Badge - Top Right Corner */}
+          <Badge 
+            variant="outline" 
+            className="absolute top-2 right-2 bg-black/70 text-white border-white/20 text-xs z-10"
+          >
+            {year}
+          </Badge>
           
           {/* Hover Overlay */}
           <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center pb-4">
@@ -146,8 +180,6 @@ export default function MovieCard({ movie }: MovieCardProps) {
               </div>
               <p className="text-sm font-medium mb-1">{movie.name}</p>
               <div className="flex items-center justify-center space-x-3 text-xs">
-                <span>{year}</span>
-                <span>•</span>
                 <span>{typeFormatted}</span>
                 {displayRating && (
                   <>

@@ -143,24 +143,34 @@ export default function RecommendedMovieCard({ movie, size = "medium" }: Recomme
                         }
                       }
                     }}
-                  />                  {/* Episode Badge - Top Left */}
+                  />                  {/* Episode Badge - Top Left (Hidden by default, shown on hover) */}
                   {shouldShowEpisodeBadge && (
                     <Badge 
                       variant="secondary" 
-                      className="absolute top-2 left-2 bg-blue-600/90 hover:bg-blue-600 text-white z-20 flex items-center gap-1 text-xs font-medium shadow-lg"
+                      className="absolute top-2 left-2 bg-blue-600/90 hover:bg-blue-600 text-white z-20 flex items-center gap-1 text-xs font-medium shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"
                     >
                       <ListVideo size={10} />
                       <span className="truncate">{getBadgeText()}</span>
                     </Badge>
-                  )}                  {/* Status Badge - Top Right */}
+                  )}
+
+                  {/* Status Badge - Below Episode Badge on Left (Hidden by default, shown on hover) */}
                   {statusBadgeInfo && (
                     <Badge 
                       variant={statusBadgeInfo.variant}
-                      className="absolute top-2 right-2 z-20 text-xs font-medium shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                      className={`absolute left-2 z-20 text-xs font-medium shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 ${shouldShowEpisodeBadge ? 'top-11' : 'top-2'}`}
                     >
                       {statusBadgeInfo.text}
                     </Badge>
                   )}
+
+                  {/* Year Badge - Top Right Corner (Hidden by default, shown on hover) */}
+                  <Badge 
+                    variant="outline" 
+                    className="absolute top-2 right-2 bg-black/70 text-white border-white/20 text-xs z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                  >
+                    {year}
+                  </Badge>
                   
                   {/* Quick play button overlay on hover */}
                   <div className="absolute inset-0 bg-black/50 flex flex-col justify-center items-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">

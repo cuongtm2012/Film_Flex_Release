@@ -521,9 +521,51 @@ export class DatabaseStorage implements IStorage {
   
   // Episode methods
   async getEpisodesByMovieSlug(movieSlug: string): Promise<Episode[]> {
-    return db.select()
+    const episodesList = await db.select()
       .from(episodes)
       .where(eq(episodes.movieSlug, movieSlug));
+    
+    // Sort episodes by extracting episode numbers from the name
+    return episodesList.sort((a, b) => {
+      // Extract episode numbers from episode names
+      const getEpisodeNumber = (name: string): number => {
+        // Look for patterns like "Episode 1", "Ep 1", "Tập 1", etc.
+        const match = name.match(/(?:episode|ep|tập|tap)\s*(\d+)/i);
+        if (match) {
+          return parseInt(match[1], 10);
+        }
+        
+        // Look for patterns like "1", "01", etc. at the end
+        const numberMatch = name.match(/(\d+)$/);
+        if (numberMatch) {
+          return parseInt(numberMatch[1], 10);
+        }
+        
+        // Look for patterns like "1" anywhere in the name
+        const anyNumberMatch = name.match(/(\d+)/);
+        if (anyNumberMatch) {
+          return parseInt(anyNumberMatch[1], 10);
+        }
+        
+        // If no number found, use the index as fallback
+        return 0;
+      };
+      
+      const episodeA = getEpisodeNumber(a.name);
+      const episodeB = getEpisodeNumber(b.name);
+      
+      // If both have episode numbers, sort by episode number
+      if (episodeA !== 0 && episodeB !== 0) {
+        return episodeA - episodeB;
+      }
+      
+      // If only one has episode number, prioritize it
+      if (episodeA !== 0) return -1;
+      if (episodeB !== 0) return 1;
+      
+      // If neither has episode numbers, sort alphabetically
+      return a.name.localeCompare(b.name);
+    });
   }
   
   async getEpisodeBySlug(slug: string): Promise<Episode | undefined> {

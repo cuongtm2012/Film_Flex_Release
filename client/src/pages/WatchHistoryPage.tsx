@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Clock, ArrowLeft, Play, Calendar, Search, Trash2, CircleSlash, BarChart4, Film } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -23,87 +23,92 @@ type WatchHistoryItem = {
   watchedAt: Date;
   duration: number; // in minutes
   watchedDuration: number; // in minutes
+  slug: string;
 };
 
-// Mock data for watch history - in a real app, this would come from the API
-const mockWatchHistory: WatchHistoryItem[] = [
-  {
-    id: 1,
-    title: "Stranger Things",
-    posterUrl: "https://image.tmdb.org/t/p/w500/49WJfeN0moxb9IPfGn8AIqMGskD.jpg",
-    type: "series",
-    episodeInfo: "Season 4, Episode 8",
-    progress: 75,
-    watchedAt: new Date(2023, 11, 20, 19, 30), // Dec 20, 2023, 7:30 PM
-    duration: 60,
-    watchedDuration: 45
-  },
-  {
-    id: 2,
-    title: "Dune",
-    posterUrl: "https://image.tmdb.org/t/p/w500/d5NXSklXo0qyIYkgV94XAgMIckC.jpg",
-    type: "movie",
-    progress: 100,
-    watchedAt: new Date(2023, 11, 18, 20, 0), // Dec 18, 2023, 8:00 PM
-    duration: 155,
-    watchedDuration: 155
-  },
-  {
-    id: 3,
-    title: "The Witcher",
-    posterUrl: "https://image.tmdb.org/t/p/w500/7vjaCdMw15FEbXyLQTVa04URsPm.jpg",
-    type: "series",
-    episodeInfo: "Season 2, Episode 3",
-    progress: 100,
-    watchedAt: new Date(2023, 11, 15, 21, 15), // Dec 15, 2023, 9:15 PM
-    duration: 50,
-    watchedDuration: 50
-  },
-  {
-    id: 4,
-    title: "Oppenheimer",
-    posterUrl: "https://image.tmdb.org/t/p/w500/8Gxv8gSFCU0XGDykEGv7zR1n2ua.jpg",
-    type: "movie",
-    progress: 40,
-    watchedAt: new Date(2023, 11, 12, 19, 0), // Dec 12, 2023, 7:00 PM
-    duration: 180,
-    watchedDuration: 72
-  },
-  {
-    id: 5,
-    title: "The Queen's Gambit",
-    posterUrl: "https://image.tmdb.org/t/p/w500/zU0htwkhNvBQdVSIKB9s6hgVeFK.jpg",
-    type: "series",
-    episodeInfo: "Season 1, Episode 6",
-    progress: 90,
-    watchedAt: new Date(2023, 11, 10, 22, 0), // Dec 10, 2023, 10:00 PM
-    duration: 55,
-    watchedDuration: 49
-  }
-];
+// API response type
+type ViewHistoryResponse = {
+  id: number;
+  movieSlug: string;
+  progress: number;
+  lastWatchedAt: string;
+  createdAt: string;
+  movie: {
+    id: number;
+    title: string;
+    slug: string;
+    poster: string;
+    type: string;
+    description?: string;
+  };
+};
 
 export default function WatchHistoryPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [, navigate] = useLocation();
-  const [history, setHistory] = useState<WatchHistoryItem[]>(mockWatchHistory);
+  const [history, setHistory] = useState<WatchHistoryItem[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filter, setFilter] = useState("all");
-  const [isLoading, setIsLoading] = useState(false);
-  
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Fetch watch history from API
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const fetchWatchHistory = async () => {
+      try {
+        setIsLoading(true);
+        const response = await fetch(`/api/users/${user.id}/view-history`);
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch watch history');
+        }
+
+        const data: ViewHistoryResponse[] = await response.json();
+        
+        // Transform API response to WatchHistoryItem format
+        const transformedHistory: WatchHistoryItem[] = data.map(item => ({
+          id: item.id,
+          title: item.movie.title,
+          posterUrl: item.movie.poster || '/default-poster.jpg',
+          type: item.movie.type === 'series' ? 'series' : 'movie',
+          progress: item.progress,
+          watchedAt: new Date(item.lastWatchedAt),
+          duration: 120, // Default duration, could be fetched from movie details
+          watchedDuration: Math.floor((item.progress / 100) * 120),
+          slug: item.movieSlug
+        }));
+
+        setHistory(transformedHistory);
+      } catch (error) {
+        console.error('Error fetching watch history:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load watch history",
+          variant: "destructive"
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchWatchHistory();
+  }, [user?.id, toast]);
+
   // Calculate total watch time
   const totalWatchTime = history.reduce(
     (total, item) => total + item.watchedDuration,
     0
   );
-  
+
   // Format minutes to hours and minutes
   const formatTime = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
     return `${hours}h ${mins}m`;
   };
-  
+
   // Format date to readable string
   const formatDate = (date: Date) => {
     return date.toLocaleDateString("en-US", {
@@ -112,7 +117,7 @@ export default function WatchHistoryPage() {
       day: "numeric",
     });
   };
-  
+
   // Format time to readable string
   const formatTimeOfDay = (date: Date) => {
     return date.toLocaleTimeString("en-US", {
@@ -121,9 +126,11 @@ export default function WatchHistoryPage() {
       hour12: true,
     });
   };
-  
+
   // Handle removing an item from history
-  const handleRemoveFromHistory = (id: number) => {
+  const handleRemoveFromHistory = async (id: number) => {
+    // Note: The current API doesn't have a delete endpoint for view history
+    // For now, we'll just remove it from the local state
     setHistory((prev) => prev.filter((item) => item.id !== id));
     
     toast({
@@ -131,15 +138,24 @@ export default function WatchHistoryPage() {
       description: "The item has been removed from your watch history.",
     });
   };
-  
+
   // Handle continuing to watch
-  const handleContinueWatching = (id: number) => {
-    const item = history.find((i) => i.id === id);
-    if (item) {
-      navigate(`/movie/${id}?t=${Math.floor(item.watchedDuration * 60)}`);
-    }
+  const handleContinueWatching = (slug: string, progress: number) => {
+    const timeInSeconds = Math.floor((progress / 100) * 120 * 60); // Convert to seconds
+    navigate(`/movie/${slug}?t=${timeInSeconds}`);
   };
-  
+
+  // Handle clearing all history
+  const handleClearHistory = async () => {
+    // Note: The current API doesn't have a clear all endpoint
+    // For now, we'll just clear the local state
+    setHistory([]);
+    toast({
+      title: "History cleared",
+      description: "Your watch history has been cleared.",
+    });
+  };
+
   // Filter and search history
   const filteredHistory = history.filter((item) => {
     const matchesSearch = searchTerm
@@ -151,15 +167,15 @@ export default function WatchHistoryPage() {
       (filter === "movies" && item.type === "movie") ||
       (filter === "shows" && item.type === "series") ||
       (filter === "inProgress" && item.progress < 100);
-    
+
     return matchesSearch && matchesFilter;
   });
-  
+
   // Sort history by date
   const sortedHistory = [...filteredHistory].sort(
     (a, b) => b.watchedAt.getTime() - a.watchedAt.getTime()
   );
-  
+
   // Group history by date
   const historyByDate = sortedHistory.reduce<Record<string, WatchHistoryItem[]>>(
     (groups, item) => {
@@ -172,7 +188,7 @@ export default function WatchHistoryPage() {
     },
     {}
   );
-  
+
   // Empty state component
   const EmptyState = () => (
     <div className="text-center p-8">
@@ -263,13 +279,7 @@ export default function WatchHistoryPage() {
         <Button 
           variant="outline" 
           className="flex items-center gap-2"
-          onClick={() => {
-            setHistory([]);
-            toast({
-              title: "History cleared",
-              description: "Your watch history has been cleared.",
-            });
-          }}
+          onClick={handleClearHistory}
         >
           <Trash2 className="h-4 w-4" />
           Clear History
@@ -314,7 +324,7 @@ export default function WatchHistoryPage() {
                             variant="ghost" 
                             size="icon" 
                             className="text-white" 
-                            onClick={() => handleContinueWatching(item.id)}
+                            onClick={() => handleContinueWatching(item.slug, item.progress)}
                           >
                             <Play className="h-8 w-8" />
                           </Button>
@@ -349,7 +359,7 @@ export default function WatchHistoryPage() {
                               <Button
                                 variant="outline"
                                 className="gap-2 text-xs sm:text-sm"
-                                onClick={() => handleContinueWatching(item.id)}
+                                onClick={() => handleContinueWatching(item.slug, item.progress)}
                               >
                                 <Play className="h-3 w-3 sm:h-4 sm:w-4" />
                                 Continue
