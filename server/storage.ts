@@ -17,32 +17,20 @@ import {
   User, InsertUser
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, sql, gt } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 import connectPg from "connect-pg-simple";
 import session from "express-session";
 import { pool } from "./db";
-import crypto from "crypto";
-import bcrypt from "bcrypt";
 
 export interface IStorage {
   // User methods
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
-  getUserByProviderId(provider: string, providerId: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: number, userData: Partial<InsertUser>): Promise<User | undefined>;
   changeUserStatus(id: number, status: string): Promise<User | undefined>;
   getAllUsers(page: number, limit: number, filters?: {role?: string, status?: string, search?: string}): Promise<{ data: User[], total: number }>;
-  
-  // OAuth methods
-  linkOAuthAccount(userId: number, provider: string, providerId: string, profile: any): Promise<void>;
-  createOAuthUser(provider: string, providerId: string, profile: any): Promise<User>;
-  
-  // Password reset methods
-  createPasswordResetToken(email: string): Promise<string | null>;
-  getUserByResetToken(token: string): Promise<User | undefined>;
-  resetPassword(token: string, newPassword: string): Promise<boolean>;
   
   // Role methods
   getRole(id: number): Promise<Role | undefined>;
@@ -155,95 +143,6 @@ export class DatabaseStorage implements IStorage {
       .from(users)
       .where(eq(users.email, email));
     return user;
-  }
-
-  async getUserByProviderId(provider: string, providerId: string): Promise<User | undefined> {
-    const [user] = await db.select()
-      .from(users)
-      .where(and(
-        eq(users.provider, provider),
-        eq(users.providerId, providerId)
-      ));
-    return user;
-  }
-
-  // OAuth methods
-  async linkOAuthAccount(userId: number, provider: string, providerId: string, profile: any): Promise<void> {
-    // Update user with OAuth information
-    await db.update(users)
-      .set({
-        provider,
-        providerId,
-        displayName: profile.displayName,
-        profileImageUrl: profile.photos?.[0]?.value,
-        emailVerified: true,
-        updatedAt: new Date()
-      })
-      .where(eq(users.id, userId));
-  }
-
-  async createOAuthUser(provider: string, providerId: string, profile: any): Promise<User> {
-    const [user] = await db.insert(users)
-      .values({
-        username: profile.emails?.[0]?.value || `${provider}_${providerId}`,
-        email: profile.emails?.[0]?.value,
-        password: null, // OAuth users don't have passwords
-        provider,
-        providerId,
-        displayName: profile.displayName,
-        profileImageUrl: profile.photos?.[0]?.value,
-        emailVerified: true,
-        role: UserRole.VIEWER,
-        status: UserStatus.ACTIVE
-      })
-      .returning();
-    return user;
-  }
-
-  // Password reset methods
-  async createPasswordResetToken(email: string): Promise<string | null> {
-    const token = crypto.randomBytes(32).toString('hex');
-    const expires = new Date(Date.now() + 3600000); // 1 hour from now
-
-    const [user] = await db.update(users)
-      .set({
-        resetPasswordToken: token,
-        resetPasswordExpires: expires,
-        updatedAt: new Date()
-      })
-      .where(eq(users.email, email))
-      .returning();
-
-    return user ? token : null;
-  }
-
-  async getUserByResetToken(token: string): Promise<User | undefined> {
-    const [user] = await db.select()
-      .from(users)
-      .where(and(
-        eq(users.resetPasswordToken, token),
-        gt(users.resetPasswordExpires, new Date())
-      ));
-    return user;
-  }
-
-  async resetPassword(token: string, newPassword: string): Promise<boolean> {
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-    
-    const [user] = await db.update(users)
-      .set({
-        password: hashedPassword,
-        resetPasswordToken: null,
-        resetPasswordExpires: null,
-        updatedAt: new Date()
-      })
-      .where(and(
-        eq(users.resetPasswordToken, token),
-        gt(users.resetPasswordExpires, new Date())
-      ))
-      .returning();
-
-    return !!user;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
@@ -1162,42 +1061,6 @@ export class DatabaseStorage implements IStorage {
 
   async getMovieCategoryCache(categorySlug: string, page: number): Promise<MovieListResponse | null> {
     return this.getCache(this.getCacheKey('movieCategory', categorySlug, page));
-  }
-
-  // Password reset token methods (needed for auth.ts)
-  async savePasswordResetToken(userId: number, token: string): Promise<void> {
-    const expires = new Date(Date.now() + 3600000); // 1 hour from now
-    await db.update(users)
-      .set({
-        resetPasswordToken: token,
-        resetPasswordExpires: expires,
-        updatedAt: new Date()
-      })
-      .where(eq(users.id, userId));
-  }
-
-  async verifyPasswordResetToken(userId: number, token: string): Promise<boolean> {
-    const [user] = await db.select()
-      .from(users)
-      .where(and(
-        eq(users.id, userId),
-        eq(users.resetPasswordToken, token),
-        gt(users.resetPasswordExpires, new Date())
-      ));
-    return !!user;
-  }
-
-  async removePasswordResetToken(userId: number, token: string): Promise<void> {
-    await db.update(users)
-      .set({
-        resetPasswordToken: null,
-        resetPasswordExpires: null,
-        updatedAt: new Date()
-      })
-      .where(and(
-        eq(users.id, userId),
-        eq(users.resetPasswordToken, token)
-      ));
   }
 }
 
