@@ -127,10 +127,26 @@ export const UserStatus = {
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
-  password: text("password").notNull(),
+  password: text("password"), // Make password nullable for OAuth users
   email: text("email").notNull().unique(),
   role: text("role").notNull().default(UserRole.NORMAL),
   status: text("status").notNull().default(UserStatus.ACTIVE),
+  
+  // OAuth fields
+  provider: text("provider"), // 'google', 'facebook', 'local'
+  providerId: text("provider_id"), // OAuth provider's user ID
+  displayName: text("display_name"), // Full name from OAuth
+  profileImageUrl: text("profile_image_url"), // Avatar from OAuth
+  emailVerified: boolean("email_verified").default(false),
+  
+  // Password reset fields
+  resetPasswordToken: text("reset_password_token"),
+  resetPasswordExpires: timestamp("reset_password_expires"),
+  
+  // Two-factor authentication
+  twoFactorEnabled: boolean("two_factor_enabled").default(false),
+  twoFactorSecret: text("two_factor_secret"),
+  
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   lastLogin: timestamp("last_login"),
