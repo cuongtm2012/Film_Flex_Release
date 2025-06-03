@@ -1,10 +1,19 @@
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
-import { Express, Request, Response, NextFunction, RequestHandler } from "express";
-import session from "express-session";
+import { Strategy as GoogleStrategy } from "passport-google-oauth20";
+import { Strategy as FacebookStrategy } from "passport-facebook";
+import bcrypt from "bcrypt";
+import { storage } from "./storage";
+import { User } from "@shared/schema";
+import nodemailer from "nodemailer";
+import crypto from "crypto";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
-import { storage } from "./storage";
+import jwt from "jsonwebtoken";
+import session from "express-session";
+import path from "path";
+import fs from "fs";
+import type { Express, Request, Response, NextFunction, RequestHandler } from "express";
 
 // Extend Express types for better type safety
 declare global {
@@ -15,6 +24,8 @@ declare global {
       email: string;
       role: string;
       status: string;
+      provider?: string;
+      providerId?: string;
     }
   }
 }
@@ -34,6 +45,88 @@ async function comparePasswords(supplied: string, stored: string): Promise<boole
   return timingSafeEqual(hashedBuf, suppliedBuf);
 }
 
+// Email configuration
+const createEmailTransporter = () => {
+  return nodemailer.createTransporter({
+    host: process.env.SMTP_HOST || "smtp.gmail.com",
+    port: parseInt(process.env.SMTP_PORT || "587"),
+    secure: false,
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+  });
+};
+
+// Generate password reset token
+const generateResetToken = (userId: number): string => {
+  return jwt.sign(
+    { userId, type: "password-reset" },
+    process.env.JWT_SECRET || "filmflex-jwt-secret",
+    { expiresIn: "1h" }
+  );
+};
+
+// Verify password reset token
+const verifyResetToken = (token: string): { userId: number } | null => {
+  try {
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET || "filmflex-jwt-secret"
+    ) as { userId: number; type: string };
+    
+    if (decoded.type === "password-reset") {
+      return { userId: decoded.userId };
+    }
+    return null;
+  } catch (error) {
+    return null;
+  }
+};
+
+// Send password reset email with template
+const sendPasswordResetEmail = async (email: string, resetToken: string) => {
+  const transporter = createEmailTransporter();
+  const resetUrl = `${process.env.CLIENT_URL || "http://localhost:5173"}/reset-password?token=${resetToken}`;
+
+  // Load email template
+  const templatePath = path.join(__dirname, 'templates', 'email', 'password-reset.html');
+  let htmlTemplate = '';
+  
+  try {
+    htmlTemplate = fs.readFileSync(templatePath, 'utf8');
+    htmlTemplate = htmlTemplate.replace(/\{\{resetUrl\}\}/g, resetUrl);
+  } catch (error) {
+    console.error('Email template not found, using fallback HTML');
+    htmlTemplate = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; text-align: center;">
+          <h1 style="color: white; margin: 0;">FilmFlex</h1>
+        </div>
+        <div style="padding: 30px; background-color: #f9f9f9;">
+          <h2 style="color: #333;">Password Reset Request</h2>
+          <p>Click the button below to reset your password:</p>
+          <div style="text-align: center; margin: 20px 0;">
+            <a href="${resetUrl}" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; padding: 12px 24px; border-radius: 6px; display: inline-block;">Reset Password</a>
+          </div>
+          <p style="font-size: 12px; color: #666;">
+            If the button doesn't work, copy and paste this link: ${resetUrl}
+          </p>
+        </div>
+      </div>
+    `;
+  }
+
+  const mailOptions = {
+    from: process.env.SMTP_FROM || process.env.SMTP_USER,
+    to: email,
+    subject: "FilmFlex - Password Reset Request",
+    html: htmlTemplate,
+  };
+
+  await transporter.sendMail(mailOptions);
+};
+
 // Log user activity with explicit types
 async function logUserActivity(
   userId: number, 
@@ -49,8 +142,6 @@ async function logUserActivity(
       targetId,
       details,
       ipAddress,
-      // Remove the invalid createdAt property
-      // The storage.addAuditLog function will handle timestamp automatically
     });
   } catch (error) {
     console.error("Failed to log user activity:", error);
@@ -113,6 +204,7 @@ export function setupAuth(app: Express): void {
   app.use(passport.initialize());
   app.use(passport.session());
 
+  // Local Strategy
   passport.use(
     new LocalStrategy(async (username: string, password: string, done) => {
       try {
@@ -138,6 +230,87 @@ export function setupAuth(app: Express): void {
     })
   );
 
+  // Google OAuth Strategy
+  if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+    passport.use(
+      new GoogleStrategy(
+        {
+          clientID: process.env.GOOGLE_CLIENT_ID,
+          clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+          callbackURL: "/api/auth/google/callback",
+        },
+        async (accessToken, refreshToken, profile, done) => {
+          try {
+            // Check if user already exists with this Google ID
+            let user = await storage.getUserByProviderId("google", profile.id);
+
+            if (user) {
+              return done(null, user);
+            }
+            
+            // Check if user exists with same email
+            const email = profile.emails?.[0]?.value;
+            if (email) {
+              user = await storage.getUserByEmail(email);
+              if (user) {
+                // Link Google account to existing user
+                await storage.linkOAuthAccount(user.id, "google", profile.id, profile);
+                return done(null, user);
+              }
+            }
+            
+            // Create new user
+            user = await storage.createOAuthUser("google", profile.id, profile);
+            return done(null, user);
+          } catch (error) {
+            return done(error, null);
+          }
+        }
+      )
+    );
+  }
+
+  // Facebook OAuth Strategy
+  if (process.env.FACEBOOK_APP_ID && process.env.FACEBOOK_APP_SECRET) {
+    passport.use(
+      new FacebookStrategy(
+        {
+          clientID: process.env.FACEBOOK_APP_ID,
+          clientSecret: process.env.FACEBOOK_APP_SECRET,
+          callbackURL: "/api/auth/facebook/callback",
+          profileFields: ["id", "emails", "name", "picture"],
+        },
+        async (accessToken, refreshToken, profile, done) => {
+          try {
+            // Check if user already exists with this Facebook ID
+            let user = await storage.getUserByProviderId("facebook", profile.id);
+
+            if (user) {
+              return done(null, user);
+            }
+            
+            // Check if user exists with same email
+            const email = profile.emails?.[0]?.value;
+            if (email) {
+              user = await storage.getUserByEmail(email);
+              if (user) {
+                // Link Facebook account to existing user
+                await storage.linkOAuthAccount(user.id, "facebook", profile.id, profile);
+                return done(null, user);
+              }
+            }
+            
+            // Create new user
+            user = await storage.createOAuthUser("facebook", profile.id, profile);
+            return done(null, user);
+          } catch (error) {
+            return done(error, null);
+          }
+        }
+      )
+    );
+  }
+
   passport.serializeUser((user, done) => {
     done(null, (user as Express.User).id);
   });
@@ -156,12 +329,117 @@ export function setupAuth(app: Express): void {
     }
   });
 
+  // OAuth Routes
+  // Google OAuth routes
+  app.get("/api/auth/google", passport.authenticate("google", { scope: ["profile", "email"] }));
+
+  app.get(
+    "/api/auth/google/callback",
+    passport.authenticate("google", { failureRedirect: "/auth?error=google_failed" }),
+    (req: Request, res: Response) => {
+      // Successful authentication, redirect to frontend
+      res.redirect(process.env.CLIENT_URL || "http://localhost:5173");
+    }
+  );
+
+  // Facebook OAuth routes
+  app.get("/api/auth/facebook", passport.authenticate("facebook", { scope: ["email"] }));
+
+  app.get(
+    "/api/auth/facebook/callback",
+    passport.authenticate("facebook", { failureRedirect: "/auth?error=facebook_failed" }),
+    (req: Request, res: Response) => {
+      // Successful authentication, redirect to frontend
+      res.redirect(process.env.CLIENT_URL || "http://localhost:5173");
+    }
+  );
+
+  // Forgot Password Route
+  app.post("/api/auth/forgot-password", async (req: Request, res: Response) => {
+    try {
+      const { email } = req.body;
+
+      if (!email) {
+        return res.status(400).json({ message: "Email is required" });
+      }
+
+      const user = await storage.getUserByEmail(email);
+      if (!user) {
+        // Don't reveal that the email doesn't exist for security
+        return res.json({ message: "If the email exists, a reset link has been sent" });
+      }
+
+      const resetToken = generateResetToken(user.id);
+      
+      // Store the reset token in the database with expiration
+      await storage.savePasswordResetToken(user.id, resetToken);
+
+      // Send password reset email
+      await sendPasswordResetEmail(email, resetToken);
+
+      // Log the activity
+      await logUserActivity(user.id, "password_reset_request", null, null, req.ip);
+
+      res.json({ message: "If the email exists, a reset link has been sent" });
+    } catch (error) {
+      console.error("Forgot password error:", error);
+      res.status(500).json({ message: "Failed to process password reset request" });
+    }
+  });
+
+  // Reset Password Route
+  app.post("/api/auth/reset-password", async (req: Request, res: Response) => {
+    try {
+      const { token, newPassword } = req.body;
+
+      if (!token || !newPassword) {
+        return res.status(400).json({ message: "Token and new password are required" });
+      }
+
+      if (newPassword.length < 6) {
+        return res.status(400).json({ message: "Password must be at least 6 characters long" });
+      }
+
+      const decoded = verifyResetToken(token);
+      if (!decoded) {
+        return res.status(400).json({ message: "Invalid or expired reset token" });
+      }
+
+      // Verify token exists in database
+      const isValidToken = await storage.verifyPasswordResetToken(decoded.userId, token);
+      if (!isValidToken) {
+        return res.status(400).json({ message: "Invalid or expired reset token" });
+      }
+
+      // Update password
+      const hashedPassword = await hashPassword(newPassword);
+      await storage.updateUser(decoded.userId, { password: hashedPassword });
+
+      // Remove the used token
+      await storage.removePasswordResetToken(decoded.userId, token);
+
+      // Log the activity
+      await logUserActivity(decoded.userId, "password_reset_complete", null, null, req.ip);
+
+      res.json({ message: "Password reset successfully" });
+    } catch (error) {
+      console.error("Reset password error:", error);
+      res.status(500).json({ message: "Failed to reset password" });
+    }
+  });
+
   app.post("/api/register", async (req: Request, res: Response) => {
     try {
       // Check if user exists
       const existingUser = await storage.getUserByUsername(req.body.username);
       if (existingUser) {
         return res.status(400).json({ message: "Username already exists" });
+      }
+
+      // Check if email exists
+      const existingEmailUser = await storage.getUserByEmail(req.body.email);
+      if (existingEmailUser) {
+        return res.status(400).json({ message: "Email already exists" });
       }
 
       // Hash password
