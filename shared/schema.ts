@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb, unique } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -185,6 +185,18 @@ export const comments = pgTable("comments", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// User Comment Reactions model for tracking individual user reactions
+export const userCommentReactions = pgTable("user_comment_reactions", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  commentId: integer("comment_id").notNull().references(() => comments.id, { onDelete: "cascade" }),
+  reactionType: text("reaction_type").notNull(), // 'like' or 'dislike'
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  // Ensure one reaction per user per comment
+  uniqueUserComment: unique().on(table.userId, table.commentId),
+}));
+
 // Watchlist model for user's saved movies
 export const watchlist = pgTable("watchlist", {
   id: serial("id").primaryKey(),
@@ -339,6 +351,7 @@ export const insertContentPerformanceSchema = createInsertSchema(contentPerforma
 export const insertRoleSchema = createInsertSchema(roles).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertPermissionSchema = createInsertSchema(permissions).omit({ id: true, createdAt: true });
 export const insertRolePermissionSchema = createInsertSchema(rolePermissions).omit({ id: true });
+export const insertUserCommentReactionSchema = createInsertSchema(userCommentReactions).omit({ id: true });
 
 // Type definitions
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -356,11 +369,12 @@ export type InsertContentPerformance = z.infer<typeof insertContentPerformanceSc
 export type InsertRole = z.infer<typeof insertRoleSchema>;
 export type InsertPermission = z.infer<typeof insertPermissionSchema>;
 export type InsertRolePermission = z.infer<typeof insertRolePermissionSchema>;
+export type InsertUserCommentReaction = z.infer<typeof insertUserCommentReactionSchema>;
 
 export type User = typeof users.$inferSelect;
 export type Movie = typeof movies.$inferSelect;
 export type Episode = typeof episodes.$inferSelect;
-export type Comment = typeof comments.$inferSelect;
+export type Comment = typeof comments.$inferSelect & { username?: string }; // Add username field from join
 export type Watchlist = typeof watchlist.$inferSelect;
 export type ViewHistory = typeof viewHistory.$inferSelect;
 export type ContentApproval = typeof contentApprovals.$inferSelect;
@@ -372,6 +386,7 @@ export type ContentPerformance = typeof contentPerformance.$inferSelect;
 export type Role = typeof roles.$inferSelect;
 export type Permission = typeof permissions.$inferSelect;
 export type RolePermission = typeof rolePermissions.$inferSelect;
+export type UserCommentReaction = typeof userCommentReactions.$inferSelect;
 
 // Define relations between tables using proper Drizzle types
 export const usersRelations = relations(users, ({ many }) => ({
@@ -383,6 +398,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   auditLogs: many(auditLogs, { relationName: 'userAuditLogs' }),
   apiKeys: many(apiKeys, { relationName: 'userApiKeys' }),
   analyticsEvents: many(analyticsEvents, { relationName: 'userAnalytics' }),
+  commentReactions: many(userCommentReactions, { relationName: 'userReactions' }),
 }));
 
 export const moviesRelations = relations(movies, ({ many }) => ({
@@ -394,7 +410,7 @@ export const moviesRelations = relations(movies, ({ many }) => ({
   contentPerformance: many(contentPerformance, { relationName: 'moviePerformance' }),
 }));
 
-export const commentsRelations = relations(comments, ({ one }) => ({
+export const commentsRelations = relations(comments, ({ one, many }) => ({
   user: one(users, {
     fields: [comments.userId],
     references: [users.id]
@@ -403,6 +419,7 @@ export const commentsRelations = relations(comments, ({ one }) => ({
     fields: [comments.movieSlug],
     references: [movies.slug]
   }),
+  reactions: many(userCommentReactions, { relationName: 'commentReactions' }),
 }));
 
 export const watchlistRelations = relations(watchlist, ({ one }) => ({
@@ -501,6 +518,17 @@ export const rolePermissionsRelations = relations(rolePermissions, ({ one }) => 
   permission: one(permissions, {
     fields: [rolePermissions.permissionId],
     references: [permissions.id]
+  }),
+}));
+
+export const userCommentReactionsRelations = relations(userCommentReactions, ({ one }) => ({
+  user: one(users, {
+    fields: [userCommentReactions.userId],
+    references: [users.id]
+  }),
+  comment: one(comments, {
+    fields: [userCommentReactions.commentId],
+    references: [comments.id]
   }),
 }));
 

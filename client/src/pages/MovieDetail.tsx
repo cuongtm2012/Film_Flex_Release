@@ -670,26 +670,6 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
                       })}
                     </div>
                   </div>
-                  
-                  {/* Pagination for Episodes */}
-                  {getCurrentEpisodeList().length > 20 && (
-                    <div className="mt-4 flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">
-                        Showing 1-20 of {getCurrentEpisodeList().length}
-                      </span>
-                      <div className="flex gap-1">
-                        <Button variant="outline" size="sm" className="h-8 w-8 p-0">
-                          <span>1</span>
-                        </Button>
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                          <span>2</span>
-                        </Button>
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                          <span>...</span>
-                        </Button>
-                      </div>
-                    </div>
-                  )}
                 </div>
               ) : (
                 <div className="p-8 text-center">
