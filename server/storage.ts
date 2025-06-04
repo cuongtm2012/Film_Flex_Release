@@ -17,7 +17,7 @@ import {
   User, InsertUser, UserCommentReaction, InsertUserCommentReaction
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import connectPg from "connect-pg-simple";
 import session from "express-session";
 import { pool } from "./db";
@@ -607,16 +607,14 @@ export class DatabaseStorage implements IStorage {
 
     const commentsData = await baseQuery
       .limit(limit)
-      .offset((page - 1) * limit);
-
-    // If userId is provided, get user reactions for each comment
+      .offset((page - 1) * limit);    // If userId is provided, get user reactions for each comment
     if (userId) {
       const commentIds = commentsData.map(c => c.id);
       const userReactions = await db.select()
         .from(userCommentReactions)
         .where(and(
           eq(userCommentReactions.userId, userId),
-          sql`${userCommentReactions.commentId} IN (${commentIds.join(',')})`
+          inArray(userCommentReactions.commentId, commentIds)
         ));
 
       // Map reactions to comments
