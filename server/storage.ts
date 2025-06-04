@@ -12,9 +12,9 @@ import {
   MovieListResponse,
   MovieDetailResponse,
   users, movies, episodes, comments, watchlist, viewHistory, contentApprovals, auditLogs,
-  roles, permissions, rolePermissions,
+  roles, permissions, rolePermissions, userCommentReactions,
   UserRole, UserStatus, ContentStatus,
-  User, InsertUser
+  User, InsertUser, UserCommentReaction, InsertUserCommentReaction
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, sql } from "drizzle-orm";
@@ -69,10 +69,12 @@ export interface IStorage {
   saveEpisode(episode: InsertEpisode): Promise<Episode>;
   
   // Comment methods
-  getCommentsByMovieSlug(movieSlug: string, page: number, limit: number): Promise<{ data: Comment[], total: number }>;
+  getCommentsByMovieSlug(movieSlug: string, page: number, limit: number, userId?: number): Promise<{ data: Comment[], total: number }>;
   addComment(comment: InsertComment): Promise<Comment>;
-  likeComment(commentId: number): Promise<void>;
-  dislikeComment(commentId: number): Promise<void>;
+  likeComment(commentId: number, userId: number): Promise<void>;
+  dislikeComment(commentId: number, userId: number): Promise<void>;
+  getUserReactionForComment(userId: number, commentId: number): Promise<UserCommentReaction | undefined>;
+  removeUserReactionForComment(userId: number, commentId: number): Promise<void>;
   
   // Watchlist methods
   getWatchlist(userId: number): Promise<Movie[]>;
@@ -586,21 +588,59 @@ export class DatabaseStorage implements IStorage {
   }
   
   // Comment methods
-  async getCommentsByMovieSlug(movieSlug: string, page: number, limit: number): Promise<{ data: Comment[], total: number }> {
-    const baseQuery = db.select()
+  async getCommentsByMovieSlug(movieSlug: string, page: number, limit: number, userId?: number): Promise<{ data: Comment[], total: number }> {
+    // Join comments with users table to get username
+    const baseQuery = db.select({
+      id: comments.id,
+      userId: comments.userId,
+      movieSlug: comments.movieSlug,
+      content: comments.content,
+      likes: comments.likes,
+      dislikes: comments.dislikes,
+      createdAt: comments.createdAt,
+      username: users.username
+    })
       .from(comments)
+      .innerJoin(users, eq(comments.userId, users.id))
       .where(eq(comments.movieSlug, movieSlug))
       .orderBy(desc(comments.createdAt));
 
-    const data = await baseQuery
+    const commentsData = await baseQuery
       .limit(limit)
       .offset((page - 1) * limit);
+
+    // If userId is provided, get user reactions for each comment
+    if (userId) {
+      const commentIds = commentsData.map(c => c.id);
+      const userReactions = await db.select()
+        .from(userCommentReactions)
+        .where(and(
+          eq(userCommentReactions.userId, userId),
+          sql`${userCommentReactions.commentId} IN (${commentIds.join(',')})`
+        ));
+
+      // Map reactions to comments
+      const reactionsMap = new Map(userReactions.map(r => [r.commentId, r.reactionType]));
+      
+      // Add user reaction info to comments
+      const commentsWithReactions = commentsData.map(comment => ({
+        ...comment,
+        hasLiked: reactionsMap.get(comment.id) === 'like',
+        hasDisliked: reactionsMap.get(comment.id) === 'dislike'
+      }));
+
+      const [{ count }] = await db.select({ count: sql<number>`count(*)` })
+        .from(comments)
+        .where(eq(comments.movieSlug, movieSlug));
+
+      return { data: commentsWithReactions, total: count || 0 };
+    }
 
     const [{ count }] = await db.select({ count: sql<number>`count(*)` })
       .from(comments)
       .where(eq(comments.movieSlug, movieSlug));
 
-    return { data, total: count || 0 };
+    return { data: commentsData, total: count || 0 };
   }
   
   async addComment(comment: InsertComment): Promise<Comment> {
@@ -612,10 +652,70 @@ export class DatabaseStorage implements IStorage {
         createdAt: new Date()
       })
       .returning();
-    return newComment;
+    
+    // Get the username by joining with users table
+    const [commentWithUsername] = await db.select({
+      id: comments.id,
+      userId: comments.userId,
+      movieSlug: comments.movieSlug,
+      content: comments.content,
+      likes: comments.likes,
+      dislikes: comments.dislikes,
+      createdAt: comments.createdAt,
+      username: users.username
+    })
+      .from(comments)
+      .innerJoin(users, eq(comments.userId, users.id))
+      .where(eq(comments.id, newComment.id));
+    
+    return commentWithUsername as Comment;
   }
   
-  async likeComment(commentId: number): Promise<void> {
+  async likeComment(commentId: number, userId: number): Promise<void> {
+    // Check if user already has a reaction to this comment
+    const existingReaction = await this.getUserReactionForComment(userId, commentId);
+    
+    if (existingReaction) {
+      if (existingReaction.reactionType === 'like') {
+        // User already liked, remove the like
+        await this.removeUserReactionForComment(userId, commentId);
+        await db.update(comments)
+          .set({
+            likes: sql`${comments.likes} - 1`
+          })
+          .where(eq(comments.id, commentId));
+        return;
+      } else {
+        // User had disliked, change to like (mutual exclusivity)
+        await db.update(userCommentReactions)
+          .set({
+            reactionType: 'like',
+            createdAt: new Date()
+          })
+          .where(and(
+            eq(userCommentReactions.userId, userId),
+            eq(userCommentReactions.commentId, commentId)
+          ));
+        
+        // Update comment counts (remove dislike, add like)
+        await db.update(comments)
+          .set({
+            likes: sql`${comments.likes} + 1`,
+            dislikes: sql`${comments.dislikes} - 1`
+          })
+          .where(eq(comments.id, commentId));
+        return;
+      }
+    }
+    
+    // No existing reaction, add new like
+    await db.insert(userCommentReactions).values({
+      userId,
+      commentId,
+      reactionType: 'like',
+      createdAt: new Date()
+    });
+    
     await db.update(comments)
       .set({
         likes: sql`${comments.likes} + 1`
@@ -623,12 +723,74 @@ export class DatabaseStorage implements IStorage {
       .where(eq(comments.id, commentId));
   }
   
-  async dislikeComment(commentId: number): Promise<void> {
+  async dislikeComment(commentId: number, userId: number): Promise<void> {
+    // Check if user already has a reaction to this comment
+    const existingReaction = await this.getUserReactionForComment(userId, commentId);
+    
+    if (existingReaction) {
+      if (existingReaction.reactionType === 'dislike') {
+        // User already disliked, remove the dislike
+        await this.removeUserReactionForComment(userId, commentId);
+        await db.update(comments)
+          .set({
+            dislikes: sql`${comments.dislikes} - 1`
+          })
+          .where(eq(comments.id, commentId));
+        return;
+      } else {
+        // User had liked, change to dislike (mutual exclusivity)
+        await db.update(userCommentReactions)
+          .set({
+            reactionType: 'dislike',
+            createdAt: new Date()
+          })
+          .where(and(
+            eq(userCommentReactions.userId, userId),
+            eq(userCommentReactions.commentId, commentId)
+          ));
+        
+        // Update comment counts (remove like, add dislike)
+        await db.update(comments)
+          .set({
+            likes: sql`${comments.likes} - 1`,
+            dislikes: sql`${comments.dislikes} + 1`
+          })
+          .where(eq(comments.id, commentId));
+        return;
+      }
+    }
+    
+    // No existing reaction, add new dislike
+    await db.insert(userCommentReactions).values({
+      userId,
+      commentId,
+      reactionType: 'dislike',
+      createdAt: new Date()
+    });
+    
     await db.update(comments)
       .set({
         dislikes: sql`${comments.dislikes} + 1`
       })
       .where(eq(comments.id, commentId));
+  }
+  
+  async getUserReactionForComment(userId: number, commentId: number): Promise<UserCommentReaction | undefined> {
+    const [reaction] = await db.select()
+      .from(userCommentReactions)
+      .where(and(
+        eq(userCommentReactions.userId, userId),
+        eq(userCommentReactions.commentId, commentId)
+      ));
+    return reaction;
+  }
+
+  async removeUserReactionForComment(userId: number, commentId: number): Promise<void> {
+    await db.delete(userCommentReactions)
+      .where(and(
+        eq(userCommentReactions.userId, userId),
+        eq(userCommentReactions.commentId, commentId)
+      ));
   }
   
   // Watchlist methods

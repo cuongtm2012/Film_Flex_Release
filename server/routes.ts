@@ -1298,12 +1298,12 @@ export function registerRoutes(app: Express): void {
   // Comment operations
   router.get("/movies/:slug/comments", async (req, res) => {
     try {
-      const { slug } = req.params;
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 10;
+      const userId = req.user ? (req.user as Express.User).id : undefined;
       
-      const comments = await storage.getCommentsByMovieSlug(slug, page, limit);
-      res.json(comments);
+      const commentsData = await storage.getCommentsByMovieSlug(req.params.slug, page, limit, userId);
+      res.json(commentsData.data);
     } catch (error) {
       console.error(`Error fetching comments for movie ${req.params.slug}:`, error);
       res.status(500).json({ message: "Failed to fetch comments" });
@@ -1337,10 +1337,11 @@ export function registerRoutes(app: Express): void {
     }
   });
   
-  router.post("/comments/:id/like", async (req, res) => {
+  router.post("/comments/:id/like", requireAuth, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
-      await storage.likeComment(id);
+      const userId = (req.user as Express.User).id;
+      await storage.likeComment(id, userId);
       res.json({ message: "Comment liked successfully" });
     } catch (error) {
       console.error(`Error liking comment ${req.params.id}:`, error);
@@ -1348,10 +1349,11 @@ export function registerRoutes(app: Express): void {
     }
   });
   
-  router.post("/comments/:id/dislike", async (req, res) => {
+  router.post("/comments/:id/dislike", requireAuth, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
-      await storage.dislikeComment(id);
+      const userId = (req.user as Express.User).id;
+      await storage.dislikeComment(id, userId);
       res.json({ message: "Comment disliked successfully" });
     } catch (error) {
       console.error(`Error disliking comment ${req.params.id}:`, error);
