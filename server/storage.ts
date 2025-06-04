@@ -1083,20 +1083,11 @@ export class DatabaseStorage implements IStorage {
     
     // If anime section is requested but no movies found, fall back to type-based search
     if (section === 'anime' && data.length === 0) {
-      console.log('[DEBUG] No movies found with section=anime, falling back to type-based search');
+      console.log('[DEBUG] No movies found with section=anime, falling back to type-based search for hoathinh');
       
-      // Search for anime/animation content by type and name patterns
+      // Search for movies with type exactly 'hoathinh' (Vietnamese for animation/anime)
       const animeConditions = sql`(
-        LOWER(${movies.type}) LIKE '%anime%' OR 
-        LOWER(${movies.type}) LIKE '%animation%' OR
-        LOWER(${movies.name}) LIKE '%anime%' OR
-        LOWER(${movies.name}) LIKE '%doraemon%' OR
-        LOWER(${movies.name}) LIKE '%naruto%' OR
-        LOWER(${movies.name}) LIKE '%pokemon%' OR
-        LOWER(${movies.name}) LIKE '%one piece%' OR
-        LOWER(${movies.name}) LIKE '%dragon ball%' OR
-        LOWER(${movies.description}) LIKE '%anime%' OR
-        LOWER(${movies.description}) LIKE '%animation%'
+        ${movies.type} = 'hoathinh'
       )`;
       
       const animeData = await db.select()
@@ -1110,7 +1101,7 @@ export class DatabaseStorage implements IStorage {
         .from(movies)
         .where(animeConditions);
       
-      console.log(`[DEBUG] Found ${animeData.length} anime movies using fallback search`);
+      console.log(`[DEBUG] Found ${animeData.length} anime movies with type='hoathinh'`);
       return { data: animeData, total: animeCount || 0 };
     }
     

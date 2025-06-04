@@ -17,6 +17,9 @@ import {
   Section
 } from "@shared/schema";
 
+// Import admin routes
+import adminRoutes from './routes/admin';
+
 const router = Router();
 
 // Remove unused API_CACHE_TTL
@@ -209,6 +212,9 @@ async function fetchRecommendedMovies(slug: string, limit: number = 10): Promise
 export function registerRoutes(app: Express): void {
   // Mount all the routes here
   app.use('/api', router);
+  
+  // Register admin routes
+  app.use('/api/admin', adminRoutes);
   
   // Health check endpoint for CI/CD and monitoring
   router.get("/health", (_req, res) => {
