@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import type { Express } from 'express';
 import { storage } from "./storage";
-import { setupAuth } from "./auth";
+import { setupAuth, isAuthenticated } from "./auth";
 import { z } from "zod";
 import { 
   MovieListResponse,
@@ -1294,8 +1294,7 @@ export function registerRoutes(app: Express): void {
       res.status(400).json({ message: "Invalid user data" });
     }
   });
-  
-  // Comment operations
+    // Comment operations
   router.get("/movies/:slug/comments", async (req, res) => {
     try {
       const page = parseInt(req.query.page as string) || 1;
@@ -1303,7 +1302,7 @@ export function registerRoutes(app: Express): void {
       const userId = req.user ? (req.user as Express.User).id : undefined;
       
       const commentsData = await storage.getCommentsByMovieSlug(req.params.slug, page, limit, userId);
-      res.json(commentsData.data);
+      res.json(commentsData);
     } catch (error) {
       console.error(`Error fetching comments for movie ${req.params.slug}:`, error);
       res.status(500).json({ message: "Failed to fetch comments" });
@@ -1337,7 +1336,7 @@ export function registerRoutes(app: Express): void {
     }
   });
   
-  router.post("/comments/:id/like", requireAuth, async (req, res) => {
+  router.post("/comments/:id/like", isAuthenticated, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const userId = (req.user as Express.User).id;
@@ -1349,7 +1348,7 @@ export function registerRoutes(app: Express): void {
     }
   });
   
-  router.post("/comments/:id/dislike", requireAuth, async (req, res) => {
+  router.post("/comments/:id/dislike", isAuthenticated, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const userId = (req.user as Express.User).id;
