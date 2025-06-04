@@ -11,14 +11,6 @@ import { format, formatDistanceToNow } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
 
 import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
-import {
   Form,
   FormControl,
   FormField,
@@ -27,14 +19,11 @@ import {
 } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { 
   ThumbsUp, ThumbsDown, MessageCircle, Loader2, Reply, 
-  Clock, User as UserIcon, Send, RefreshCw 
+  Send, RefreshCw 
 } from "lucide-react";
-import { Separator } from "@/components/ui/separator";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 
 // Use Zod schema from shared schema
@@ -314,66 +303,64 @@ export function CommentSection({
       description: "Getting the latest discussions",
     });
   };
-  
-  return (
-    <div className="space-y-6" ref={commentSectionRef}>
+    return (
+    <div className="space-y-4" ref={commentSectionRef}>
+      {/* Compact Header */}
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold flex items-center">
-          <MessageCircle className="h-5 w-5 mr-2 text-primary" />
-          Discussions ({totalComments})
+        <h2 className="text-lg font-semibold flex items-center">
+          <MessageCircle className="h-4 w-4 mr-2 text-primary" />
+          Comments ({totalComments})
         </h2>
         
         <div className="flex gap-2">
           <Button 
-            variant="outline" 
+            variant="ghost" 
             size="sm"
             onClick={handleManualRefresh}
-            className="flex items-center"
+            className="h-8 px-2 text-xs"
           >
-            <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+            <RefreshCw className="h-3 w-3 mr-1" />
             Refresh
           </Button>
           
           {totalComments > 5 && !showFullComments && (
-            <Button 
-              variant="outline" 
-              size="sm"
+            <button 
               onClick={() => setShowFullComments(true)}
+              className="text-xs text-primary hover:text-primary/80 hover:underline font-medium"
             >
-              Show All
-            </Button>
+              Show all {totalComments} comments
+            </button>
           )}
         </div>
       </div>
       
-      {/* Main Comment Form */}
+      {/* Compact Comment Form */}
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="w-full space-y-4">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="w-full">
           <FormField
             control={form.control}
             name="content"
             render={({ field }) => (
               <FormItem>
                 <FormControl>
-                  <div className="relative">
+                  <div className="relative bg-card/30 rounded-lg border border-border/40">
                     <Textarea
-                      placeholder={user ? "Share your thoughts about this movie..." : "Please log in to comment"}
-                      className="min-h-24 bg-card pl-4 pr-12 py-3"
+                      placeholder={user ? "Share your thoughts..." : "Please log in to comment"}
+                      className="min-h-16 max-h-32 bg-transparent border-0 pl-3 pr-12 py-3 text-sm resize-none focus-visible:ring-0 focus-visible:ring-offset-0"
                       disabled={!user}
                       {...field}
                     />
                     {user && (
                       <Button 
-                        className="absolute bottom-3 right-3 p-2 h-8 w-8"
-                        size="icon"
-                        variant="ghost"
+                        className="absolute bottom-2 right-2 h-7 w-7 p-0"
+                        size="sm"
                         type="submit"
                         disabled={!field.value.trim() || addCommentMutation.isPending}
                       >
                         {addCommentMutation.isPending ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
                         ) : (
-                          <Send className="h-4 w-4" />
+                          <Send className="h-3.5 w-3.5" />
                         )}
                       </Button>
                     )}
@@ -386,192 +373,184 @@ export function CommentSection({
         </form>
       </Form>
 
-      <Separator />
-      
-      {/* Comment List with Replies */}
+      {/* Compact Comment List */}
       {isLoading ? (
-        <div className="py-8 flex items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <div className="py-6 flex items-center justify-center">
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
         </div>
       ) : organizedComments.length > 0 ? (
-        <div className="space-y-4">
+        <div className="space-y-3">
           <AnimatePresence>
             {organizedComments.slice(0, showFullComments ? undefined : 5).map((comment) => (
               <motion.div 
                 key={comment.id}
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3 }}
+                transition={{ duration: 0.2 }}
+                className="bg-card/20 rounded-lg border border-border/30 p-3 hover:bg-card/30 transition-colors"
               >
-                <Card className="bg-card/50 border-gray-800 overflow-hidden">
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <Avatar className="h-8 w-8 border border-gray-700">
-                          <AvatarFallback className="bg-primary/20 text-primary">
-                            {getInitials(comment.username || "User")}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <div className="font-medium flex items-center">
-                            {comment.username || "Anonymous"}
-                            {comment.isAdmin && (
-                              <Badge variant="outline" className="ml-2 bg-primary/20 text-primary border-primary/30 text-xs">
-                                Admin
-                              </Badge>
-                            )}
-                          </div>
-                          <div className="text-xs text-muted-foreground flex items-center">
-                            <Clock className="h-3 w-3 mr-1 inline-block" />
-                            {formatDate(comment.createdAt)}
-                          </div>
-                        </div>
-                      </div>
+                {/* Comment Header */}
+                <div className="flex items-start space-x-3">
+                  <Avatar className="h-7 w-7 border border-border/50 flex-shrink-0">
+                    <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                      {getInitials(comment.username || "User")}
+                    </AvatarFallback>
+                  </Avatar>
+                  
+                  <div className="flex-1 min-w-0">
+                    {/* User info and timestamp */}
+                    <div className="flex items-center space-x-2 text-xs mb-1">
+                      <span className="font-medium text-foreground">
+                        {comment.username || "Anonymous"}
+                      </span>
+                      {comment.isAdmin && (
+                        <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 text-[10px] px-1 py-0 h-4">
+                          Admin
+                        </Badge>
+                      )}
+                      <span className="text-muted-foreground">•</span>
+                      <span className="text-muted-foreground">
+                        {formatDate(comment.createdAt)}
+                      </span>
                     </div>
-                  </CardHeader>
-                  <CardContent className="pb-2">
-                    <p className="text-base">{comment.content}</p>
-                  </CardContent>
-                  <CardFooter className="pt-0 flex justify-between">
-                    <div className="flex items-center space-x-4">
+                    
+                    {/* Comment content */}
+                    <p className="text-sm text-foreground/90 leading-relaxed mb-2">
+                      {comment.content}
+                    </p>
+                    
+                    {/* Action buttons */}
+                    <div className="flex items-center space-x-1">
                       <Button 
-                        variant={comment.hasLiked ? "default" : "ghost"}
+                        variant="ghost"
                         size="sm" 
                         onClick={() => likeCommentMutation.mutate(comment.id)}
                         disabled={likeCommentMutation.isPending}
-                        className={comment.hasLiked ? "bg-primary/20 hover:bg-primary/30 text-primary" : ""}
+                        className={`h-7 px-2 text-xs ${comment.hasLiked ? "text-primary hover:text-primary/80" : "text-muted-foreground hover:text-foreground"}`}
                       >
-                        <ThumbsUp className={`h-4 w-4 mr-1 ${comment.hasLiked ? "fill-primary" : ""}`} />
-                        <span>{comment.likes || 0}</span>
+                        <ThumbsUp className={`h-3 w-3 mr-1 ${comment.hasLiked ? "fill-current" : ""}`} />
+                        {comment.likes || 0}
                       </Button>
+                      
                       <Button 
-                        variant={comment.hasDisliked ? "default" : "ghost"}
+                        variant="ghost"
                         size="sm"
                         onClick={() => dislikeCommentMutation.mutate(comment.id)}
                         disabled={dislikeCommentMutation.isPending}
-                        className={comment.hasDisliked ? "bg-destructive/20 hover:bg-destructive/30 text-destructive" : ""}
+                        className={`h-7 px-2 text-xs ${comment.hasDisliked ? "text-destructive hover:text-destructive/80" : "text-muted-foreground hover:text-foreground"}`}
                       >
-                        <ThumbsDown className={`h-4 w-4 mr-1 ${comment.hasDisliked ? "fill-destructive" : ""}`} />
-                        <span>{comment.dislikes || 0}</span>
+                        <ThumbsDown className={`h-3 w-3 mr-1 ${comment.hasDisliked ? "fill-current" : ""}`} />
+                        {comment.dislikes || 0}
+                      </Button>
+                      
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => handleReply(comment.id, comment.username)}
+                        disabled={!user}
+                        className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+                      >
+                        <Reply className="h-3 w-3 mr-1" />
+                        Reply
                       </Button>
                     </div>
-                    
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={() => handleReply(comment.id, comment.username)}
-                      disabled={!user}
-                    >
-                      <Reply className="h-4 w-4 mr-1" />
-                      <span>Reply</span>
-                    </Button>
-                  </CardFooter>
-                  
-                  {/* We don't have actual reply threading in the database schema,
-                      so we're not showing a replies section. Instead, users will use @mentions 
-                      which will be displayed in the main comment list. */}
-                  
-                  {/* Reply Form */}
-                  {replyingTo === comment.id && (
-                    <div className="px-4 pb-4 pt-1 border-t border-gray-800">
-                      <Form {...replyForm}>
-                        <form onSubmit={replyForm.handleSubmit(onReplySubmit)} className="w-full">
-                          <div className="flex flex-col space-y-2">
-                            <FormField
-                              control={replyForm.control}
-                              name="content"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <div className="relative">
-                                    <Textarea
-                                      id={`reply-textarea-${comment.id}`}
-                                      placeholder="Write a reply..."
-                                      className="min-h-16 bg-card/50 pl-4 pr-12 py-2 text-sm resize-none"
-                                      {...field}
-                                    />
-                                    <Button 
-                                      className="absolute bottom-2 right-2 p-1.5 h-7 w-7"
-                                      size="icon"
-                                      variant="ghost"
-                                      type="submit"
-                                      disabled={!field.value.trim() || addReplyMutation.isPending}
-                                    >
-                                      {addReplyMutation.isPending ? (
-                                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                      ) : (
-                                        <Send className="h-3.5 w-3.5" />
-                                      )}
-                                    </Button>
-                                  </div>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              className="self-start"
-                              onClick={cancelReply}
-                            >
-                              Cancel
-                            </Button>
-                          </div>
-                        </form>
-                      </Form>
-                    </div>
-                  )}
-                </Card>
+                  </div>
+                </div>
+                
+                {/* Compact Reply Form */}
+                {replyingTo === comment.id && (
+                  <div className="mt-3 ml-10 pl-3 border-l-2 border-primary/20">
+                    <Form {...replyForm}>
+                      <form onSubmit={replyForm.handleSubmit(onReplySubmit)} className="space-y-2">
+                        <FormField
+                          control={replyForm.control}
+                          name="content"
+                          render={({ field }) => (
+                            <FormItem>
+                              <div className="relative bg-card/40 rounded-md border border-border/40">
+                                <Textarea
+                                  id={`reply-textarea-${comment.id}`}
+                                  placeholder="Write a reply..."
+                                  className="min-h-12 max-h-24 bg-transparent border-0 pl-3 pr-12 py-2 text-sm resize-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                                  {...field}
+                                />
+                                <Button 
+                                  className="absolute bottom-1.5 right-1.5 h-6 w-6 p-0"
+                                  size="sm"
+                                  type="submit"
+                                  disabled={!field.value.trim() || addReplyMutation.isPending}
+                                >
+                                  {addReplyMutation.isPending ? (
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                  ) : (
+                                    <Send className="h-3 w-3" />
+                                  )}
+                                </Button>
+                              </div>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-6 px-2 text-xs"
+                          onClick={cancelReply}
+                          type="button"
+                        >
+                          Cancel
+                        </Button>
+                      </form>
+                    </Form>
+                  </div>
+                )}
               </motion.div>
             ))}
           </AnimatePresence>
           
           {!showFullComments && totalComments > 5 && (
-            <div className="text-center">
-              <Button 
-                variant="outline" 
+            <div className="text-center py-2">
+              <button 
                 onClick={() => setShowFullComments(true)}
-                className="w-full sm:w-auto"
+                className="text-sm text-primary hover:text-primary/80 hover:underline font-medium"
               >
-                Show All Comments ({totalComments})
-              </Button>
+                Show {totalComments - 5} more comments
+              </button>
             </div>
           )}
         </div>
       ) : (
-        <div className="text-center py-6 border border-dashed border-gray-800 rounded-lg">
-          <MessageCircle className="h-10 w-10 text-muted-foreground mx-auto mb-3 opacity-30" />
-          <p className="text-muted-foreground font-medium">No comments yet. Be the first to share your thoughts!</p>
+        <div className="text-center py-8 border border-dashed border-border/30 rounded-lg bg-card/10">
+          <MessageCircle className="h-8 w-8 text-muted-foreground mx-auto mb-2 opacity-30" />
+          <p className="text-sm text-muted-foreground">No comments yet. Be the first to share your thoughts!</p>
           
           {user ? (
-            <div className="max-w-md mx-auto mt-4">
-              <Button 
-                variant="outline" 
-                className="flex items-center gap-2 mx-auto border-dashed border-primary/40 hover:border-primary"
-                onClick={() => {
-                  // Focus on the comment textarea
-                  const textarea = document.querySelector('textarea[name="content"]') as HTMLTextAreaElement;
-                  if (textarea) {
-                    textarea.focus();
-                    // Scroll to textarea
-                    textarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                  }
-                }}
-              >
-                <MessageCircle className="h-4 w-4" />
-                Write your first comment
-              </Button>
-            </div>
+            <Button 
+              variant="ghost" 
+              size="sm"
+              className="mt-3 text-xs text-primary hover:text-primary/80"
+              onClick={() => {
+                const textarea = document.querySelector('textarea[name="content"]') as HTMLTextAreaElement;
+                if (textarea) {
+                  textarea.focus();
+                  textarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+              }}
+            >
+              <MessageCircle className="h-3 w-3 mr-1" />
+              Write the first comment
+            </Button>
           ) : (
-            <p className="text-xs text-muted-foreground mt-3">Please log in to comment</p>
+            <p className="text-xs text-muted-foreground/60 mt-2">Please log in to comment</p>
           )}
         </div>
       )}
       
       {/* Auto-refresh indicator */}
       {liveUpdateInterval && (
-        <div className="flex items-center justify-center text-xs text-muted-foreground">
-          <RefreshCw className="h-3 w-3 mr-1.5 animate-spin animate-pulse opacity-50" />
-          <span>Comments refresh automatically</span>
+        <div className="flex items-center justify-center text-xs text-muted-foreground/60 py-2">
+          <RefreshCw className="h-3 w-3 mr-1 animate-pulse opacity-50" />
+          <span>Auto-refresh enabled</span>
         </div>
       )}
     </div>
