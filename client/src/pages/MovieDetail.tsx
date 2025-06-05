@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useRoute, Link } from "wouter";
+import { Link } from "wouter";
 import { 
   Play, 
   Plus, 
@@ -12,17 +12,13 @@ import {
   ChevronRight,
   ChevronDown,
   ChevronUp,
-  Calendar,
   Clock,
   Info,
   FileText,
-  CheckCircle,
-  X,
-  MinusCircle
+  CheckCircle
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
-import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -31,16 +27,15 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import {
   Select,
   SelectContent,
-  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
 import ServerTabs from "@/components/ServerTabs";
-import EpisodeList from "@/components/EpisodeList";
 import VideoPlayer from "@/components/VideoPlayer";
 import { CommentSection } from "@/components/CommentSection";
 import RecommendedMovieCard from "@/components/RecommendedMovieCard";
+import MovieReactions from "@/components/MovieReactions";
 import { apiRequest } from "@/lib/queryClient";
 import { MovieDetailResponse, Comment, MovieListResponse } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
@@ -387,7 +382,7 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
                 <VideoPlayer 
                   embedUrl={getCurrentEmbedUrl()}
                   isLoading={isMovieLoading || !selectedEpisode}
-                  onError={(error) => {
+                  onError={(_error) => {
                     setIsEpisodeLoading(false);
                     setIsEpisodeSwitching(false);
                     toast({
@@ -402,16 +397,8 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
             
             {/* Action Buttons - Optimized */}
             <div className="flex flex-wrap gap-2 mb-4">
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="h-8 px-3 rounded-full flex items-center gap-1"
-              >
-                <div className="flex items-center gap-1">
-                  <Star className="h-3.5 w-3.5 text-yellow-500" fill="currentColor" />
-                  <span className="text-xs">{(movie as any).tmdb?.vote_average || "8.3"}</span>
-                </div>
-              </Button>
+              {/* Replace static rating with interactive reactions */}
+              <MovieReactions movieSlug={slug} userId={user?.id} />
               
               <Button 
                 variant="outline" 

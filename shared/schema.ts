@@ -197,6 +197,18 @@ export const userCommentReactions = pgTable("user_comment_reactions", {
   uniqueUserComment: unique().on(table.userId, table.commentId),
 }));
 
+// Movie Reactions model for tracking user reactions to movies
+export const movieReactions = pgTable("movie_reactions", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  movieSlug: text("movie_slug").notNull(),
+  reactionType: text("reaction_type").notNull(), // 'like', 'dislike', or 'heart'
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  // Ensure one reaction per user per movie
+  uniqueUserMovie: unique().on(table.userId, table.movieSlug),
+}));
+
 // Watchlist model for user's saved movies
 export const watchlist = pgTable("watchlist", {
   id: serial("id").primaryKey(),
@@ -352,6 +364,7 @@ export const insertRoleSchema = createInsertSchema(roles).omit({ id: true, creat
 export const insertPermissionSchema = createInsertSchema(permissions).omit({ id: true, createdAt: true });
 export const insertRolePermissionSchema = createInsertSchema(rolePermissions).omit({ id: true });
 export const insertUserCommentReactionSchema = createInsertSchema(userCommentReactions).omit({ id: true });
+export const insertMovieReactionSchema = createInsertSchema(movieReactions).omit({ id: true });
 
 // Type definitions
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -370,6 +383,7 @@ export type InsertRole = z.infer<typeof insertRoleSchema>;
 export type InsertPermission = z.infer<typeof insertPermissionSchema>;
 export type InsertRolePermission = z.infer<typeof insertRolePermissionSchema>;
 export type InsertUserCommentReaction = z.infer<typeof insertUserCommentReactionSchema>;
+export type InsertMovieReaction = z.infer<typeof insertMovieReactionSchema>;
 
 export type User = typeof users.$inferSelect;
 export type Movie = typeof movies.$inferSelect;
@@ -387,6 +401,7 @@ export type Role = typeof roles.$inferSelect;
 export type Permission = typeof permissions.$inferSelect;
 export type RolePermission = typeof rolePermissions.$inferSelect;
 export type UserCommentReaction = typeof userCommentReactions.$inferSelect;
+export type MovieReaction = typeof movieReactions.$inferSelect;
 
 // Define relations between tables using proper Drizzle types
 export const usersRelations = relations(users, ({ many }) => ({
@@ -529,6 +544,17 @@ export const userCommentReactionsRelations = relations(userCommentReactions, ({ 
   comment: one(comments, {
     fields: [userCommentReactions.commentId],
     references: [comments.id]
+  }),
+}));
+
+export const movieReactionsRelations = relations(movieReactions, ({ one }) => ({
+  user: one(users, {
+    fields: [movieReactions.userId],
+    references: [users.id]
+  }),
+  movie: one(movies, {
+    fields: [movieReactions.movieSlug],
+    references: [movies.slug]
   }),
 }));
 

@@ -1366,6 +1366,95 @@ export function registerRoutes(app: Express): void {
     }
   });
   
+  // Movie Reaction operations
+  router.get("/movies/:slug/reactions", async (req, res) => {
+    try {
+      const { slug } = req.params;
+      
+      // Get reaction counts for the movie
+      const reactions = await storage.getMovieReactions(slug);
+      res.json({
+        status: true,
+        reactions,
+        movieSlug: slug
+      });
+    } catch (error) {
+      console.error(`Error fetching reactions for movie ${req.params.slug}:`, error);
+      res.status(500).json({ message: "Failed to fetch reactions" });
+    }
+  });
+
+  router.post("/movies/:slug/reactions", isAuthenticated, async (req, res) => {
+    try {
+      const { slug } = req.params;
+      const { reactionType } = req.body;
+      const userId = (req.user as Express.User).id;
+
+      // Validate reaction type
+      if (!['like', 'dislike', 'heart'].includes(reactionType)) {
+        return res.status(400).json({ message: "Invalid reaction type. Must be 'like', 'dislike', or 'heart'" });
+      }
+
+      // Check if the movie exists
+      const movie = await storage.getMovieBySlug(slug);
+      if (!movie) {
+        return res.status(404).json({ message: "Movie not found" });
+      }
+
+      // Add or update the user's reaction
+      await storage.addMovieReaction(userId, slug, reactionType);
+      
+      // Get updated reaction counts
+      const updatedReactions = await storage.getMovieReactions(slug);
+      
+      res.status(201).json({ 
+        message: "Reaction added successfully",
+        reactions: updatedReactions,
+        userReaction: reactionType
+      });
+    } catch (error) {
+      console.error(`Error adding reaction to movie ${req.params.slug}:`, error);
+      res.status(500).json({ message: "Failed to add reaction" });
+    }
+  });
+
+  router.delete("/movies/:slug/reactions", isAuthenticated, async (req, res) => {
+    try {
+      const { slug } = req.params;
+      const userId = (req.user as Express.User).id;
+
+      await storage.removeMovieReaction(userId, slug);
+      
+      // Get updated reaction counts
+      const updatedReactions = await storage.getMovieReactions(slug);
+      
+      res.json({ 
+        message: "Reaction removed successfully",
+        reactions: updatedReactions
+      });
+    } catch (error) {
+      console.error(`Error removing reaction from movie ${req.params.slug}:`, error);
+      res.status(500).json({ message: "Failed to remove reaction" });
+    }
+  });
+
+  router.get("/users/:userId/reactions/:slug", async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const { slug } = req.params;
+      
+      const userReaction = await storage.getUserMovieReaction(userId, slug);
+      res.json({ 
+        userReaction: userReaction?.reactionType || null,
+        movieSlug: slug,
+        userId 
+      });
+    } catch (error) {
+      console.error(`Error fetching user reaction for movie ${req.params.slug}:`, error);
+      res.status(500).json({ message: "Failed to fetch user reaction" });
+    }
+  });
+
   // Watchlist operations
   router.get("/users/:userId/watchlist", async (req, res) => {
     try {
@@ -1575,5 +1664,3 @@ export function registerRoutes(app: Express): void {
       res.status(500).json({ status: false, message: "Failed to fetch movies" });
     }  });
 }
-
-export { router };
