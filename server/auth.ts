@@ -1,10 +1,12 @@
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
+import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import { Express, Request, Response, NextFunction, RequestHandler } from "express";
 import session from "express-session";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { storage } from "./storage";
+import { config } from "./config";
 
 // Extend Express types for better type safety
 declare global {
@@ -112,13 +114,16 @@ export function setupAuth(app: Express): void {
   app.use(session(sessionSettings));
   app.use(passport.initialize());
   app.use(passport.session());
-
   passport.use(
     new LocalStrategy(async (username: string, password: string, done) => {
       try {
-        const user = await storage.getUserByUsername(username);
-        if (!user) {
+        const user = await storage.getUserByUsername(username);        if (!user) {
           return done(null, false, { message: "Invalid username or password" });
+        }
+
+        // Check if user has a password (for OAuth users)
+        if (!user.password) {
+          return done(null, false, { message: "Please sign in with Google" });
         }
 
         const passwordsMatch = await comparePasswords(password, user.password);
@@ -137,6 +142,63 @@ export function setupAuth(app: Express): void {
       }
     })
   );
+
+  // Google OAuth Strategy
+  if (config.googleClientId && config.googleClientSecret) {
+    passport.use(
+      new GoogleStrategy(
+        {
+          clientID: config.googleClientId,
+          clientSecret: config.googleClientSecret,
+          callbackURL: "/api/auth/google/callback",
+        },
+        async (_accessToken, _refreshToken, profile, done) => {
+          try {
+            // Check if user already exists with this Google ID
+            let user = await storage.getUserByGoogleId(profile.id);
+            
+            if (user) {
+              // User exists, log them in
+              await logUserActivity(user.id, "google_login", null, null, null);
+              const { password: _, ...userWithoutPassword } = user;
+              return done(null, userWithoutPassword);
+            }
+
+            // Check if user exists with same email
+            const emailUser = await storage.getUserByEmail(profile.emails?.[0]?.value || '');
+            if (emailUser) {
+              // Link Google account to existing user
+              await storage.updateUser(emailUser.id, { 
+                googleId: profile.id,
+                avatar: profile.photos?.[0]?.value || emailUser.avatar 
+              });
+              await logUserActivity(emailUser.id, "google_account_linked", null, null, null);
+              const { password: _, ...userWithoutPassword } = emailUser;
+              return done(null, userWithoutPassword);
+            }
+
+            // Create new user
+            const newUser = await storage.createUser({
+              username: profile.displayName || profile.emails?.[0]?.value?.split('@')[0] || `user_${profile.id}`,
+              email: profile.emails?.[0]?.value || '',
+              password: '', // Empty password for OAuth users
+              role: 'normal',
+              status: 'active',
+              googleId: profile.id,
+              avatar: profile.photos?.[0]?.value || null,
+              displayName: profile.displayName || null
+            });
+
+            await logUserActivity(newUser.id, "google_register", null, null, null);
+            const { password: _, ...userWithoutPassword } = newUser;
+            return done(null, userWithoutPassword);
+          } catch (error) {
+            return done(error as Error);
+          }
+        }
+      )
+    );
+  }
 
   passport.serializeUser((user, done) => {
     done(null, (user as Express.User).id);
@@ -274,9 +336,13 @@ export function setupAuth(app: Express): void {
       }
 
       // Get user with password
-      const user = await storage.getUser(userId);
-      if (!user) {
+      const user = await storage.getUser(userId);      if (!user) {
         return res.status(404).json({ message: "User not found" });
+      }
+
+      // Check if user has a password (OAuth users cannot change password)
+      if (!user.password) {
+        return res.status(400).json({ message: "OAuth users cannot change password" });
       }
 
       // Verify current password
@@ -550,9 +616,7 @@ export function setupAuth(app: Express): void {
         userId,
         activityDetails,
         req.ip
-      );
-
-      // Omit password from response
+      );      // Omit password from response
       const { password: _, ...userWithoutPassword } = updatedUser;
       res.json(userWithoutPassword);
     } catch (error) {
@@ -560,6 +624,18 @@ export function setupAuth(app: Express): void {
       res.status(500).json({ message: "Failed to update user" });
     }
   });
+
+  // Google OAuth routes
+  app.get("/api/auth/google",
+    passport.authenticate("google", { scope: ["profile", "email"] })
+  );
+  app.get("/api/auth/google/callback",
+    passport.authenticate("google", { failureRedirect: "/auth?error=google_auth_failed" }),
+    (_req: Request, res: Response) => {
+      // Successful authentication, redirect to home
+      res.redirect("/");
+    }
+  );
 }
 
 // Add interface for LocalStrategy info

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useRoute, Link } from "wouter";
+import { Link } from "wouter";
 import { 
   Play, 
   Plus, 
@@ -12,17 +12,13 @@ import {
   ChevronRight,
   ChevronDown,
   ChevronUp,
-  Calendar,
   Clock,
   Info,
   FileText,
-  CheckCircle,
-  X,
-  MinusCircle
+  CheckCircle
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
-import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -31,16 +27,15 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import {
   Select,
   SelectContent,
-  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
 import ServerTabs from "@/components/ServerTabs";
-import EpisodeList from "@/components/EpisodeList";
 import VideoPlayer from "@/components/VideoPlayer";
 import { CommentSection } from "@/components/CommentSection";
 import RecommendedMovieCard from "@/components/RecommendedMovieCard";
+import MovieReactions from "@/components/MovieReactions";
 import { apiRequest } from "@/lib/queryClient";
 import { MovieDetailResponse, Comment, MovieListResponse } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
@@ -65,9 +60,11 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
   const [isEpisodeLoading, setIsEpisodeLoading] = useState(false);
   const [isEpisodeSwitching, setIsEpisodeSwitching] = useState(false);
   const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
-  
-  // State for content expanding (overview section)
+    // State for content expanding (overview section)
   const [isContentExpanded, setIsContentExpanded] = useState(false);
+  
+  // State for episode search
+  const [episodeSearchQuery, setEpisodeSearchQuery] = useState("");
   
   // Fetch movie details
   const { 
@@ -276,13 +273,32 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
     const episode = server.server_data.find(e => e.slug === selectedEpisode);
     return episode?.link_embed || "";
   };
-  
-  // Find current episode list
+    // Find current episode list
   const getCurrentEpisodeList = () => {
     if (!movieDetail || !selectedServer) return [];
     
     const server = movieDetail.episodes.find(s => s.server_name === selectedServer);
     return server?.server_data || [];
+  };
+
+  // Filter episodes based on search query
+  const getFilteredEpisodeList = () => {
+    const episodes = getCurrentEpisodeList();
+    if (!episodeSearchQuery.trim()) return episodes;
+    
+    return episodes.filter(episode => {
+      const searchLower = episodeSearchQuery.toLowerCase();
+      // Search in episode name and extract episode number
+      const episodeName = episode.name.toLowerCase();
+      const episodeNumberMatch = episode.name.match(/\d+/);
+      const episodeNumber = episodeNumberMatch ? episodeNumberMatch[0] : '';
+      
+      return (
+        episodeName.includes(searchLower) ||
+        episodeNumber.includes(episodeSearchQuery) ||
+        episode.filename?.toLowerCase().includes(searchLower)
+      );
+    });
   };
   
   // Check if this is a single episode movie
@@ -387,7 +403,7 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
                 <VideoPlayer 
                   embedUrl={getCurrentEmbedUrl()}
                   isLoading={isMovieLoading || !selectedEpisode}
-                  onError={(error) => {
+                  onError={(_error) => {
                     setIsEpisodeLoading(false);
                     setIsEpisodeSwitching(false);
                     toast({
@@ -402,16 +418,8 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
             
             {/* Action Buttons - Optimized */}
             <div className="flex flex-wrap gap-2 mb-4">
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="h-8 px-3 rounded-full flex items-center gap-1"
-              >
-                <div className="flex items-center gap-1">
-                  <Star className="h-3.5 w-3.5 text-yellow-500" fill="currentColor" />
-                  <span className="text-xs">{(movie as any).tmdb?.vote_average || "8.3"}</span>
-                </div>
-              </Button>
+              {/* Replace static rating with interactive reactions */}
+              <MovieReactions movieSlug={slug} userId={user?.id} />
               
               <Button 
                 variant="outline" 
@@ -501,20 +509,59 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
                 </div>
               </div>
             )}
-            
-            {/* Mobile Episodes Horizontal Scroll - Only visible on mobile and tablet */}
+              {/* Mobile Episodes Horizontal Scroll - Only visible on mobile and tablet */}
             {!isSingleEpisode() && (
-              <div className="lg:hidden mb-4">
+              <div className="lg:hidden mb-4">                {/* Search Episodes Input for Mobile */}
+                {getCurrentEpisodeList().length > 10 && (
+                  <div className="mb-3">
+                    <div className="relative">
+                      <input 
+                        type="text" 
+                        placeholder="Search episodes..." 
+                        className="w-full bg-black/40 border border-gray-700 rounded-md py-2 px-3 pr-10 text-sm"
+                        value={episodeSearchQuery}
+                        onChange={(e) => setEpisodeSearchQuery(e.target.value)}
+                      />
+                      {episodeSearchQuery ? (
+                        <button
+                          onClick={() => setEpisodeSearchQuery("")}
+                          className="absolute right-8 top-2.5 text-muted-foreground hover:text-white text-lg"
+                        >
+                          ×
+                        </button>
+                      ) : null}
+                      <Search className="h-4 w-4 absolute right-3 top-2.5 text-muted-foreground" />
+                    </div>
+                  </div>
+                )}
+                
                 <div className="flex justify-between items-center mb-2">
                   <h4 className="text-sm font-semibold">Episodes:</h4>
                   <span className="text-xs text-muted-foreground">
-                    {getCurrentEpisodeList().length} episodes
+                    {getFilteredEpisodeList().length} of {getCurrentEpisodeList().length} episodes
                   </span>
                 </div>
-                
-                <ScrollArea className="w-full">
-                  <div className="flex space-x-2 pb-2 snap-x">
-                    {getCurrentEpisodeList().map((episode, index) => {
+                  <ScrollArea className="w-full">
+                  {getFilteredEpisodeList().length === 0 ? (
+                    <div className="text-center py-4 text-muted-foreground">
+                      <p className="text-sm">
+                        {episodeSearchQuery.trim() 
+                          ? `No episodes found for "${episodeSearchQuery}"` 
+                          : "No episodes available"
+                        }
+                      </p>
+                      {episodeSearchQuery.trim() && (
+                        <button
+                          onClick={() => setEpisodeSearchQuery("")}
+                          className="text-primary text-sm mt-2 hover:underline"
+                        >
+                          Clear search
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex space-x-2 pb-2 snap-x">
+                      {getFilteredEpisodeList().map((episode, index) => {
                       // Extract episode number for display
                       const episodeName = episode.name;
                       let episodeNumber = index + 1;
@@ -557,10 +604,10 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
                               </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
-                        </div>
-                      );
+                        </div>                      );
                     })}
-                  </div>
+                    </div>
+                  )}
                   <ScrollBar orientation="horizontal" />
                 </ScrollArea>
               </div>
@@ -580,11 +627,13 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
                       <Badge variant="outline" className="ml-2 bg-primary/10 text-xs">Full Movie</Badge>
                     )}
                   </h3>
-                  
-                  {/* Episode count badge */}
+                    {/* Episode count badge */}
                   {!isSingleEpisode() && (
                     <Badge variant="outline" className="bg-card/30">
-                      {getCurrentEpisodeList().length} episodes
+                      {episodeSearchQuery.trim() 
+                        ? `${getFilteredEpisodeList().length} of ${getCurrentEpisodeList().length}` 
+                        : `${getCurrentEpisodeList().length} episodes`
+                      }
                     </Badge>
                   )}
                 </div>
@@ -592,25 +641,50 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
               
               {/* Episodes List with its own scrollbar */}
               {!isSingleEpisode() ? (
-                <div className="p-4">
-                  {/* Search/Filter Episodes Input */}
+                <div className="p-4">                  {/* Search/Filter Episodes Input */}
                   {getCurrentEpisodeList().length > 10 && (
                     <div className="mb-4">
-                      <div className="relative">
-                        <input 
+                      <div className="relative">                        <input 
                           type="text" 
                           placeholder="Search episodes..." 
-                          className="w-full bg-black/40 border border-gray-700 rounded-md py-2 px-3 text-sm"
+                          className="w-full bg-black/40 border border-gray-700 rounded-md py-2 px-3 pr-10 text-sm"
+                          value={episodeSearchQuery}
+                          onChange={(e) => setEpisodeSearchQuery(e.target.value)}
                         />
+                        {episodeSearchQuery ? (
+                          <button
+                            onClick={() => setEpisodeSearchQuery("")}
+                            className="absolute right-8 top-2.5 text-muted-foreground hover:text-white text-lg"
+                          >
+                            ×
+                          </button>
+                        ) : null}
                         <Search className="h-4 w-4 absolute right-3 top-2.5 text-muted-foreground" />
                       </div>
                     </div>
                   )}
-                  
-                  {/* Episodes Grid with scroll area */}
+                    {/* Episodes Grid with scroll area */}
                   <div className="max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
-                      {getCurrentEpisodeList().map((episode, index) => {
+                    {getFilteredEpisodeList().length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <p className="text-sm">
+                          {episodeSearchQuery.trim() 
+                            ? `No episodes found for "${episodeSearchQuery}"` 
+                            : "No episodes available"
+                          }
+                        </p>
+                        {episodeSearchQuery.trim() && (
+                          <button
+                            onClick={() => setEpisodeSearchQuery("")}
+                            className="text-primary text-sm mt-2 hover:underline"
+                          >
+                            Clear search
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
+                        {getFilteredEpisodeList().map((episode, index) => {
                         // Extract episode number for display
                         const episodeName = episode.name;
                         let episodeNumber = index + 1;
@@ -665,10 +739,10 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
                                 </div>
                               </TooltipContent>
                             </Tooltip>
-                          </TooltipProvider>
-                        );
+                          </TooltipProvider>                        );
                       })}
-                    </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               ) : (

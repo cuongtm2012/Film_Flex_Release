@@ -14,6 +14,8 @@ interface Config {
   databaseUrl: string | undefined;
   sessionSecret: string | undefined;
   clientUrl: string;
+  googleClientId: string | undefined;
+  googleClientSecret: string | undefined;
 }
 
 export const config: Config = {
@@ -21,5 +23,7 @@ export const config: Config = {
   port: parseInt(process.env.PORT || '5000', 10),
   databaseUrl: process.env.DATABASE_URL,
   sessionSecret: process.env.SESSION_SECRET,
-  clientUrl: process.env.CLIENT_URL || 'http://localhost:3000'
+  clientUrl: process.env.CLIENT_URL || 'http://localhost:3000',
+  googleClientId: process.env.GOOGLE_CLIENT_ID,
+  googleClientSecret: process.env.GOOGLE_CLIENT_SECRET
 };

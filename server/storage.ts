@@ -12,9 +12,9 @@ import {
   MovieListResponse,
   MovieDetailResponse,
   users, movies, episodes, comments, watchlist, viewHistory, contentApprovals, auditLogs,
-  roles, permissions, rolePermissions, userCommentReactions,
+  roles, permissions, rolePermissions, userCommentReactions, movieReactions,
   UserRole, UserStatus, ContentStatus,
-  User, InsertUser, UserCommentReaction, InsertUserCommentReaction
+  User, InsertUser, UserCommentReaction, MovieReaction
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, sql, inArray } from "drizzle-orm";
@@ -27,6 +27,7 @@ export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
+  getUserByGoogleId(googleId: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: number, userData: Partial<InsertUser>): Promise<User | undefined>;
   changeUserStatus(id: number, status: string): Promise<User | undefined>;
@@ -75,6 +76,11 @@ export interface IStorage {
   dislikeComment(commentId: number, userId: number): Promise<void>;
   getUserReactionForComment(userId: number, commentId: number): Promise<UserCommentReaction | undefined>;
   removeUserReactionForComment(userId: number, commentId: number): Promise<void>;
+    // Movie Reaction methods
+  getMovieReactions(movieSlug: string): Promise<{ like: number, dislike: number, heart: number }>;
+  getUserMovieReaction(userId: number, movieSlug: string): Promise<MovieReaction | undefined>;
+  getUserMovieReactions(userId: number, movieSlug: string): Promise<MovieReaction[]>;  addMovieReaction(userId: number, movieSlug: string, reactionType: 'like' | 'dislike' | 'heart'): Promise<void>;
+  removeMovieReaction(userId: number, movieSlug: string, reactionType?: string): Promise<void>;
   
   // Watchlist methods
   getWatchlist(userId: number): Promise<Movie[]>;
@@ -139,11 +145,17 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.username, username));
     return user;
   }
-
   async getUserByEmail(email: string): Promise<User | undefined> {
     const [user] = await db.select()
       .from(users)
       .where(eq(users.email, email));
+    return user;
+  }
+
+  async getUserByGoogleId(googleId: string): Promise<User | undefined> {
+    const [user] = await db.select()
+      .from(users)
+      .where(eq(users.googleId, googleId));
     return user;
   }
 
@@ -791,6 +803,114 @@ export class DatabaseStorage implements IStorage {
       ));
   }
   
+  // Movie Reaction methods
+  async getMovieReactions(movieSlug: string): Promise<{ like: number, dislike: number, heart: number }> {
+    const [{ 
+      likes = 0, 
+      dislikes = 0, 
+      hearts = 0 
+    } = {}] = await db.select({
+      likes: sql`COALESCE(SUM(CASE WHEN ${movieReactions.reactionType} = 'like' THEN 1 ELSE 0 END), 0)`,
+      dislikes: sql`COALESCE(SUM(CASE WHEN ${movieReactions.reactionType} = 'dislike' THEN 1 ELSE 0 END), 0)`,
+      hearts: sql`COALESCE(SUM(CASE WHEN ${movieReactions.reactionType} = 'heart' THEN 1 ELSE 0 END), 0)`
+    })
+      .from(movieReactions)
+      .where(eq(movieReactions.movieSlug, movieSlug));
+    
+    return { like: Number(likes), dislike: Number(dislikes), heart: Number(hearts) };
+  }
+    async getUserMovieReaction(userId: number, movieSlug: string): Promise<MovieReaction | undefined> {
+    const [reaction] = await db.select()
+      .from(movieReactions)
+      .where(and(
+        eq(movieReactions.userId, userId),
+        eq(movieReactions.movieSlug, movieSlug)
+      ));
+    return reaction;
+  }
+
+  async getUserMovieReactions(userId: number, movieSlug: string): Promise<MovieReaction[]> {
+    const reactions = await db.select()
+      .from(movieReactions)
+      .where(and(
+        eq(movieReactions.userId, userId),
+        eq(movieReactions.movieSlug, movieSlug)
+      ));
+    return reactions;
+  }
+    async addMovieReaction(userId: number, movieSlug: string, reactionType: 'like' | 'dislike' | 'heart'): Promise<void> {
+    // Get all existing reactions for this user and movie
+    const existingReactions = await this.getUserMovieReactions(userId, movieSlug);
+    const existingReactionTypes = existingReactions.map(r => r.reactionType);
+    
+    // Check if user already has this reaction type
+    const hasThisReaction = existingReactionTypes.includes(reactionType);
+    
+    if (hasThisReaction) {
+      // If clicking the same reaction, remove it (toggle behavior)
+      await db.delete(movieReactions)
+        .where(and(
+          eq(movieReactions.userId, userId),
+          eq(movieReactions.movieSlug, movieSlug),
+          eq(movieReactions.reactionType, reactionType)
+        ));
+      return;
+    }
+    
+    // Apply business rules based on reaction type
+    if (reactionType === 'like') {
+      // If user wants to like but has already disliked, prevent it
+      if (existingReactionTypes.includes('dislike')) {
+        throw new Error('Cannot like content that you have already disliked');
+      }
+      // Add the like reaction
+      await db.insert(movieReactions).values({
+        userId,
+        movieSlug,
+        reactionType: 'like',
+        createdAt: new Date()
+      });
+    } else if (reactionType === 'dislike') {
+      // If user wants to dislike but has already liked, prevent it  
+      if (existingReactionTypes.includes('like')) {
+        throw new Error('Cannot dislike content that you have already liked');
+      }
+      // Add the dislike reaction
+      await db.insert(movieReactions).values({
+        userId,
+        movieSlug,
+        reactionType: 'dislike',
+        createdAt: new Date()
+      });
+    } else if (reactionType === 'heart') {
+      // Heart reactions are independent and can coexist with like/dislike
+      await db.insert(movieReactions).values({
+        userId,
+        movieSlug,
+        reactionType: 'heart',
+        createdAt: new Date()
+      });
+    }
+  }
+    async removeMovieReaction(userId: number, movieSlug: string, reactionType?: string): Promise<void> {
+    if (reactionType) {
+      // Remove specific reaction type
+      await db.delete(movieReactions)
+        .where(and(
+          eq(movieReactions.userId, userId),
+          eq(movieReactions.movieSlug, movieSlug),
+          eq(movieReactions.reactionType, reactionType)
+        ));
+    } else {
+      // Remove all reactions for backward compatibility
+      await db.delete(movieReactions)
+        .where(and(
+          eq(movieReactions.userId, userId),
+          eq(movieReactions.movieSlug, movieSlug)
+        ));
+    }
+  }
+  
   // Watchlist methods
   async getWatchlist(userId: number): Promise<Movie[]> {
     const result = await db.select({ movie: movies })
@@ -1083,20 +1203,11 @@ export class DatabaseStorage implements IStorage {
     
     // If anime section is requested but no movies found, fall back to type-based search
     if (section === 'anime' && data.length === 0) {
-      console.log('[DEBUG] No movies found with section=anime, falling back to type-based search');
+      console.log('[DEBUG] No movies found with section=anime, falling back to type-based search for hoathinh');
       
-      // Search for anime/animation content by type and name patterns
+      // Search for movies with type exactly 'hoathinh' (Vietnamese for animation/anime)
       const animeConditions = sql`(
-        LOWER(${movies.type}) LIKE '%anime%' OR 
-        LOWER(${movies.type}) LIKE '%animation%' OR
-        LOWER(${movies.name}) LIKE '%anime%' OR
-        LOWER(${movies.name}) LIKE '%doraemon%' OR
-        LOWER(${movies.name}) LIKE '%naruto%' OR
-        LOWER(${movies.name}) LIKE '%pokemon%' OR
-        LOWER(${movies.name}) LIKE '%one piece%' OR
-        LOWER(${movies.name}) LIKE '%dragon ball%' OR
-        LOWER(${movies.description}) LIKE '%anime%' OR
-        LOWER(${movies.description}) LIKE '%animation%'
+        ${movies.type} = 'hoathinh'
       )`;
       
       const animeData = await db.select()
@@ -1110,7 +1221,7 @@ export class DatabaseStorage implements IStorage {
         .from(movies)
         .where(animeConditions);
       
-      console.log(`[DEBUG] Found ${animeData.length} anime movies using fallback search`);
+      console.log(`[DEBUG] Found ${animeData.length} anime movies with type='hoathinh'`);
       return { data: animeData, total: animeCount || 0 };
     }
     
