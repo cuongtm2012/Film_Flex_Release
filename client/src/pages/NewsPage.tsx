@@ -1,4 +1,3 @@
-import React from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
@@ -7,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Eye, Newspaper, PlayCircle, Star } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useLocation } from "wouter";
 
 // Placeholder news articles (in a real app, this would come from an API)
 const newsArticles = [
@@ -53,10 +53,15 @@ const newsArticles = [
 ];
 
 export default function NewsPage() {
+  const [, setLocation] = useLocation();
+  
   // Fetch popular movies
   const { data: popularMovies, isLoading } = useQuery<MovieListResponse>({
     queryKey: ["/api/movies", { page: 1, limit: 10 }],
   });
+  const handleMovieClick = (movieSlug: string) => {
+    setLocation(`/movie/${movieSlug}`);
+  };
 
   const getCategoryIcon = (category: string) => {
     switch (category) {
@@ -243,11 +248,13 @@ export default function NewsPage() {
                 <Skeleton className="h-4 w-1/2" />
               </div>
             ))
-          ) : (
-            // Movie cards
+          ) : (            // Movie cards
             popularMovies?.items.slice(0, 10).map((movie: any, idx: number) => (
               <div key={idx} className="overflow-hidden rounded-lg">
-                <div className="relative group cursor-pointer">
+                <div 
+                  className="relative group cursor-pointer"
+                  onClick={() => handleMovieClick(movie.slug)}
+                >
                   <img 
                     src={movie.thumbUrl || '/placeholder-poster.jpg'} 
                     alt={movie.name} 
@@ -257,7 +264,12 @@ export default function NewsPage() {
                     <PlayCircle className="h-12 w-12 text-white" />
                   </div>
                 </div>
-                <h3 className="mt-2 font-medium line-clamp-1">{movie.name}</h3>
+                <h3 
+                  className="mt-2 font-medium line-clamp-1 cursor-pointer hover:text-primary transition-colors"
+                  onClick={() => handleMovieClick(movie.slug)}
+                >
+                  {movie.name}
+                </h3>
                 <p className="text-sm text-muted-foreground">{movie.year}</p>
               </div>
             ))

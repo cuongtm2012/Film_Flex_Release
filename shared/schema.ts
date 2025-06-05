@@ -205,8 +205,8 @@ export const movieReactions = pgTable("movie_reactions", {
   reactionType: text("reaction_type").notNull(), // 'like', 'dislike', or 'heart'
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => ({
-  // Ensure one reaction per user per movie
-  uniqueUserMovie: unique().on(table.userId, table.movieSlug),
+  // Prevent duplicate reaction types per user per movie while allowing multiple different reaction types
+  uniqueUserMovieReaction: unique().on(table.userId, table.movieSlug, table.reactionType),
 }));
 
 // Watchlist model for user's saved movies

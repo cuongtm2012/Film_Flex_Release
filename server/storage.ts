@@ -75,12 +75,11 @@ export interface IStorage {
   dislikeComment(commentId: number, userId: number): Promise<void>;
   getUserReactionForComment(userId: number, commentId: number): Promise<UserCommentReaction | undefined>;
   removeUserReactionForComment(userId: number, commentId: number): Promise<void>;
-  
-  // Movie Reaction methods
+    // Movie Reaction methods
   getMovieReactions(movieSlug: string): Promise<{ like: number, dislike: number, heart: number }>;
   getUserMovieReaction(userId: number, movieSlug: string): Promise<MovieReaction | undefined>;
-  addMovieReaction(userId: number, movieSlug: string, reactionType: 'like' | 'dislike' | 'heart'): Promise<void>;
-  removeMovieReaction(userId: number, movieSlug: string): Promise<void>;
+  getUserMovieReactions(userId: number, movieSlug: string): Promise<MovieReaction[]>;  addMovieReaction(userId: number, movieSlug: string, reactionType: 'like' | 'dislike' | 'heart'): Promise<void>;
+  removeMovieReaction(userId: number, movieSlug: string, reactionType?: string): Promise<void>;
   
   // Watchlist methods
   getWatchlist(userId: number): Promise<Movie[]>;
@@ -813,8 +812,7 @@ export class DatabaseStorage implements IStorage {
     
     return { like: Number(likes), dislike: Number(dislikes), heart: Number(hearts) };
   }
-  
-  async getUserMovieReaction(userId: number, movieSlug: string): Promise<MovieReaction | undefined> {
+    async getUserMovieReaction(userId: number, movieSlug: string): Promise<MovieReaction | undefined> {
     const [reaction] = await db.select()
       .from(movieReactions)
       .where(and(
@@ -823,47 +821,87 @@ export class DatabaseStorage implements IStorage {
       ));
     return reaction;
   }
-  
-  async addMovieReaction(userId: number, movieSlug: string, reactionType: 'like' | 'dislike' | 'heart'): Promise<void> {
-    const existingReaction = await this.getUserMovieReaction(userId, movieSlug);
-    
-    if (existingReaction) {
-      if (existingReaction.reactionType === reactionType) {
-        // User already reacted with the same type, remove the reaction
-        await db.delete(movieReactions)
-          .where(and(
-            eq(movieReactions.userId, userId),
-            eq(movieReactions.movieSlug, movieSlug)
-          ));
-      } else {
-        // Update to new reaction type
-        await db.update(movieReactions)
-          .set({
-            reactionType,
-            createdAt: new Date()
-          })
-          .where(and(
-            eq(movieReactions.userId, userId),
-            eq(movieReactions.movieSlug, movieSlug)
-          ));
-      }
-    } else {
-      // No existing reaction, insert new
-      await db.insert(movieReactions).values({
-        userId,
-        movieSlug,
-        reactionType,
-        createdAt: new Date()
-      });
-    }
-  }
-  
-  async removeMovieReaction(userId: number, movieSlug: string): Promise<void> {
-    await db.delete(movieReactions)
+
+  async getUserMovieReactions(userId: number, movieSlug: string): Promise<MovieReaction[]> {
+    const reactions = await db.select()
+      .from(movieReactions)
       .where(and(
         eq(movieReactions.userId, userId),
         eq(movieReactions.movieSlug, movieSlug)
       ));
+    return reactions;
+  }
+    async addMovieReaction(userId: number, movieSlug: string, reactionType: 'like' | 'dislike' | 'heart'): Promise<void> {
+    // Get all existing reactions for this user and movie
+    const existingReactions = await this.getUserMovieReactions(userId, movieSlug);
+    const existingReactionTypes = existingReactions.map(r => r.reactionType);
+    
+    // Check if user already has this reaction type
+    const hasThisReaction = existingReactionTypes.includes(reactionType);
+    
+    if (hasThisReaction) {
+      // If clicking the same reaction, remove it (toggle behavior)
+      await db.delete(movieReactions)
+        .where(and(
+          eq(movieReactions.userId, userId),
+          eq(movieReactions.movieSlug, movieSlug),
+          eq(movieReactions.reactionType, reactionType)
+        ));
+      return;
+    }
+    
+    // Apply business rules based on reaction type
+    if (reactionType === 'like') {
+      // If user wants to like but has already disliked, prevent it
+      if (existingReactionTypes.includes('dislike')) {
+        throw new Error('Cannot like content that you have already disliked');
+      }
+      // Add the like reaction
+      await db.insert(movieReactions).values({
+        userId,
+        movieSlug,
+        reactionType: 'like',
+        createdAt: new Date()
+      });
+    } else if (reactionType === 'dislike') {
+      // If user wants to dislike but has already liked, prevent it  
+      if (existingReactionTypes.includes('like')) {
+        throw new Error('Cannot dislike content that you have already liked');
+      }
+      // Add the dislike reaction
+      await db.insert(movieReactions).values({
+        userId,
+        movieSlug,
+        reactionType: 'dislike',
+        createdAt: new Date()
+      });
+    } else if (reactionType === 'heart') {
+      // Heart reactions are independent and can coexist with like/dislike
+      await db.insert(movieReactions).values({
+        userId,
+        movieSlug,
+        reactionType: 'heart',
+        createdAt: new Date()
+      });
+    }
+  }
+    async removeMovieReaction(userId: number, movieSlug: string, reactionType?: string): Promise<void> {
+    if (reactionType) {
+      // Remove specific reaction type
+      await db.delete(movieReactions)
+        .where(and(
+          eq(movieReactions.userId, userId),
+          eq(movieReactions.movieSlug, movieSlug),
+          eq(movieReactions.reactionType, reactionType)
+        ));
+    } else {
+      // Remove all reactions for backward compatibility
+      await db.delete(movieReactions)
+        .where(and(
+          eq(movieReactions.userId, userId),
+          eq(movieReactions.movieSlug, movieSlug)
+        ));
+    }
   }
   
   // Watchlist methods
