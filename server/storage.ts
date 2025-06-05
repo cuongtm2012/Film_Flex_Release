@@ -12,9 +12,9 @@ import {
   MovieListResponse,
   MovieDetailResponse,
   users, movies, episodes, comments, watchlist, viewHistory, contentApprovals, auditLogs,
-  roles, permissions, rolePermissions, userCommentReactions,
+  roles, permissions, rolePermissions, userCommentReactions, movieReactions,
   UserRole, UserStatus, ContentStatus,
-  User, InsertUser, UserCommentReaction, InsertUserCommentReaction
+  User, InsertUser, UserCommentReaction, MovieReaction
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, sql, inArray } from "drizzle-orm";
@@ -75,6 +75,12 @@ export interface IStorage {
   dislikeComment(commentId: number, userId: number): Promise<void>;
   getUserReactionForComment(userId: number, commentId: number): Promise<UserCommentReaction | undefined>;
   removeUserReactionForComment(userId: number, commentId: number): Promise<void>;
+  
+  // Movie Reaction methods
+  getMovieReactions(movieSlug: string): Promise<{ like: number, dislike: number, heart: number }>;
+  getUserMovieReaction(userId: number, movieSlug: string): Promise<MovieReaction | undefined>;
+  addMovieReaction(userId: number, movieSlug: string, reactionType: 'like' | 'dislike' | 'heart'): Promise<void>;
+  removeMovieReaction(userId: number, movieSlug: string): Promise<void>;
   
   // Watchlist methods
   getWatchlist(userId: number): Promise<Movie[]>;
@@ -788,6 +794,75 @@ export class DatabaseStorage implements IStorage {
       .where(and(
         eq(userCommentReactions.userId, userId),
         eq(userCommentReactions.commentId, commentId)
+      ));
+  }
+  
+  // Movie Reaction methods
+  async getMovieReactions(movieSlug: string): Promise<{ like: number, dislike: number, heart: number }> {
+    const [{ 
+      likes = 0, 
+      dislikes = 0, 
+      hearts = 0 
+    } = {}] = await db.select({
+      likes: sql`COALESCE(SUM(CASE WHEN ${movieReactions.reactionType} = 'like' THEN 1 ELSE 0 END), 0)`,
+      dislikes: sql`COALESCE(SUM(CASE WHEN ${movieReactions.reactionType} = 'dislike' THEN 1 ELSE 0 END), 0)`,
+      hearts: sql`COALESCE(SUM(CASE WHEN ${movieReactions.reactionType} = 'heart' THEN 1 ELSE 0 END), 0)`
+    })
+      .from(movieReactions)
+      .where(eq(movieReactions.movieSlug, movieSlug));
+    
+    return { like: Number(likes), dislike: Number(dislikes), heart: Number(hearts) };
+  }
+  
+  async getUserMovieReaction(userId: number, movieSlug: string): Promise<MovieReaction | undefined> {
+    const [reaction] = await db.select()
+      .from(movieReactions)
+      .where(and(
+        eq(movieReactions.userId, userId),
+        eq(movieReactions.movieSlug, movieSlug)
+      ));
+    return reaction;
+  }
+  
+  async addMovieReaction(userId: number, movieSlug: string, reactionType: 'like' | 'dislike' | 'heart'): Promise<void> {
+    const existingReaction = await this.getUserMovieReaction(userId, movieSlug);
+    
+    if (existingReaction) {
+      if (existingReaction.reactionType === reactionType) {
+        // User already reacted with the same type, remove the reaction
+        await db.delete(movieReactions)
+          .where(and(
+            eq(movieReactions.userId, userId),
+            eq(movieReactions.movieSlug, movieSlug)
+          ));
+      } else {
+        // Update to new reaction type
+        await db.update(movieReactions)
+          .set({
+            reactionType,
+            createdAt: new Date()
+          })
+          .where(and(
+            eq(movieReactions.userId, userId),
+            eq(movieReactions.movieSlug, movieSlug)
+          ));
+      }
+    } else {
+      // No existing reaction, insert new
+      await db.insert(movieReactions).values({
+        userId,
+        movieSlug,
+        reactionType,
+        createdAt: new Date()
+      });
+    }
+  }
+  
+  async removeMovieReaction(userId: number, movieSlug: string): Promise<void> {
+    await db.delete(movieReactions)
+      .where(and(
+        eq(movieReactions.userId, userId),
+        eq(movieReactions.movieSlug, movieSlug)
       ));
   }
   
