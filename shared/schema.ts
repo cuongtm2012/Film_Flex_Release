@@ -127,10 +127,16 @@ export const UserStatus = {
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
-  password: text("password").notNull(),
+  password: text("password"),
   email: text("email").notNull().unique(),
   role: text("role").notNull().default(UserRole.NORMAL),
   status: text("status").notNull().default(UserStatus.ACTIVE),
+  
+  // OAuth fields
+  googleId: text("google_id").unique(),
+  avatar: text("avatar"),
+  displayName: text("display_name"),
+  
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   lastLogin: timestamp("last_login"),
