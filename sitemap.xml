@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <!-- Main pages -->
+  <url>
+    <loc>https://filmflex.com/</loc>
+    <lastmod>2025-06-06</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+  
+  <url>
+    <loc>https://filmflex.com/movies</loc>
+    <lastmod>2025-06-06</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+  
+  <url>
+    <loc>https://filmflex.com/series</loc>
+    <lastmod>2025-06-06</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+  
+  <url>
+    <loc>https://filmflex.com/anime</loc>
+    <lastmod>2025-06-06</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+  
+  <url>
+    <loc>https://filmflex.com/genres</loc>
+    <lastmod>2025-06-06</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  
+  <url>
+    <loc>https://filmflex.com/search</loc>
+    <lastmod>2025-06-06</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  <!-- Genre pages -->
+  <url>
+    <loc>https://filmflex.com/genre/action</loc>
+    <lastmod>2025-06-06</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  <url>
+    <loc>https://filmflex.com/genre/comedy</loc>
+    <lastmod>2025-06-06</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  <url>
+    <loc>https://filmflex.com/genre/drama</loc>
+    <lastmod>2025-06-06</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  <url>
+    <loc>https://filmflex.com/genre/horror</loc>
+    <lastmod>2025-06-06</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  <url>
+    <loc>https://filmflex.com/genre/thriller</loc>
+    <lastmod>2025-06-06</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  <url>
+    <loc>https://filmflex.com/genre/romance</loc>
+    <lastmod>2025-06-06</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  <url>
+    <loc>https://filmflex.com/genre/sci-fi</loc>
+    <lastmod>2025-06-06</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  <url>
+    <loc>https://filmflex.com/genre/fantasy</loc>
+    <lastmod>2025-06-06</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  <!-- Year-based pages -->
+  <url>
+    <loc>https://filmflex.com/year/2025</loc>
+    <lastmod>2025-06-06</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>
+  
+  <url>
+    <loc>https://filmflex.com/year/2024</loc>
+    <lastmod>2025-06-06</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  <url>
+    <loc>https://filmflex.com/year/2023</loc>
+    <lastmod>2025-06-06</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <!-- Note: Movie and episode specific URLs should be dynamically generated -->
+  <!-- Example movie URLs (these should be generated dynamically from your database) -->
+  <!-- 
+  <url>
+    <loc>https://filmflex.com/movie/[movie-id]</loc>
+    <lastmod>2025-06-06</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  -->
+</urlset>

@@ -36,6 +36,8 @@ import VideoPlayer from "@/components/VideoPlayer";
 import { CommentSection } from "@/components/CommentSection";
 import RecommendedMovieCard from "@/components/RecommendedMovieCard";
 import MovieReactions from "@/components/MovieReactions";
+import { MovieSEO } from "@/components/MovieSEO";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { apiRequest } from "@/lib/queryClient";
 import { MovieDetailResponse, Comment, MovieListResponse } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
@@ -361,11 +363,14 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
       </div>
     );
   }
-  
-  const { movie, episodes } = movieDetail;
-  
-  return (
+    const { movie, episodes } = movieDetail;
+    return (
     <div className="pt-10">
+      {/* SEO Meta Tags */}
+      <ErrorBoundary fallback={null}>
+        <MovieSEO movie={movie} slug={slug} />
+      </ErrorBoundary>
+      
       {/* Back to Home link */}
       <div className="container mx-auto px-4 py-4">
         <Link to="/" className="flex items-center text-sm text-muted-foreground hover:text-white">

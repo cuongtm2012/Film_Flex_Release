@@ -19,6 +19,8 @@ import {
 
 // Import admin routes
 import adminRoutes from './routes/admin';
+// Import SEO routes
+import seoRoutes from './routes/seo';
 
 const router = Router();
 
@@ -215,6 +217,9 @@ export function registerRoutes(app: Express): void {
   
   // Register admin routes
   app.use('/api/admin', adminRoutes);
+  
+  // Register SEO routes
+  app.use('/api', seoRoutes);
   
   // Health check endpoint for CI/CD and monitoring
   router.get("/health", (_req, res) => {

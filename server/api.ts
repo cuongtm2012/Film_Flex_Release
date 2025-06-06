@@ -1,5 +1,5 @@
 import fetch from "node-fetch";
-import { Movie, Episode, MovieListResponse, MovieDetailResponse, InsertMovie, InsertEpisode, Category } from "@shared/schema";
+import { Movie, MovieListResponse, MovieDetailResponse, InsertMovie, InsertEpisode } from "@shared/schema";
 import { storage } from "./storage";
 
 const API_BASE_URL = "https://phimapi.com";
@@ -131,30 +131,35 @@ export async function fetchMovieDetail(slug: string): Promise<MovieDetailRespons
       3, // max retries
       1000 // initial delay
     );
-    
-    // Some basic validation of the response
+      // Some basic validation of the response
     if (!data) {
-      return { status: false, msg: "Empty response", movie: null } as MovieDetailResponse;
+      return { 
+        status: false, 
+        msg: "Empty response", 
+        movie: null,
+        episodes: [] 
+      } as unknown as MovieDetailResponse;
     }
     
     // Check if the API returned a not found or error response
-    if (data.status === false || !data.movie) {
+    if (!data.movie) {
       return { 
         status: false, 
-        msg: data.msg || "Movie not found", 
-        movie: null 
-      } as MovieDetailResponse;
+        msg: "Movie not found", 
+        movie: null,
+        episodes: [] 
+      } as unknown as MovieDetailResponse;
     }
     
     return data;
   } catch (error) {
-    console.error(`Error fetching movie detail for slug: ${slug}`, error);
-    // Return an error response instead of throwing
+    console.error(`Error fetching movie detail for slug: ${slug}`, error);    // Return an error response instead of throwing
     return { 
       status: false, 
       msg: error instanceof Error ? error.message : "Unknown error", 
-      movie: null 
-    } as MovieDetailResponse;
+      movie: null,
+      episodes: [] 
+    } as unknown as MovieDetailResponse;
   }
 }
 
@@ -258,12 +263,25 @@ export async function searchMovies(keyword: string, normalizedQuery: string | nu
             })
         );
       }
-      
-      // Wait for all fetch requests to complete
+        // Wait for all fetch requests to complete
       const pagesData = await Promise.all(fetchPromises);
       
       // Combine the items from all API pages
-      apiResults = pagesData.flatMap(data => data.items || []);
+      apiResults = pagesData.flatMap(data => {
+        const items = data.items || [];
+        return items.map(item => ({
+          _id: item._id || `item-${item.slug}`,
+          name: item.name,
+          origin_name: item.origin_name || "",
+          slug: item.slug,
+          type: item.type || "movie",
+          thumb_url: item.thumb_url || "",
+          poster_url: item.poster_url || "",
+          year: item.year?.toString() || "",
+          category: (item as any).category || [],
+          country: (item as any).country || []
+        }));
+      });
       console.log(`API search found ${apiResults.length} matches for "${trimmedKeyword}"`);
     } catch (apiError) {
       console.error(`Error searching external API:`, apiError);
@@ -486,11 +504,10 @@ export function convertToMovieModel(movieDetail: MovieDetailResponse): InsertMov
   }
   
   const movie = movieDetail.movie;
+    // Get movie ID - either from direct _id or fallback to slug-based id
+  const movieId = movie._id || `movie-${movie.slug}`;
   
-  // Get movie ID - either from direct _id or from tmdb.id as a fallback
-  const movieId = movie._id || 
-                 (movie.tmdb && movie.tmdb.id ? `tmdb-${movie.tmdb.id}` : null);
-    // Check if we have enough info to create a valid movie record
+  // Check if we have enough info to create a valid movie record
   if (!movieId || !movie.slug || !movie.name) {
     throw new Error(`Movie is missing required fields: ${JSON.stringify({
       id: movieId || "missing",
@@ -538,13 +555,13 @@ export function convertToMovieModel(movieDetail: MovieDetailResponse): InsertMov
     slug: movie.slug,
     name: movie.name,
     originName: movie.origin_name || "",
-    posterUrl: movie.poster_url || "",
-    thumbUrl: movie.thumb_url || "",
+    posterUrl: movie.poster_url || "",    thumbUrl: movie.thumb_url || "",
     year: year,
-    type: (movie.tmdb && movie.tmdb.type === "tv") ? "tv" : "movie",
+    type: movie.type === "series" ? "tv" : "movie",
     quality: movie.quality || "",
     lang: movie.lang || "",
-    time: movie.time || "",    view: movie.view || 0,
+    time: movie.time || "",
+    view: movie.view || 0,
     description: movie.content || "",
     status: movie.status || "ongoing",
     trailerUrl: movie.trailer_url || "",
@@ -681,6 +698,9 @@ export async function fetchRecommendedMovies(movieSlug: string, limit: number = 
 /**
  * Helper function to generate recommendations based on a movie's categories
  */
+/**
+ * Helper function to generate recommendations based on a movie's categories
+ */
 async function generateRecommendations(movie: Movie, limit: number): Promise<MovieListResponse> {
   // Get the categories from the movie
   const movieCategories = movie.categories as any[] || [];
@@ -705,4 +725,42 @@ async function generateRecommendations(movie: Movie, limit: number): Promise<Mov
         if (categoryMovies && categoryMovies.items && categoryMovies.items.length > 0) {
           // Add movies from this category to recommendations, but exclude the current movie
           categoryMovies.items.forEach(item => {
-            if
+            if (item.slug !== movie.slug && recommendedMovies.length < limit) {
+              recommendedMovies.push(item);
+            }
+          });
+        }
+      } catch (error) {
+        console.error(`Error fetching recommendations from category ${category.slug}:`, error);
+      }
+    }
+  }
+  
+  // If we still don't have enough recommendations, get some popular movies
+  if (recommendedMovies.length < limit) {
+    try {
+      const popularMovies = await fetchMovieList(1, limit * 2);
+      if (popularMovies && popularMovies.items) {
+        popularMovies.items.forEach(item => {
+          if (item.slug !== movie.slug && recommendedMovies.length < limit) {
+            recommendedMovies.push(item);
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching popular movies for recommendations:', error);
+    }
+  }
+  
+  // Return the recommendations in the expected format
+  return {
+    status: true,
+    items: recommendedMovies.slice(0, limit),
+    pagination: {
+      totalItems: recommendedMovies.length,
+      totalPages: 1,
+      currentPage: 1,
+      totalItemsPerPage: limit
+    }
+  };
+}

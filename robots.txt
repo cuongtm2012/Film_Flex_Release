@@ -1,0 +1,23 @@
+User-agent: *
+Allow: /
+
+# Disallow admin and API endpoints
+Disallow: /api/
+Disallow: /admin/
+Disallow: /auth/
+
+# Disallow search result pages (to prevent duplicate content)
+Disallow: /search?*
+
+# Allow specific important paths
+Allow: /movies
+Allow: /series
+Allow: /anime
+Allow: /genres
+Allow: /genre/
+
+# Sitemap location
+Sitemap: https://filmflex.com/sitemap.xml
+
+# Crawl-delay for respectful crawling
+Crawl-delay: 1
