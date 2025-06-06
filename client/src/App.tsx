@@ -3,13 +3,13 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { HelmetProvider } from 'react-helmet-async';
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
 import MovieDetail from "@/pages/MovieDetail";
 import SearchPage from "@/pages/SearchPage";
 import AuthPage from "@/pages/auth-page";
 import ProfilePageComponent from "@/pages/ProfilePage";
-import SettingsPage from "@/pages/SettingsPage";
 import WatchlistPageComponent from "@/pages/WatchlistPage";
 import WatchHistoryPage from "@/pages/WatchHistoryPage";
 import AdminPage from "@/pages/AdminPage";
@@ -217,14 +217,16 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider defaultTheme="dark" storageKey="filmflex-theme">
-        <AuthProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Router />
-          </TooltipProvider>
-        </AuthProvider>
-      </ThemeProvider>
+      <HelmetProvider>
+        <ThemeProvider defaultTheme="dark" storageKey="filmflex-theme">
+          <AuthProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Router />
+            </TooltipProvider>
+          </AuthProvider>
+        </ThemeProvider>
+      </HelmetProvider>
     </QueryClientProvider>
   );
 }
