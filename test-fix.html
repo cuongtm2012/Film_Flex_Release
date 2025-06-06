@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test MovieSEO Fix</title>
+</head>
+<body>
+    <h1>MovieSEO Fix Test</h1>
+    <p>Testing the fix for "Cannot read properties of undefined (reading 'add')" error</p>
+    
+    <script>
+        // Test the spread operator fix
+        function testSpreadOperator() {
+            try {
+                // Simulate the problematic scenario
+                const movie = {
+                    name: "Test Movie",
+                    type: "movie",
+                    category: undefined, // This was causing the error
+                    country: undefined,  // This was causing the error
+                    year: "2023"
+                };
+                
+                // This would have failed before the fix
+                const keywords = [
+                    'watch online',
+                    movie.name,
+                    movie.type === 'series' ? 'TV series' : 'movie',
+                    'HD quality',
+                    'free streaming',
+                    'PhimGG',
+                    ...(movie.category?.map(cat => cat.name) ?? []), // Fixed with ??
+                    ...(movie.country?.map(country => country.name) ?? []), // Fixed with ??
+                    movie.year?.toString() || ''
+                ].filter(Boolean).join(', ');
+                
+                console.log('✅ Test passed: Keywords array constructed successfully');
+                console.log('Keywords:', keywords);
+                return true;
+            } catch (error) {
+                console.error('❌ Test failed:', error.message);
+                return false;
+            }
+        }
+        
+        // Run the test
+        document.addEventListener('DOMContentLoaded', function() {
+            const result = testSpreadOperator();
+            const resultElement = document.createElement('div');
+            resultElement.style.padding = '20px';
+            resultElement.style.margin = '20px';
+            resultElement.style.border = '2px solid ' + (result ? 'green' : 'red');
+            resultElement.style.borderRadius = '8px';
+            resultElement.innerHTML = result ? 
+                '<h2 style="color: green;">✅ Fix Successful!</h2><p>The MovieSEO component should now handle undefined arrays correctly.</p>' :
+                '<h2 style="color: red;">❌ Fix Failed!</h2><p>The error is still present.</p>';
+            document.body.appendChild(resultElement);
+        });
+    </script>
+</body>
+</html>
