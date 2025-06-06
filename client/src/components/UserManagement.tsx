@@ -203,10 +203,9 @@ const UserManagement: React.FC = () => {
       setLoading(false);
     }
   };
-
   // Bulk operations handler
   const handleBulkOperation = async () => {
-    if (!bulkOperation || selectedUsers.size === 0) return;
+    if (!bulkOperation || !selectedUsers || selectedUsers.size === 0) return;
 
     try {
       setLoading(true);
@@ -368,11 +367,12 @@ const UserManagement: React.FC = () => {
   }, [filteredUsers, currentPage, itemsPerPage]);
 
   const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
-
   // Selection handlers
   const handleSelectUser = useCallback((userId: number, checked: boolean) => {
     setSelectedUsers(prev => {
-      const newSet = new Set(prev);
+      // Ensure prev is always a Set, fallback to empty Set if undefined
+      const currentSet = prev instanceof Set ? prev : new Set<number>();
+      const newSet = new Set(currentSet);
       if (checked) {
         newSet.add(userId);
       } else {
@@ -380,11 +380,9 @@ const UserManagement: React.FC = () => {
       }
       return newSet;
     });
-  }, []);
-
-  const handleSelectAll = useCallback((checked: boolean) => {
+  }, []);  const handleSelectAll = useCallback((checked: boolean) => {
     if (checked) {
-      setSelectedUsers(new Set(paginatedUsers.map(user => user.id)));
+      setSelectedUsers(new Set((paginatedUsers || []).map(user => user.id)));
     } else {
       setSelectedUsers(new Set());
     }
@@ -542,10 +540,8 @@ const UserManagement: React.FC = () => {
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
         </div>
-      </div>
-
-      {/* Bulk Operations */}
-      {selectedUsers.size > 0 && (
+      </div>      {/* Bulk Operations */}
+      {selectedUsers && selectedUsers.size > 0 && (
         <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
           <div className="flex items-center justify-between">
             <span className="text-blue-800">
@@ -591,10 +587,9 @@ const UserManagement: React.FC = () => {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left">
-                  <input
+                <th className="px-6 py-3 text-left">                  <input
                     type="checkbox"
-                    checked={paginatedUsers.length > 0 && paginatedUsers.every(user => selectedUsers.has(user.id))}
+                    checked={paginatedUsers && paginatedUsers.length > 0 && paginatedUsers.every(user => selectedUsers && selectedUsers.has(user.id))}
                     onChange={(e) => handleSelectAll(e.target.checked)}
                     className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
@@ -622,10 +617,9 @@ const UserManagement: React.FC = () => {
             <tbody className="bg-white divide-y divide-gray-200">
               {paginatedUsers.map((user) => (
                 <tr key={user.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4">
-                    <input
+                  <td className="px-6 py-4">                    <input
                       type="checkbox"
-                      checked={selectedUsers.has(user.id)}
+                      checked={selectedUsers ? selectedUsers.has(user.id) : false}
                       onChange={(e) => handleSelectUser(user.id, e.target.checked)}
                       className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
@@ -796,10 +790,9 @@ const UserManagement: React.FC = () => {
       )}
 
       {/* Bulk Confirmation Modal */}
-      {showBulkConfirm && bulkOperation && (
-        <BulkConfirmModal
+      {showBulkConfirm && bulkOperation && (        <BulkConfirmModal
           operation={bulkOperation}
-          userCount={selectedUsers.size}
+          userCount={selectedUsers ? selectedUsers.size : 0}
           onConfirm={handleBulkOperation}
           onCancel={() => {
             setShowBulkConfirm(false);
