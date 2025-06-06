@@ -7,7 +7,8 @@ interface MovieSEOProps {
 }
 
 export function MovieSEO({ movie, slug }: MovieSEOProps) {
-  // Early return if movie is not available  if (!movie || !movie.name) {
+  // Early return if movie is not available
+  if (!movie || !movie.name) {
     return null;
   }
 
@@ -25,7 +26,9 @@ export function MovieSEO({ movie, slug }: MovieSEOProps) {
       hasCountry: !!movie.country,
       countryLength: movie.country?.length,
       year: movie.year
-    });    // Generate keywords based on movie data
+    });
+
+    // Generate keywords based on movie data
     const keywords = [
       'watch online',
       movie.name,
@@ -37,39 +40,43 @@ export function MovieSEO({ movie, slug }: MovieSEOProps) {
       ...(movie.country?.map(country => country.name) ?? []),
       movie.year?.toString() || ''
     ].filter(Boolean).join(', ');
-      console.log('MovieSEO: Keywords generated successfully', keywords.substring(0, 100) + '...');
+    
+    console.log('MovieSEO: Keywords generated successfully', keywords.substring(0, 100) + '...');
 
     // Generate structured data for the movie
-  const structuredData = {
-    "@context": "https://schema.org",
-    "@type": movie.type === 'series' ? "TVSeries" : "Movie",
-    "name": movie.name,
-    "alternateName": movie.origin_name,
-    "description": movie.content || movieDescription,
-    "url": `https://phimgg.com/movie/${slug}`,
-    "image": movie.poster_url || movie.thumb_url,
-    "datePublished": movie.year ? `${movie.year}-01-01` : undefined,    "genre": movie.category?.map(cat => cat.name) ?? [],
-    "director": movie.director?.map(director => ({
-      "@type": "Person",
-      "name": director
-    })) ?? [],
-    "actor": movie.actor?.map(actor => ({
-      "@type": "Person", 
-      "name": actor
-    })) ?? [],
-    "productionCompany": {
-      "@type": "Organization",
-      "name": "PhimGG"
-    },
-    "provider": {
-      "@type": "Organization",
-      "name": "PhimGG",
-      "url": "https://phimgg.com"
-    },    "aggregateRating": undefined, // No rating data available from current movie schema
-    "duration": movie.time ? `PT${movie.time}` : undefined,
-    "contentRating": movie.quality || "HD",
-    "inLanguage": movie.lang || "en",
-    "countryOfOrigin": movie.country?.map(country => country.name) ?? []  };
+    const structuredData = {
+      "@context": "https://schema.org",
+      "@type": movie.type === 'series' ? "TVSeries" : "Movie",
+      "name": movie.name,
+      "alternateName": movie.origin_name,
+      "description": movie.content || movieDescription,
+      "url": `https://phimgg.com/movie/${slug}`,
+      "image": movie.poster_url || movie.thumb_url,
+      "datePublished": movie.year ? `${movie.year}-01-01` : undefined,
+      "genre": movie.category?.map(cat => cat.name) ?? [],
+      "director": movie.director?.map(director => ({
+        "@type": "Person",
+        "name": director
+      })) ?? [],
+      "actor": movie.actor?.map(actor => ({
+        "@type": "Person", 
+        "name": actor
+      })) ?? [],
+      "productionCompany": {
+        "@type": "Organization",
+        "name": "PhimGG"
+      },
+      "provider": {
+        "@type": "Organization",
+        "name": "PhimGG",
+        "url": "https://phimgg.com"
+      },
+      "aggregateRating": undefined, // No rating data available from current movie schema
+      "duration": movie.time ? `PT${movie.time}` : undefined,
+      "contentRating": movie.quality || "HD",
+      "inLanguage": movie.lang || "en",
+      "countryOfOrigin": movie.country?.map(country => country.name) ?? []
+    };
 
     return (
       <Helmet>
