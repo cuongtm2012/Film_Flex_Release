@@ -99,7 +99,9 @@ export function setupAuth(app: Express): void {
     cookie: {
       secure: process.env.NODE_ENV === "production",
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
-      sameSite: 'lax'
+      sameSite: process.env.NODE_ENV === "production" ? 'none' : 'lax', // Allow cross-site for OAuth
+      httpOnly: true,
+      domain: process.env.NODE_ENV === "production" ? ".phimgg.com" : undefined // Set domain for production
     },
     store: storage.sessionStore,
     name: 'filmflex.sid',
@@ -654,6 +656,7 @@ export function setupAuth(app: Express): void {
         console.log('[Google OAuth] Callback successful, user:', req.user?.id);
         console.log('[Google OAuth] Session ID:', req.sessionID);
         console.log('[Google OAuth] Is authenticated:', req.isAuthenticated());
+        console.log('[Google OAuth] Session before save:', req.session);
         
         // Ensure session is saved before redirecting
         req.session.save((err) => {
@@ -662,9 +665,14 @@ export function setupAuth(app: Express): void {
             return res.redirect("/auth?error=session_save_failed");
           }
           
-          console.log('[Google OAuth] Session saved successfully, redirecting to home');
-          // Successful authentication, redirect to home
-          res.redirect("/");
+          console.log('[Google OAuth] Session saved successfully');
+          console.log('[Google OAuth] Session after save:', req.session);
+          
+          // Add a small delay to ensure session is fully persisted
+          setTimeout(() => {
+            console.log('[Google OAuth] Redirecting to home');
+            res.redirect("/");
+          }, 100);
         });
       }
     );
