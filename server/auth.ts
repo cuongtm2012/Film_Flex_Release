@@ -298,9 +298,18 @@ export function setupAuth(app: Express): void {
   });
 
   app.get("/api/user", (req: Request, res: Response) => {
+    console.log('[API] /api/user called');
+    console.log('[API] Session ID:', req.sessionID);
+    console.log('[API] Is authenticated:', req.isAuthenticated());
+    console.log('[API] User in session:', req.user?.id);
+    console.log('[API] Session data:', req.session);
+    
     if (!req.isAuthenticated()) {
+      console.log('[API] User not authenticated, returning 401');
       return res.status(401).json({ message: "Not authenticated" });
     }
+    
+    console.log('[API] User authenticated, returning user data');
     res.json(req.user);
   });
 
@@ -640,9 +649,23 @@ export function setupAuth(app: Express): void {
     );
     app.get("/api/auth/google/callback",
       passport.authenticate("google", { failureRedirect: "/auth?error=google_auth_failed" }),
-      (_req: Request, res: Response) => {
-        // Successful authentication, redirect to home
-        res.redirect("/");
+      (req: Request, res: Response) => {
+        // Add debugging
+        console.log('[Google OAuth] Callback successful, user:', req.user?.id);
+        console.log('[Google OAuth] Session ID:', req.sessionID);
+        console.log('[Google OAuth] Is authenticated:', req.isAuthenticated());
+        
+        // Ensure session is saved before redirecting
+        req.session.save((err) => {
+          if (err) {
+            console.error('[Google OAuth] Session save error:', err);
+            return res.redirect("/auth?error=session_save_failed");
+          }
+          
+          console.log('[Google OAuth] Session saved successfully, redirecting to home');
+          // Successful authentication, redirect to home
+          res.redirect("/");
+        });
       }
     );
   }
