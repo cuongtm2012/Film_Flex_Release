@@ -99,9 +99,10 @@ export function setupAuth(app: Express): void {
     cookie: {
       secure: process.env.NODE_ENV === "production",
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
-      sameSite: process.env.NODE_ENV === "production" ? 'none' : 'lax', // Allow cross-site for OAuth
+      sameSite: process.env.NODE_ENV === "production" ? 'none' : 'lax',
       httpOnly: true,
-      domain: process.env.NODE_ENV === "production" ? ".phimgg.com" : undefined // Set domain for production
+      // Only set domain for production, not for localhost development
+      ...(process.env.NODE_ENV === "production" && { domain: ".phimgg.com" })
     },
     store: storage.sessionStore,
     name: 'filmflex.sid',
