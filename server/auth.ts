@@ -145,12 +145,18 @@ export function setupAuth(app: Express): void {
   // Google OAuth Strategy
   if (config.googleClientId && config.googleClientSecret) {
     console.log('Setting up Google OAuth strategy');
+    
+    // Determine the correct callback URL based on environment
+    const callbackURL = process.env.NODE_ENV === 'production' 
+      ? "https://phimgg.com/api/auth/google/callback"
+      : "/api/auth/google/callback";
+    
     passport.use(
       new GoogleStrategy(
         {
           clientID: config.googleClientId,
           clientSecret: config.googleClientSecret,
-          callbackURL: "/api/auth/google/callback",
+          callbackURL: callbackURL,
         },
         async (_accessToken, _refreshToken, profile, done) => {
           try {
@@ -639,16 +645,6 @@ export function setupAuth(app: Express): void {
         res.redirect("/");
       }
     );
-  } else {
-    // Provide error routes when Google OAuth is not configured
-    app.get("/api/auth/google", (_req: Request, res: Response) => {
-      res.status(503).json({ 
-        message: "Google OAuth is not configured. Please contact the administrator." 
-      });
-    });
-    app.get("/api/auth/google/callback", (_req: Request, res: Response) => {
-      res.redirect("/auth?error=google_not_configured");
-    });
   }
 }
 
