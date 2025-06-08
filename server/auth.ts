@@ -142,9 +142,9 @@ export function setupAuth(app: Express): void {
       }
     })
   );
-
   // Google OAuth Strategy
   if (config.googleClientId && config.googleClientSecret) {
+    console.log('Setting up Google OAuth strategy');
     passport.use(
       new GoogleStrategy(
         {
@@ -198,6 +198,9 @@ export function setupAuth(app: Express): void {
         }
       )
     );
+  } else {
+    console.warn('Google OAuth credentials not found. Google authentication will not be available.');
+    console.warn('Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in your .env file to enable Google OAuth.');
   }
 
   passport.serializeUser((user, done) => {
@@ -624,18 +627,29 @@ export function setupAuth(app: Express): void {
       res.status(500).json({ message: "Failed to update user" });
     }
   });
-
   // Google OAuth routes
-  app.get("/api/auth/google",
-    passport.authenticate("google", { scope: ["profile", "email"] })
-  );
-  app.get("/api/auth/google/callback",
-    passport.authenticate("google", { failureRedirect: "/auth?error=google_auth_failed" }),
-    (_req: Request, res: Response) => {
-      // Successful authentication, redirect to home
-      res.redirect("/");
-    }
-  );
+  if (config.googleClientId && config.googleClientSecret) {
+    app.get("/api/auth/google",
+      passport.authenticate("google", { scope: ["profile", "email"] })
+    );
+    app.get("/api/auth/google/callback",
+      passport.authenticate("google", { failureRedirect: "/auth?error=google_auth_failed" }),
+      (_req: Request, res: Response) => {
+        // Successful authentication, redirect to home
+        res.redirect("/");
+      }
+    );
+  } else {
+    // Provide error routes when Google OAuth is not configured
+    app.get("/api/auth/google", (_req: Request, res: Response) => {
+      res.status(503).json({ 
+        message: "Google OAuth is not configured. Please contact the administrator." 
+      });
+    });
+    app.get("/api/auth/google/callback", (_req: Request, res: Response) => {
+      res.redirect("/auth?error=google_not_configured");
+    });
+  }
 }
 
 // Add interface for LocalStrategy info
