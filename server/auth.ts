@@ -92,22 +92,34 @@ export const isActive: RequestHandler = (req, res, next) => {
 };
 
 export function setupAuth(app: Express): void {
+  // Build cookie configuration based on environment
+  const cookieConfig: any = {
+    secure: process.env.NODE_ENV === "production",
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    httpOnly: true,
+  };
+
+  // Set different configs for development vs production
+  if (process.env.NODE_ENV === "production") {
+    cookieConfig.sameSite = 'none';
+    cookieConfig.domain = '.phimgg.com';
+  } else {
+    cookieConfig.sameSite = 'lax';
+    // No domain set for development (allows localhost)
+  }
+
   const sessionSettings: session.SessionOptions = {
     secret: process.env.SESSION_SECRET || "filmflex-session-secret",
     resave: false,
     saveUninitialized: false,
-    cookie: {
-      secure: process.env.NODE_ENV === "production",
-      maxAge: 24 * 60 * 60 * 1000, // 24 hours
-      sameSite: process.env.NODE_ENV === "production" ? 'none' : 'lax',
-      httpOnly: true,
-      // Only set domain for production, not for localhost development
-      ...(process.env.NODE_ENV === "production" && { domain: ".phimgg.com" })
-    },
+    cookie: cookieConfig,
     store: storage.sessionStore,
     name: 'filmflex.sid',
     rolling: true, // Refresh session with each request
   };
+
+  console.log('[Auth] Environment:', process.env.NODE_ENV);
+  console.log('[Auth] Session cookie config:', cookieConfig);
 
   // Trust first proxy in production
   if (process.env.NODE_ENV === 'production') {
