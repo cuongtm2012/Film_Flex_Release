@@ -1,23 +1,35 @@
 User-agent: *
 Allow: /
 
-# Disallow admin and API endpoints
-Disallow: /api/
+# Allow all search engines to crawl the site
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: Slurp
+Allow: /
+
+# Disallow admin and private areas
 Disallow: /admin/
+Disallow: /api/
+Disallow: /private/
+Disallow: /user/
+Disallow: /profile/settings
 Disallow: /auth/
 
-# Disallow search result pages (to prevent duplicate content)
-Disallow: /search?*
-
-# Allow specific important paths
+# Allow important pages for SEO
 Allow: /movies
-Allow: /series
-Allow: /anime
+Allow: /tv-shows
 Allow: /genres
-Allow: /genre/
+Allow: /about
+Allow: /contact
+Allow: /blog
+Allow: /news
+
+# Crawl delay (optional - be respectful to server resources)
+Crawl-delay: 1
 
 # Sitemap location
-Sitemap: https://filmflex.com/sitemap.xml
-
-# Crawl-delay for respectful crawling
-Crawl-delay: 1
+Sitemap: https://phimgg.com/sitemap.xml
