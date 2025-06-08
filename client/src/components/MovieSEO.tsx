@@ -17,31 +17,17 @@ export function MovieSEO({ movie, slug }: MovieSEOProps) {
     const movieTitle = `Watch ${movie.name} Online - HD Full ${movie.type === 'series' ? 'Series' : 'Movie'} | PhimGG`;
     const movieDescription = `Stream ${movie.name} in HD quality on PhimGG.com. Watch full episodes and enjoy the latest updates for free on your favorite movie platform.`;
     
-    // Debug log for movie data structure
-    console.log('MovieSEO: Processing movie data', {
-      name: movie.name,
-      type: movie.type,
-      hasCategory: !!movie.category,
-      categoryLength: movie.category?.length,
-      hasCountry: !!movie.country,
-      countryLength: movie.country?.length,
-      year: movie.year
-    });
-
     // Generate keywords based on movie data
     const keywords = [
       'watch online',
       movie.name,
       movie.type === 'series' ? 'TV series' : 'movie',
-      'HD quality',
-      'free streaming',
+      'HD quality',      'free streaming',
       'PhimGG',
       ...(movie.category?.map(cat => cat.name) ?? []),
       ...(movie.country?.map(country => country.name) ?? []),
       movie.year?.toString() || ''
     ].filter(Boolean).join(', ');
-    
-    console.log('MovieSEO: Keywords generated successfully', keywords.substring(0, 100) + '...');
 
     // Generate structured data for the movie
     const structuredData = {
