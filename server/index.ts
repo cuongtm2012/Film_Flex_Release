@@ -13,11 +13,42 @@ const server = http.createServer(app);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+
+// Fix CORS configuration to ensure cookies work properly
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? config.clientUrl 
-    : 'http://localhost:3000',
-  credentials: true
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or Postman)
+    if (!origin) return callback(null, true);
+    
+    // In development, allow localhost on any port
+    if (process.env.NODE_ENV === 'development') {
+      if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+        return callback(null, true);
+      }
+    }
+    
+    // In production, allow your specific domains
+    const allowedOrigins = [
+      'https://phimgg.com',
+      'https://www.phimgg.com',
+      config.clientUrl
+    ];
+    
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    
+    // For development, also allow the configured client URL
+    if (process.env.NODE_ENV === 'development' && origin === config.clientUrl) {
+      return callback(null, true);
+    }
+    
+    callback(new Error('Not allowed by CORS'));
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
+  exposedHeaders: ['Set-Cookie']
 }));
 
 // Serve files from public directory first for direct player access

@@ -102,7 +102,8 @@ export function setupAuth(app: Express): void {
   // Set different configs for development vs production
   if (process.env.NODE_ENV === "production") {
     cookieConfig.sameSite = 'none';
-    cookieConfig.domain = '.phimgg.com';
+    // Remove the domain restriction to allow cross-origin requests
+    // cookieConfig.domain = '.phimgg.com';
   } else {
     cookieConfig.sameSite = 'lax';
     // No domain set for development (allows localhost)
