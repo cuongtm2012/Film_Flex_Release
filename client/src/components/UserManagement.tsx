@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Search, Plus, Trash2, Edit, UserCheck, UserX, Download, RefreshCw, Clock, Mail, X } from 'lucide-react';
+import { PasswordInput } from "@/components/ui/password-input";
 
 // Enhanced User interface with additional fields
 interface User {
@@ -237,7 +238,7 @@ const UserManagement: React.FC = () => {
               })
             )
           );
-          setUsers(prev => prev.map(user => 
+          setUsers(prev => prev.map user => 
             userIds.includes(user.id) ? { ...user, status: 'suspended' as const } : user
           ));
           break;
@@ -983,8 +984,7 @@ const UserModal: React.FC<{
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Password {!user && '*'}
                 </label>
-                <input
-                  type="password"
+                <PasswordInput
                   value={formData.password}
                   onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
                   className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
@@ -1001,8 +1001,7 @@ const UserModal: React.FC<{
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Confirm Password
                 </label>
-                <input
-                  type="password"
+                <PasswordInput
                   value={formData.confirmPassword}
                   onChange={(e) => setFormData(prev => ({ ...prev, confirmPassword: e.target.value }))}
                   className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${

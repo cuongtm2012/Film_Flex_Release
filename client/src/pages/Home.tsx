@@ -244,6 +244,24 @@ export default function Home() {
     refetchOnWindowFocus: false
   });
 
+  // Fetch China movies section
+  const { data: chinaMovies, isLoading: chinaLoading, error: chinaError } = useQuery<MovieListResponse>({
+    queryKey: ['/api/countries/trung-quoc', { page: 1, limit: 30 }],
+    retry: 2,
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 30,
+    refetchOnWindowFocus: false
+  });
+
+  // Fetch Korean movies section
+  const { data: koreanMovies, isLoading: koreanLoading, error: koreanError } = useQuery<MovieListResponse>({
+    queryKey: ['/api/countries/han-quoc', { page: 1, limit: 30 }],
+    retry: 2,
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 30,
+    refetchOnWindowFocus: false
+  });
+
   // Debug logs for sections
   React.useEffect(() => {
     if (popularTvSeries) {
@@ -261,10 +279,26 @@ export default function Home() {
     if (animeError) {
       console.error('Error fetching anime:', animeError);
     }
-  }, [popularTvSeries, tvSeriesError, animeMovies, animeError]);
+
+    if (chinaMovies) {
+      console.log('China movies data:', chinaMovies);
+      console.log('Number of China movies:', chinaMovies.items?.length || 0);
+    }
+    if (chinaError) {
+      console.error('Error fetching China movies:', chinaError);
+    }
+
+    if (koreanMovies) {
+      console.log('Korean movies data:', koreanMovies);
+      console.log('Number of Korean movies:', koreanMovies.items?.length || 0);
+    }
+    if (koreanError) {
+      console.error('Error fetching Korean movies:', koreanError);
+    }
+  }, [popularTvSeries, tvSeriesError, animeMovies, animeError, chinaMovies, chinaError, koreanMovies, koreanError]);
   
   // Loading state
-  if (trendingLoading || latestLoading || topRatedLoading || tvSeriesLoading || recommendedLoading || animeLoading) {
+  if (trendingLoading || latestLoading || topRatedLoading || tvSeriesLoading || recommendedLoading || animeLoading || chinaLoading || koreanLoading) {
     return (
       <div className="flex items-center justify-center min-h-[70vh]">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -298,13 +332,17 @@ export default function Home() {
       },
       episodes: []
     }));
-
   return (
     <div className="min-h-screen bg-background">
-      {/* Hero Carousel */}
-      <HeroCarousel movies={featuredMovies} />
+      {/* Existing Hero Carousel */}
+      {featuredMovies.length > 0 && (
+        <div className="mt-8">
+          <HeroCarousel movies={featuredMovies} />
+        </div>
+      )}
 
-      <div className="space-y-4">
+      {/* Existing movie sections */}
+      <div className="space-y-8 py-8">
         {/* Trending Now Section */}
         {trendingMovies?.items && trendingMovies.items.length > 0 && (
           <MovieSection
@@ -326,6 +364,28 @@ export default function Home() {
           <MovieSection
             title="Top Rated Movies"
             movies={topRatedMovies.items.filter(movie => movie.type?.toLowerCase() !== 'tv').slice(0, 30)}
+          />
+        )}
+
+        {/* China Movie Section */}
+        {chinaMovies?.items && chinaMovies.items.length > 0 && (
+          <MovieSection
+            title="China Movie"
+            movies={chinaMovies.items.filter(movie => 
+              movie.type?.toLowerCase() !== 'tv' && 
+              movie.type?.toLowerCase() !== 'hoathinh'
+            ).slice(0, 30)}
+          />
+        )}
+
+        {/* Korean Movie Section */}
+        {koreanMovies?.items && koreanMovies.items.length > 0 && (
+          <MovieSection
+            title="Korean Movie"
+            movies={koreanMovies.items.filter(movie => 
+              movie.type?.toLowerCase() !== 'tv' && 
+              movie.type?.toLowerCase() !== 'hoathinh'
+            ).slice(0, 30)}
           />
         )}
 

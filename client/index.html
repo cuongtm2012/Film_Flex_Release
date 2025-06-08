@@ -1,36 +1,76 @@
 <!DOCTYPE html>
-<html lang="en">  <head>
+<html lang="en">
+  <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />    <title>Watch Movies Online HD - Latest Movies, Series, Cinema | PhimGG</title>
-    <meta name="description" content="Watch HD movies online for free at PhimGG.com. Stream the latest movies, popular series, and cinema hits anytime on any device. Enjoy smooth and high-quality movie experience." />
-    <meta name="robots" content="index, follow" />    <meta name="keywords" content="watch movies online, HD movies, latest movies, movie series, cinema online, free movies, PhimGG" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+    
+    <!-- Core Web Vitals & Performance Optimization -->
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="format-detection" content="telephone=no" />
+    <link rel="preload" as="style" href="/src/index.css" />
+    <link rel="preload" as="script" href="/src/main.tsx" />
+    
+    <!-- Critical Resource Hints -->
+    <link rel="dns-prefetch" href="//fonts.googleapis.com" />
+    <link rel="dns-prefetch" href="//api.phimgg.com" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    
+    <!-- Optimized title under 580 pixels (about 60 characters) -->
+    <title>PhimGG - Free HD Movies & TV Shows Online</title>
+    <!-- Optimized description under 1000 pixels (about 155 characters) -->
+    <meta name="description" content="Stream thousands of HD movies and TV shows free. Latest releases, classics, and exclusive content. Watch now on PhimGG.com" />
+    <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+    <meta name="keywords" content="watch movies online, HD movies, latest movies, movie series, cinema online, free movies, PhimGG" />
     <meta name="author" content="PhimGG" />
-      <!-- Additional SEO Meta Tags -->
-    <meta name="language" content="English" />
+    
+    <!-- Enhanced SEO Meta Tags -->
+    <meta name="language" content="en" />
     <meta name="rating" content="General" />
     <meta name="distribution" content="Global" />
     <meta name="revisit-after" content="1 days" />
+    <meta name="geo.region" content="US" />
+    <meta name="geo.placename" content="United States" />
     <link rel="canonical" href="https://phimgg.com" />
-      <!-- Open Graph Meta Tags -->
-    <meta property="og:title" content="Watch Movies Online HD - Latest Movies, Series, Cinema | PhimGG" />
-    <meta property="og:description" content="Watch HD movies online for free at PhimGG.com. Stream the latest movies, popular series, and cinema hits anytime on any device. Enjoy smooth and high-quality movie experience." />
+    
+    <!-- Enhanced Favicon Support -->
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <meta name="theme-color" content="#3b82f6" />
+    
+    <!-- Open Graph Meta Tags -->
+    <meta property="og:title" content="PhimGG - Free HD Movies & TV Shows Online" />
+    <meta property="og:description" content="Stream thousands of HD movies and TV shows free. Latest releases, classics, and exclusive content. Watch now on PhimGG.com" />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://phimgg.com" />
     <meta property="og:site_name" content="PhimGG" />
     <meta property="og:locale" content="en_US" />
-      <!-- Twitter Card Meta Tags -->
+    <meta property="og:image" content="https://phimgg.com/og-image.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:type" content="image/jpeg" />
+    
+    <!-- Twitter Card Meta Tags -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Watch Movies Online HD - Latest Movies, Series, Cinema | PhimGG" />
-    <meta name="twitter:description" content="Watch HD movies online for free at PhimGG.com. Stream the latest movies, popular series, and cinema hits anytime on any device." />
+    <meta name="twitter:title" content="PhimGG - Free HD Movies & TV Shows Online" />
+    <meta name="twitter:description" content="Stream thousands of HD movies and TV shows free. Latest releases, classics, and exclusive content. Watch now on PhimGG.com" />
     <meta name="twitter:site" content="@PhimGG" />
-      <!-- Structured Data (JSON-LD) -->
+    <meta name="twitter:creator" content="@PhimGG" />
+    <meta name="twitter:image" content="https://phimgg.com/twitter-image.jpg" />
+    
+    <!-- Additional Schema.org Structured Data -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
       "@type": "WebSite",
       "name": "PhimGG",
+      "alternateName": "PhimGG Movie Streaming",
       "url": "https://phimgg.com",
-      "description": "Watch HD movies online for free at PhimGG.com. Stream the latest movies, popular series, and cinema hits anytime on any device.",
+      "description": "Stream thousands of HD movies and TV shows free. Latest releases, classics, and exclusive content available now.",
       "potentialAction": {
         "@type": "SearchAction",
         "target": "https://phimgg.com/search?q={search_term_string}",
@@ -38,15 +78,87 @@
       },
       "publisher": {
         "@type": "Organization",
-        "name": "PhimGG"
+        "name": "PhimGG",
+        "url": "https://phimgg.com",
+        "logo": {
+          "@type": "ImageObject",
+          "url": "https://phimgg.com/logo.png",
+          "width": 512,
+          "height": 512
+        },
+        "contactPoint": {
+          "@type": "ContactPoint",
+          "telephone": "+1-555-PHIMGG",
+          "contactType": "customer service",
+          "availableLanguage": ["English"]
+        }
+      },
+      "sameAs": [
+        "https://twitter.com/PhimGG",
+        "https://facebook.com/PhimGG",
+        "https://instagram.com/PhimGG"
+      ]
+    }
+    </script>
+    
+    <!-- Organization Schema -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "PhimGG",
+      "url": "https://phimgg.com",
+      "logo": "https://phimgg.com/logo.png",
+      "description": "Leading free streaming platform for movies and TV shows",
+      "foundingDate": "2024",
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "telephone": "+1-555-PHIMGG",
+        "contactType": "customer service"
+      },
+      "address": {
+        "@type": "PostalAddress",
+        "addressCountry": "US"
       }
     }
     </script>
+    
+    <!-- Breadcrumb Schema for Homepage -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [{
+        "@type": "ListItem",
+        "position": 1,
+        "name": "Home",
+        "item": "https://phimgg.com"
+      }]
+    }
+    </script>
+    
+    <!-- Performance & Security Headers -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' fonts.googleapis.com; font-src 'self' fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://api.phimgg.com; media-src 'self' https:; frame-src 'self' https:;" />
+    <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
+    <meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(), camera=()" />
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
-    <!-- This is a replit script which adds a banner on the top of the page when opened in development mode outside the replit environment -->
-    <script type="text/javascript" src="https://replit.com/public/js/replit-dev-banner.js"></script>
+    
+    <!-- Service Worker Registration for PWA -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then((registration) => {
+              console.log('SW registered: ', registration);
+            })
+            .catch((registrationError) => {
+              console.log('SW registration failed: ', registrationError);
+            });
+        });
+      }
+    </script>
   </body>
 </html>
