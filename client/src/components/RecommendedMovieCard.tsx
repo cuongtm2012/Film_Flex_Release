@@ -4,6 +4,7 @@ import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Badge } from "@/components/ui/badge";
 import { Play, Star, ListVideo } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import LazyImage from "./LazyImage";
 
 interface RecommendedMovieCardProps {
   movie: MovieListItem & {
@@ -119,31 +120,19 @@ export default function RecommendedMovieCard({ movie, size = "medium" }: Recomme
         <Tooltip>
           <TooltipTrigger asChild>
             <div className="group cursor-pointer relative">
-              <div className="w-full overflow-hidden rounded-md mb-2 relative bg-gray-900">
-                <AspectRatio ratio={aspectRatio}>
-                  <img
+              <div className="w-full overflow-hidden rounded-md mb-2 relative bg-gray-900">                <AspectRatio ratio={aspectRatio}>
+                  <LazyImage
                     src={imageUrl}
                     alt={movie.name}
                     className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
-                    loading="lazy"
-                    onError={(e) => {
-                      const target = e.currentTarget;
-                      // Try fallback URLs in order
-                      if (target.src !== "https://via.placeholder.com/300x450?text=No+Image") {
-                        if (movie.thumbUrl && target.src !== movie.thumbUrl) {
-                          target.src = movie.thumbUrl;
-                        } else if (movie.thumb_url && target.src !== movie.thumb_url) {
-                          target.src = movie.thumb_url;
-                        } else if (movie.posterUrl && target.src !== movie.posterUrl) {
-                          target.src = movie.posterUrl;
-                        } else if (movie.poster_url && target.src !== movie.poster_url) {
-                          target.src = movie.poster_url;
-                        } else {
-                          target.src = "https://via.placeholder.com/300x450?text=No+Image";
-                        }
-                      }
+                    rootMargin="50px"
+                    threshold={0.1}
+                    showSpinner={true}
+                    errorFallback="https://via.placeholder.com/300x450?text=No+Image"
+                    onError={() => {
+                      console.log(`Failed to load image for recommended movie: ${movie.name}`);
                     }}
-                  />                  {/* Episode Badge - Top Left (Hidden by default, shown on hover) */}
+                  />{/* Episode Badge - Top Left (Hidden by default, shown on hover) */}
                   {shouldShowEpisodeBadge && (
                     <Badge 
                       variant="secondary" 

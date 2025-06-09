@@ -567,13 +567,13 @@ export default function AdminPage() {  const { user } = useAuth();
                             return (
                               <tr key={uniqueKey} className="border-b hover:bg-muted/10">                                <td className="py-4 px-2">{movieDetails.id || index + 1}</td>
                                 <td className="py-4 px-2 font-medium">
-                                  <div className="flex items-center">
-                                    {movieDetails.thumb_url && (
+                                  <div className="flex items-center">                                    {movieDetails.thumb_url && (
                                       <div className="w-8 h-12 mr-2 rounded overflow-hidden">
                                         <img 
                                           src={movieDetails.thumb_url} 
                                           alt={movieDetails.name} 
                                           className="w-full h-full object-cover"
+                                          loading="lazy"
                                         />
                                       </div>
                                     )}

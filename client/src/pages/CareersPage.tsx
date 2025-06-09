@@ -229,42 +229,42 @@ const CareersPage = () => {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div className="rounded-xl overflow-hidden h-64 relative group">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">          <div className="rounded-xl overflow-hidden h-64 relative group">
             <img
               src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80"
               alt="Team collaboration"
               className="w-full h-full object-cover transition-transform group-hover:scale-105"
+              loading="lazy"
             />
             <div className="absolute inset-0 bg-black/40 flex items-end p-6">
               <h3 className="text-white text-lg font-semibold">Collaborative Workspace</h3>
             </div>
-          </div>
-          <div className="rounded-xl overflow-hidden h-64 relative group">
+          </div>          <div className="rounded-xl overflow-hidden h-64 relative group">
             <img
               src="https://images.unsplash.com/photo-1517048676732-d65bc937f952?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80"
               alt="Team meeting"
               className="w-full h-full object-cover transition-transform group-hover:scale-105"
+              loading="lazy"
             />
             <div className="absolute inset-0 bg-black/40 flex items-end p-6">
               <h3 className="text-white text-lg font-semibold">Innovation Sessions</h3>
             </div>
-          </div>
-          <div className="rounded-xl overflow-hidden h-64 relative group">
+          </div>          <div className="rounded-xl overflow-hidden h-64 relative group">
             <img
               src="https://images.unsplash.com/photo-1525422847952-7f91db09a364?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80"
               alt="Team event"
               className="w-full h-full object-cover transition-transform group-hover:scale-105"
+              loading="lazy"
             />
             <div className="absolute inset-0 bg-black/40 flex items-end p-6">
               <h3 className="text-white text-lg font-semibold">Team Retreats</h3>
             </div>
-          </div>
-          <div className="rounded-xl overflow-hidden h-64 relative group">
+          </div>          <div className="rounded-xl overflow-hidden h-64 relative group">
             <img
               src="https://images.unsplash.com/photo-1543269865-cbf427effbad?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80"
               alt="Office space"
               className="w-full h-full object-cover transition-transform group-hover:scale-105"
+              loading="lazy"
             />
             <div className="absolute inset-0 bg-black/40 flex items-end p-6">
               <h3 className="text-white text-lg font-semibold">Modern Facilities</h3>
@@ -405,12 +405,12 @@ const CareersPage = () => {
               </Button>
             </div>
           </div>
-          <div className="relative">
-            <div className="rounded-lg overflow-hidden">
+          <div className="relative">            <div className="rounded-lg overflow-hidden">
               <img
                 src="https://images.unsplash.com/photo-1529156069898-49953e39b3ac?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80"
                 alt="Interns collaborating"
                 className="w-full h-full object-cover"
+                loading="lazy"
               />
             </div>
             <div className="absolute -bottom-4 -right-4 bg-black/80 p-4 rounded-lg">
