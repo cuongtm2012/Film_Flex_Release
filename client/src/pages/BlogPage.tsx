@@ -175,13 +175,13 @@ const BlogPage = () => {
           <h2 className="text-2xl font-bold mb-8">Featured Articles</h2>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {featuredPosts.map(post => (
-              <Card key={post.id} className="overflow-hidden border-gray-800 bg-black/20 h-full flex flex-col">
+            {featuredPosts.map(post => (              <Card key={post.id} className="overflow-hidden border-gray-800 bg-black/20 h-full flex flex-col">
                 <div className="relative h-60 overflow-hidden">
                   <img 
                     src={post.image} 
                     alt={post.title}
                     className="w-full h-full object-cover transition-transform hover:scale-105"
+                    loading="lazy"
                   />
                   <div className="absolute top-3 left-3">
                     <Badge className="flex items-center gap-1 bg-black/70 hover:bg-black/70 text-white">
@@ -269,13 +269,13 @@ const BlogPage = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {filteredPosts.map(post => (
-              <Card key={post.id} className="overflow-hidden border-gray-800 bg-black/20 h-full flex flex-col">
+            {filteredPosts.map(post => (              <Card key={post.id} className="overflow-hidden border-gray-800 bg-black/20 h-full flex flex-col">
                 <div className="relative h-48 overflow-hidden">
                   <img 
                     src={post.image} 
                     alt={post.title}
                     className="w-full h-full object-cover transition-transform hover:scale-105"
+                    loading="lazy"
                   />
                   <div className="absolute top-3 left-3">
                     <Badge className="flex items-center gap-1 bg-black/70 hover:bg-black/70 text-white">
@@ -441,13 +441,13 @@ const BlogPage = () => {
         
         <div className="space-y-5">
           {blogPosts.slice(0, 5).map(post => (
-            <div key={post.id} className="border-b border-gray-800 pb-5">
-              <div className="flex flex-col md:flex-row gap-4">
+            <div key={post.id} className="border-b border-gray-800 pb-5">              <div className="flex flex-col md:flex-row gap-4">
                 <div className="md:w-1/4 h-32 md:h-auto">
                   <img 
                     src={post.image} 
                     alt={post.title}
                     className="w-full h-full object-cover rounded-md"
+                    loading="lazy"
                   />
                 </div>
                 <div className="md:w-3/4">

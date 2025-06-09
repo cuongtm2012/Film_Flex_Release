@@ -291,14 +291,14 @@ export default function NewsPage() {
               </TabsList>
         
         <TabsContent value="all" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {newsArticles.map((article) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">            {newsArticles.map((article) => (
               <Card key={article.id} className="overflow-hidden">
                 <div className="h-48 overflow-hidden">
                   <img 
                     src={article.image} 
                     alt={article.title} 
                     className="w-full h-full object-cover transition-transform hover:scale-105"
+                    loading="lazy"
                   />
                 </div>
                 <CardHeader>
@@ -327,14 +327,14 @@ export default function NewsPage() {
         </TabsContent>
         
         <TabsContent value="news">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {newsArticles.filter(a => a.category === 'news').map((article) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">            {newsArticles.filter(a => a.category === 'news').map((article) => (
               <Card key={article.id} className="overflow-hidden">
                 <div className="h-48 overflow-hidden">
                   <img 
                     src={article.image} 
                     alt={article.title} 
                     className="w-full h-full object-cover transition-transform hover:scale-105"
+                    loading="lazy"
                   />
                 </div>
                 <CardHeader>
@@ -363,14 +363,14 @@ export default function NewsPage() {
         </TabsContent>
         
         <TabsContent value="reviews">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {newsArticles.filter(a => a.category === 'review').map((article) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">            {newsArticles.filter(a => a.category === 'review').map((article) => (
               <Card key={article.id} className="overflow-hidden">
                 <div className="h-48 overflow-hidden">
                   <img 
                     src={article.image} 
                     alt={article.title} 
                     className="w-full h-full object-cover transition-transform hover:scale-105"
+                    loading="lazy"
                   />
                 </div>
                 <CardHeader>
@@ -399,14 +399,14 @@ export default function NewsPage() {
         </TabsContent>
         
         <TabsContent value="trailers">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {newsArticles.filter(a => a.category === 'trailer').map((article) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">            {newsArticles.filter(a => a.category === 'trailer').map((article) => (
               <Card key={article.id} className="overflow-hidden">
                 <div className="h-48 overflow-hidden">
                   <img 
                     src={article.image} 
                     alt={article.title} 
                     className="w-full h-full object-cover transition-transform hover:scale-105"
+                    loading="lazy"
                   />
                 </div>
                 <CardHeader>
@@ -458,8 +458,7 @@ export default function NewsPage() {
               ) : (
                 // Movie cards
                 popularMovies?.items.slice(0, 10).map((movie: any, idx: number) => (
-                  <div key={idx} className="overflow-hidden rounded-lg">
-                    <div 
+                  <div key={idx} className="overflow-hidden rounded-lg">                    <div 
                       className="relative group cursor-pointer"
                       onClick={() => handleMovieClick(movie.slug)}
                     >
@@ -467,6 +466,7 @@ export default function NewsPage() {
                         src={movie.thumbUrl || '/placeholder-poster.jpg'} 
                         alt={movie.name} 
                         className="w-full aspect-[2/3] object-cover rounded-lg transition-transform group-hover:scale-105"
+                        loading="lazy"
                       />
                       <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-opacity flex items-center justify-center opacity-0 group-hover:opacity-100">
                         <PlayCircle className="h-12 w-12 text-white" />

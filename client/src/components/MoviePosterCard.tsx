@@ -4,6 +4,7 @@ import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Badge } from "@/components/ui/badge";
 import { Play, Star, ListVideo } from "lucide-react";
 import { cn } from "@/lib/utils";
+import LazyImage from "./LazyImage";
 
 interface MoviePosterCardProps {
   movie: MovieListItem & {
@@ -120,16 +121,18 @@ export default function MoviePosterCard({ movie, className }: MoviePosterCardPro
       >
         {/* Movie Poster Container */}
         <div className="rounded-lg overflow-hidden hover:ring-2 hover:ring-primary/50">
-          <AspectRatio ratio={2/3}>
-            {/* Movie Poster Image */}
+          <AspectRatio ratio={2/3}>            {/* Movie Poster Image */}
             <div className="w-full h-full bg-black/20">
-              <img
+              <LazyImage
                 src={imageUrl}
                 alt={`${movie.name} Poster`}
                 className="w-full h-full object-cover transition-transform duration-300 ease-out hover:scale-105"
-                loading="lazy"
-                onError={(e) => {
-                  e.currentTarget.src = '/placeholder-poster.jpg';
+                rootMargin="75px"
+                threshold={0.1}
+                showSpinner={true}
+                errorFallback="/placeholder-poster.jpg"
+                onError={() => {
+                  console.log(`Failed to load image for movie: ${movie.name}`);
                 }}
               />
             </div>

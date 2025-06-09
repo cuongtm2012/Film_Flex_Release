@@ -180,12 +180,12 @@ export default function FeaturedSectionsScreen() {
                     <div
                       key={movie.id}
                       className="p-2 hover:bg-gray-100 cursor-pointer flex items-center"
-                      onClick={() => handleAddMovie(movie)}
-                    >
+                      onClick={() => handleAddMovie(movie)}                    >
                       <img
                         src={movie.posterUrl}
                         alt={movie.name}
                         className="w-10 h-15 object-cover mr-3"
+                        loading="lazy"
                       />
                       <span>{movie.name}</span>
                     </div>
@@ -217,12 +217,12 @@ export default function FeaturedSectionsScreen() {
                               {...provided.draggableProps}
                               {...provided.dragHandleProps}
                               className="flex items-center p-3 bg-white border rounded-md shadow-sm"
-                            >
-                              <span className="text-gray-500 mr-3">{index + 1}</span>
+                            >                              <span className="text-gray-500 mr-3">{index + 1}</span>
                               <img
                                 src={movie.posterUrl}
                                 alt={movie.name}
                                 className="w-12 h-18 object-cover mr-3"
+                                loading="lazy"
                               />
                               <span className="flex-grow">{movie.name}</span>
                               <button

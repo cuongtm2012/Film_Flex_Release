@@ -211,12 +211,12 @@ export default function MyListPage() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {filteredMovies.map((movie: any) => (
-                <Card key={movie.slug} className="overflow-hidden flex flex-col">
-                  <div className="relative cursor-pointer group h-[220px]">
+                <Card key={movie.slug} className="overflow-hidden flex flex-col">                  <div className="relative cursor-pointer group h-[220px]">
                     <img
                       src={movie.posterUrl || movie.thumbUrl}
                       alt={movie.name}
                       className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                      loading="lazy"
                     />
                     <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                       <Button 
