@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -21,7 +22,7 @@ const profileFormSchema = z.object({
   username: z.string().min(3, {
     message: "Username must be at least 3 characters.",
   }).max(50),
-  fullName: z.string().max(100).optional(),
+  displayName: z.string().max(100).optional(), // Changed from fullName to displayName
   email: z.string().email({
     message: "Please enter a valid email address.",
   }),
@@ -57,7 +58,7 @@ const ProfileSettingsPage = () => {
     defaultValues: {
       username: user?.username || "",
       email: user?.email || "",
-      fullName: user?.fullName || "",
+      displayName: user?.displayName || "", // Changed from fullName to displayName
     },
   });
   
@@ -74,7 +75,7 @@ const ProfileSettingsPage = () => {
   // Mutation for updating profile information
   const updateProfileMutation = useMutation({
     mutationFn: async (data: ProfileFormValues) => {
-      const response = await apiRequest("PUT", `/api/users/${user?.id}`, data);
+      const response = await apiRequest("PUT", `/api/user/profile`, data); // Fixed endpoint
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.message || "Failed to update profile");
@@ -100,7 +101,7 @@ const ProfileSettingsPage = () => {
   // Mutation for updating password
   const updatePasswordMutation = useMutation({
     mutationFn: async (data: PasswordFormValues) => {
-      const response = await apiRequest("PUT", `/api/users/${user?.id}/password`, {
+      const response = await apiRequest("PUT", `/api/user/password`, { // Fixed endpoint
         currentPassword: data.currentPassword,
         newPassword: data.newPassword,
       });
@@ -221,15 +222,15 @@ const ProfileSettingsPage = () => {
                     
                     <FormField
                       control={profileForm.control}
-                      name="fullName"
+                      name="displayName" // Changed from fullName to displayName
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Full Name</FormLabel>
+                          <FormLabel>Display Name</FormLabel>
                           <FormControl>
                             <Input {...field} />
                           </FormControl>
                           <FormDescription>
-                            Your full name is optional.
+                            Your display name is optional.
                           </FormDescription>
                           <FormMessage />
                         </FormItem>
@@ -287,8 +288,8 @@ const ProfileSettingsPage = () => {
                         <FormLabel>Current Password</FormLabel>
                         <FormControl>
                           <div className="relative">
-                            <KeyRound className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                            <Input {...field} type="password" className="pl-10" />
+                            <KeyRound className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4 z-10" />
+                            <PasswordInput {...field} className="pl-10" />
                           </div>
                         </FormControl>
                         <FormMessage />
@@ -306,8 +307,8 @@ const ProfileSettingsPage = () => {
                         <FormLabel>New Password</FormLabel>
                         <FormControl>
                           <div className="relative">
-                            <KeyRound className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                            <Input {...field} type="password" className="pl-10" />
+                            <KeyRound className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4 z-10" />
+                            <PasswordInput {...field} className="pl-10" />
                           </div>
                         </FormControl>
                         <FormDescription>
@@ -326,8 +327,8 @@ const ProfileSettingsPage = () => {
                         <FormLabel>Confirm New Password</FormLabel>
                         <FormControl>
                           <div className="relative">
-                            <KeyRound className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                            <Input {...field} type="password" className="pl-10" />
+                            <KeyRound className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4 z-10" />
+                            <PasswordInput {...field} className="pl-10" />
                           </div>
                         </FormControl>
                         <FormMessage />

@@ -332,7 +332,7 @@ export function setupAuth(app: Express): void {
   app.put("/api/user/profile", isAuthenticated, isActive, async (req: Request, res: Response) => {
     try {
       const userId = (req.user as Express.User).id;
-      const allowedUpdates = ["email", "displayName", "avatar"];
+      const allowedUpdates = ["email", "displayName", "avatar", "username"]; // Added username to allowed updates
       const updates = Object.keys(req.body)
         .filter(key => allowedUpdates.includes(key))
         .reduce((obj: Record<string, any>, key) => {
@@ -342,6 +342,22 @@ export function setupAuth(app: Express): void {
 
       if (Object.keys(updates).length === 0) {
         return res.status(400).json({ message: "No valid fields to update" });
+      }
+
+      // Check if username is being updated and if it's already taken
+      if (updates.username) {
+        const existingUser = await storage.getUserByUsername(updates.username);
+        if (existingUser && existingUser.id !== userId) {
+          return res.status(400).json({ message: "Username already exists" });
+        }
+      }
+
+      // Check if email is being updated and if it's already taken
+      if (updates.email) {
+        const existingEmailUser = await storage.getUserByEmail(updates.email);
+        if (existingEmailUser && existingEmailUser.id !== userId) {
+          return res.status(400).json({ message: "Email already exists" });
+        }
       }
 
       const updatedUser = await storage.updateUser(userId, updates);

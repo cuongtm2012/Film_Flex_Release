@@ -105,9 +105,9 @@ async function searchMovies(query: string, normalizedQuery: string, page: number
   };
 }
 
-async function fetchMoviesByCountry(_countrySlug: string, page: number): Promise<MovieListResponse> {
-  // For now, just return all movies as we don't have country filtering yet
-  const movies = await storage.getMovies(page, 48);
+async function fetchMoviesByCountry(countrySlug: string, page: number): Promise<MovieListResponse> {
+  // Use the storage method to filter movies by country slug
+  const movies = await storage.getMoviesByCountry(countrySlug, page, 48);
   return {
     status: true,
     items: movies.data,

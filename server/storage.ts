@@ -61,6 +61,7 @@ export interface IStorage {
   updateMovieSection(movieId: string, section: string): Promise<Movie | undefined>;
   searchMovies(query: string, normalizedQuery: string, page: number, limit: number, filters?: {section?: string, isRecommended?: boolean, type?: string}): Promise<{ data: Movie[], total: number }>;
   getMoviesByCategory(categorySlug: string, page: number, limit: number, sortBy?: string): Promise<{ data: Movie[], total: number }>;
+  getMoviesByCountry(countrySlug: string, page: number, limit: number, sortBy?: string): Promise<{ data: Movie[], total: number }>;
   getMoviesBySection(section: string, page: number, limit: number): Promise<{ data: Movie[], total: number }>;
   updateMovieBySlug(slug: string, updateData: Partial<Movie>): Promise<Movie | undefined>;
   
@@ -1181,6 +1182,34 @@ export class DatabaseStorage implements IStorage {
     const [{ count }] = await db.select({ count: sql<number>`count(*)` })
       .from(movies)
       .where(sql`${movies.categories}::jsonb @> ${`["${categorySlug}"]`}::jsonb`);
+
+    return { data, total: count || 0 };
+  }
+
+  async getMoviesByCountry(countrySlug: string, page: number, limit: number, sortBy?: string): Promise<{ data: Movie[], total: number }> {
+    // Query movies that have the country slug in their countries JSON array
+    // The countries field contains objects like: [{"id": "...", "name": "...", "slug": "..."}]
+    const baseQuery = db.select()
+      .from(movies)
+      .where(sql`EXISTS (
+        SELECT 1 FROM jsonb_array_elements(${movies.countries}) AS country
+        WHERE country->>'slug' = ${countrySlug}
+      )`);
+
+    const sortedQuery = sortBy === 'popular'
+      ? baseQuery.orderBy(desc(movies.view))
+      : baseQuery.orderBy(desc(movies.modifiedAt));
+
+    const data = await sortedQuery
+      .limit(limit)
+      .offset((page - 1) * limit);
+
+    const [{ count }] = await db.select({ count: sql<number>`count(*)` })
+      .from(movies)
+      .where(sql`EXISTS (
+        SELECT 1 FROM jsonb_array_elements(${movies.countries}) AS country
+        WHERE country->>'slug' = ${countrySlug}
+      )`);
 
     return { data, total: count || 0 };
   }
