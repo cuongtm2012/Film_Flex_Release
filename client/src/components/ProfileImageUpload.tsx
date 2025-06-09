@@ -241,13 +241,13 @@ const ProfileImageUpload: React.FC<ProfileImageUploadProps> = ({ className }) =>
               {error}
             </div>
           )}
-          
-          {previewUrl && !error && (
+            {previewUrl && !error && (
             <div className="flex justify-center">
               <img 
                 src={previewUrl} 
                 alt="Profile preview" 
-                className="max-h-[300px] rounded-md object-contain" 
+                className="max-h-[300px] rounded-md object-contain"
+                loading="lazy"
               />
             </div>
           )}

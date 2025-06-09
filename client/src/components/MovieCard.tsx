@@ -3,6 +3,7 @@ import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Badge } from "@/components/ui/badge";
 import { Play, Star, ListVideo } from "lucide-react";
 import { MovieListItem } from "@shared/schema";
+import LazyImage from "./LazyImage";
 
 interface MovieCardProps {
   movie: MovieListItem & {
@@ -132,14 +133,16 @@ export default function MovieCard({ movie }: MovieCardProps) {
 
   return (
     <Link href={`/movie/${movie.slug}`}>
-      <div className="movie-card group relative rounded-lg overflow-hidden cursor-pointer">
-        <AspectRatio ratio={2/3}>
-          <img
+      <div className="movie-card group relative rounded-lg overflow-hidden cursor-pointer">        <AspectRatio ratio={2/3}>
+          <LazyImage
             src={movie.posterUrl || movie.thumbUrl || movie.poster_url || movie.thumb_url || "https://via.placeholder.com/300x450?text=No+Image"}
             alt={movie.name}
             className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
-            onError={(e) => {
-              e.currentTarget.src = "https://via.placeholder.com/300x450?text=No+Image";
+            rootMargin="75px"
+            threshold={0.1}
+            showSpinner={true}
+            onError={() => {
+              console.log(`Failed to load image for movie: ${movie.name}`);
             }}
           />
 

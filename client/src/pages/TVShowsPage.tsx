@@ -223,6 +223,7 @@ const TVShowsPage = () => {
                       src={show.posterUrl || show.thumbUrl}
                       alt={show.name}
                       className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                      loading="lazy"
                     />
                     <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                       <Button size="sm" className="bg-primary hover:bg-primary/90">
@@ -246,8 +247,7 @@ const TVShowsPage = () => {
               </Card>
             ))}
           </div>
-        </TabsContent>        {/* Filtered tabs would normally filter by genre, but for simplicity we'll just show a subset */}
-        <TabsContent value="action" className="pt-6">
+        </TabsContent>        {/* Filtered tabs would normally filter by genre, but for simplicity we'll just show a subset */}        <TabsContent value="action" className="pt-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
             {tvShows.slice(0, 5).map((show) => (
               <Card key={show.slug} className="overflow-hidden group">
@@ -257,6 +257,7 @@ const TVShowsPage = () => {
                       src={show.posterUrl || show.thumbUrl}
                       alt={show.name}
                       className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                      loading="lazy"
                     />
                     <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                       <Button size="sm" className="bg-primary hover:bg-primary/90">
@@ -290,6 +291,7 @@ const TVShowsPage = () => {
                       src={show.posterUrl || show.thumbUrl}
                       alt={show.name}
                       className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                      loading="lazy"
                     />
                     <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                       <Button size="sm" className="bg-primary hover:bg-primary/90">
@@ -323,6 +325,7 @@ const TVShowsPage = () => {
                       src={show.posterUrl || show.thumbUrl}
                       alt={show.name}
                       className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                      loading="lazy"
                     />
                     <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                       <Button size="sm" className="bg-primary hover:bg-primary/90">

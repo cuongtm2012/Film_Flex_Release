@@ -74,13 +74,13 @@ const NewReleasesPage = () => {
       {newReleases.length > 0 && (
         <div className="mb-12">
           <h2 className="text-2xl font-semibold mb-6">Featured New Release</h2>
-          <div className="bg-black/20 rounded-lg overflow-hidden">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+          <div className="bg-black/20 rounded-lg overflow-hidden">            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
               <div className="aspect-[2/3] md:aspect-auto w-full h-full max-h-[500px]">
                 <img 
                   src={newReleases[0].posterUrl || newReleases[0].thumbUrl} 
                   alt={newReleases[0].name}
                   className="w-full h-full object-cover"
+                  loading="lazy"
                 />
               </div>
               <div className="p-6 md:p-8 flex flex-col justify-center lg:col-span-2">
@@ -137,13 +137,13 @@ const NewReleasesPage = () => {
         <h2 className="text-2xl font-semibold mb-6">All New Releases</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
           {newReleases.map((movie, index) => (
-            <Card key={movie.slug} className="overflow-hidden group">
-              <Link href={`/movie/${movie.slug}`}>
+            <Card key={movie.slug} className="overflow-hidden group">              <Link href={`/movie/${movie.slug}`}>
                 <div className="relative cursor-pointer h-[260px]">
                   <img
                     src={movie.posterUrl || movie.thumbUrl}
                     alt={movie.name}
                     className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                    loading="lazy"
                   />
                   <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                     <Button size="sm" className="bg-primary hover:bg-primary/90">
