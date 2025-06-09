@@ -4,6 +4,7 @@ import { Play, Star, ListVideo } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
 import { Badge } from '@/components/ui/badge';
+import LazyImage from './LazyImage';
 
 interface Category {
   name: string;
@@ -140,16 +141,18 @@ export default function TvSeriesCard({ movie, className }: TvSeriesCardProps) {
       >
         {/* TV Series Poster Container */}
         <div className="rounded-lg overflow-hidden hover:ring-2 hover:ring-blue-500/50">
-          <AspectRatio ratio={2/3}>
-            {/* TV Series Poster Image */}
+          <AspectRatio ratio={2/3}>            {/* TV Series Poster Image */}
             <div className="w-full h-full bg-black/20">
-              <img
+              <LazyImage
                 src={imageUrl}
                 alt={`${movie.name} Poster`}
                 className="w-full h-full object-cover transition-transform duration-300 ease-out hover:scale-105"
-                loading="lazy"
-                onError={(e) => {
-                  e.currentTarget.src = '/placeholder-poster.jpg';
+                rootMargin="75px"
+                threshold={0.1}
+                showSpinner={true}
+                errorFallback="/placeholder-poster.jpg"
+                onError={() => {
+                  console.log(`Failed to load image for TV series: ${movie.name}`);
                 }}
               />
             </div>
