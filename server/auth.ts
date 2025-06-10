@@ -97,16 +97,16 @@ export function setupAuth(app: Express): void {
     secure: process.env.NODE_ENV === "production",
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
     httpOnly: true,
+    domain: process.env.NODE_ENV === "production" ? ".phimgg.com" : undefined, // Allow subdomain sharing in production
   };
 
-  // Set different configs for development vs production
+  // Fix session cookie configuration for better cross-origin support
   if (process.env.NODE_ENV === "production") {
     cookieConfig.sameSite = 'none';
-    // Remove the domain restriction to allow cross-origin requests
-    // cookieConfig.domain = '.phimgg.com';
+    cookieConfig.secure = true;
   } else {
     cookieConfig.sameSite = 'lax';
-    // No domain set for development (allows localhost)
+    cookieConfig.secure = false;
   }
 
   const sessionSettings: session.SessionOptions = {
@@ -117,6 +117,7 @@ export function setupAuth(app: Express): void {
     store: storage.sessionStore,
     name: 'filmflex.sid',
     rolling: true, // Refresh session with each request
+    proxy: process.env.NODE_ENV === "production", // Trust proxy in production
   };
 
   console.log('[Auth] Environment:', process.env.NODE_ENV);
@@ -679,30 +680,29 @@ export function setupAuth(app: Express): void {
     app.get("/api/auth/google",
       passport.authenticate("google", { scope: ["profile", "email"] })
     );
+    
     app.get("/api/auth/google/callback",
-      passport.authenticate("google", { failureRedirect: "/auth?error=google_auth_failed" }),
+      passport.authenticate("google", { 
+        failureRedirect: "/auth?error=google_auth_failed",
+        session: true // Ensure session is maintained
+      }),
       (req: Request, res: Response) => {
-        // Add debugging
         console.log('[Google OAuth] Callback successful, user:', req.user?.id);
         console.log('[Google OAuth] Session ID:', req.sessionID);
         console.log('[Google OAuth] Is authenticated:', req.isAuthenticated());
         console.log('[Google OAuth] Session before save:', req.session);
         
-        // Ensure session is saved before redirecting
-        req.session.save((err) => {
-          if (err) {
-            console.error('[Google OAuth] Session save error:', err);
+        // Save the session explicitly
+        req.session.save((saveErr) => {
+          if (saveErr) {
+            console.error('[Google OAuth] Session save error:', saveErr);
             return res.redirect("/auth?error=session_save_failed");
           }
           
           console.log('[Google OAuth] Session saved successfully');
           console.log('[Google OAuth] Session after save:', req.session);
-          
-          // Add a small delay to ensure session is fully persisted
-          setTimeout(() => {
-            console.log('[Google OAuth] Redirecting to home');
-            res.redirect("/");
-          }, 100);
+          console.log('[Google OAuth] Redirecting to home');
+          res.redirect("/");
         });
       }
     );
