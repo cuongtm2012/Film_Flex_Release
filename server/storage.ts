@@ -30,6 +30,7 @@ export interface IStorage {
   getUserByGoogleId(googleId: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: number, userData: Partial<InsertUser>): Promise<User | undefined>;
+  deleteUser(id: number): Promise<User | undefined>;
   changeUserStatus(id: number, status: string): Promise<User | undefined>;
   getAllUsers(page: number, limit: number, filters?: {role?: string, status?: string, search?: string}): Promise<{ data: User[], total: number }>;
   
@@ -181,6 +182,13 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.id, id))
       .returning();
     return updatedUser;
+  }
+
+  async deleteUser(id: number): Promise<User | undefined> {
+    const [deletedUser] = await db.delete(users)
+      .where(eq(users.id, id))
+      .returning();
+    return deletedUser;
   }
 
   async changeUserStatus(id: number, status: string): Promise<User | undefined> {

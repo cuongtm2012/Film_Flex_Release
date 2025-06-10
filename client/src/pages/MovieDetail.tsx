@@ -38,6 +38,7 @@ import RecommendedMovieCard from "@/components/RecommendedMovieCard";
 import MovieReactions from "@/components/MovieReactions";
 import { MovieSEO } from "@/components/MovieSEO";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import ShareDialog from "@/components/ShareDialog";
 import { apiRequest } from "@/lib/queryClient";
 import { MovieDetailResponse, Comment, MovieListResponse } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
@@ -62,11 +63,14 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
   const [isEpisodeLoading, setIsEpisodeLoading] = useState(false);
   const [isEpisodeSwitching, setIsEpisodeSwitching] = useState(false);
   const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
-    // State for content expanding (overview section)
+  // State for content expanding (overview section)
   const [isContentExpanded, setIsContentExpanded] = useState(false);
   
   // State for episode search
   const [episodeSearchQuery, setEpisodeSearchQuery] = useState("");
+  
+  // State for share dialog
+  const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
   
   // Fetch movie details
   const { 
@@ -430,14 +434,7 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
                 variant="outline" 
                 size="sm" 
                 className="h-8 px-3 rounded-full flex items-center gap-1"
-                onClick={() => {
-                  // Handle share function
-                  navigator.clipboard.writeText(window.location.href);
-                  toast({
-                    title: "Link copied",
-                    description: "Movie link copied to clipboard",
-                  });
-                }}
+                onClick={() => setIsShareDialogOpen(true)}
               >
                 <Share2 className="h-3.5 w-3.5" />
                 <span className="text-xs">Share</span>
@@ -1016,6 +1013,14 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
           </div>
         </div>
       </div>
+      
+      {/* Share Dialog - Controlled by state */}
+      <ShareDialog 
+        isOpen={isShareDialogOpen} 
+        onClose={() => setIsShareDialogOpen(false)} 
+        url={window.location.href}
+        title={movie.name}
+      />
     </div>
   );
 }

@@ -64,7 +64,7 @@ export const isAuthenticated: RequestHandler = (req, res, next) => {
   if (req.isAuthenticated()) {
     return next();
   }
-  res.status(401).json({ message: "Not authenticated" });
+  res.status(401).json({ message: "Please log in to continue" });
 };
 
 // Middleware for checking if user is admin
@@ -72,7 +72,7 @@ export const isAdmin: RequestHandler = (req, res, next) => {
   if (req.isAuthenticated() && req.user?.role === "admin") {
     return next();
   }
-  res.status(403).json({ message: "Unauthorized - Admin access required" });
+  res.status(403).json({ message: "Access denied - Administrator privileges required" });
 };
 
 // Middleware for checking if user is admin or moderator
@@ -80,7 +80,7 @@ export const isAdminOrModerator: RequestHandler = (req, res, next) => {
   if (req.isAuthenticated() && (req.user?.role === "admin" || req.user?.role === "moderator")) {
     return next();
   }
-  res.status(403).json({ message: "Unauthorized - Moderator or Admin access required" });
+  res.status(403).json({ message: "Access denied - Moderator privileges required" });
 };
 
 // Middleware for checking if user is active
@@ -88,7 +88,7 @@ export const isActive: RequestHandler = (req, res, next) => {
   if (req.isAuthenticated() && req.user?.status === "active") {
     return next();
   }
-  res.status(403).json({ message: "Account is not active" });
+  res.status(403).json({ message: "Your account is not active. Please contact support." });
 };
 
 export function setupAuth(app: Express): void {
@@ -135,7 +135,7 @@ export function setupAuth(app: Express): void {
     new LocalStrategy(async (username: string, password: string, done) => {
       try {
         const user = await storage.getUserByUsername(username);        if (!user) {
-          return done(null, false, { message: "Invalid username or password" });
+          return done(null, false, { message: "We couldn't find an account with that username. Please check your username or create a new account." });
         }
 
         // Check if user has a password (for OAuth users)
@@ -145,7 +145,7 @@ export function setupAuth(app: Express): void {
 
         const passwordsMatch = await comparePasswords(password, user.password);
         if (!passwordsMatch) {
-          return done(null, false, { message: "Invalid username or password" });
+          return done(null, false, { message: "The password you entered is incorrect. Please try again or reset your password." });
         }
 
         // Log the activity
@@ -675,6 +675,63 @@ export function setupAuth(app: Express): void {
       res.status(500).json({ message: "Failed to update user" });
     }
   });
+
+  // DELETE route for admin user deletion
+  app.delete("/api/admin/users/:userId", isAuthenticated, isAdmin, async (req: Request, res: Response) => {
+    try {
+      const adminId = (req.user as Express.User).id;
+      const userId = parseInt(req.params.userId);
+
+      // Validate userId
+      if (isNaN(userId) || userId <= 0) {
+        return res.status(400).json({ message: "Invalid user ID" });
+      }
+
+      // Check if user exists
+      const existingUser = await storage.getUser(userId);
+      if (!existingUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Prevent admin from deleting themselves
+      if (userId === adminId) {
+        return res.status(400).json({ message: "You cannot delete your own account" });
+      }
+
+      // Delete the user
+      const deletedUser = await storage.deleteUser(userId);
+      if (!deletedUser) {
+        return res.status(500).json({ message: "Failed to delete user" });
+      }
+
+      // Log the activity
+      await logUserActivity(
+        adminId,
+        "delete_user",
+        userId,
+        { 
+          deletedUsername: existingUser.username,
+          deletedEmail: existingUser.email,
+          deletedRole: existingUser.role
+        },
+        req.ip
+      );
+
+      res.json({ 
+        status: true, 
+        message: "User deleted successfully",
+        deletedUser: {
+          id: userId,
+          username: existingUser.username,
+          email: existingUser.email
+        }
+      });
+    } catch (error) {
+      console.error("Delete user error:", error);
+      res.status(500).json({ message: "Failed to delete user" });
+    }
+  });
+
   // Google OAuth routes
   if (config.googleClientId && config.googleClientSecret) {
     app.get("/api/auth/google",

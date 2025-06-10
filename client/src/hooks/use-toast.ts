@@ -6,13 +6,14 @@ import type {
 } from "@/components/ui/toast"
 
 const TOAST_LIMIT = 1
-const TOAST_REMOVE_DELAY = 1000000
+const TOAST_REMOVE_DELAY = 5000 // Changed to 5 seconds for better UX
 
 type ToasterToast = ToastProps & {
   id: string
   title?: React.ReactNode
   description?: React.ReactNode
   action?: ToastActionElement
+  duration?: number
 }
 
 const actionTypes = {
@@ -139,7 +140,7 @@ function dispatch(action: Action) {
 
 type Toast = Omit<ToasterToast, "id">
 
-function toast({ ...props }: Toast) {
+function toast({ duration = 5000, ...props }: Toast) {
   const id = genId()
 
   const update = (props: ToasterToast) =>
@@ -161,11 +162,61 @@ function toast({ ...props }: Toast) {
     },
   })
 
+  // Auto-dismiss after specified duration
+  if (duration > 0) {
+    setTimeout(() => {
+      dismiss()
+    }, duration)
+  }
+
   return {
     id: id,
     dismiss,
     update,
   }
+}
+
+// Helper functions for different toast types
+const toastHelpers = {
+  error: (message: string, options?: Partial<Toast>) =>
+    toast({
+      variant: "error",
+      description: message,
+      duration: options?.duration || 5000,
+      ...options,
+    }),
+
+  success: (message: string, options?: Partial<Toast>) =>
+    toast({
+      variant: "success",
+      description: message,
+      duration: options?.duration || 4000,
+      ...options,
+    }),
+
+  warning: (message: string, options?: Partial<Toast>) =>
+    toast({
+      variant: "warning",
+      description: message,
+      duration: options?.duration || 4000,
+      ...options,
+    }),
+
+  info: (message: string, options?: Partial<Toast>) =>
+    toast({
+      variant: "info",
+      description: message,
+      duration: options?.duration || 4000,
+      ...options,
+    }),
+
+  // Specific helper for login requirement error
+  loginRequired: () =>
+    toast({
+      variant: "error",
+      description: "You must be logged in to use this feature.",
+      duration: 5000,
+    }),
 }
 
 function useToast() {
@@ -184,6 +235,7 @@ function useToast() {
   return {
     ...state,
     toast,
+    ...toastHelpers,
     dismiss: (toastId?: string) => dispatch({ type: "DISMISS_TOAST", toastId }),
   }
 }
