@@ -238,7 +238,7 @@ const UserManagement: React.FC = () => {
               })
             )
           );
-          setUsers(prev => prev.map user => 
+          setUsers(prev => prev.map(user => 
             userIds.includes(user.id) ? { ...user, status: 'suspended' as const } : user
           ));
           break;
