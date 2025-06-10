@@ -255,7 +255,7 @@ export function registerRoutes(app: Express): void {
       });
     } catch (error) {
       console.error("Error fetching movies:", error);
-      res.status(500).json({ status: false, message: "Failed to fetch movies" });
+      res.status(500).json({ status: false, message: "Unable to fetch movies at this time" });
     }
   });
   
@@ -324,7 +324,8 @@ export function registerRoutes(app: Express): void {
     console.log(`Processed ${items.length} movies: ${successCount.saved} saved, ${successCount.existing} existing, ${successCount.failed} failed`);
     if (errors.length > 0) {
       console.log(`Encountered ${errors.length} errors while saving movies`);
-    }  }
+    }
+  }
   
   // Get all recommended movies (must come before /movies/:slug route)
   router.get("/movies/recommended", async (req, res) => {
@@ -345,9 +346,10 @@ export function registerRoutes(app: Express): void {
           currentPage: page,
           totalItemsPerPage: limit
         }
-      });    } catch (error) {
+      });
+    } catch (error) {
       console.error("Error fetching recommended movies:", error);
-      res.status(500).json({ status: false, message: "Failed to fetch recommended movies" });
+      res.status(500).json({ status: false, message: "Unable to load recommended movies at this time" });
     }
   });
   
@@ -970,7 +972,7 @@ export function registerRoutes(app: Express): void {
       });
     } catch (error) {
       console.error("Error fetching admin movies list:", error);
-      res.status(500).json({ status: false, message: "Failed to fetch movies" });
+      res.status(500).json({ status: false, message: "Unable to fetch movies at this time" });
     }
   });
   
@@ -1096,7 +1098,7 @@ export function registerRoutes(app: Express): void {
       res.json(categoryResponse);
     } catch (error) {
       console.error(`Error fetching movies for category ${req.params.slug}:`, error);
-      res.status(500).json({ message: "Failed to fetch category movies" });
+      res.status(500).json({ message: "Unable to fetch movies at this time" });
     }
   });
   
@@ -1164,7 +1166,7 @@ export function registerRoutes(app: Express): void {
       }
     } catch (error) {
       console.error(`Error fetching movies for country ${req.params.slug}:`, error);
-      res.status(500).json({ message: "Failed to fetch country movies" });
+      res.status(500).json({ message: "Unable to fetch movies at this time" });
     }
   });
   
@@ -1666,6 +1668,6 @@ export function registerRoutes(app: Express): void {
       });
     } catch (error) {
       console.error("Error fetching movies by section:", error);
-      res.status(500).json({ status: false, message: "Failed to fetch movies" });
+      res.status(500).json({ status: false, message: "Unable to fetch movies at this time" });
     }  });
 }

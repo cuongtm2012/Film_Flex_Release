@@ -33,6 +33,9 @@ const registerSchema = z
     confirmPassword: z
       .string()
       .min(6, "Password must be at least 6 characters"),
+    agreeToTerms: z.boolean().refine((val) => val === true, {
+      message: "You must agree to the Terms of Service and Privacy Policy",
+    }),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords don't match",
@@ -69,6 +72,7 @@ export default function AuthPage() {
       email: "",
       password: "",
       confirmPassword: "",
+      agreeToTerms: false,
     },
   });
 
@@ -85,10 +89,10 @@ export default function AuthPage() {
         navigate("/");
       },
       onError: (error) => {
-        setAuthError(error.message || "Invalid username or password");
+        setAuthError(error.message || "We're having trouble signing you in. Please check your credentials and try again.");
         toast({
           title: "Login failed",
-          description: error.message || "Please check your credentials",
+          description: error.message || "Please check your credentials and try again",
           variant: "destructive",
         });
       },
@@ -96,7 +100,7 @@ export default function AuthPage() {
   };
 
   const onRegisterSubmit = (data: RegisterFormValues) => {
-    const { confirmPassword, ...registerData } = data;
+    const { confirmPassword, agreeToTerms, ...registerData } = data;
 
     registerMutation.mutate(registerData, {
       onSuccess: () => {
@@ -517,27 +521,51 @@ export default function AuthPage() {
                       </div>
                     </div>
 
-                    <div className="flex items-center space-x-2">
-                      <Checkbox id="terms" />
-                      <label
-                        htmlFor="terms"
-                        className="text-sm text-muted-foreground"
-                      >
-                        I agree to the{" "}
-                        <a
-                          href="#"
-                          className="text-primary hover:underline"
-                        >
-                          Terms of Service
-                        </a>{" "}
-                        and{" "}
-                        <a
-                          href="#"
-                          className="text-primary hover:underline"
-                        >
-                          Privacy Policy
-                        </a>
-                      </label>
+                    <div className="space-y-2">
+                      <div className="flex items-start space-x-2">
+                        <Checkbox 
+                          id="terms" 
+                          checked={registerForm.watch("agreeToTerms")}
+                          onCheckedChange={(checked) => 
+                            registerForm.setValue("agreeToTerms", checked === true)
+                          }
+                          className={
+                            registerForm.formState.errors.agreeToTerms
+                              ? "border-destructive"
+                              : ""
+                          }
+                        />
+                        <div className="flex-1">
+                          <label
+                            htmlFor="terms"
+                            className="text-sm text-muted-foreground cursor-pointer"
+                          >
+                            I agree to the{" "}
+                            <a
+                              href="/terms"
+                              className="text-primary hover:underline"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              Terms of Service
+                            </a>{" "}
+                            and{" "}
+                            <a
+                              href="/privacy"
+                              className="text-primary hover:underline"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              Privacy Policy
+                            </a>
+                          </label>
+                          {registerForm.formState.errors.agreeToTerms && (
+                            <div className="text-xs text-destructive mt-1">
+                              {registerForm.formState.errors.agreeToTerms.message}
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </CardContent>
 
