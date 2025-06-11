@@ -2,7 +2,7 @@
 -- This script ensures the filmflex user has proper access to all tables
 
 -- Connect to the correct database as postgres user
-\c filmflex_db;
+\c filmflex;
 
 -- Create the movie_reactions table if it doesn't exist (simplified constraint)
 CREATE TABLE IF NOT EXISTS movie_reactions (
