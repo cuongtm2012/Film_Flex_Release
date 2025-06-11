@@ -1,0 +1,22 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "server/**/*.ts",
+    "shared/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "client",
+    "cypress",
+    "tests"
+  ],
+  "compilerOptions": {
+    "noEmit": false,
+    "outDir": "./dist",
+    "rootDir": ".",
+    "moduleResolution": "node",
+    "allowImportingTsExtensions": false,
+    "declaration": false,
+    "sourceMap": true
+  }
+}
