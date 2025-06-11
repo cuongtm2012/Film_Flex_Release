@@ -21,6 +21,8 @@ import {
 import adminRoutes from './routes/admin';
 // Import SEO routes
 import seoRoutes from './routes/seo';
+import express from "express";
+import { StreamingUtils } from "./utils/streaming-utils";
 
 const router = Router();
 
@@ -212,6 +214,8 @@ async function fetchRecommendedMovies(slug: string, limit: number = 10): Promise
 }
 
 export function registerRoutes(app: Express): void {
+  const router = express.Router();
+  
   // Mount all the routes here
   app.use('/api', router);
   
@@ -1670,4 +1674,83 @@ export function registerRoutes(app: Express): void {
       console.error("Error fetching movies by section:", error);
       res.status(500).json({ status: false, message: "Unable to fetch movies at this time" });
     }  });
+
+  // Streaming proxy endpoint for better video delivery
+  router.get("/stream/proxy", async (req, res) => {
+    try {
+      const { url, quality } = req.query;
+      
+      if (!url || typeof url !== 'string') {
+        return res.status(400).json({ 
+          status: false, 
+          message: "URL parameter is required" 
+        });
+      }
+
+      // Validate URL format
+      try {
+        new URL(url);
+      } catch {
+        return res.status(400).json({ 
+          status: false, 
+          message: "Invalid URL format" 
+        });
+      }
+
+      const streamingUtils = new StreamingUtils();
+      const result = await streamingUtils.optimizeStream(url, quality as string);
+      
+      if (!result.success) {
+        return res.status(400).json({ 
+          status: false, 
+          message: result.error 
+        });
+      }
+
+      res.json({
+        status: true,
+        data: {
+          originalUrl: url,
+          optimizedUrl: result.optimizedUrl,
+          quality: result.quality,
+          headers: result.headers,
+          metadata: result.metadata
+        }
+      });
+    } catch (error) {
+      console.error("Error in streaming proxy:", error);
+      res.status(500).json({ 
+        status: false, 
+        message: "Internal server error" 
+      });
+    }
+  });
+
+  // Video health check endpoint
+  router.get("/stream/health", async (req, res) => {
+    try {
+      const { url } = req.query;
+      
+      if (!url || typeof url !== 'string') {
+        return res.status(400).json({ 
+          status: false, 
+          message: "URL parameter is required" 
+        });
+      }
+
+      const streamingUtils = new StreamingUtils();
+      const health = await streamingUtils.checkStreamHealth(url);
+      
+      res.json({
+        status: true,
+        data: health
+      });
+    } catch (error) {
+      console.error("Error checking stream health:", error);
+      res.status(500).json({ 
+        status: false, 
+        message: "Failed to check stream health" 
+      });
+    }
+  });
 }

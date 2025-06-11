@@ -52,10 +52,27 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
-  exposedHeaders: ['Set-Cookie'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'Range', 'Accept-Ranges'],
+  exposedHeaders: ['Set-Cookie', 'Content-Range', 'Accept-Ranges', 'Content-Length'],
   optionsSuccessStatus: 200 // Some legacy browsers (IE11, various SmartTVs) choke on 204
 }));
+
+// Additional headers for video streaming support
+app.use((req, res, next) => {
+  // Allow all origins for media files
+  if (req.path.match(/\.(m3u8|ts|mp4|webm|ogg)$/)) {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Range, Accept-Ranges');
+    res.header('Accept-Ranges', 'bytes');
+  }
+  
+  // Set headers for iframe embedding
+  res.header('X-Frame-Options', 'SAMEORIGIN');
+  res.header('X-Content-Type-Options', 'nosniff');
+  
+  next();
+});
 
 // Serve files from public directory first for direct player access
 app.use(express.static(path.join(process.cwd(), 'public')));
