@@ -9,13 +9,22 @@ interface VideoPlayerProps {
   isLoading?: boolean;
   onError?: (error: Error) => void;
   autoFocus?: boolean;
+  preload?: "none" | "metadata" | "auto";
+  poster?: string;
 }
 
-export default function VideoPlayer({ embedUrl, isLoading = false, onError }: VideoPlayerProps) {
+export default function VideoPlayer({ 
+  embedUrl, 
+  isLoading = false, 
+  onError,
+  preload = "metadata",
+  poster
+}: VideoPlayerProps) {
   const [isPlayerLoaded, setIsPlayerLoaded] = useState(false);
   const [cleanSrc, setCleanSrc] = useState<string>("");
   const [directStreamUrl, setDirectStreamUrl] = useState<string>("");
   const [useDirectPlayer, setUseDirectPlayer] = useState(false);
+  const [connectionQuality, setConnectionQuality] = useState<"slow" | "fast" | "unknown">("unknown");
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
   const loadTimeout = useRef<NodeJS.Timeout | null>(null);
@@ -96,6 +105,35 @@ export default function VideoPlayer({ embedUrl, isLoading = false, onError }: Vi
     };
   }, [cleanSrc, isPlayerLoaded]);
   
+  // Detect connection quality for adaptive preloading
+  useEffect(() => {
+    if ('connection' in navigator) {
+      const connection = (navigator as any).connection;
+      if (connection) {
+        const updateConnectionInfo = () => {
+          const effectiveType = connection.effectiveType;
+          if (effectiveType === 'slow-2g' || effectiveType === '2g') {
+            setConnectionQuality("slow");
+          } else if (effectiveType === '3g' || effectiveType === '4g') {
+            setConnectionQuality("fast");
+          }
+        };
+        
+        updateConnectionInfo();
+        connection.addEventListener('change', updateConnectionInfo);
+        
+        return () => connection.removeEventListener('change', updateConnectionInfo);
+      }
+    }
+  }, []);
+  
+  // Adaptive preload strategy based on connection
+  const getAdaptivePreload = () => {
+    if (connectionQuality === "slow") return "none";
+    if (connectionQuality === "fast") return "metadata";
+    return preload;
+  };
+  
   // Handle iframe load event
   const handleIframeLoad = () => {
     setIsPlayerLoaded(true);
@@ -175,10 +213,18 @@ export default function VideoPlayer({ embedUrl, isLoading = false, onError }: Vi
         {!isPlayerLoaded && (
           <div className="absolute inset-0 flex items-center justify-center bg-black z-10">
             <Loader2 className="w-12 h-12 text-primary animate-spin" />
+            {poster && (
+              <img 
+                src={poster} 
+                alt="Video poster" 
+                className="absolute inset-0 w-full h-full object-cover opacity-30"
+                loading="lazy"
+              />
+            )}
           </div>
         )}
         
-        {/* Video iframe with native controls */}
+        {/* Video iframe with adaptive loading */}
         {cleanSrc && !useDirectPlayer && (
           <iframe
             ref={iframeRef}
@@ -188,10 +234,26 @@ export default function VideoPlayer({ embedUrl, isLoading = false, onError }: Vi
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             onLoad={handleIframeLoad}
             onError={handleIframeError}
-            loading="eager"
+            loading={connectionQuality === "slow" ? "lazy" : "eager"}
+            // Add preconnect hint for faster loading
+            {...(connectionQuality === "fast" && { 
+              'data-preconnect': 'dns-prefetch' 
+            })}
           />
         )}
       </div>
+      
+      {/* Connection quality indicator */}
+      {connectionQuality !== "unknown" && (
+        <div className="mt-1 text-xs text-gray-500 flex items-center gap-1">
+          <div className={`w-2 h-2 rounded-full ${
+            connectionQuality === "fast" ? "bg-green-500" : "bg-yellow-500"
+          }`} />
+          <span>
+            {connectionQuality === "fast" ? "Fast connection" : "Optimized for slow connection"}
+          </span>
+        </div>
+      )}
       
       {/* Direct play button */}
       {directStreamUrl && (

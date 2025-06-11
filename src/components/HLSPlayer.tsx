@@ -43,22 +43,41 @@ const HLSPlayer: React.FC<HLSPlayerProps> = ({
       if (Hls.isSupported()) {
         cleanupHls(); // Cleanup any existing HLS instance
         
-        // Create new HLS instance with optimized settings
+        // Create new HLS instance with optimized settings for FilmFlex
         const hls = new Hls({
-          maxBufferLength: 30,
-          maxMaxBufferLength: 600,
-          maxBufferSize: 60 * 1000 * 1000,
-          maxBufferHole: 0.5,
-          lowLatencyMode: false,
-          fragLoadingTimeOut: 20000,
-          manifestLoadingTimeOut: 20000,
-          levelLoadingTimeOut: 20000,
-          fragLoadingMaxRetry: 6,
-          manifestLoadingMaxRetry: 6,
-          levelLoadingMaxRetry: 6,
-          fragLoadingRetryDelay: 1000,
-          manifestLoadingRetryDelay: 1000,
-          levelLoadingRetryDelay: 1000
+          // Buffer management - optimized for streaming movies
+          maxBufferLength: 30,           // 30 seconds forward buffer
+          maxMaxBufferLength: 600,       // 10 minutes max buffer
+          maxBufferSize: 60 * 1000 * 1000, // 60MB buffer size
+          maxBufferHole: 0.5,            // 500ms max buffer hole
+          
+          // Loading timeouts - increased for slower connections
+          fragLoadingTimeOut: 30000,     // 30 seconds for fragment loading  
+          manifestLoadingTimeOut: 30000, // 30 seconds for manifest loading
+          levelLoadingTimeOut: 30000,    // 30 seconds for level loading
+          
+          // Retry settings - more resilient to network issues
+          fragLoadingMaxRetry: 8,        // More retries for fragments
+          manifestLoadingMaxRetry: 8,    // More retries for manifest
+          levelLoadingMaxRetry: 8,       // More retries for levels
+          fragLoadingRetryDelay: 2000,   // 2 second delay between retries
+          manifestLoadingRetryDelay: 2000,
+          levelLoadingRetryDelay: 2000,
+          
+          // Performance optimizations
+          lowLatencyMode: false,         // Disable for movie streaming
+          backBufferLength: 90,          // Keep 90 seconds of back buffer
+          liveDurationInfinity: false,   // Not for live streams
+          
+          // Quality settings
+          startLevel: -1,                // Auto-select initial quality
+          testBandwidth: true,           // Enable bandwidth testing
+          abrEwmaFastLive: 3.0,         // Faster adaptation for better quality
+          abrEwmaSlowLive: 9.0,         // Slower adaptation to avoid oscillation
+          
+          // Network optimizations
+          enableWorker: true,            // Use web workers when available
+          enableSoftwareAES: true        // Software AES for encrypted content
         });
 
         // Store HLS instance in ref
@@ -135,4 +154,4 @@ const HLSPlayer: React.FC<HLSPlayerProps> = ({
   );
 };
 
-export default HLSPlayer; 
+export default HLSPlayer;

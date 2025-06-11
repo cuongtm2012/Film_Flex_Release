@@ -61,10 +61,21 @@ async function logUserActivity(
 
 // Middleware for checking if user is authenticated
 export const isAuthenticated: RequestHandler = (req, res, next) => {
+  console.log('[Auth Middleware] Session check:', {
+    sessionID: req.sessionID,
+    isAuthenticated: req.isAuthenticated(),
+    userId: req.user?.id,
+    cookies: req.headers.cookie,
+    sessionData: JSON.stringify(req.session, null, 2)
+  });
+
   if (req.isAuthenticated()) {
+    console.log('[Auth Middleware] User authenticated:', req.user?.id);
     return next();
   }
-  res.status(401).json({ message: "Please log in to continue" });
+  
+  console.log('[Auth Middleware] User not authenticated, returning 401');
+  res.status(401).json({ message: "Authentication required" });
 };
 
 // Middleware for checking if user is admin
@@ -94,19 +105,19 @@ export const isActive: RequestHandler = (req, res, next) => {
 export function setupAuth(app: Express): void {
   // Build cookie configuration based on environment
   const cookieConfig: any = {
-    secure: process.env.NODE_ENV === "production",
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
     httpOnly: true,
-    domain: process.env.NODE_ENV === "production" ? ".phimgg.com" : undefined, // Allow subdomain sharing in production
   };
 
   // Fix session cookie configuration for better cross-origin support
   if (process.env.NODE_ENV === "production") {
-    cookieConfig.sameSite = 'none';
     cookieConfig.secure = true;
+    cookieConfig.sameSite = 'none';
+    cookieConfig.domain = ".phimgg.com"; // Only set domain in production
   } else {
-    cookieConfig.sameSite = 'lax';
     cookieConfig.secure = false;
+    cookieConfig.sameSite = 'lax';
+    // Don't set domain for development to fix localhost issues
   }
 
   const sessionSettings: session.SessionOptions = {
@@ -122,6 +133,7 @@ export function setupAuth(app: Express): void {
 
   console.log('[Auth] Environment:', process.env.NODE_ENV);
   console.log('[Auth] Session cookie config:', cookieConfig);
+  console.log('[Auth] Client URL:', config.clientUrl);
 
   // Trust first proxy in production
   if (process.env.NODE_ENV === 'production') {
