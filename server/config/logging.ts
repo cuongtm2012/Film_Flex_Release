@@ -1,4 +1,3 @@
-import winston from 'winston';
 import path from 'path';
 import fs from 'fs';
 
@@ -8,44 +7,58 @@ if (!fs.existsSync(logsDir)) {
   fs.mkdirSync(logsDir);
 }
 
-// Define log format
-const logFormat = winston.format.combine(
-  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
-  winston.format.errors({ stack: true }),
-  winston.format.splat(),
-  winston.format.json()
-);
-
-// Create the logger
-const logger = winston.createLogger({
-  level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
-  format: logFormat,
-  transports: [
-    // Write all logs with level 'error' and below to error.log
-    new winston.transports.File({ 
-      filename: path.join(logsDir, 'error.log'), 
-      level: 'error',
-      maxsize: 5242880, // 5MB
-      maxFiles: 5,
-    }),
-    // Write all logs with level 'info' and below to combined.log
-    new winston.transports.File({ 
-      filename: path.join(logsDir, 'combined.log'),
-      maxsize: 5242880, // 5MB
-      maxFiles: 5,
-    }),
-  ],
-});
-
-// If we're not in production, also log to the console
-if (process.env.NODE_ENV !== 'production') {
-  logger.add(new winston.transports.Console({
-    format: winston.format.combine(
-      winston.format.colorize(),
-      winston.format.simple()
-    ),
-  }));
+// Simple logging utility without winston
+interface Logger {
+  info: (message: string, ...args: any[]) => void;
+  error: (message: string, ...args: any[]) => void;
+  warn: (message: string, ...args: any[]) => void;
+  debug: (message: string, ...args: any[]) => void;
 }
+
+const formatMessage = (level: string, message: string, ...args: any[]) => {
+  const timestamp = new Date().toISOString();
+  return `${timestamp} [${level.toUpperCase()}]: ${message} ${args.length ? JSON.stringify(args) : ''}`;
+};
+
+const writeToFile = (filename: string, message: string) => {
+  try {
+    fs.appendFileSync(path.join(logsDir, filename), message + '\n');
+  } catch (error) {
+    console.error('Failed to write to log file:', error);
+  }
+};
+
+const logger: Logger = {
+  info: (message: string, ...args: any[]) => {
+    const formattedMessage = formatMessage('info', message, ...args);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(formattedMessage);
+    }
+    writeToFile('combined.log', formattedMessage);
+  },
+  error: (message: string, ...args: any[]) => {
+    const formattedMessage = formatMessage('error', message, ...args);
+    if (process.env.NODE_ENV !== 'production') {
+      console.error(formattedMessage);
+    }
+    writeToFile('error.log', formattedMessage);
+    writeToFile('combined.log', formattedMessage);
+  },
+  warn: (message: string, ...args: any[]) => {
+    const formattedMessage = formatMessage('warn', message, ...args);
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn(formattedMessage);
+    }
+    writeToFile('combined.log', formattedMessage);
+  },
+  debug: (message: string, ...args: any[]) => {
+    const formattedMessage = formatMessage('debug', message, ...args);
+    if (process.env.NODE_ENV !== 'production') {
+      console.debug(formattedMessage);
+    }
+    writeToFile('combined.log', formattedMessage);
+  }
+};
 
 // Create a stream object for Morgan
 export const stream = {
@@ -54,4 +67,4 @@ export const stream = {
   },
 };
 
-export default logger; 
+export default logger;

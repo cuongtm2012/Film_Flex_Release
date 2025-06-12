@@ -1,4 +1,3 @@
-import { Router } from 'express';
 import type { Express } from 'express';
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./auth";
@@ -23,8 +22,6 @@ import adminRoutes from './routes/admin';
 import seoRoutes from './routes/seo';
 import express from "express";
 import { StreamingUtils } from "./utils/streaming-utils";
-
-const router = Router();
 
 // Remove unused API_CACHE_TTL
 
@@ -1695,26 +1692,19 @@ export function registerRoutes(app: Express): void {
           status: false, 
           message: "Invalid URL format" 
         });
-      }
-
-      const streamingUtils = new StreamingUtils();
-      const result = await streamingUtils.optimizeStream(url, quality as string);
+      }      const result = await StreamingUtils.optimizeStream(url, quality as string);
       
       if (!result.success) {
         return res.status(400).json({ 
           status: false, 
           message: result.error 
         });
-      }
-
-      res.json({
+      }      res.json({
         status: true,
         data: {
           originalUrl: url,
           optimizedUrl: result.optimizedUrl,
-          quality: result.quality,
-          headers: result.headers,
-          metadata: result.metadata
+          success: result.success
         }
       });
     } catch (error) {
@@ -1736,10 +1726,7 @@ export function registerRoutes(app: Express): void {
           status: false, 
           message: "URL parameter is required" 
         });
-      }
-
-      const streamingUtils = new StreamingUtils();
-      const health = await streamingUtils.checkStreamHealth(url);
+      }      const health = await StreamingUtils.checkStreamHealth(url);
       
       res.json({
         status: true,
