@@ -16,11 +16,11 @@ import {
   UserRole, UserStatus, ContentStatus,
   User, InsertUser, UserCommentReaction, MovieReaction
 } from "@shared/schema";
-import { db } from "./db";
+import { db } from "./db.js";
 import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import connectPg from "connect-pg-simple";
 import session from "express-session";
-import { pool } from "./db";
+import { pool } from "./db.js";
 
 export interface IStorage {
   // User methods

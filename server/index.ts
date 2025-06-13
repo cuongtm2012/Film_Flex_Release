@@ -2,11 +2,11 @@ import express, { type Request, Response, NextFunction } from "express";
 import http from 'http';
 import cors from 'cors';
 import path from 'path';
-import { registerRoutes } from "./routes";
-import { setupVite, serveStatic, log } from "./vite";
-import { config } from './config';
-import { pool } from './db';
-import { setupAuth } from './auth';
+import { registerRoutes } from "./routes.js";
+import { setupVite, serveStatic, log } from "./vite.js";
+import { config } from './config.js';
+import { pool } from './db.js';
+import { setupAuth } from './auth.js';
 
 const app = express();
 const server = http.createServer(app);

@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import featuredSectionsRouter from './featured-sections';
-import moviesRouter from './movies';
+import featuredSectionsRouter from './featured-sections.js';
+import moviesRouter from './movies.js';
 
 const router = Router();
 
