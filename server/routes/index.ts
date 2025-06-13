@@ -1,0 +1,1 @@
+// This file is intentionally empty - route registration is handled in routes.ts

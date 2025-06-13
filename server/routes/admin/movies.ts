@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { storage } from '../../storage';
-import { isAdmin } from '../../middleware/auth';
+import { storage } from '../../storage.js';
+import { isAdmin } from '../../middleware/auth.js';
 import { Section } from '@shared/schema';
 
 const router = Router();

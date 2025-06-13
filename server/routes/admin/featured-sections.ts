@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { isAdmin } from '../../middleware/auth';
+import { isAdmin } from '../../middleware/auth.js';
 
 const router = Router();
 
