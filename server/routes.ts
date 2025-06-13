@@ -1,6 +1,6 @@
 import type { Express } from 'express';
-import { storage } from "./storage";
-import { setupAuth, isAuthenticated } from "./auth";
+import { storage } from "./storage.js";
+import { setupAuth, isAuthenticated } from "./auth.js";
 import { z } from "zod";
 import { 
   MovieListResponse,
@@ -17,11 +17,11 @@ import {
 } from "@shared/schema";
 
 // Import admin routes
-import adminRoutes from './routes/admin';
+import adminRoutes from './routes/admin/index.js';
 // Import SEO routes
-import seoRoutes from './routes/seo';
+import seoRoutes from './routes/seo.js';
 import express from "express";
-import { StreamingUtils } from "./utils/streaming-utils";
+import { StreamingUtils } from "./utils/streaming-utils.js";
 
 // Remove unused API_CACHE_TTL
 
