@@ -5,8 +5,8 @@ import { Express, Request, Response, NextFunction, RequestHandler } from "expres
 import session from "express-session";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
-import { storage } from "./storage";
-import { config } from "./config";
+import { storage } from "./storage.js";
+import { config } from "./config.js";
 
 // Extend Express types for better type safety
 declare global {
