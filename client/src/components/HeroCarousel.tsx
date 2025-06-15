@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, Play, Info, Star, Calendar, Clock, Globe, Shield, Zap, Film, Users, Award, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { MovieDetailResponse } from '@shared/schema';
@@ -42,11 +42,12 @@ export default function HeroCarousel({ movies }: HeroCarouselProps) {
     trackMouse: true
   });
 
+  // Early return AFTER all hooks
   if (!movies.length) return null;
 
   return (
     <div 
-      className="relative w-full h-[70vh] overflow-hidden group"
+      className="relative w-full h-[65vh] overflow-hidden group"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       {...handlers}
@@ -59,207 +60,148 @@ export default function HeroCarousel({ movies }: HeroCarouselProps) {
             "absolute inset-0 transition-opacity duration-1000",
             index === currentSlide ? "opacity-100 z-10" : "opacity-0 z-0"
           )}
-        >          {/* Background Image */}
+        >
+          {/* Background Image - Full Coverage */}
           <div 
             className="absolute inset-0 bg-cover bg-center bg-no-repeat"
             style={{ 
               backgroundImage: `url(${movie.movie.thumb_url || movie.movie.poster_url || '/placeholder-hero.jpg'})`,
-              backgroundPosition: 'center 20%'
+              backgroundPosition: 'center center',
+              backgroundSize: 'cover'
             }}
           >
-            {/* Enhanced gradient overlay for better readability */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-transparent" />
-            <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-transparent to-transparent" />
-            <div className="absolute inset-0 bg-gradient-to-l from-black/30 via-transparent to-transparent" />
-          </div>{/* Content */}
-          <div className="relative z-20 h-full flex flex-col justify-end pb-16 px-4 md:px-8 lg:px-16">
-            <div className="container mx-auto max-w-4xl">              {/* Movie Title */}
-              <h1 className="text-3xl md:text-5xl lg:text-6xl font-bold mb-3 text-white max-w-4xl leading-tight" style={{ textShadow: '0 4px 8px rgba(0, 0, 0, 0.8)' }}>
-                {movie.movie.name}
-              </h1>
+            {/* Gradient Overlay - iQiYi Style */}
+            <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/40 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+          </div>
+
+          {/* Content Container - Adjusted for reduced height */}
+          <div className="relative z-20 h-full flex items-center pb-8">
+            <div className="w-full max-w-[1400px] mx-auto px-6 md:px-8 lg:px-12">
               
-              {/* Original Title */}
-              {movie.movie.origin_name && movie.movie.origin_name !== movie.movie.name && (
-                <h2 className="text-lg md:text-xl text-gray-300 mb-4 font-medium" style={{ textShadow: '0 2px 4px rgba(0, 0, 0, 0.6)' }}>
-                  {movie.movie.origin_name}
-                </h2>
-              )}{/* Key Information Row */}
-              <div className="flex flex-wrap items-center gap-3 mb-4">
-                {/* Rating */}
-                <div className="flex items-center gap-1.5 bg-yellow-500/20 backdrop-blur-sm px-3 py-1.5 rounded-full border border-yellow-500/30">
-                  <Star className="h-4 w-4 text-yellow-400 fill-yellow-400" />
-                  <span className="text-sm font-semibold text-white">
-                    {movie.movie.view ? `${Math.min(parseFloat(movie.movie.view.toString()) / 1000000 * 10, 9.5).toFixed(1)}` : '8.5'}
-                  </span>
-                  <span className="text-xs text-yellow-200">/10</span>
+              {/* Left Content Area - Tighter spacing */}
+              <div className="max-w-[600px] space-y-4">
+                
+                {/* Movie Title - Slightly smaller for better fit */}
+                <div className="space-y-1">
+                  <h1 className="text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-black text-white leading-tight tracking-tight" 
+                      style={{ 
+                        textShadow: '0 4px 20px rgba(0, 0, 0, 0.8)',
+                        fontWeight: 900,
+                        letterSpacing: '-0.02em'
+                      }}>
+                    {movie.movie.name || 'Featured Movie'}
+                  </h1>
+
+                  {/* Original Title - Subtitle */}
+                  {movie.movie.origin_name && movie.movie.origin_name !== movie.movie.name && (
+                    <h2 className="text-base md:text-lg text-gray-300 font-medium opacity-90" 
+                        style={{ textShadow: '0 2px 8px rgba(0, 0, 0, 0.6)' }}>
+                      {movie.movie.origin_name}
+                    </h2>
+                  )}
                 </div>
 
-                {/* Production Year */}
-                <div className="flex items-center gap-1.5 bg-blue-500/20 backdrop-blur-sm px-3 py-1.5 rounded-full border border-blue-500/30">
-                  <Calendar className="h-4 w-4 text-blue-400" />
-                  <span className="text-sm font-semibold text-white">
+                {/* Metadata Row - Compact */}
+                <div className="flex flex-wrap items-center gap-2 md:gap-3">
+                  
+                  {/* Rating with Star */}
+                  <div className="flex items-center gap-1 text-white">
+                    <Star className="h-4 w-4 text-green-400 fill-green-400" />
+                    <span className="text-base font-bold text-green-400">
+                      {movie.movie.view && movie.movie.view > 0 
+                        ? `${Math.min(parseFloat(movie.movie.view.toString()) / 1000000 * 10, 9.8).toFixed(1)}` 
+                        : '8.5'}
+                    </span>
+                  </div>
+
+                  {/* Year */}
+                  <div className="text-white text-base font-medium">
                     {movie.movie.year || new Date().getFullYear()}
-                  </span>
-                </div>
-
-                {/* Age Rating */}
-                <div className="flex items-center gap-1.5 bg-red-500/20 backdrop-blur-sm px-3 py-1.5 rounded-full border border-red-500/30">
-                  <Shield className="h-4 w-4 text-red-400" />
-                  <span className="text-sm font-semibold text-white">
-                    {movie.movie.lang === 'English' ? 'PG-13' : '16+'}
-                  </span>
-                </div>
-
-                {/* Episode Status */}
-                {movie.movie.episode_current && (
-                  <div className="flex items-center gap-1.5 bg-green-500/20 backdrop-blur-sm px-3 py-1.5 rounded-full border border-green-500/30">
-                    <Zap className="h-4 w-4 text-green-400" />
-                    <span className="text-sm font-semibold text-white">
-                      EP {movie.movie.episode_current}/{movie.movie.episode_total || '?'}
-                    </span>
                   </div>
-                )}
 
-                {/* Duration */}
-                <div className="flex items-center gap-1.5 bg-purple-500/20 backdrop-blur-sm px-3 py-1.5 rounded-full border border-purple-500/30">
-                  <Clock className="h-4 w-4 text-purple-400" />
-                  <span className="text-sm font-semibold text-white">
-                    {movie.movie.time || '2h 15m'}
-                  </span>
-                </div>
-
-                {/* View Count */}
-                {movie.movie.view && (
-                  <div className="flex items-center gap-1.5 bg-indigo-500/20 backdrop-blur-sm px-3 py-1.5 rounded-full border border-indigo-500/30">
-                    <Eye className="h-4 w-4 text-indigo-400" />
-                    <span className="text-sm font-semibold text-white">
-                      {movie.movie.view > 1000000 
-                        ? `${(movie.movie.view / 1000000).toFixed(1)}M` 
-                        : movie.movie.view > 1000 
-                          ? `${(movie.movie.view / 1000).toFixed(1)}K` 
-                          : movie.movie.view.toString()
-                      } views
-                    </span>
+                  {/* Type Indicator */}
+                  <div className="bg-white/20 px-2 py-1 rounded text-white text-xs font-medium backdrop-blur-sm">
+                    {movie.movie.type === 'series' || movie.movie.type === 'tv' ? 'TV Series' : 'Movie'}
                   </div>
-                )}
 
-                {/* Type Badge */}
-                <div className="flex items-center gap-1.5 bg-rose-500/20 backdrop-blur-sm px-3 py-1.5 rounded-full border border-rose-500/30">
-                  <Film className="h-4 w-4 text-rose-400" />
-                  <span className="text-sm font-semibold text-white">
-                    {movie.movie.type === 'series' ? 'TV Series' : 'Movie'}
+                  {/* Quality badge */}
+                  {movie.movie.quality && (
+                    <div className="bg-primary/80 px-2 py-1 rounded text-white text-xs font-medium">
+                      {movie.movie.quality}
+                    </div>
+                  )}
+                </div>
+
+                {/* Genre Tags - Compact Row */}
+                <div className="flex flex-wrap gap-1.5">
+                  {movie.movie.category && movie.movie.category.length > 0 ? (
+                    movie.movie.category.slice(0, 4).map((genre, idx) => (
+                      <span 
+                        key={`genre-${idx}`}
+                        className="px-2 py-1 bg-white/15 text-white text-xs rounded-full backdrop-blur-sm hover:bg-white/25 transition-colors cursor-pointer border border-white/20"
+                      >
+                        {genre.name}
+                      </span>
+                    ))
+                  ) : (
+                    // Fallback genres if none available
+                    <React.Fragment>
+                      <span className="px-2 py-1 bg-white/15 text-white text-xs rounded-full backdrop-blur-sm border border-white/20">
+                        {movie.movie.type === 'series' || movie.movie.type === 'tv' ? 'Drama' : 'Action'}
+                      </span>
+                      <span className="px-2 py-1 bg-white/15 text-white text-xs rounded-full backdrop-blur-sm border border-white/20">
+                        Entertainment
+                      </span>
+                    </React.Fragment>
+                  )}
+                  
+                  {/* Additional metadata tags */}
+                  <span className="px-2 py-1 bg-white/15 text-white text-xs rounded-full backdrop-blur-sm border border-white/20">
+                    {movie.movie.lang || 'English'}
                   </span>
                 </div>
-              </div>              {/* Tags Row */}
-              <div className="flex flex-wrap gap-2 mb-4">
-                {/* Country Tags */}
-                {movie.movie.country && movie.movie.country.slice(0, 2).map((country, idx) => (
-                  <span 
-                    key={`country-${idx}`}
-                    className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-600/30 backdrop-blur-sm border border-emerald-400/50 rounded-full text-sm font-medium text-emerald-100 hover:bg-emerald-600/40 transition-colors"
-                  >
-                    <Globe className="h-3.5 w-3.5" />
-                    {country.name}
-                  </span>
-                ))}
 
-                {/* Language Tag */}
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-orange-600/30 backdrop-blur-sm border border-orange-400/50 rounded-full text-sm font-medium text-orange-100 hover:bg-orange-600/40 transition-colors">
-                  <span className="w-2 h-2 bg-orange-400 rounded-full animate-pulse"></span>
-                  {movie.movie.lang || 'English'}
-                </span>
-
-                {/* Genre Tags */}
-                {movie.movie.category && movie.movie.category.slice(0, 3).map((genre, idx) => (
-                  <span 
-                    key={`genre-${idx}`}
-                    className="px-3 py-1 bg-violet-600/30 backdrop-blur-sm border border-violet-400/50 rounded-full text-sm font-medium text-violet-100 hover:bg-violet-600/40 transition-colors cursor-pointer"
-                  >
-                    {genre.name}
-                  </span>
-                ))}
-
-                {/* Quality Tag */}
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-cyan-600/30 backdrop-blur-sm border border-cyan-400/50 rounded-full text-sm font-medium text-cyan-100 hover:bg-cyan-600/40 transition-colors">
-                  <span className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse"></span>
-                  {movie.movie.quality || 'HD'}
-                </span>
-
-                {/* Studio/Director Tag */}
-                {movie.movie.director && movie.movie.director.length > 0 && (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-600/30 backdrop-blur-sm border border-amber-400/50 rounded-full text-sm font-medium text-amber-100 hover:bg-amber-600/40 transition-colors">
-                    <Award className="h-3.5 w-3.5" />
-                    {movie.movie.director[0]}
-                  </span>
-                )}
-
-                {/* Cast Tag */}
-                {movie.movie.actor && movie.movie.actor.length > 0 && (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-teal-600/30 backdrop-blur-sm border border-teal-400/50 rounded-full text-sm font-medium text-teal-100 hover:bg-teal-600/40 transition-colors">
-                    <Users className="h-3.5 w-3.5" />
-                    {movie.movie.actor.slice(0, 2).join(', ')}
-                    {movie.movie.actor.length > 2 && ` +${movie.movie.actor.length - 2}`}
-                  </span>
-                )}
-              </div>              {/* Description */}
-              {movie.movie.content && (
-                <div className="mb-6 max-w-3xl">
-                  <p 
-                    className="text-gray-200 text-base md:text-lg leading-relaxed font-normal line-clamp-3 hover:line-clamp-none transition-all duration-300 cursor-pointer"
-                    style={{
-                      display: '-webkit-box',
-                      WebkitLineClamp: 3,
-                      WebkitBoxOrient: 'vertical',
-                      overflow: 'hidden'
-                    }}
-                    onClick={(e) => {
-                      const target = e.target as HTMLElement;
-                      target.style.webkitLineClamp = target.style.webkitLineClamp === 'unset' ? '3' : 'unset';
-                    }}
-                  >
-                    {movie.movie.content}
+                {/* Description - Shorter */}
+                <div className="max-w-[500px]">
+                  <p className="text-gray-200 text-sm md:text-base leading-relaxed line-clamp-2" 
+                     style={{ 
+                       textShadow: '0 1px 4px rgba(0, 0, 0, 0.8)',
+                       lineHeight: '1.5'
+                     }}>
+                    {movie.movie.content && movie.movie.content.length > 10
+                      ? (movie.movie.content.length > 150 
+                          ? movie.movie.content.substring(0, 150) + '...'
+                          : movie.movie.content)
+                      : `Experience ${movie.movie.name || 'this amazing content'} in stunning quality.`
+                    }
                   </p>
-                  <span className="text-xs text-gray-400 mt-1 block">Click to expand</span>
                 </div>
-              )}
 
-              {/* Additional Information */}
-              {(movie.movie.director || movie.movie.actor) && (
-                <div className="mb-6 space-y-2 max-w-3xl">
-                  {movie.movie.director && movie.movie.director.length > 0 && (
-                    <div className="flex items-start gap-2">
-                      <span className="text-gray-400 text-sm font-medium min-w-[80px]">Director:</span>
-                      <span className="text-gray-300 text-sm">
-                        {movie.movie.director.slice(0, 3).join(', ')}
-                        {movie.movie.director.length > 3 && ` and ${movie.movie.director.length - 3} more`}
-                      </span>
-                    </div>
-                  )}
-                  {movie.movie.actor && movie.movie.actor.length > 0 && (
-                    <div className="flex items-start gap-2">
-                      <span className="text-gray-400 text-sm font-medium min-w-[80px]">Cast:</span>
-                      <span className="text-gray-300 text-sm">
-                        {movie.movie.actor.slice(0, 4).join(', ')}
-                        {movie.movie.actor.length > 4 && ` and ${movie.movie.actor.length - 4} more`}
-                      </span>
-                    </div>
-                  )}
+                {/* Action Buttons - Only Watch Button */}
+                <div className="flex items-center gap-4 pt-2">
+                  
+                  {/* Primary Watch Button - Red */}
+                  <Link href={`/movie/${movie.movie.slug}`}>
+                    <Button 
+                      size="lg" 
+                      className="bg-red-600 hover:bg-red-700 text-white font-semibold px-8 py-4 text-lg rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 border-none min-w-[140px]"
+                    >
+                      <Play className="mr-2 h-5 w-5 fill-white" /> 
+                      Watch
+                    </Button>
+                  </Link>
                 </div>
-              )}              {/* Action Buttons */}
-              <div className="flex flex-wrap gap-4">
-                <Link href={`/movie/${movie.movie.slug}`}>
-                  <Button size="lg" className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-white font-semibold px-8 py-3 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 border border-primary/20">
-                    <Play className="mr-2 h-5 w-5 fill-white" /> 
-                    Watch Now
-                  </Button>
-                </Link>
-                <Link href={`/movie/${movie.movie.slug}`}>
-                  <Button size="lg" variant="secondary" className="bg-white/10 hover:bg-white/20 backdrop-blur-sm border-2 border-white/30 hover:border-white/50 text-white font-semibold px-6 py-3 text-lg rounded-xl shadow-lg transition-all duration-300 transform hover:scale-105">
-                    <Info className="mr-2 h-5 w-5" /> 
-                    More Info
-                  </Button>
-                </Link>
               </div>
+            </div>
+          </div>
+
+          {/* Navigation Hint - Top Right */}
+          <div className="absolute top-8 right-8 z-30 text-white/60 text-sm font-medium">
+            <div className="flex items-center gap-2">
+              <ChevronLeft className="h-4 w-4" />
+              <span>{movie.movie.name || 'Featured Content'}</span>
+              <ChevronRight className="h-4 w-4" />
             </div>
           </div>
         </div>
@@ -299,4 +241,4 @@ export default function HeroCarousel({ movies }: HeroCarouselProps) {
       </div>
     </div>
   );
-} 
+}
