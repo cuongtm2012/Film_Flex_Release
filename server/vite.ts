@@ -76,10 +76,42 @@ export function serveStatic(app: Express) {
     );
   }
 
-  app.use(express.static(distPath));
+  // Serve static assets with proper cache headers
+  app.use('/assets', express.static(path.join(distPath, 'assets'), {
+    maxAge: '1y', // Cache hashed assets for 1 year
+    immutable: true,
+    etag: true,
+    lastModified: true,
+    setHeaders: (res, filePath) => {
+      // Set cache headers based on file type
+      if (filePath.match(/\.(js|css|woff|woff2|ttf|eot)$/)) {
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      } else if (filePath.match(/\.(png|jpg|jpeg|gif|svg|ico)$/)) {
+        res.setHeader('Cache-Control', 'public, max-age=86400'); // 1 day for images
+      }
+    }
+  }));
+
+  // Serve other static files with shorter cache
+  app.use(express.static(distPath, {
+    maxAge: '1h', // Cache other files for 1 hour
+    etag: true,
+    lastModified: true,
+    setHeaders: (res, filePath) => {
+      // Don't cache HTML files to ensure updates are picked up
+      if (filePath.endsWith('.html')) {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+      }
+    }
+  }));
 
   // fall through to index.html if the file doesn't exist
   app.use("*", (_req, res) => {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
     res.sendFile(path.resolve(distPath, "index.html"));
   });
 }

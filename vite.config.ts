@@ -27,5 +27,24 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    // Enable proper asset hashing for cache busting
+    rollupOptions: {
+      output: {
+        // Hash all assets except the main HTML file
+        entryFileNames: 'assets/[name]-[hash].js',
+        chunkFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash].[ext]'
+      }
+    },
+    // Generate manifest for proper cache invalidation
+    manifest: true,
+    // Ensure proper source maps for debugging
+    sourcemap: process.env.NODE_ENV === 'development'
   },
+  // Cache busting for development
+  server: {
+    headers: {
+      'Cache-Control': 'no-cache, no-store, max-age=0'
+    }
+  }
 });
