@@ -19,18 +19,6 @@ window.addEventListener('unhandledrejection', (event) => {
   console.error('🚨 Rejection Details:', event);
 });
 
-// Enhanced React error boundary logging
-const originalConsoleError = console.error;
-console.error = (...args) => {
-  // Log to original console
-  originalConsoleError.apply(console, args);
-  
-  // Check if it's a React error
-  if (args[0] && typeof args[0] === 'string' && args[0].includes('React')) {
-    console.error('🚨 React Error Detected - This might cause blank page:', args);
-  }
-};
-
 // App initialization with error handling
 try {
   const rootElement = document.getElementById("root");
