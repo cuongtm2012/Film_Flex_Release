@@ -1,11 +1,11 @@
 #!/bin/bash
 
 #################################################################################
-# Film Flex Deployment Script
-# Description: Production-ready deployment script with enhanced features
-# Node Version: 22.16
+# Film Flex Deployment Script - Final Version
+# Description: Production-ready deployment script with ESM/TypeScript support
+# Node Version: 22.16+
 # Author: GitHub Copilot
-# Date: $(date)
+# Date: June 15, 2025
 #################################################################################
 
 set -euo pipefail  # Exit on any error
@@ -352,26 +352,100 @@ stop_application() {
     fi
 }
 
-start_application() {
-    log "Starting application..."
+create_enhanced_ecosystem_config() {
+    log "Creating enhanced PM2 ecosystem configuration..."
     
     cd "$DEPLOYMENT_DIR"
     
-    # Check if ecosystem config exists
-    if [ -f "ecosystem.config.js" ]; then
-        log "Using ecosystem.config.js for PM2 startup"
-        if pm2 start ecosystem.config.js; then
-            log_success "Application started successfully with ecosystem config"
-        else
-            log_error "Failed to start application with ecosystem config"
-            exit 1
-        fi
+    cat > ecosystem.config.js << 'EOF'
+module.exports = {
+    apps: [{
+        name: 'filmflex',
+        script: './dist/index.js',
+        instances: process.env.NODE_ENV === 'production' ? 'max' : 1,
+        exec_mode: 'cluster',
+        env: {
+            NODE_ENV: 'development',
+            PORT: 5000,
+            NODE_OPTIONS: '--max-old-space-size=512'
+        },
+        env_production: {
+            NODE_ENV: 'production',
+            PORT: 5000,
+            NODE_OPTIONS: '--max-old-space-size=512 --enable-source-maps'
+        },
+        // Logging
+        error_file: './logs/err.log',
+        out_file: './logs/out.log',
+        log_file: './logs/combined.log',
+        time: true,
+        
+        // Process management
+        max_memory_restart: '512M',
+        kill_timeout: 5000,
+        wait_ready: true,
+        listen_timeout: 5000,
+        
+        // Health monitoring
+        health_check_grace_period: 10000,
+        
+        // Restart policies
+        restart_delay: 4000,
+        max_restarts: 10,
+        min_uptime: 10000,
+        
+        // Source maps support for better error reporting
+        source_map_support: true,
+        
+        // Environment-specific settings
+        node_args: process.env.NODE_ENV === 'production' 
+            ? ['--max-old-space-size=512', '--enable-source-maps']
+            : ['--max-old-space-size=512', '--inspect=9229']
+    }]
+};
+EOF
+    
+    log_success "Enhanced PM2 ecosystem configuration created"
+}
+
+start_application() {
+    log "Starting application with enhanced configuration..."
+    
+    cd "$DEPLOYMENT_DIR"
+    
+    # Create logs directory
+    mkdir -p logs
+    
+    # Create enhanced PM2 configuration
+    create_enhanced_ecosystem_config
+    
+    # Start with ecosystem config
+    log "Starting application with PM2..."
+    if pm2 start ecosystem.config.js --env production; then
+        log_success "Application started successfully"
     else
-        log "Starting application with default PM2 configuration"
-        if pm2 start dist/index.js --name "$PM2_APP_NAME"; then
-            log_success "Application started successfully"
+        log_error "Failed to start application with PM2"
+        log "Attempting to start with direct command..."
+        
+        # Fallback to direct start
+        if pm2 start dist/index.js --name "$PM2_APP_NAME" --node-args="--max-old-space-size=512"; then
+            log_success "Application started with fallback method"
         else
-            log_error "Failed to start application"
+            log_error "Failed to start application with fallback method"
+            log_error "Checking for common startup issues..."
+            
+            # Check if the file exists and is executable
+            if [ ! -f "dist/index.js" ]; then
+                log_error "dist/index.js not found"
+            else
+                log "dist/index.js exists, checking permissions..."
+                ls -la dist/index.js
+            fi
+            
+            # Try to run directly to see error
+            log "Attempting direct execution for debugging..."
+            timeout 10s node dist/index.js || log_error "Direct execution failed"
+            
             exit 1
         fi
     fi
@@ -379,8 +453,15 @@ start_application() {
     # Save PM2 configuration
     pm2 save
     
+    # Setup PM2 startup script
+    if pm2 startup | grep -q "sudo"; then
+        log "PM2 startup script needs to be configured manually"
+        log "Run the command provided by PM2 startup"
+    fi
+    
     # Show application status
     pm2 status
+    pm2 info "$PM2_APP_NAME"
 }
 
 #################################################################################
@@ -551,36 +632,249 @@ install_dependencies() {
     log_success "Dependencies installed successfully"
 }
 
-build_application() {
-    log "Building application..."
+#################################################################################
+# Enhanced Build Process with ESM/TypeScript Support
+#################################################################################
+
+validate_typescript_config() {
+    log "Validating TypeScript configuration..."
     
     cd "$DEPLOYMENT_DIR"
     
-    # Install dev dependencies temporarily for build
+    # Check for TypeScript config files
+    if [ ! -f "tsconfig.json" ]; then
+        log_error "tsconfig.json not found in deployment directory"
+        exit 1
+    fi
+    
+    # Validate tsconfig.json syntax
+    if ! node -e "JSON.parse(require('fs').readFileSync('tsconfig.json', 'utf8'))" 2>/dev/null; then
+        log_error "Invalid tsconfig.json syntax"
+        exit 1
+    fi
+    
+    # Check for server-specific tsconfig if it exists
+    if [ -f "tsconfig.server.json" ]; then
+        if ! node -e "JSON.parse(require('fs').readFileSync('tsconfig.server.json', 'utf8'))" 2>/dev/null; then
+            log_error "Invalid tsconfig.server.json syntax"
+            exit 1
+        fi
+        log "Server-specific TypeScript config found and validated"
+    fi
+    
+    log_success "TypeScript configuration validated"
+}
+
+fix_module_resolution() {
+    log "Applying module resolution fixes..."
+    
+    cd "$DEPLOYMENT_DIR"
+    
+    # Create or update package.json with proper ESM configuration
+    log "Ensuring package.json has correct module configuration..."
+    
+    # Use Node.js to safely update package.json
+    node -e "
+    const fs = require('fs');
+    const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+    
+    // Ensure type: module for ESM support
+    pkg.type = 'module';
+    
+    // Ensure proper scripts
+    pkg.scripts = pkg.scripts || {};
+    pkg.scripts.build = pkg.scripts.build || 'tsc && npm run build:copy-files';
+    pkg.scripts['build:copy-files'] = 'cp -r public dist/ 2>/dev/null || true';
+    pkg.scripts.start = 'node dist/index.js';
+    pkg.scripts['start:dev'] = 'tsx watch src/index.ts';
+    
+    // Ensure required dependencies for production
+    pkg.dependencies = pkg.dependencies || {};
+    if (!pkg.dependencies['@types/node']) {
+        pkg.devDependencies = pkg.devDependencies || {};
+        if (!pkg.devDependencies['@types/node']) {
+            pkg.devDependencies['@types/node'] = '^22.0.0';
+        }
+    }
+    
+    fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));
+    console.log('Package.json updated with ESM configuration');
+    "
+    
+    # Ensure tsconfig.json has proper ESM settings
+    log "Updating TypeScript configuration for ESM..."
+    
+    node -e "
+    const fs = require('fs');
+    let tsconfig;
+    
+    try {
+        tsconfig = JSON.parse(fs.readFileSync('tsconfig.json', 'utf8'));
+    } catch (e) {
+        console.error('Failed to read tsconfig.json:', e.message);
+        process.exit(1);
+    }
+    
+    // Ensure proper compiler options for ESM
+    tsconfig.compilerOptions = tsconfig.compilerOptions || {};
+    tsconfig.compilerOptions.target = 'ES2022';
+    tsconfig.compilerOptions.module = 'ESNext';
+    tsconfig.compilerOptions.moduleResolution = 'Node';
+    tsconfig.compilerOptions.allowSyntheticDefaultImports = true;
+    tsconfig.compilerOptions.esModuleInterop = true;
+    tsconfig.compilerOptions.forceConsistentCasingInFileNames = true;
+    tsconfig.compilerOptions.strict = true;
+    tsconfig.compilerOptions.skipLibCheck = true;
+    tsconfig.compilerOptions.outDir = './dist';
+    tsconfig.compilerOptions.rootDir = './src';
+    tsconfig.compilerOptions.declaration = true;
+    tsconfig.compilerOptions.declarationMap = true;
+    tsconfig.compilerOptions.sourceMap = true;
+    
+    // Include and exclude patterns
+    tsconfig.include = tsconfig.include || ['src/**/*'];
+    tsconfig.exclude = tsconfig.exclude || ['node_modules', 'dist', 'tests', 'cypress'];
+    
+    fs.writeFileSync('tsconfig.json', JSON.stringify(tsconfig, null, 2));
+    console.log('TypeScript configuration updated for ESM');
+    "
+    
+    # Create or update server-specific tsconfig if needed
+    if [ -f "tsconfig.server.json" ]; then
+        log "Updating server TypeScript configuration..."
+        
+        node -e "
+        const fs = require('fs');
+        let serverConfig;
+        
+        try {
+            serverConfig = JSON.parse(fs.readFileSync('tsconfig.server.json', 'utf8'));
+        } catch (e) {
+            console.error('Failed to read tsconfig.server.json:', e.message);
+            process.exit(1);
+        }
+        
+        // Server-specific optimizations
+        serverConfig.compilerOptions = serverConfig.compilerOptions || {};
+        serverConfig.compilerOptions.target = 'ES2022';
+        serverConfig.compilerOptions.module = 'ESNext';
+        serverConfig.compilerOptions.moduleResolution = 'Node';
+        serverConfig.compilerOptions.outDir = './dist';
+        serverConfig.compilerOptions.rootDir = './src';
+        
+        fs.writeFileSync('tsconfig.server.json', JSON.stringify(serverConfig, null, 2));
+        console.log('Server TypeScript configuration updated');
+        "
+    fi
+    
+    log_success "Module resolution fixes applied"
+}
+
+build_application() {
+    log "Building application with enhanced TypeScript/ESM support..."
+    
+    cd "$DEPLOYMENT_DIR"
+    
+    # Validate TypeScript configuration
+    validate_typescript_config
+    
+    # Apply module resolution fixes
+    fix_module_resolution
+    
+    # Clean previous build
+    log "Cleaning previous build artifacts..."
+    rm -rf dist/ 2>/dev/null || true
+    rm -rf build/ 2>/dev/null || true
+    
+    # Install all dependencies (including dev) for build
+    log "Installing dependencies for build..."
     if [ -f "package-lock.json" ]; then
         npm ci
     else
         npm install
     fi
     
-    # Build the application
-    if npm run build; then
-        log_success "Application built successfully"
-    else
-        log_error "Build failed"
+    # Verify TypeScript compiler is available
+    if ! npx tsc --version > /dev/null 2>&1; then
+        log_error "TypeScript compiler not available"
         exit 1
     fi
     
-    # Remove dev dependencies after build
+    log "TypeScript compiler version: $(npx tsc --version)"
+    
+    # Build TypeScript to JavaScript
+    log "Compiling TypeScript to JavaScript..."
+    if npx tsc; then
+        log_success "TypeScript compilation completed"
+    else
+        log_error "TypeScript compilation failed"
+        log_error "Checking for common TypeScript errors..."
+        
+        # Run TypeScript with more verbose output
+        npx tsc --listFiles --diagnostics || true
+        exit 1
+    fi
+    
+    # Verify build output exists
+    if [ ! -d "dist" ]; then
+        log_error "Build output directory 'dist' not created"
+        exit 1
+    fi
+    
+    if [ ! -f "dist/index.js" ]; then
+        log_error "Main application file 'dist/index.js' not found"
+        log "Available files in dist:"
+        find dist -name "*.js" | head -10
+        exit 1
+    fi
+    
+    # Copy static assets and public files
+    log "Copying static assets..."
+    if [ -d "public" ]; then
+        cp -r public dist/ 2>/dev/null || true
+        log "Public files copied to dist/"
+    fi
+    
+    # Copy any additional required files
+    for file in robots.txt sitemap.xml .env.example; do
+        if [ -f "$file" ]; then
+            cp "$file" dist/ 2>/dev/null || true
+        fi
+    done
+    
+    # Verify the built application can be imported
+    log "Verifying built application..."
+    if node -e "import('./dist/index.js').catch(e => { console.error('Import failed:', e); process.exit(1); })" 2>/dev/null; then
+        log_success "Built application verification passed"
+    else
+        log_warning "Built application verification failed - checking for common issues..."
+        
+        # Check for missing file extensions in imports
+        log "Checking for missing .js extensions in compiled files..."
+        grep -r "from ['\"]\..*[^js]['\"]" dist/ || log "No missing .js extensions found"
+        
+        # Check for problematic imports
+        log "Checking for problematic import patterns..."
+        grep -r "import.*node_modules" dist/ || log "No direct node_modules imports found"
+    fi
+    
+    # Remove dev dependencies to reduce size
+    log "Removing development dependencies..."
     npm prune --production
     
-    # Verify build output
-    if [ ! -d "dist" ] || [ ! -f "dist/index.js" ]; then
-        log_error "Build output not found. Expected dist/index.js"
-        exit 1
-    fi
+    # Create build info file
+    cat > dist/build-info.json << EOF
+{
+    "buildTime": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+    "nodeVersion": "$(node --version)",
+    "npmVersion": "$(npm --version)",
+    "gitCommit": "$(git rev-parse HEAD 2>/dev/null || echo 'unknown')",
+    "gitBranch": "$(git branch --show-current 2>/dev/null || echo 'unknown')",
+    "environment": "$ENVIRONMENT"
+}
+EOF
     
-    log_success "Build verification completed"
+    log_success "Application built successfully with ESM/TypeScript support"
 }
 
 #################################################################################
@@ -588,36 +882,71 @@ build_application() {
 #################################################################################
 
 health_check() {
-    log "Performing health check..."
+    log "Performing comprehensive health check..."
     
-    local max_attempts=30
+    local max_attempts=60  # Increased timeout for ESM startup
     local attempt=1
-    local health_url="http://localhost:5000/health"
+    local health_url="http://localhost:5000/api/health"
+    local app_url="http://localhost:5000"
     
-    # Wait for application to start
-    sleep 5
+    # Wait for application to initialize
+    log "Waiting for application to initialize..."
+    sleep 10
     
     while [ $attempt -le $max_attempts ]; do
         log "Health check attempt $attempt/$max_attempts"
         
-        if curl -f -s "$health_url" > /dev/null 2>&1; then
-            log_success "Application is healthy and responding"
+        # Check if PM2 process is running
+        if ! pm2 info "$PM2_APP_NAME" | grep -q "online"; then
+            log_error "PM2 process is not running"
+            log "PM2 process status:"
+            pm2 info "$PM2_APP_NAME"
+            log "Recent PM2 logs:"
+            pm2 logs "$PM2_APP_NAME" --lines 20
+            return 1
+        fi
+        
+        # Check application health endpoint
+        if curl -f -s -m 10 "$health_url" > /dev/null 2>&1; then
+            log_success "Health endpoint is responding"
+            
+            # Additional checks for application functionality
+            log "Performing additional functionality checks..."
+            
+            # Check main application endpoint
+            if curl -f -s -m 10 "$app_url" > /dev/null 2>&1; then
+                log_success "Main application endpoint is responding"
+            else
+                log_warning "Main application endpoint not responding, but health check passed"
+            fi
+            
+            # Check if application is serving expected content
+            local response_code=$(curl -s -o /dev/null -w "%{http_code}" "$app_url")
+            if [ "$response_code" = "200" ]; then
+                log_success "Application is serving content correctly (HTTP $response_code)"
+            else
+                log_warning "Application returned HTTP $response_code"
+            fi
+            
             return 0
         fi
         
-        # Check if PM2 process is running
-        if ! pm2 info "$PM2_APP_NAME" | grep -q "online"; then
-            log_error "Application process is not running"
-            pm2 logs "$PM2_APP_NAME" --lines 20
-            return 1
+        # Check application logs for errors
+        if [ $((attempt % 10)) -eq 0 ]; then
+            log "Checking application logs for errors..."
+            pm2 logs "$PM2_APP_NAME" --lines 5 | grep -i error || true
         fi
         
         sleep 2
         attempt=$((attempt + 1))
     done
     
-    log_warning "Health check timeout. Application may still be starting..."
-    log_warning "Check application logs: pm2 logs $PM2_APP_NAME"
+    log_error "Health check timeout after $max_attempts attempts"
+    log_error "Final PM2 status:"
+    pm2 info "$PM2_APP_NAME"
+    log_error "Recent application logs:"
+    pm2 logs "$PM2_APP_NAME" --lines 30
+    
     return 1
 }
 
@@ -1042,9 +1371,19 @@ cleanup_deployment() {
 
 show_usage() {
     cat << EOF
-Film Flex Deployment Script
+Film Flex Deployment Script - Final Version with ESM/TypeScript Support
 
 Usage: $0 [OPTIONS]
+
+FEATURES:
+    ✅ Full ESM (ES Modules) support
+    ✅ TypeScript compilation with proper configuration
+    ✅ Enhanced error handling and diagnostics
+    ✅ Comprehensive health checks
+    ✅ Production optimizations
+    ✅ Security hardening
+    ✅ Automated backup and rollback
+    ✅ PM2 cluster mode with monitoring
 
 OPTIONS:
     --help                  Show this help message
@@ -1066,23 +1405,30 @@ ENVIRONMENT VARIABLES:
     ENVIRONMENT           Deployment environment (production/staging)
 
 EXAMPLES:
-    # Full production deployment
+    # Full production deployment with ESM/TypeScript
     sudo ./deploy.sh
 
-    # Deployment with custom directory
+    # Quick deployment to custom directory
     DEPLOYMENT_DIR=/opt/filmflex ./deploy.sh
 
     # Rollback to previous version
     ./deploy.sh --rollback
 
-    # Health check only
+    # Health check with enhanced diagnostics
     ./deploy.sh --health-check
+
+REQUIREMENTS:
+    - Node.js 22.16+
+    - PM2 process manager
+    - TypeScript compiler
+    - Nginx (optional)
+    - SSL certificates (optional)
 
 EOF
 }
 
 #################################################################################
-# Main Execution Flow
+# Main Execution Flow - Enhanced Version
 #################################################################################
 
 main() {
@@ -1146,13 +1492,15 @@ main() {
     mkdir -p "$(dirname "$LOG_FILE")"
     touch "$LOG_FILE"
     
-    log "==================== Film Flex Deployment Started ===================="
+    log "==================== Film Flex Deployment Started (Final Version) ===================="
     log "Timestamp: $(date)"
     log "Environment: $ENVIRONMENT"
+    log "Node Version: $(node --version)"
+    log "NPM Version: $(npm --version)"
     log "Deployment Directory: $DEPLOYMENT_DIR"
     log "Source Directory: $SOURCE_DIR"
-    log "Backup Directory: $BACKUP_DIR"
-    log "======================================================================="
+    log "ESM/TypeScript Support: Enabled"
+    log "========================================================================================"
     
     if [ "$dry_run" = true ]; then
         log "DRY RUN MODE - No changes will be made"
@@ -1170,8 +1518,8 @@ main() {
         return 0
     fi
     
-    # Main deployment flow
-    log "Starting deployment process..."
+    # Main deployment flow with enhanced error handling
+    log "Starting enhanced deployment process with ESM/TypeScript support..."
     
     # Pre-deployment validations
     validate_node_version
@@ -1196,7 +1544,7 @@ main() {
         install_dependencies
     fi
     
-    # Build application
+    # Enhanced build process with TypeScript/ESM support
     if [ "$skip_build" = false ]; then
         build_application
     fi
@@ -1224,36 +1572,43 @@ main() {
     setup_firewall
     setup_monitoring
     
-    # Start application
+    # Start application with enhanced configuration
     start_application
     
-    # Verify deployment
+    # Comprehensive health check
     if health_check; then
-        log_success "Deployment completed successfully!"
-        log_success "Application is running and healthy"
+        log_success "=========================================="
+        log_success "🎉 DEPLOYMENT COMPLETED SUCCESSFULLY! 🎉"
+        log_success "=========================================="
+        log_success "Application: Film Flex"
+        log_success "Status: Running and Healthy"
+        log_success "URL: http://localhost:5000"
+        log_success "Health Check: http://localhost:5000/api/health"
+        log_success "PM2 Status: $(pm2 info "$PM2_APP_NAME" | grep "status" | awk '{print $4}' || echo 'Running')"
+        log_success "Build: TypeScript/ESM with optimizations"
+        log_success "Environment: $ENVIRONMENT"
+        log_success "=========================================="
         
-        # Show deployment summary
-        log "==================== Deployment Summary ===================="
-        log "Application Status: $(pm2 info "$PM2_APP_NAME" | grep "status" | awk '{print $4}')"
-        log "Memory Usage: $(pm2 info "$PM2_APP_NAME" | grep "memory usage" | awk '{print $4 " " $5}')"
-        log "Uptime: $(pm2 info "$PM2_APP_NAME" | grep "uptime" | awk '{print $3}')"
-        log "Git Commit: $(cd "$SOURCE_DIR" && git rev-parse --short HEAD 2>/dev/null || echo "Not available")"
-        log "Deployment Time: $(date)"
-        log "============================================================="
-        
-        # Final cleanup
+        # Post-deployment cleanup
         cleanup_deployment
         
-        log_success "All deployment steps completed successfully!"
+        # Show final status
+        log "Final deployment status:"
+        pm2 status
         
     else
-        log_error "Deployment completed but health check failed"
-        log_error "Check application logs: pm2 logs $PM2_APP_NAME"
+        log_error "=========================================="
+        log_error "❌ DEPLOYMENT FAILED - HEALTH CHECK ❌"
+        log_error "=========================================="
+        log_error "The application was deployed but failed health checks"
+        log_error "Check the logs for more details:"
+        log_error "  Application logs: pm2 logs $PM2_APP_NAME"
+        log_error "  Deployment log: $LOG_FILE"
+        log_error "  System status: pm2 status"
+        log_error "=========================================="
         exit 1
     fi
 }
 
-# Check if script is being sourced or executed
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    main "$@"
-fi
+# Execute main function with all arguments
+main "$@"
