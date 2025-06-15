@@ -66,6 +66,9 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
   // State for content expanding (overview section)
   const [isContentExpanded, setIsContentExpanded] = useState(false);
   
+  // State for movie details expanding
+  const [isMovieDetailsExpanded, setIsMovieDetailsExpanded] = useState(false);
+  
   // State for episode search
   const [episodeSearchQuery, setEpisodeSearchQuery] = useState("");
   
@@ -853,97 +856,122 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
               </div>
             </div>
             
-            {/* Cast and Crew - Enhanced with icons for better mobile display */}
+            {/* Cast and Crew - Enhanced with toggle functionality */}
             <div className="mb-5">
-              <h3 className="text-lg font-bold mb-3 flex items-center">
-                <Info className="h-5 w-5 mr-2 text-primary" />
-                Movie Details
-              </h3>
+              <button
+                onClick={() => setIsMovieDetailsExpanded(!isMovieDetailsExpanded)}
+                className="w-full text-left focus:outline-none focus:ring-2 focus:ring-primary/50 rounded-md"
+                aria-expanded={isMovieDetailsExpanded}
+                aria-controls="movie-details-content"
+              >
+                <h3 className="text-lg font-bold mb-3 flex items-center justify-between hover:text-primary transition-colors">
+                  <span className="flex items-center">
+                    <Info className="h-5 w-5 mr-2 text-primary" />
+                    Movie Details
+                  </span>
+                  <ChevronDown 
+                    className={`h-5 w-5 text-primary transition-transform duration-300 ${
+                      isMovieDetailsExpanded ? 'rotate-180' : ''
+                    }`}
+                  />
+                </h3>
+              </button>
               
-              <div className="bg-card/20 rounded-md border border-gray-800 divide-y divide-gray-800">
-                {movie.director?.length > 0 && (
-                  <div className="p-3 flex items-start">
-                    <div className="w-8 flex-shrink-0 flex justify-center mt-0.5">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="m18 16 4-4-4-4"></path>
-                        <path d="m6 8-4 4 4 4"></path>
-                        <path d="m14.5 4-5 16"></path>
-                      </svg>
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="text-sm font-bold text-muted-foreground mb-1">Director</h4>
-                      <p className="text-sm">{movie.director.join(", ")}</p>
-                    </div>
-                  </div>
-                )}
-                
-                {movie.actor?.length > 0 && (
-                  <div className="p-3 flex items-start">
-                    <div className="w-8 flex-shrink-0 flex justify-center mt-0.5">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                        <circle cx="9" cy="7" r="4"></circle>
-                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                      </svg>
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="text-sm font-bold text-muted-foreground mb-1">Cast</h4>
-                      <p className="text-sm">{movie.actor.join(", ")}</p>
-                    </div>
-                  </div>
-                )}
-                
-                {movie.country?.length > 0 && (
-                  <div className="p-3 flex items-start">
-                    <div className="w-8 flex-shrink-0 flex justify-center mt-0.5">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M2 12h20"></path>
-                        <path d="M2 12a10 10 0 0 1 10-10v0a10 10 0 0 1 10 10"></path>
-                        <path d="M2 12a10 10 0 0 0 10 10h0a10 10 0 0 0 10-10"></path>
-                      </svg>
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="text-sm font-bold text-muted-foreground mb-1">Country</h4>
-                      <p className="text-sm">{movie.country.map(c => c.name).join(", ")}</p>
-                    </div>
-                  </div>
-                )}
-                
-                {movie.lang && (
-                  <div className="p-3 flex items-start">
-                    <div className="w-8 flex-shrink-0 flex justify-center mt-0.5">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M5 8h12a4 4 0 1 1 0 8H9"></path>
-                        <path d="M4 22V2"></path>
-                      </svg>
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="text-sm font-bold text-muted-foreground mb-1">Languages</h4>
-                      <p className="text-sm">{movie.lang}</p>
-                    </div>
-                  </div>
-                )}
-                
-                {movie.category?.length > 0 && (
-                  <div className="p-3 flex items-start">
-                    <div className="w-8 flex-shrink-0 flex justify-center mt-0.5">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"></path>
-                      </svg>
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="text-sm font-bold text-muted-foreground mb-1">Genre</h4>
-                      <div className="flex flex-wrap gap-2">
-                        {movie.category.map(cat => (
-                          <Badge key={cat.id} variant="outline" className="bg-primary/10 hover:bg-primary/20">
-                            {cat.name}
-                          </Badge>
-                        ))}
+              {/* Collapsible Content */}
+              <div 
+                id="movie-details-content"
+                className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                  isMovieDetailsExpanded 
+                    ? 'max-h-[1000px] opacity-100' 
+                    : 'max-h-0 opacity-0'
+                }`}
+                aria-hidden={!isMovieDetailsExpanded}
+              >
+                <div className="bg-card/20 rounded-md border border-gray-800 divide-y divide-gray-800">
+                  {movie.director?.length > 0 && (
+                    <div className="p-3 flex items-start">
+                      <div className="w-8 flex-shrink-0 flex justify-center mt-0.5">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="m18 16 4-4-4-4"></path>
+                          <path d="m6 8-4 4 4 4"></path>
+                          <path d="m14.5 4-5 16"></path>
+                        </svg>
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="text-sm font-bold text-muted-foreground mb-1">Director</h4>
+                        <p className="text-sm">{movie.director.join(", ")}</p>
                       </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                  
+                  {movie.actor?.length > 0 && (
+                    <div className="p-3 flex items-start">
+                      <div className="w-8 flex-shrink-0 flex justify-center mt-0.5">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                          <circle cx="9" cy="7" r="4"></circle>
+                          <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                          <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                        </svg>
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="text-sm font-bold text-muted-foreground mb-1">Cast</h4>
+                        <p className="text-sm">{movie.actor.join(", ")}</p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {movie.country?.length > 0 && (
+                    <div className="p-3 flex items-start">
+                      <div className="w-8 flex-shrink-0 flex justify-center mt-0.5">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M2 12h20"></path>
+                          <path d="M2 12a10 10 0 0 1 10-10v0a10 10 0 0 1 10 10"></path>
+                          <path d="M2 12a10 10 0 0 0 10 10h0a10 10 0 0 0 10-10"></path>
+                        </svg>
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="text-sm font-bold text-muted-foreground mb-1">Country</h4>
+                        <p className="text-sm">{movie.country.map(c => c.name).join(", ")}</p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {movie.lang && (
+                    <div className="p-3 flex items-start">
+                      <div className="w-8 flex-shrink-0 flex justify-center mt-0.5">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M5 8h12a4 4 0 1 1 0 8H9"></path>
+                          <path d="M4 22V2"></path>
+                        </svg>
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="text-sm font-bold text-muted-foreground mb-1">Languages</h4>
+                        <p className="text-sm">{movie.lang}</p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {movie.category?.length > 0 && (
+                    <div className="p-3 flex items-start">
+                      <div className="w-8 flex-shrink-0 flex justify-center mt-0.5">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"></path>
+                        </svg>
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="text-sm font-bold text-muted-foreground mb-1">Genre</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {movie.category.map(cat => (
+                            <Badge key={cat.id} variant="outline" className="bg-primary/10 hover:bg-primary/20">
+                              {cat.name}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -959,7 +987,7 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
                 
                 {/* See More Button */}
                 {recommendationsData?.items && recommendationsData.items.length > 3 && (
-                  <Link to={`/recommendations/${slug}`} className="text-primary text-sm hover:underline flex items-center">
+                  <Link to="/top-rated" className="text-primary text-sm hover:underline flex items-center">
                     See More
                     <ChevronRight className="h-4 w-4 ml-1" />
                   </Link>
