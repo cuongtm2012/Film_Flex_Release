@@ -143,113 +143,241 @@
     
     <!-- Service Worker Registration for PWA with proper update handling -->
     <script>
-      // Immediate cache clearing for blank page fix
-      if ('serviceWorker' in navigator && 'caches' in window) {
-        // Clear all existing caches immediately on page load
-        caches.keys().then(cacheNames => {
-          if (cacheNames.length > 0) {
-            console.log('Clearing old caches:', cacheNames);
-            return Promise.all(
-              cacheNames.map(cacheName => caches.delete(cacheName))
-            );
-          }
-        }).then(() => {
-          console.log('All old caches cleared');
-        });
-      }
+      // Enhanced Service Worker registration with comprehensive debugging
+      const DEBUG_MODE = localStorage.getItem('filmflex-debug') === 'true';
       
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js')
-            .then((registration) => {
-              console.log('SW registered: ', registration);
-              
-              // Force immediate update check
-              registration.update();
-              
-              // Check for service worker updates
-              registration.addEventListener('updatefound', () => {
-                const newWorker = registration.installing;
-                if (newWorker) {
-                  newWorker.addEventListener('statechange', () => {
-                    if (newWorker.state === 'installed') {
-                      if (navigator.serviceWorker.controller) {
-                        // New service worker available, auto-update immediately
-                        console.log('New service worker available, updating...');
-                        newWorker.postMessage({ type: 'SKIP_WAITING' });
-                      } else {
-                        // First time installation
-                        console.log('Service worker installed for the first time');
-                      }
-                    }
-                  });
-                }
-              });
-            })
-            .catch((registrationError) => {
-              console.log('SW registration failed: ', registrationError);
-            });
-            
-          // Listen for controlling service worker changes
-          navigator.serviceWorker.addEventListener('controllerchange', () => {
-            console.log('Service worker controller changed, reloading...');
-            window.location.reload();
-          });
-        });
-      }
-      
-      // Enhanced cache busting utility
-      window.clearAppCache = function() {
-        console.log('🧹 Clearing all app caches...');
-        if ('serviceWorker' in navigator && 'caches' in window) {
-          // Clear all caches
-          caches.keys().then(cacheNames => {
-            console.log('Found caches:', cacheNames);
-            return Promise.all(
-              cacheNames.map(cacheName => {
-                console.log('Deleting cache:', cacheName);
-                return caches.delete(cacheName);
-              })
-            );
-          }).then(() => {
-            // Unregister all service workers
-            return navigator.serviceWorker.getRegistrations();
-          }).then(registrations => {
-            console.log('Found service workers:', registrations.length);
-            return Promise.all(
-              registrations.map(registration => {
-                console.log('Unregistering service worker');
-                return registration.unregister();
-              })
-            );
-          }).then(() => {
-            console.log('✅ All caches cleared and service workers unregistered');
-            // Force hard reload
-            window.location.reload(true);
-          }).catch(error => {
-            console.error('Error clearing cache:', error);
-            window.location.reload();
-          });
-        } else {
-          console.log('Service worker or caches not supported, doing hard reload');
-          window.location.reload(true);
+      const debugLog = (message, data) => {
+        if (DEBUG_MODE) {
+          console.log(`🔍 SW Debug: ${message}`, data || '');
         }
       };
       
-      // Auto-clear cache on version mismatch
-      const APP_VERSION = '1749965229';
-      const storedVersion = localStorage.getItem('app_version');
+      // Immediately clear problematic caches on page load
+      if ('caches' in window) {
+        caches.keys().then(cacheNames => {
+          const oldCaches = cacheNames.filter(name => 
+            name.includes('phimgg-v1') || 
+            name.includes('filmflex-v1') || 
+            name.includes('filmflex-v2') ||
+            !name.includes(Date.now().toString().slice(0, 8)) // Clear caches older than today
+          );
+          
+          if (oldCaches.length > 0) {
+            console.log('🧹 Clearing old problematic caches:', oldCaches);
+            return Promise.all(oldCaches.map(name => caches.delete(name)));
+          }
+        }).then(() => {
+          debugLog('Old caches cleared');
+        }).catch(err => {
+          console.error('Failed to clear old caches:', err);
+        });
+      }
+
+      if ('serviceWorker' in navigator) {
+        // Enhanced registration with immediate update handling
+        navigator.serviceWorker.register('/sw.js', {
+          updateViaCache: 'none' // Always check for SW updates
+        }).then((registration) => {
+          console.log('✅ SW registered:', registration.scope);
+          
+          // Force update check immediately
+          registration.update();
+          
+          // Handle updates more aggressively
+          registration.addEventListener('updatefound', () => {
+            const newWorker = registration.installing;
+            console.log('🔄 New SW version found, installing...');
+            
+            if (newWorker) {
+              newWorker.addEventListener('statechange', () => {
+                console.log('SW state changed to:', newWorker.state);
+                
+                if (newWorker.state === 'installed') {
+                  if (navigator.serviceWorker.controller) {
+                    console.log('🚀 New SW installed, forcing activation...');
+                    newWorker.postMessage({ type: 'SKIP_WAITING' });
+                  } else {
+                    console.log('✅ SW installed for first time');
+                  }
+                }
+              });
+            }
+          });
+          
+          // Enhanced controller change handling
+          navigator.serviceWorker.addEventListener('controllerchange', () => {
+            console.log('🔄 SW controller changed - reloading page...');
+            window.location.reload();
+          });
+          
+          // Listen for messages from SW
+          navigator.serviceWorker.addEventListener('message', (event) => {
+            const { data } = event;
+            console.log('📨 Message from SW:', data);
+            
+            if (data.type === 'SW_ACTIVATED') {
+              console.log('✅ New SW activated:', data.message);
+            }
+          });
+          
+        }).catch((error) => {
+          console.error('❌ SW registration failed:', error);
+        });
+      }
+      
+      // Enhanced cache management utilities
+      window.filmflexCache = {
+        // Clear all caches and reload
+        clearAll: async () => {
+          console.log('🧹 Clearing all caches...');
+          try {
+            // Clear caches
+            if ('caches' in window) {
+              const cacheNames = await caches.keys();
+              console.log('Found caches:', cacheNames);
+              await Promise.all(cacheNames.map(name => caches.delete(name)));
+            }
+            
+            // Unregister all service workers
+            if ('serviceWorker' in navigator) {
+              const registrations = await navigator.serviceWorker.getRegistrations();
+              await Promise.all(registrations.map(reg => reg.unregister()));
+            }
+            
+            // Clear storage
+            localStorage.clear();
+            sessionStorage.clear();
+            
+            console.log('✅ All caches and storage cleared');
+            window.location.reload();
+          } catch (error) {
+            console.error('Failed to clear caches:', error);
+            window.location.reload();
+          }
+        },
+        
+        // Get cache information
+        info: async () => {
+          if ('caches' in window) {
+            const cacheNames = await caches.keys();
+            const cacheInfo = await Promise.all(
+              cacheNames.map(async (name) => {
+                const cache = await caches.open(name);
+                const keys = await cache.keys();
+                return {
+                  name,
+                  size: keys.length,
+                  urls: keys.map(req => req.url).slice(0, 5) // First 5 URLs
+                };
+              })
+            );
+            console.table(cacheInfo);
+            return cacheInfo;
+          }
+        },
+        
+        // Force SW update
+        forceUpdate: async () => {
+          if ('serviceWorker' in navigator) {
+            const registration = await navigator.serviceWorker.getRegistration();
+            if (registration) {
+              console.log('🔄 Forcing SW update...');
+              await registration.update();
+              console.log('✅ SW update triggered');
+            }
+          }
+        },
+        
+        // Enable debug mode
+        enableDebug: () => {
+          localStorage.setItem('filmflex-debug', 'true');
+          console.log('🔧 Debug mode enabled - reload to see debug logs');
+        },
+        
+        // Disable debug mode
+        disableDebug: () => {
+          localStorage.removeItem('filmflex-debug');
+          console.log('🔧 Debug mode disabled');
+        }
+      };
+      
+      // Auto-detect and fix blank page issues
+      setTimeout(() => {
+        const rootElement = document.getElementById('root');
+        if (rootElement && (!rootElement.innerHTML || rootElement.innerHTML.trim() === '')) {
+          console.error('🚨 BLANK PAGE DETECTED! Root element is empty after 3 seconds');
+          console.error('🔧 Attempting automatic fixes...');
+          
+          // Show temporary loading message
+          rootElement.innerHTML = `
+            <div style="display: flex; align-items: center; justify-content: center; min-height: 100vh; background: #1a1a2e; color: white; font-family: Arial, sans-serif;">
+              <div style="text-align: center; padding: 20px;">
+                <div style="font-size: 24px; margin-bottom: 20px;">🔄 Fixing Loading Issue...</div>
+                <div style="margin-bottom: 20px;">Please wait while we resolve the blank page problem.</div>
+                <button onclick="filmflexCache.clearAll()" style="background: #3b82f6; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin: 5px;">
+                  Clear Cache & Reload
+                </button>
+                <button onclick="location.reload()" style="background: #10b981; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin: 5px;">
+                  Simple Reload
+                </button>
+              </div>
+            </div>
+          `;
+          
+          // Try automatic cache clear after 2 seconds
+          setTimeout(() => {
+            console.log('🔧 Auto-clearing caches due to blank page...');
+            filmflexCache.clearAll();
+          }, 2000);
+        }
+      }, 3000);
+      
+      // Auto-clear cache on version mismatch (enhanced)
+      const APP_VERSION = '2025061503'; // Update this with each deployment
+      const storedVersion = localStorage.getItem('filmflex-version');
+      
       if (storedVersion && storedVersion !== APP_VERSION) {
-        console.log('Version mismatch detected, clearing cache...');
-        localStorage.setItem('app_version', APP_VERSION);
+        console.log(`🔄 Version mismatch: ${storedVersion} -> ${APP_VERSION}`);
+        console.log('🧹 Clearing caches for new version...');
+        
         if ('caches' in window) {
           caches.keys().then(cacheNames => {
-            return Promise.all(cacheNames.map(cacheName => caches.delete(cacheName)));
+            return Promise.all(cacheNames.map(name => caches.delete(name)));
+          }).then(() => {
+            localStorage.setItem('filmflex-version', APP_VERSION);
+            console.log('✅ Caches cleared for version update');
           });
+        } else {
+          localStorage.setItem('filmflex-version', APP_VERSION);
         }
       } else if (!storedVersion) {
-        localStorage.setItem('app_version', APP_VERSION);
+        localStorage.setItem('filmflex-version', APP_VERSION);
+        console.log('✅ Version tracking initialized');
       }
+      
+      // Global error handlers for better debugging
+      window.addEventListener('error', (event) => {
+        console.error('🚨 Global Error:', {
+          message: event.message,
+          filename: event.filename,
+          lineno: event.lineno,
+          colno: event.colno,
+          error: event.error
+        });
+        
+        // If it's a loading error, try cache clear
+        if (event.message.includes('Loading') || event.message.includes('import')) {
+          console.log('🔧 Loading error detected, clearing caches in 5 seconds...');
+          setTimeout(() => filmflexCache.clearAll(), 5000);
+        }
+      });
+      
+      window.addEventListener('unhandledrejection', (event) => {
+        console.error('🚨 Unhandled Promise Rejection:', event.reason);
+      });
+      
+      console.log('🔧 Enhanced cache management loaded. Use filmflexCache.info() to see cache status');
+      console.log('🔧 Available commands: filmflexCache.clearAll(), filmflexCache.forceUpdate(), filmflexCache.enableDebug()');
     </script>
   </body>
 </html>
