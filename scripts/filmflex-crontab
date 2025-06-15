@@ -1,0 +1,12 @@
+# FilmFlex Data Import Cron Jobs - Updated Schedule
+# Run movie data import twice daily at 6 AM and 6 PM
+0 6,18 * * * root cd /root/Film_Flex_Release && bash /root/Film_Flex_Release/scripts/data/import-movies.sh --max-pages=3 > /var/log/filmflex/cron-import-$(date +\%Y\%m\%d\%H\%M\%S).log 2>&1
+
+# Run a deep scan every Saturday at 6 AM (more comprehensive)
+0 6 * * 6 root cd /root/Film_Flex_Release && bash /root/Film_Flex_Release/scripts/data/import-movies.sh --deep-scan --max-pages=10 > /var/log/filmflex/cron-deep-import-$(date +\%Y\%m\%d\%H\%M\%S).log 2>&1
+
+# Monthly full database refresh (first Sunday of month at 2 AM)
+0 2 1-7 * 0 root cd /root/Film_Flex_Release && bash /root/Film_Flex_Release/scripts/data/import-all-movies-resumable.sh > /var/log/filmflex/cron-full-import-$(date +\%Y\%m\%d\%H\%M\%S).log 2>&1
+
+# Cleanup old logs (keep last 30 days)
+0 0 * * * root find /var/log/filmflex -name "*.log" -type f -mtime +30 -delete
