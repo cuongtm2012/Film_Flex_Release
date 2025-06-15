@@ -154,17 +154,18 @@ validate_directories() {
 validate_environment() {
     log "Validating production environment..."
     
-    # Check if running as root (should not be)
+    # Allow running as root in production environments
     if [ "$EUID" -eq 0 ]; then
-        log_error "This script should not be run as root for security reasons"
-        log_error "Please run as a regular user with sudo permissions"
-        exit 1
-    fi
-    
-    # Check sudo access
-    if ! sudo -n true 2>/dev/null; then
-        log_error "This script requires sudo access. Please ensure the user has sudo permissions"
-        exit 1
+        log_warning "Running as root user - ensuring proper permissions will be set"
+        # Set default user for file ownership if not specified
+        DEPLOY_USER="${DEPLOY_USER:-www-data}"
+    else
+        # Check sudo access for non-root users
+        if ! sudo -n true 2>/dev/null; then
+            log_error "This script requires sudo access. Please ensure the user has sudo permissions"
+            exit 1
+        fi
+        DEPLOY_USER=$(whoami)
     fi
     
     # Validate environment variables
