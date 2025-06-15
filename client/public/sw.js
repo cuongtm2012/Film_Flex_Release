@@ -1,6 +1,6 @@
 // Dynamic cache name with timestamp for automatic invalidation
 const CACHE_VERSION = 'v2';
-const BUILD_TIME = Date.now();
+const BUILD_TIME = 1749965229;
 const CACHE_NAME = `filmflex-${CACHE_VERSION}-${BUILD_TIME}`;
 
 // Only cache essential static assets, not dynamic content
