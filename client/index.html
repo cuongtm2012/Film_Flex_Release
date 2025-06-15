@@ -141,19 +141,61 @@
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     
-    <!-- Service Worker Registration for PWA -->
+    <!-- Service Worker Registration for PWA with proper update handling -->
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('/sw.js')
             .then((registration) => {
               console.log('SW registered: ', registration);
+              
+              // Check for service worker updates
+              registration.addEventListener('updatefound', () => {
+                const newWorker = registration.installing;
+                if (newWorker) {
+                  newWorker.addEventListener('statechange', () => {
+                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                      // New service worker available, notify user or auto-update
+                      console.log('New service worker available, refreshing...');
+                      window.location.reload();
+                    }
+                  });
+                }
+              });
             })
             .catch((registrationError) => {
               console.log('SW registration failed: ', registrationError);
             });
+            
+          // Listen for controlling service worker changes
+          navigator.serviceWorker.addEventListener('controllerchange', () => {
+            console.log('Service worker controller changed, reloading...');
+            window.location.reload();
+          });
         });
       }
+      
+      // Cache busting utility for emergency use
+      window.clearAppCache = function() {
+        if ('serviceWorker' in navigator && 'caches' in window) {
+          // Clear all caches
+          caches.keys().then(cacheNames => {
+            return Promise.all(
+              cacheNames.map(cacheName => caches.delete(cacheName))
+            );
+          }).then(() => {
+            // Unregister service worker
+            return navigator.serviceWorker.getRegistrations();
+          }).then(registrations => {
+            return Promise.all(
+              registrations.map(registration => registration.unregister())
+            );
+          }).then(() => {
+            console.log('All caches cleared and service workers unregistered');
+            window.location.reload();
+          });
+        }
+      };
     </script>
   </body>
 </html>
