@@ -143,21 +143,44 @@
     
     <!-- Service Worker Registration for PWA with proper update handling -->
     <script>
+      // Immediate cache clearing for blank page fix
+      if ('serviceWorker' in navigator && 'caches' in window) {
+        // Clear all existing caches immediately on page load
+        caches.keys().then(cacheNames => {
+          if (cacheNames.length > 0) {
+            console.log('Clearing old caches:', cacheNames);
+            return Promise.all(
+              cacheNames.map(cacheName => caches.delete(cacheName))
+            );
+          }
+        }).then(() => {
+          console.log('All old caches cleared');
+        });
+      }
+      
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('/sw.js')
             .then((registration) => {
               console.log('SW registered: ', registration);
               
+              // Force immediate update check
+              registration.update();
+              
               // Check for service worker updates
               registration.addEventListener('updatefound', () => {
                 const newWorker = registration.installing;
                 if (newWorker) {
                   newWorker.addEventListener('statechange', () => {
-                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                      // New service worker available, notify user or auto-update
-                      console.log('New service worker available, refreshing...');
-                      window.location.reload();
+                    if (newWorker.state === 'installed') {
+                      if (navigator.serviceWorker.controller) {
+                        // New service worker available, auto-update immediately
+                        console.log('New service worker available, updating...');
+                        newWorker.postMessage({ type: 'SKIP_WAITING' });
+                      } else {
+                        // First time installation
+                        console.log('Service worker installed for the first time');
+                      }
                     }
                   });
                 }
@@ -175,27 +198,58 @@
         });
       }
       
-      // Cache busting utility for emergency use
+      // Enhanced cache busting utility
       window.clearAppCache = function() {
+        console.log('🧹 Clearing all app caches...');
         if ('serviceWorker' in navigator && 'caches' in window) {
           // Clear all caches
           caches.keys().then(cacheNames => {
+            console.log('Found caches:', cacheNames);
             return Promise.all(
-              cacheNames.map(cacheName => caches.delete(cacheName))
+              cacheNames.map(cacheName => {
+                console.log('Deleting cache:', cacheName);
+                return caches.delete(cacheName);
+              })
             );
           }).then(() => {
-            // Unregister service worker
+            // Unregister all service workers
             return navigator.serviceWorker.getRegistrations();
           }).then(registrations => {
+            console.log('Found service workers:', registrations.length);
             return Promise.all(
-              registrations.map(registration => registration.unregister())
+              registrations.map(registration => {
+                console.log('Unregistering service worker');
+                return registration.unregister();
+              })
             );
           }).then(() => {
-            console.log('All caches cleared and service workers unregistered');
+            console.log('✅ All caches cleared and service workers unregistered');
+            // Force hard reload
+            window.location.reload(true);
+          }).catch(error => {
+            console.error('Error clearing cache:', error);
             window.location.reload();
           });
+        } else {
+          console.log('Service worker or caches not supported, doing hard reload');
+          window.location.reload(true);
         }
       };
+      
+      // Auto-clear cache on version mismatch
+      const APP_VERSION = '1749965229';
+      const storedVersion = localStorage.getItem('app_version');
+      if (storedVersion && storedVersion !== APP_VERSION) {
+        console.log('Version mismatch detected, clearing cache...');
+        localStorage.setItem('app_version', APP_VERSION);
+        if ('caches' in window) {
+          caches.keys().then(cacheNames => {
+            return Promise.all(cacheNames.map(cacheName => caches.delete(cacheName)));
+          });
+        }
+      } else if (!storedVersion) {
+        localStorage.setItem('app_version', APP_VERSION);
+      }
     </script>
   </body>
 </html>

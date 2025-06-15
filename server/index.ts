@@ -59,6 +59,17 @@ app.use(cors({
 
 // Additional headers for video streaming support
 app.use((req, res, next) => {
+  // Cache control headers for different file types
+  if (req.path.match(/\.(js|css)$/)) {
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+  } else if (req.path.match(/\.(png|jpg|jpeg|gif|svg|ico|webp)$/)) {
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+  } else if (req.path.match(/\.html$/)) {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+  }
+  
   // Allow all origins for media files
   if (req.path.match(/\.(m3u8|ts|mp4|webm|ogg)$/)) {
     res.header('Access-Control-Allow-Origin', '*');
