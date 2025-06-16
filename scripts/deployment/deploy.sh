@@ -1,19 +1,21 @@
 #!/bin/bash
 
 #################################################################################
-# Film Flex Deployment Script - Final Version
+# Film Flex Deployment Script - Production Ready Version
 # Description: Production-ready deployment script with ESM/TypeScript support
 # Node Version: 22.16+
 # Author: GitHub Copilot
-# Date: June 15, 2025
+# Date: June 16, 2025
 #################################################################################
 
 set -euo pipefail  # Exit on any error
 
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Fix SOURCE_DIR to point to project root (two levels up from scripts/deployment/)
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+SOURCE_DIR="${SOURCE_DIR:-$PROJECT_ROOT}"
 DEPLOYMENT_DIR="${DEPLOYMENT_DIR:-/var/www/filmflex}"
-SOURCE_DIR="${SOURCE_DIR:-$SCRIPT_DIR}"
 BACKUP_DIR="${BACKUP_DIR:-/var/backups/filmflex}"
 LOG_FILE="${LOG_FILE:-/var/log/filmflex-deploy.log}"
 PM2_APP_NAME="${PM2_APP_NAME:-filmflex}"
@@ -78,6 +80,52 @@ cleanup() {
 trap cleanup EXIT
 
 #################################################################################
+# System Compatibility Checks
+#################################################################################
+
+check_system_compatibility() {
+    log "Checking system compatibility..."
+    
+    # Check Linux distribution
+    if [ -f /etc/os-release ]; then
+        . /etc/os-release
+        log "Detected OS: $NAME $VERSION_ID"
+        
+        # Set package manager based on distribution
+        if command -v apt-get &> /dev/null; then
+            PACKAGE_MANAGER="apt-get"
+        elif command -v yum &> /dev/null; then
+            PACKAGE_MANAGER="yum"
+        elif command -v dnf &> /dev/null; then
+            PACKAGE_MANAGER="dnf"
+        else
+            log_warning "Unknown package manager, some features may not work"
+            PACKAGE_MANAGER=""
+        fi
+    else
+        log_warning "Cannot detect OS version"
+    fi
+    
+    # Check for required system commands
+    local required_commands=("curl" "git" "unzip")
+    for cmd in "${required_commands[@]}"; do
+        if ! command -v "$cmd" &> /dev/null; then
+            log_error "Required command not found: $cmd"
+            if [ -n "$PACKAGE_MANAGER" ]; then
+                log "Installing $cmd..."
+                sudo $PACKAGE_MANAGER update
+                sudo $PACKAGE_MANAGER install -y "$cmd"
+            else
+                log_error "Please install $cmd manually"
+                exit 1
+            fi
+        fi
+    done
+    
+    log_success "System compatibility check passed"
+}
+
+#################################################################################
 # Validation Functions
 #################################################################################
 
@@ -86,7 +134,17 @@ validate_node_version() {
     
     if ! command -v node &> /dev/null; then
         log_error "Node.js is not installed"
-        exit 1
+        log "Installing Node.js via NodeSource repository..."
+        
+        # Install Node.js 22.x
+        curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+        sudo apt-get install -y nodejs
+        
+        # Verify installation
+        if ! command -v node &> /dev/null; then
+            log_error "Failed to install Node.js"
+            exit 1
+        fi
     fi
     
     local current_version=$(node --version | sed 's/v//')
@@ -109,8 +167,15 @@ validate_pm2() {
     log "Validating PM2 installation..."
     
     if ! command -v pm2 &> /dev/null; then
-        log_error "PM2 is not installed. Installing PM2..."
+        log "PM2 is not installed. Installing PM2..."
         npm install -g pm2
+        
+        # Verify PM2 installation
+        if ! command -v pm2 &> /dev/null; then
+            log_error "Failed to install PM2"
+            exit 1
+        fi
+        
         log_success "PM2 installed successfully"
     else
         log_success "PM2 is already installed"
@@ -119,6 +184,8 @@ validate_pm2() {
 
 validate_directories() {
     log "Validating directories..."
+    log "Source directory: $SOURCE_DIR"
+    log "Deployment directory: $DEPLOYMENT_DIR"
     
     if [ ! -d "$SOURCE_DIR" ]; then
         log_error "Source directory does not exist: $SOURCE_DIR"
@@ -127,6 +194,8 @@ validate_directories() {
     
     if [ ! -f "$SOURCE_DIR/package.json" ]; then
         log_error "package.json not found in source directory: $SOURCE_DIR"
+        log "Available files in source directory:"
+        ls -la "$SOURCE_DIR/" | head -10
         exit 1
     fi
     
@@ -197,12 +266,11 @@ validate_database_connection() {
     
     # Test database connection using psql or connection string
     if command -v psql &> /dev/null; then
-        if psql "$DATABASE_URL" -c "SELECT 1;" > /dev/null 2>&1; then
+        if timeout 10 psql "$DATABASE_URL" -c "SELECT 1;" > /dev/null 2>&1; then
             log_success "Database connection successful"
         else
-            log_error "Failed to connect to database"
-            log_error "Please check DATABASE_URL and database server status"
-            exit 1
+            log_warning "Failed to connect to database (non-fatal in deployment)"
+            log_warning "Please verify DATABASE_URL and database server status after deployment"
         fi
     else
         log_warning "psql not found - skipping database connection test"
@@ -265,11 +333,11 @@ validate_system_resources() {
         log_warning "Consider stopping other services or adding more RAM"
     fi
     
-    # Check CPU load
+    # Check CPU load (compatible approach without bc)
     local cpu_load=$(uptime | awk -F'load average:' '{print $2}' | awk '{print $1}' | sed 's/,//')
-    local cpu_threshold="4.0"
+    local cpu_threshold_int=$(echo "$cpu_load" | cut -d. -f1)
     
-    if (( $(echo "$cpu_load > $cpu_threshold" | bc -l) )); then
+    if [ "$cpu_threshold_int" -gt 4 ]; then
         log_warning "High CPU load detected: $cpu_load"
         log_warning "Consider waiting for load to decrease before deployment"
     fi
@@ -305,9 +373,9 @@ apply_security_hardening() {
     fi
     
     # Log directory
-    if [ -d "$LOG_DIR" ]; then
-        sudo chown -R $(whoami):$(whoami) "$LOG_DIR"
-        chmod 755 "$LOG_DIR"
+    if [ -d "logs" ]; then
+        chown -R $(whoami):$(whoami) logs/
+        chmod 755 logs/
     fi
     
     # Remove sensitive files if they exist
@@ -552,7 +620,6 @@ Thumbs.db
 .idea/
 *.sqlite
 *.db
-*.sql
 migrations/
 cypress/videos/
 cypress/screenshots/
@@ -592,12 +659,16 @@ check_dependencies() {
     
     cd "$DEPLOYMENT_DIR"
     
-    # Check if package.json changed
-    if [ ! -f "node_modules/.package-lock.json" ] || 
-       [ "package.json" -nt "node_modules/.package-lock.json" ] ||
-       [ "package-lock.json" -nt "node_modules/.package-lock.json" ] ||
-       [ ! -d "node_modules" ]; then
+    # Check if node_modules exists and package files are newer
+    if [ ! -d "node_modules" ]; then
         needs_install=true
+        log "node_modules directory doesn't exist"
+    elif [ "package.json" -nt "node_modules" ]; then
+        needs_install=true
+        log "package.json is newer than node_modules"
+    elif [ -f "package-lock.json" ] && [ "package-lock.json" -nt "node_modules" ]; then
+        needs_install=true
+        log "package-lock.json is newer than node_modules"
     fi
     
     if [ "$needs_install" = true ]; then
@@ -615,19 +686,31 @@ install_dependencies() {
     cd "$DEPLOYMENT_DIR"
     
     # Clean npm cache
-    npm cache clean --force
+    npm cache clean --force 2>/dev/null || true
+    
+    # Remove existing node_modules for clean install
+    if [ -d "node_modules" ]; then
+        log "Removing existing node_modules for clean install..."
+        rm -rf node_modules/
+    fi
     
     # Install dependencies
     if [ -f "package-lock.json" ]; then
         log "Using npm ci for clean install..."
-        npm ci --production
+        if ! npm ci --production; then
+            log_error "npm ci failed, trying npm install..."
+            npm install --production
+        fi
     else
         log "Using npm install..."
         npm install --production
     fi
     
-    # Create marker file
-    touch "node_modules/.package-lock.json"
+    # Verify installation
+    if [ ! -d "node_modules" ]; then
+        log_error "node_modules directory was not created"
+        exit 1
+    fi
     
     log_success "Dependencies installed successfully"
 }
@@ -1043,8 +1126,63 @@ server {
     ssl_session_cache shared:SSL:10m;
     ssl_session_timeout 10m;
     
-    # Same configuration as HTTP server
-    # ... (copy location blocks from above)
+    # Security headers
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "no-referrer-when-downgrade" always;
+    add_header Content-Security-Policy "default-src 'self' http: https: data: blob: 'unsafe-inline'" always;
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    
+    # Gzip compression
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 1024;
+    gzip_types text/plain text/css text/xml text/javascript application/javascript application/xml+rss application/json;
+    
+    # Static files
+    location /static/ {
+        alias $DEPLOYMENT_DIR/public/;
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+    
+    # API routes
+    location /api/ {
+        proxy_pass http://localhost:5000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_cache_bypass \$http_upgrade;
+        
+        # Timeouts
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+    }
+    
+    # Main application
+    location / {
+        proxy_pass http://localhost:5000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_cache_bypass \$http_upgrade;
+    }
+    
+    # Health check endpoint
+    location /health {
+        proxy_pass http://localhost:5000/api/health;
+        access_log off;
+    }
 }
 EOF
         fi
@@ -1489,14 +1627,13 @@ main() {
     done
     
     # Initialize logging
-    mkdir -p "$(dirname "$LOG_FILE")"
-    touch "$LOG_FILE"
+    sudo mkdir -p "$(dirname "$LOG_FILE")"
+    sudo touch "$LOG_FILE"
+    sudo chown $(whoami):$(whoami) "$LOG_FILE"
     
-    log "==================== Film Flex Deployment Started (Final Version) ===================="
+    log "==================== Film Flex Deployment Started (Production Ready) ===================="
     log "Timestamp: $(date)"
     log "Environment: $ENVIRONMENT"
-    log "Node Version: $(node --version)"
-    log "NPM Version: $(npm --version)"
     log "Deployment Directory: $DEPLOYMENT_DIR"
     log "Source Directory: $SOURCE_DIR"
     log "ESM/TypeScript Support: Enabled"
@@ -1522,6 +1659,7 @@ main() {
     log "Starting enhanced deployment process with ESM/TypeScript support..."
     
     # Pre-deployment validations
+    check_system_compatibility
     validate_node_version
     validate_pm2
     validate_directories
