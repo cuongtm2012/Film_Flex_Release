@@ -48,10 +48,8 @@ async function fetchMovieDetail(slug: string): Promise<MovieDetailResponse> {
   if (!movie) {
     throw new Error("Movie not found");
   }
-
   const episodes = await storage.getEpisodesByMovieSlug(slug);
 
-  console.log(`[DEBUG] Converting movie ${slug} from DB to API format. section: ${movie.section}, isRecommended: ${movie.isRecommended}`);
   // Convert to API response format
   return {
     movie: {
@@ -265,11 +263,9 @@ export function registerRoutes(app: Express): void {
     const successCount = { saved: 0, existing: 0, failed: 0 };
     const errors: Error[] = [];
     
-    for (const item of items) {
-      try {
+    for (const item of items) {      try {
         // Check if this is a valid movie object with required fields
         if (!item || !item.slug || !item._id) {
-          console.warn(`Skipping invalid movie item:`, item);
           successCount.failed++;
           continue;
         }
@@ -330,14 +326,11 @@ export function registerRoutes(app: Express): void {
   
   // Get all recommended movies (must come before /movies/:slug route)
   router.get("/movies/recommended", async (req, res) => {
-    try {
-      const page = parseInt(req.query.page as string) || 1;
+    try {      const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 10;
 
-      console.log(`[DEBUG] Fetching recommended movies: page=${page}, limit=${limit}`);
       const result = await storage.getRecommendedMovies(page, limit);
       
-      console.log(`[DEBUG] Returning ${result.data.length} recommended movies`);
       res.json({
         status: true,
         items: result.data,
@@ -362,37 +355,28 @@ export function registerRoutes(app: Express): void {
       
       // Handle non-existent movies for testing purposes
       if (slug.includes('non-existent') || slug.includes('fake') || slug.includes('invalid')) {
-        console.log(`Request for a likely non-existent movie: ${slug}`);
-        return res.status(404).json({ 
+        console.log(`Request for a likely non-existent movie: ${slug}`);        return res.status(404).json({ 
           message: "Movie not found", 
           status: false 
         });
       }
       
-      console.log(`[DEBUG] Fetching movie details for slug: ${slug}${clearCache ? ' (cache bypass requested)' : ''}`);
-      
       // If clear_cache is true, first clear any existing cache for this movie
       if (clearCache) {
-        console.log(`[DEBUG] Clearing cache for ${slug} before fetching fresh data`);
         await storage.clearMovieDetailCache(slug);
       }
       
       // After possibly clearing the cache, try to get from cache
       let movieDetailData = clearCache ? null : await storage.getMovieDetailCache(slug);
-      
-      // If not in cache or cache was cleared, fetch from database
+        // If not in cache or cache was cleared, fetch from database
       if (!movieDetailData) {
-        console.log(`[DEBUG] No cached data for ${slug}, fetching from database or API`);
         try {
           // First try to get from our database
           const movieFromDb = await storage.getMovieBySlug(slug);
           
           if (movieFromDb) {
-            console.log(`[DEBUG] Found movie ${slug} in database, fetching episodes`);
-            console.log(`[DEBUG] Movie section: ${movieFromDb.section}, isRecommended: ${movieFromDb.isRecommended}`);
             // If we find it in the database, convert to the expected response format
             const episodes = await storage.getEpisodesByMovieSlug(slug);
-            console.log(`[DEBUG] Episodes data for ${slug}:`, JSON.stringify(episodes));
               // Check if the movie data needs enrichment (missing important fields)
             const needsEnrichment = !movieFromDb.description || 
                                    !movieFromDb.actors || 
@@ -461,7 +445,6 @@ export function registerRoutes(app: Express): void {
             }            // Convert episodes to the expected format for the API response
             const formattedEpisodes = [];
             if (episodes && episodes.length > 0) {
-              console.log(`[DEBUG] Found ${episodes.length} episodes for ${slug}, formatting for response`);
               
               // Group episodes by server name
               const episodesByServer: { [key: string]: any[] } = {};
@@ -492,11 +475,9 @@ export function registerRoutes(app: Express): void {
               for (const serverName in episodesByServer) {
                 formattedEpisodes.push({
                   server_name: serverName,
-                  server_data: episodesByServer[serverName]
-                });
+                  server_data: episodesByServer[serverName]                });
               }
             } else {
-              console.log(`[DEBUG] No episodes found for ${slug}, creating default episode`);
               // Create a default episode if none exists
               formattedEpisodes.push({
                 server_name: "Default Server",
@@ -532,31 +513,24 @@ export function registerRoutes(app: Express): void {
                 director: enrichedMovie.directors ? enrichedMovie.directors.split(", ") : [],
                 category: (enrichedMovie.categories as Category[]) || [],
                 country: (enrichedMovie.countries as Country[]) || []
-              },
-              episodes: formattedEpisodes
+              },              episodes: formattedEpisodes
             };
-              console.log(`[DEBUG] Final episodes data for ${slug}:`, JSON.stringify(formattedEpisodes));
-            
+              
             // Cache this result
             if (movieDetailData) {
               await storage.cacheMovieDetail(movieDetailData);
-            }
-          } else {
+            }          } else {
             // If not in database, try to fetch from external API
             try {
-              console.log(`[DEBUG] Movie ${slug} not found in database, fetching from API`);
               movieDetailData = await fetchMovieDetail(slug);
               
               // Validate movie data from API
               if (!movieDetailData || !movieDetailData.movie || !movieDetailData.movie._id) {
-                console.error(`Invalid movie data structure for slug: ${slug}`);
-                return res.status(404).json({ 
+                console.error(`Invalid movie data structure for slug: ${slug}`);                return res.status(404).json({ 
                   message: "Movie not found or invalid data", 
                   status: false 
                 });
               }
-              
-              console.log(`[DEBUG] API response episodes for ${slug}:`, JSON.stringify(movieDetailData.episodes || []));
               
               // Check for incomplete data and enrich if needed
               if (!movieDetailData.movie.content || movieDetailData.movie.content.trim() === "") {
@@ -583,10 +557,8 @@ export function registerRoutes(app: Express): void {
                 if (!movieDetailData.movie.country || movieDetailData.movie.country.length === 0) {
                   movieDetailData.movie.country = [{ name: "International", id: "international", slug: "international" }];
                 }
-                
-                // Ensure episodes exists
+                  // Ensure episodes exists
                 if (!movieDetailData.episodes || !Array.isArray(movieDetailData.episodes) || movieDetailData.episodes.length === 0) {
-                  console.log(`[DEBUG] No episodes in API response, adding default episode`);
                   movieDetailData.episodes = [{
                     server_name: "Default Server",
                     server_data: [{
@@ -603,12 +575,9 @@ export function registerRoutes(app: Express): void {
               if (movieDetailData) {
                 await storage.cacheMovieDetail(movieDetailData);
               }
-              
-              // Save movie and episodes to storage
+                // Save movie and episodes to storage
               const movieModel = convertToMovieModel(movieDetailData);
               const episodeModels = convertToEpisodeModels(movieDetailData);
-              
-              console.log(`[DEBUG] Converting ${episodeModels.length} episodes to save to database`);
               
               // Check if movie already exists before saving
               const existingMovie = await storage.getMovieByMovieId(movieModel.movieId);
@@ -638,10 +607,8 @@ export function registerRoutes(app: Express): void {
           return res.status(404).json({ 
             message: "Movie not found", 
             status: false 
-          });
-        }
+          });        }
       } else {
-        console.log(`[DEBUG] Found ${slug} in cache. Episodes data:`, JSON.stringify(movieDetailData.episodes || []));
         
         // Check if cached movie has incomplete data
         if (!movieDetailData.movie.content || movieDetailData.movie.content.trim() === "" ||
@@ -650,14 +617,11 @@ export function registerRoutes(app: Express): void {
             !movieDetailData.episodes || movieDetailData.episodes.length === 0) {
           
           console.log(`Cached movie ${slug} has incomplete data, enriching...`);
-          
-          // Get movie details from database to check for updated info
+            // Get movie details from database to check for updated info
           const movieFromDb = await storage.getMovieBySlug(slug);
           
           if (movieFromDb && movieFromDb.description) {
-            console.log(`[DEBUG] Using database data to enrich cached movie ${slug}`);
             const episodes = await storage.getEpisodesByMovieSlug(slug);
-            console.log(`[DEBUG] Episodes from database for ${slug}:`, JSON.stringify(episodes));
               // Format episodes for response
             const formattedEpisodes = [];
             if (episodes && episodes.length > 0) {
@@ -725,10 +689,8 @@ export function registerRoutes(app: Express): void {
               // Update the cache
             if (movieDetailData) {
               await storage.cacheMovieDetail(movieDetailData);
-            }
-          } else {
+            }          } else {
             // No better data in database, enrich with generic info
-            console.log(`[DEBUG] No database data for ${slug}, using generic enrichment`);
             const enrichedMovie = {
               ...movieDetailData.movie,
               content: `${movieDetailData.movie.name} is a film featured in our collection. We're working on gathering more information about this title.`,
@@ -744,10 +706,8 @@ export function registerRoutes(app: Express): void {
             if (!enrichedMovie.country || enrichedMovie.country.length === 0) {
               enrichedMovie.country = [{ name: "International", id: "international", slug: "international" }];
             }
-            
-            // Ensure episodes exists
+              // Ensure episodes exists
             if (!movieDetailData.episodes || !Array.isArray(movieDetailData.episodes) || movieDetailData.episodes.length === 0) {
-              console.log(`[DEBUG] Adding default episode to cached movie ${slug}`);
               movieDetailData.episodes = [{
                 server_name: "Default Server",
                 server_data: [{
@@ -786,15 +746,11 @@ export function registerRoutes(app: Express): void {
           message: "Movie data is invalid or missing",
           status: false
         });
-      }
-
-      // Ensure episodes array is present
+      }      // Ensure episodes array is present
       if (!movieDetailData.episodes || !Array.isArray(movieDetailData.episodes)) {
-        console.log(`[DEBUG] Final check: Adding empty episodes array for ${slug}`);
         movieDetailData.episodes = [];
       }
       
-      console.log(`[DEBUG] Final episode count for ${slug}: ${movieDetailData.episodes.length}`);
       console.log(`Serving movie details for ${slug}`);
       res.json(movieDetailData);
     } catch (error) {
@@ -1589,15 +1545,36 @@ export function registerRoutes(app: Express): void {
       res.status(500).json({ message: "Failed to get view history" });
     }
   });
+  
+  router.delete("/users/:userId/view-history/:slug", async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const { slug } = req.params;
+      
+      await storage.removeFromViewHistory(userId, slug);
+      res.json({ message: "Removed from view history successfully" });
+    } catch (error) {
+      console.error(`Error removing from view history for user ${req.params.userId} and movie ${req.params.slug}:`, error);
+      res.status(500).json({ message: "Failed to remove from view history" });
+    }
+  });
+
+  router.delete("/users/:userId/view-history", async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      
+      await storage.clearViewHistory(userId);
+      res.json({ message: "View history cleared successfully" });
+    } catch (error) {
+      console.error(`Error clearing view history for user ${req.params.userId}:`, error);
+      res.status(500).json({ message: "Failed to clear view history" });
+    }
+  });
 
   // Update movie details
-  router.put("/movies/:slug", async (req, res) => {
-    try {
+  router.put("/movies/:slug", async (req, res) => {    try {
       const { slug } = req.params;
       const updateData = req.body;
-
-      // Log the raw request body for debugging
-      console.log(`[DEBUG] PUT /movies/${slug} - Received request body:`, JSON.stringify(updateData));
 
       // Handle section field - convert "none" to null
       if (updateData.section === "none") {

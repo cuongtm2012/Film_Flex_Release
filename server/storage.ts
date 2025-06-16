@@ -95,6 +95,8 @@ export interface IStorage {
   addToViewHistory(userId: number, movieSlug: string, progress?: number): Promise<void>;
   updateViewProgress(userId: number, movieSlug: string, progress: number): Promise<void>;
   getViewedMovie(userId: number, movieSlug: string): Promise<ViewHistory | undefined>;
+  removeFromViewHistory(userId: number, movieSlug: string): Promise<void>;
+  clearViewHistory(userId: number): Promise<void>;
   
   // Content Approval methods
   submitContentForApproval(approval: InsertContentApproval): Promise<ContentApproval>;
@@ -354,20 +356,14 @@ export class DatabaseStorage implements IStorage {
     
     // Build filter conditions
     let filterConditions = sql`TRUE`;
-    
-    if (filters?.isRecommended !== undefined) {
+      if (filters?.isRecommended !== undefined) {
       filterConditions = sql`${filterConditions} AND ${movies.isRecommended} = ${filters.isRecommended}`;
-      console.log(`[DEBUG] Adding isRecommended filter: ${filters.isRecommended}`);
     }
-    
-    if (filters?.type) {
+      if (filters?.type) {
       filterConditions = sql`${filterConditions} AND ${movies.type} = ${filters.type}`;
-      console.log(`[DEBUG] Adding type filter: ${filters.type}`);
     }
-    
-    if (filters?.section) {
+      if (filters?.section) {
       filterConditions = sql`${filterConditions} AND ${movies.section} = ${filters.section}`;
-      console.log(`[DEBUG] Adding section filter: ${filters.section}`);
     }
     
     // For the year sorting case, we need to get all movies and sort manually
@@ -469,18 +465,15 @@ export class DatabaseStorage implements IStorage {
     const dbUpdateData: Partial<typeof movies.$inferInsert> = {};
 
     // Handle section field with validation
-    if ('section' in updateData) {
-      const validSections = ['trending_now', 'latest_movies', 'top_rated', 'popular_tv', 'anime', null];
+    if ('section' in updateData) {      const validSections = ['trending_now', 'latest_movies', 'top_rated', 'popular_tv', 'anime', null];
       dbUpdateData.section = validSections.includes(updateData.section as string) 
         ? updateData.section as string
         : null;
-      console.log(`[DEBUG] Setting section to: ${dbUpdateData.section}`);
     }
 
     // Handle isRecommended as boolean
     if ('isRecommended' in updateData) {
       dbUpdateData.isRecommended = Boolean(updateData.isRecommended);
-      console.log(`[DEBUG] Setting isRecommended to: ${dbUpdateData.isRecommended}`);
     }
 
     // Handle standard fields
@@ -517,12 +510,8 @@ export class DatabaseStorage implements IStorage {
 
     // Handle episode fields
     if ('episodeCurrent' in updateData) dbUpdateData.episodeCurrent = updateData.episodeCurrent;
-    if ('episodeTotal' in updateData) dbUpdateData.episodeTotal = updateData.episodeTotal;
-
-    // Update modification timestamp
+    if ('episodeTotal' in updateData) dbUpdateData.episodeTotal = updateData.episodeTotal;    // Update modification timestamp
     dbUpdateData.modifiedAt = new Date();
-
-    console.log(`[DEBUG] Updating movie ${slug} with data:`, dbUpdateData);
 
     try {
       const [updatedMovie] = await db.update(movies)
@@ -1015,6 +1004,19 @@ export class DatabaseStorage implements IStorage {
     return viewedMovie;
   }
 
+  async removeFromViewHistory(userId: number, movieSlug: string): Promise<void> {
+    await db.delete(viewHistory)
+      .where(and(
+        eq(viewHistory.userId, userId),
+        eq(viewHistory.movieSlug, movieSlug)
+      ));
+  }
+
+  async clearViewHistory(userId: number): Promise<void> {
+    await db.delete(viewHistory)
+      .where(eq(viewHistory.userId, userId));
+  }
+
   // Content management methods
   async submitContentForApproval(approval: InsertContentApproval): Promise<ContentApproval> {
     const [newApproval] = await db.insert(contentApprovals).values({
@@ -1141,21 +1143,17 @@ export class DatabaseStorage implements IStorage {
     )`;
 
     let conditions = searchConditions;
-    
-    // Add filters if specified
+      // Add filters if specified
     if (filters?.section) {
       conditions = sql`${conditions} AND ${movies.section} = ${filters.section}`;
-      console.log(`[DEBUG] Adding section filter: ${filters.section} to search query`);
     }
     
     if (filters?.isRecommended !== undefined) {
       conditions = sql`${conditions} AND ${movies.isRecommended} = ${filters.isRecommended}`;
-      console.log(`[DEBUG] Adding isRecommended filter: ${filters.isRecommended} to search query`);
     }
     
     if (filters?.type) {
       conditions = sql`${conditions} AND ${movies.type} = ${filters.type}`;
-      console.log(`[DEBUG] Adding type filter: ${filters.type} to search query`);
     }
 
     const baseQuery = db.select()
@@ -1253,12 +1251,10 @@ export class DatabaseStorage implements IStorage {
         .orderBy(desc(movies.modifiedAt))
         .limit(limit)
         .offset(offset);
-      
-      const [{ animeCount }] = await db.select({ animeCount: sql<number>`count(*)` })
+        const [{ animeCount }] = await db.select({ animeCount: sql<number>`count(*)` })
         .from(movies)
         .where(animeConditions);
       
-      console.log(`[DEBUG] Found ${animeData.length} anime movies with type='hoathinh'`);
       return { data: animeData, total: animeCount || 0 };
     }
     
@@ -1275,13 +1271,11 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(movies.modifiedAt))
       .limit(limit)
       .offset(offset);
-    
-    // Count total recommended movies
+      // Count total recommended movies
     const [{ count }] = await db.select({ count: sql<number>`count(*)` })
       .from(movies)
       .where(eq(movies.isRecommended, true));
     
-    console.log(`[DEBUG] Found ${count} recommended movies`);
     return { data, total: count || 0 };
   }
 
@@ -1315,11 +1309,9 @@ export class DatabaseStorage implements IStorage {
 
     return cached.data;
   }
-
   async clearMovieDetailCache(slug: string): Promise<void> {
     const key = this.getCacheKey('movieDetail', slug);
     await this.clearCache(key);
-    console.log(`[DEBUG] Cleared cache for movie: ${slug}`);
   }
 
   async cacheMovieList(data: MovieListResponse, page: number): Promise<void> {
@@ -1336,17 +1328,9 @@ export class DatabaseStorage implements IStorage {
       if (movieClone.section === undefined || movieClone.section === null) {
         movieClone.section = null;
       }
-      
-      // Ensure isRecommended is a proper boolean
+        // Ensure isRecommended is a proper boolean
       // Use triple equals to ensure we're doing a strict equality check
       movieClone.isRecommended = movieClone.isRecommended === true;
-      
-      console.log(`[DEBUG] Caching movie ${movieClone.slug || 'unknown'} with:`, {
-        section: movieClone.section,
-        sectionType: typeof movieClone.section,
-        isRecommended: movieClone.isRecommended,
-        isRecommendedType: typeof movieClone.isRecommended
-      });
       
       // Replace the movie object with our fixed version
       data.movie = movieClone;
