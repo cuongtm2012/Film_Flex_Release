@@ -5,7 +5,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { UserProfilePage } from '../client/src/pages/UserProfilePage';
+import { ProfilePage } from '../client/src/pages/ProfilePage';
 
 describe('User Profile', () => {
   // TC_UP_001: Verify User Profile page loads successfully
@@ -25,7 +25,7 @@ describe('User Profile', () => {
       json: () => Promise.resolve({ user: mockUser })
     });
     
-    render(<UserProfilePage />);
+    render(<ProfilePage />);
     
     // Verify user profile information is displayed
     await waitFor(() => {
@@ -75,7 +75,7 @@ describe('User Profile', () => {
         })
       });
     
-    render(<UserProfilePage />);
+    render(<ProfilePage />);
     
     // Click on the Recent Activity tab
     const recentActivityTab = screen.getByRole('tab', { name: /recent activity/i });
@@ -124,7 +124,7 @@ describe('User Profile', () => {
         })
       });
     
-    render(<UserProfilePage />);
+    render(<ProfilePage />);
     
     // Click on the Watchlist tab
     const watchlistTab = screen.getByRole('tab', { name: /watchlist/i });
@@ -175,7 +175,7 @@ describe('User Profile', () => {
         })
       });
     
-    render(<UserProfilePage />);
+    render(<ProfilePage />);
     
     // Click on the Watch History tab
     const watchHistoryTab = screen.getByRole('tab', { name: /watch history/i });
@@ -259,7 +259,7 @@ describe('User Profile', () => {
       reload: jest.fn()
     };
     
-    render(<UserProfilePage />);
+    render(<ProfilePage />);
     
     // Click on the Recent Activity tab and verify content
     const recentActivityTab = screen.getByRole('tab', { name: /recent activity/i });

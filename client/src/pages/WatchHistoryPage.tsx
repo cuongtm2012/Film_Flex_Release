@@ -291,10 +291,10 @@ export default function WatchHistoryPage() {
         <div className="space-y-8">
           {Array.from({ length: 3 }).map((_, groupIndex) => (
             <div key={groupIndex} className="space-y-4">
-              <Skeleton className="h-6 w-48" />
+              <Skeleton className="h-6 w-48" data-testid="skeleton" />
               <div className="space-y-4">
                 {Array.from({ length: 2 }).map((_, index) => (
-                  <Skeleton key={index} className="h-24 w-full" />
+                  <Skeleton key={index} className="h-24 w-full" data-testid="skeleton" />
                 ))}
               </div>
             </div>
@@ -370,6 +370,8 @@ export default function WatchHistoryPage() {
                               size="icon"
                               className="text-muted-foreground"
                               onClick={() => handleRemoveFromHistory(item.id)}
+                              aria-label="Remove from history"
+                              title="Remove from history"
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
