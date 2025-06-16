@@ -265,11 +265,9 @@ export function registerRoutes(app: Express): void {
     const successCount = { saved: 0, existing: 0, failed: 0 };
     const errors: Error[] = [];
     
-    for (const item of items) {
-      try {
+    for (const item of items) {      try {
         // Check if this is a valid movie object with required fields
         if (!item || !item.slug || !item._id) {
-          console.warn(`Skipping invalid movie item:`, item);
           successCount.failed++;
           continue;
         }

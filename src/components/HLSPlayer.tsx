@@ -82,17 +82,15 @@ const HLSPlayer: React.FC<HLSPlayerProps> = ({
 
         // Store HLS instance in ref
         hlsRef.current = hls;
-        
-        // Load source and attach to video element
+          // Load source and attach to video element
         hls.loadSource(src);
         hls.attachMedia(video);
         
         // Handle HLS events
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
-          console.log('HLS manifest parsed, ready to play');
           if (autoPlay) {
             video.play().catch(error => {
-              console.warn('Autoplay was prevented:', error);
+              // Autoplay was prevented - this is expected behavior
             });
           }
         });
@@ -124,10 +122,9 @@ const HLSPlayer: React.FC<HLSPlayerProps> = ({
         console.log('Using native HLS support');
         video.src = src;
         
-        video.addEventListener('loadedmetadata', () => {
-          if (autoPlay) {
+        video.addEventListener('loadedmetadata', () => {        if (autoPlay) {
             video.play().catch(error => {
-              console.warn('Autoplay was prevented:', error);
+              // Autoplay was prevented - this is expected behavior
             });
           }
         });
