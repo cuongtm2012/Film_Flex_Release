@@ -95,6 +95,8 @@ export interface IStorage {
   addToViewHistory(userId: number, movieSlug: string, progress?: number): Promise<void>;
   updateViewProgress(userId: number, movieSlug: string, progress: number): Promise<void>;
   getViewedMovie(userId: number, movieSlug: string): Promise<ViewHistory | undefined>;
+  removeFromViewHistory(userId: number, movieSlug: string): Promise<void>;
+  clearViewHistory(userId: number): Promise<void>;
   
   // Content Approval methods
   submitContentForApproval(approval: InsertContentApproval): Promise<ContentApproval>;
@@ -1000,6 +1002,19 @@ export class DatabaseStorage implements IStorage {
         eq(viewHistory.movieSlug, movieSlug)
       ));
     return viewedMovie;
+  }
+
+  async removeFromViewHistory(userId: number, movieSlug: string): Promise<void> {
+    await db.delete(viewHistory)
+      .where(and(
+        eq(viewHistory.userId, userId),
+        eq(viewHistory.movieSlug, movieSlug)
+      ));
+  }
+
+  async clearViewHistory(userId: number): Promise<void> {
+    await db.delete(viewHistory)
+      .where(eq(viewHistory.userId, userId));
   }
 
   // Content management methods

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useWatchlist } from "@/hooks/use-watchlist";
+import { useWatchHistory } from "@/hooks/use-watch-history";
 import { User, Clock, Film, Edit, Eye, Star, MessageSquare, Lock, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -12,6 +13,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import WatchlistGrid from "@/components/WatchlistGrid";
+import WatchHistoryStats from "@/components/WatchHistoryStats";
+import WatchHistoryList from "@/components/WatchHistoryList";
 
 export default function ProfilePage() {
   const { user, logoutMutation } = useAuth();
@@ -31,6 +34,19 @@ export default function ProfilePage() {
     isEmpty: watchlistEmpty,
   } = useWatchlist();
 
+  // Use the watch history hook
+  const {
+    history: watchHistory,
+    isLoading: historyLoading,
+    isError: historyError,
+    removeFromHistory,
+    totalWatchTime,
+    totalItems,
+    completedItems,
+    getHistoryByDate,
+    isEmpty: historyEmpty,
+  } = useWatchHistory();
+
   // Format date for display
   const formatDate = (dateString?: string | Date) => {
     if (!dateString) return "N/A";
@@ -39,6 +55,14 @@ export default function ProfilePage() {
       month: 'long',
       day: 'numeric'
     });
+  };
+
+  // Format time for display
+  const formatTime = (minutes: number) => {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    if (hours === 0) return `${mins}m`;
+    return `${hours}h ${mins}m`;
   };
 
   const handleLogout = async () => {
@@ -75,6 +99,17 @@ export default function ProfilePage() {
   // Handle toggling watched status
   const handleToggleWatched = (movieSlug: string, isWatched: boolean) => {
     toggleWatched.mutate({ movieSlug, isWatched });
+  };
+
+  // Handle continuing to watch from history
+  const handleContinueWatching = (slug: string, progress: number) => {
+    const timeInSeconds = Math.floor((progress / 100) * 120 * 60); // Convert to seconds
+    navigate(`/movie/${slug}?t=${timeInSeconds}`);
+  };
+
+  // Handle removing item from watch history
+  const handleRemoveFromHistory = (id: number) => {
+    removeFromHistory.mutate(id);
   };
 
   // Mock data for activity - in a real app, this would come from the API
@@ -185,14 +220,14 @@ export default function ProfilePage() {
                 <div className="flex justify-center">
                   <Star className="h-5 w-5 text-primary" />
                 </div>
-                <div className="mt-1 font-semibold">12</div>
-                <div className="text-xs text-muted-foreground">Ratings</div>
+                <div className="mt-1 font-semibold">{completedItems}</div>
+                <div className="text-xs text-muted-foreground">Completed</div>
               </div>
               <div>
                 <div className="flex justify-center">
                   <Clock className="h-5 w-5 text-primary" />
                 </div>
-                <div className="mt-1 font-semibold">48h</div>
+                <div className="mt-1 font-semibold">{formatTime(totalWatchTime)}</div>
                 <div className="text-xs text-muted-foreground">Watched</div>
               </div>
             </div>
@@ -229,7 +264,12 @@ export default function ProfilePage() {
                   <Badge className="ml-2 bg-primary/20 text-primary text-xs">{watchlistData.length}</Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="history">Watch History</TabsTrigger>
+              <TabsTrigger value="history" className="relative">
+                Watch History
+                {totalItems > 0 && (
+                  <Badge className="ml-2 bg-primary/20 text-primary text-xs">{totalItems}</Badge>
+                )}
+              </TabsTrigger>
             </TabsList>
             
             <TabsContent value="activity">
@@ -332,18 +372,79 @@ export default function ProfilePage() {
             <TabsContent value="history">
               <Card>
                 <CardHeader>
-                  <CardTitle>Watch History</CardTitle>
-                  <CardDescription>Movies and shows you've watched</CardDescription>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle>Watch History</CardTitle>
+                      <CardDescription>
+                        Your recent viewing activity ({totalItems} items, {formatTime(totalWatchTime)} watched)
+                      </CardDescription>
+                    </div>
+                    {!historyEmpty && (
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => navigate("/watch-history")}
+                      >
+                        View All
+                      </Button>
+                    )}
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-center p-8">
-                    <Clock className="h-12 w-12 mx-auto text-muted-foreground/60 mb-4" />
-                    <h3 className="text-lg font-medium mb-2">No watch history yet</h3>
-                    <p className="text-muted-foreground text-sm mb-4">
-                      Start watching movies and shows to build your history
-                    </p>
-                    <Button onClick={() => navigate("/")}>Discover Content</Button>
-                  </div>
+                  {historyError ? (
+                    <Alert variant="destructive">
+                      <AlertDescription>
+                        Failed to load your watch history. Please try refreshing the page.
+                      </AlertDescription>
+                    </Alert>
+                  ) : historyEmpty ? (
+                    <div className="text-center p-8">
+                      <Clock className="h-12 w-12 mx-auto text-muted-foreground/60 mb-4" />
+                      <h3 className="text-lg font-medium mb-2">No watch history yet</h3>
+                      <p className="text-muted-foreground text-sm mb-4">
+                        Start watching movies and shows to build your history
+                      </p>
+                      <Button onClick={() => navigate("/")}>Discover Content</Button>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Mini stats */}
+                      <div className="grid grid-cols-3 gap-4 mb-6">
+                        <div className="text-center">
+                          <div className="text-2xl font-bold">{formatTime(totalWatchTime)}</div>
+                          <div className="text-sm text-muted-foreground">Total Time</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-2xl font-bold">{totalItems}</div>
+                          <div className="text-sm text-muted-foreground">Items</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-2xl font-bold">{completedItems}</div>
+                          <div className="text-sm text-muted-foreground">Completed</div>
+                        </div>
+                      </div>
+                      
+                      {/* Recent history items */}
+                      <WatchHistoryList
+                        historyByDate={getHistoryByDate(watchHistory.slice(0, 4))} // Show only recent 4 items
+                        isLoading={historyLoading}
+                        onRemoveItem={handleRemoveFromHistory}
+                        onContinueWatching={handleContinueWatching}
+                        removeLoading={removeFromHistory.isPending}
+                      />
+                      
+                      {watchHistory.length > 4 && (
+                        <div className="text-center mt-6">
+                          <Button 
+                            variant="outline"
+                            onClick={() => navigate("/watch-history")}
+                          >
+                            View All History
+                          </Button>
+                        </div>
+                      )}
+                    </>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
