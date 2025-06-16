@@ -1545,6 +1545,31 @@ export function registerRoutes(app: Express): void {
       res.status(500).json({ message: "Failed to get view history" });
     }
   });
+  
+  router.delete("/users/:userId/view-history/:slug", async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const { slug } = req.params;
+      
+      await storage.removeFromViewHistory(userId, slug);
+      res.json({ message: "Removed from view history successfully" });
+    } catch (error) {
+      console.error(`Error removing from view history for user ${req.params.userId} and movie ${req.params.slug}:`, error);
+      res.status(500).json({ message: "Failed to remove from view history" });
+    }
+  });
+
+  router.delete("/users/:userId/view-history", async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      
+      await storage.clearViewHistory(userId);
+      res.json({ message: "View history cleared successfully" });
+    } catch (error) {
+      console.error(`Error clearing view history for user ${req.params.userId}:`, error);
+      res.status(500).json({ message: "Failed to clear view history" });
+    }
+  });
 
   // Update movie details
   router.put("/movies/:slug", async (req, res) => {    try {
