@@ -1448,168 +1448,146 @@ run_database_migrations() {
         # Run Drizzle migrations if config exists
         if [ -f "drizzle.config.ts" ]; then
             log "Running Drizzle migrations..."
-            if npm run db:migrate 2>/dev/null || npx drizzle-kit migrate; then
+            
+            # Check if drizzle-kit is available
+            if ! npm list drizzle-kit > /dev/null 2>&1 && ! npx drizzle-kit --version > /dev/null 2>&1; then
+                log_warning "drizzle-kit not found in production dependencies"
+                log "Installing drizzle-kit temporarily for migrations..."
+                
+                # Install drizzle-kit temporarily
+                npm install drizzle-kit --no-save
+                
+                if ! npx drizzle-kit --version > /dev/null 2>&1; then
+                    log_error "Failed to install drizzle-kit"
+                    log_warning "Skipping Drizzle migrations - running SQL migrations instead"
+                    run_sql_migrations
+                    return
+                fi
+            fi
+            
+            # Try different migration commands
+            if npm run db:push 2>/dev/null; then
+                log_success "Drizzle push completed successfully"
+            elif npx drizzle-kit push 2>/dev/null; then
+                log_success "Drizzle migrations completed successfully"
+            elif npx drizzle-kit migrate 2>/dev/null; then
                 log_success "Drizzle migrations completed successfully"
             else
-                log_error "Drizzle migrations failed"
-                exit 1
+                log_error "Drizzle migrations failed, attempting SQL migrations fallback"
+                run_sql_migrations
             fi
+            
+            # Clean up temporary installation
+            if [ -f "package.json.bak" ]; then
+                mv package.json.bak package.json
+            fi
+            
         elif [ -d "migrations" ]; then
-            log "Running custom migrations..."
-            for migration in migrations/*.sql; do
-                if [ -f "$migration" ]; then
-                    log "Running migration: $(basename "$migration")"
-                    if [ -n "$DATABASE_URL" ]; then
-                        psql "$DATABASE_URL" -f "$migration" || {
-                            log_error "Migration failed: $(basename "$migration")"
-                            exit 1
-                        }
-                    else
-                        log_warning "DATABASE_URL not set, skipping SQL migration"
-                    fi
-                fi
-            done
-            log_success "Custom migrations completed"
+            log "Running SQL migrations from migrations directory..."
+            run_sql_migrations
         fi
     else
         log "No migration files found, skipping database migrations"
     fi
 }
 
-#################################################################################
-# Performance Optimization
-#################################################################################
-
-optimize_performance() {
-    log "Applying performance optimizations..."
+run_sql_migrations() {
+    log "Running SQL migrations from migrations directory..."
     
     cd "$DEPLOYMENT_DIR"
     
-    # Enable PM2 cluster mode if not already configured
-    if [ -f "ecosystem.config.js" ]; then
-        log "Using existing ecosystem configuration"
-    else
-        log "Creating optimized PM2 configuration..."
-        cat > ecosystem.config.js << EOF
-module.exports = {
-    apps: [{
-        name: '$PM2_APP_NAME',
-        script: './dist/index.js',
-        instances: 'max', // Use all available CPU cores
-        exec_mode: 'cluster',
-        env: {
-            NODE_ENV: 'production',
-            PORT: 5000
-        },
-        error_file: './logs/err.log',
-        out_file: './logs/out.log',
-        log_file: './logs/combined.log',
-        time: true,
-        max_memory_restart: '500M',
-        node_args: '--max-old-space-size=400',
-        kill_timeout: 3000,
-        wait_ready: true,
-        listen_timeout: 3000
-    }]
-};
-EOF
+    if [ ! -d "migrations" ]; then
+        log_warning "No migrations directory found"
+        return
     fi
     
-    # Create logs directory
-    mkdir -p logs
-    
-    # Set Node.js memory optimization
-    export NODE_OPTIONS="--max-old-space-size=400 --optimize-for-size"
-    
-    log_success "Performance optimizations applied"
-}
-
-#################################################################################
-# Firewall and Security Setup
-#################################################################################
-
-setup_firewall() {
-    log "Configuring firewall rules..."
-    
-    # Check if ufw is available
-    if command -v ufw &> /dev/null; then
-        # Enable UFW if not already enabled
-        if ! sudo ufw status | grep -q "Status: active"; then
-            log "Enabling UFW firewall..."
-            sudo ufw --force enable
-        fi
-        
-        # Allow SSH
-        sudo ufw allow ssh
-        
-        # Allow HTTP and HTTPS
-        sudo ufw allow 80/tcp
-        sudo ufw allow 443/tcp
-        
-        # Deny direct access to application port
-        sudo ufw deny 5000/tcp
-        
-        log_success "Firewall rules configured"
-    else
-        log_warning "UFW not available, skipping firewall configuration"
+    # Check if we have SQL migration files
+    if ! ls migrations/*.sql > /dev/null 2>&1; then
+        log_warning "No SQL migration files found in migrations directory"
+        return
     fi
-}
-
-#################################################################################
-# SSL Certificate Setup
-#################################################################################
-
-setup_ssl_certificate() {
-    if [ "$ENABLE_SSL" = "true" ] && [ -n "$DOMAIN_NAME" ]; then
-        log "Setting up SSL certificate for $DOMAIN_NAME..."
+    
+    # Check if DATABASE_URL is set
+    if [ -z "$DATABASE_URL" ]; then
+        log_error "DATABASE_URL not set, cannot run SQL migrations"
+        log_error "Please set DATABASE_URL environment variable"
+        return 1
+    fi
+    
+    # Check if psql is available
+    if ! command -v psql &> /dev/null; then
+        log_error "psql not found, cannot run SQL migrations"
+        log "Installing postgresql-client..."
         
-        # Install certbot if not available
-        if ! command -v certbot &> /dev/null; then
-            log "Installing certbot..."
-            sudo apt-get update
-            sudo apt-get install -y certbot python3-certbot-nginx
-        fi
-        
-        # Obtain SSL certificate
-        if [ ! -f "/etc/letsencrypt/live/$DOMAIN_NAME/fullchain.pem" ]; then
-            log "Obtaining SSL certificate..."
-            sudo certbot --nginx -d "$DOMAIN_NAME" --non-interactive --agree-tos --email "admin@$DOMAIN_NAME"
-            
-            # Setup auto-renewal
-            if ! crontab -l 2>/dev/null | grep -q "certbot renew"; then
-                (crontab -l 2>/dev/null; echo "0 12 * * * /usr/bin/certbot renew --quiet") | crontab -
-                log_success "SSL auto-renewal configured"
-            fi
+        if [ -n "$PACKAGE_MANAGER" ]; then
+            sudo $PACKAGE_MANAGER update
+            sudo $PACKAGE_MANAGER install -y postgresql-client
         else
-            log "SSL certificate already exists"
+            log_error "Cannot install postgresql-client automatically"
+            return 1
+        fi
+        
+        if ! command -v psql &> /dev/null; then
+            log_error "Failed to install postgresql-client"
+            return 1
         fi
     fi
+    
+    # Test database connection
+    if ! timeout 10 psql "$DATABASE_URL" -c "SELECT 1;" > /dev/null 2>&1; then
+        log_error "Cannot connect to database with provided DATABASE_URL"
+        log_error "Please verify database server is running and DATABASE_URL is correct"
+        return 1
+    fi
+    
+    log_success "Database connection verified"
+    
+    # Create migrations tracking table if it doesn't exist
+    psql "$DATABASE_URL" -c "CREATE TABLE IF NOT EXISTS migration_history (
+        id SERIAL PRIMARY KEY,
+        filename VARCHAR(255) UNIQUE NOT NULL,
+        applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );" || {
+        log_error "Failed to create migration_history table"
+        return 1
+    }
+    
+    # Run migrations in order
+    local migration_count=0
+    for migration in migrations/*.sql; do
+        if [ -f "$migration" ]; then
+            local filename=$(basename "$migration")
+            
+            # Check if migration has already been applied
+            local already_applied=$(psql "$DATABASE_URL" -t -c "SELECT COUNT(*) FROM migration_history WHERE filename = '$filename';" | tr -d ' ')
+            
+            if [ "$already_applied" = "0" ]; then
+                log "Running migration: $filename"
+                
+                if psql "$DATABASE_URL" -f "$migration"; then
+                    # Record successful migration
+                    psql "$DATABASE_URL" -c "INSERT INTO migration_history (filename) VALUES ('$filename');" || {
+                        log_warning "Failed to record migration in history: $filename"
+                    }
+                    log_success "Migration completed: $filename"
+                    migration_count=$((migration_count + 1))
+                else
+                    log_error "Migration failed: $filename"
+                    log_error "Stopping migration process"
+                    return 1
+                fi
+            else
+                log "Migration already applied: $filename (skipping)"
+            fi
+        fi
+    done
+    
+    if [ $migration_count -eq 0 ]; then
+        log "No new migrations to apply"
+    else
+        log_success "$migration_count migrations applied successfully"
+    fi
 }
-
-#################################################################################
-# Cleanup Functions
-#################################################################################
-
-cleanup_deployment() {
-    log "Performing post-deployment cleanup..."
-    
-    cd "$DEPLOYMENT_DIR"
-    
-    # Clean up temporary files
-    rm -rf tmp/ temp/ .cache/ 2>/dev/null || true
-    
-    # Clean up old log files (keep last 30 days)
-    find logs/ -name "*.log" -mtime +30 -delete 2>/dev/null || true
-    
-    # Clean npm cache
-    npm cache clean --force 2>/dev/null || true
-    
-    # Clean up old PM2 logs
-    pm2 flush
-    
-    log_success "Cleanup completed"
-}
-
 #################################################################################
 # Usage Information
 #################################################################################
