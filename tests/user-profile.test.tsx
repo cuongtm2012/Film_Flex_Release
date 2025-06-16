@@ -5,7 +5,54 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { ProfilePage } from '../client/src/pages/ProfilePage';
+import ProfilePage from '../client/src/pages/ProfilePage';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+// Create a test query client
+const createTestQueryClient = () => new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: false,
+    },
+  },
+});
+
+// Mock the auth hook
+jest.mock('../client/src/hooks/use-auth', () => ({
+  useAuth: () => ({
+    user: {
+      id: 1,
+      username: 'testuser',
+      email: 'test@example.com',
+      role: 'user',
+      createdAt: '2024-01-01T00:00:00Z'
+    },
+    logoutMutation: {
+      mutateAsync: jest.fn(),
+    },
+  }),
+}));
+
+// Mock wouter
+jest.mock('wouter', () => ({
+  useLocation: () => ['/profile', jest.fn()],
+}));
+
+// Mock toast hook
+jest.mock('../client/src/hooks/use-toast', () => ({
+  useToast: () => ({
+    toast: jest.fn(),
+  }),
+}));
+
+const renderWithQueryClient = (component: React.ReactElement) => {
+  const testQueryClient = createTestQueryClient();
+  return render(
+    <QueryClientProvider client={testQueryClient}>
+      {component}
+    </QueryClientProvider>
+  );
+};
 
 describe('User Profile', () => {
   // TC_UP_001: Verify User Profile page loads successfully
@@ -25,7 +72,7 @@ describe('User Profile', () => {
       json: () => Promise.resolve({ user: mockUser })
     });
     
-    render(<ProfilePage />);
+    renderWithQueryClient(<ProfilePage />);
     
     // Verify user profile information is displayed
     await waitFor(() => {
@@ -75,7 +122,7 @@ describe('User Profile', () => {
         })
       });
     
-    render(<ProfilePage />);
+    renderWithQueryClient(<ProfilePage />);
     
     // Click on the Recent Activity tab
     const recentActivityTab = screen.getByRole('tab', { name: /recent activity/i });
@@ -124,7 +171,7 @@ describe('User Profile', () => {
         })
       });
     
-    render(<ProfilePage />);
+    renderWithQueryClient(<ProfilePage />);
     
     // Click on the Watchlist tab
     const watchlistTab = screen.getByRole('tab', { name: /watchlist/i });
@@ -175,7 +222,7 @@ describe('User Profile', () => {
         })
       });
     
-    render(<ProfilePage />);
+    renderWithQueryClient(<ProfilePage />);
     
     // Click on the Watch History tab
     const watchHistoryTab = screen.getByRole('tab', { name: /watch history/i });
@@ -259,7 +306,7 @@ describe('User Profile', () => {
       reload: jest.fn()
     };
     
-    render(<ProfilePage />);
+    renderWithQueryClient(<ProfilePage />);
     
     // Click on the Recent Activity tab and verify content
     const recentActivityTab = screen.getByRole('tab', { name: /recent activity/i });

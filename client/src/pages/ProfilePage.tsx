@@ -1,14 +1,17 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
+import { useWatchlist } from "@/hooks/use-watchlist";
 import { User, Clock, Film, Edit, Eye, Star, MessageSquare, Lock, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
+import WatchlistGrid from "@/components/WatchlistGrid";
 
 export default function ProfilePage() {
   const { user, logoutMutation } = useAuth();
@@ -17,6 +20,16 @@ export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [displayName, setDisplayName] = useState(user?.username || "");
   const [bio, setBio] = useState("No bio available");
+
+  // Use the watchlist hook
+  const {
+    watchlistData,
+    isLoading: watchlistLoading,
+    isError: watchlistError,
+    removeFromWatchlist,
+    toggleWatched,
+    isEmpty: watchlistEmpty,
+  } = useWatchlist();
 
   // Format date for display
   const formatDate = (dateString?: string | Date) => {
@@ -52,6 +65,16 @@ export default function ProfilePage() {
       description: "Your profile information has been updated.",
     });
     setIsEditing(false);
+  };
+
+  // Handle removing movie from watchlist
+  const handleRemoveFromWatchlist = (movieSlug: string) => {
+    removeFromWatchlist.mutate(movieSlug);
+  };
+
+  // Handle toggling watched status
+  const handleToggleWatched = (movieSlug: string, isWatched: boolean) => {
+    toggleWatched.mutate({ movieSlug, isWatched });
   };
 
   // Mock data for activity - in a real app, this would come from the API
@@ -155,8 +178,8 @@ export default function ProfilePage() {
                 <div className="flex justify-center">
                   <Film className="h-5 w-5 text-primary" />
                 </div>
-                <div className="mt-1 font-semibold">25</div>
-                <div className="text-xs text-muted-foreground">Movies</div>
+                <div className="mt-1 font-semibold">{watchlistData.length}</div>
+                <div className="text-xs text-muted-foreground">Watchlist</div>
               </div>
               <div>
                 <div className="flex justify-center">
@@ -200,7 +223,12 @@ export default function ProfilePage() {
           <Tabs defaultValue="activity">
             <TabsList className="mb-6">
               <TabsTrigger value="activity">Recent Activity</TabsTrigger>
-              <TabsTrigger value="watchlist">My Watchlist</TabsTrigger>
+              <TabsTrigger value="watchlist" className="relative">
+                My Watchlist
+                {watchlistData.length > 0 && (
+                  <Badge className="ml-2 bg-primary/20 text-primary text-xs">{watchlistData.length}</Badge>
+                )}
+              </TabsTrigger>
               <TabsTrigger value="history">Watch History</TabsTrigger>
             </TabsList>
             
@@ -248,20 +276,55 @@ export default function ProfilePage() {
             <TabsContent value="watchlist">
               <Card>
                 <CardHeader>
-                  <CardTitle>My Watchlist</CardTitle>
-                  <CardDescription>Movies and shows you want to watch</CardDescription>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle>My Watchlist</CardTitle>
+                      <CardDescription>
+                        Movies and shows you want to watch ({watchlistData.length} items)
+                      </CardDescription>
+                    </div>
+                    {!watchlistEmpty && (
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => navigate("/my-list")}
+                      >
+                        View All
+                      </Button>
+                    )}
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                    <div className="text-center p-8 col-span-full">
-                      <Film className="h-12 w-12 mx-auto text-muted-foreground/60 mb-4" />
-                      <h3 className="text-lg font-medium mb-2">Your watchlist is empty</h3>
-                      <p className="text-muted-foreground text-sm mb-4">
-                        Add movies or shows to watch later by clicking the bookmark icon on any title
-                      </p>
-                      <Button onClick={() => navigate("/")}>Explore Movies</Button>
+                  {watchlistError ? (
+                    <Alert variant="destructive">
+                      <AlertDescription>
+                        Failed to load your watchlist. Please try refreshing the page.
+                      </AlertDescription>
+                    </Alert>
+                  ) : (
+                    <WatchlistGrid
+                      movies={watchlistData.slice(0, 6)} // Show only first 6 items in profile
+                      isLoading={watchlistLoading}
+                      onRemoveMovie={handleRemoveFromWatchlist}
+                      onToggleWatched={handleToggleWatched}
+                      removeLoading={removeFromWatchlist.isPending}
+                      toggleLoading={toggleWatched.isPending}
+                      showWatchedToggle={false} // Keep it simple in profile view
+                      emptyMessage="Your watchlist is empty"
+                      emptyDescription="Add movies or shows to watch later by clicking the bookmark icon on any title"
+                      compact={true}
+                    />
+                  )}
+                  {watchlistData.length > 6 && (
+                    <div className="text-center mt-6">
+                      <Button 
+                        variant="outline"
+                        onClick={() => navigate("/my-list")}
+                      >
+                        View All {watchlistData.length} Items
+                      </Button>
                     </div>
-                  </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
