@@ -92,9 +92,7 @@ async function fetchWithRetries<T>(url: string, maxRetries: number = 3, initialD
         if (response.status === 404) {
           throw statusError;
         }
-        
-        // For other errors, log and retry
-        console.warn(`Attempt ${attempt}/${maxRetries} failed: ${statusError.message}`);
+          // For other errors, retry
         lastError = statusError;
       } else {
         // Parse the JSON response
@@ -244,10 +242,8 @@ export async function searchMovies(keyword: string, normalizedQuery: string | nu
       for (let i = 0; i < pagesNeeded; i++) {
         const apiPage = startPage + i;
         fetchPromises.push(
-          fetch(`${API_BASE_URL}/tim-kiem?keyword=${encodedKeyword}&page=${apiPage}`)
-            .then(async response => {
+          fetch(`${API_BASE_URL}/tim-kiem?keyword=${encodedKeyword}&page=${apiPage}`)            .then(async response => {
               if (!response.ok) {
-                console.warn(`Search API responded with status: ${response.status} for keyword "${trimmedKeyword}" on page ${apiPage}`);
                 return { status: false, items: [] } as MovieListResponse;
               }
               try {
@@ -576,18 +572,15 @@ export function convertToMovieModel(movieDetail: MovieDetailResponse): InsertMov
 }
 
 // Convert API response to Episode models for insertion
-export function convertToEpisodeModels(movieDetail: MovieDetailResponse): InsertEpisode[] {
-  const episodes: InsertEpisode[] = [];
+export function convertToEpisodeModels(movieDetail: MovieDetailResponse): InsertEpisode[] {  const episodes: InsertEpisode[] = [];
   
   // Check if movie details exist and are valid
   if (!movieDetail || !movieDetail.movie || !movieDetail.movie.slug) {
-    console.warn("Cannot convert episodes from invalid movie details");
     return episodes;
   }
   
   // Check if episodes exist
   if (!movieDetail.episodes || !Array.isArray(movieDetail.episodes)) {
-    console.warn(`No episodes found for movie ${movieDetail.movie.slug}`);
     return episodes;
   }
   

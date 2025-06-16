@@ -5,7 +5,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MyListPage } from '../client/src/pages/MyListPage';
+import MyListPage from '../client/src/pages/MyListPage';
 
 describe('My List Management', () => {
   // TC_ML_001: Verify "My List" displays all added items
