@@ -177,10 +177,13 @@ function AnimeSection({ title, movies }: { title: string; movies: MovieListRespo
 }
 
 export default function Home() {
+  // ALL HOOKS MUST BE AT THE TOP - NEVER CALL HOOKS CONDITIONALLY OR AFTER RETURNS
+
   // Fetch movies by sections - limit to 30 items each
   const { data: trendingMovies, isLoading: trendingLoading } = useQuery<MovieListResponse>({
     queryKey: ['/api/movies/sections/trending_now', { page: 1, limit: 30 }],
   });
+  
   // Fetch recommended movies for hero carousel
   const { data: recommendedMovies, isLoading: recommendedLoading } = useQuery<MovieListResponse>({
     queryKey: ['/api/movies/recommended', { page: 1, limit: 5 }],
@@ -199,10 +202,10 @@ export default function Home() {
   // Fetch popular TV series with improved error handling
   const { data: popularTvSeries, isLoading: tvSeriesLoading, error: tvSeriesError } = useQuery<MovieListResponse>({
     queryKey: ['/api/movies/sections/popular_tv', { page: 1, limit: 30 }],
-    retry: 2, // Retry failed requests up to 2 times
-    staleTime: 1000 * 60 * 5, // Consider data fresh for 5 minutes
-    gcTime: 1000 * 60 * 30, // Keep data in cache for 30 minutes
-    refetchOnWindowFocus: false // Don't refetch when window regains focus
+    retry: 2,
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 30,
+    refetchOnWindowFocus: false
   });
 
   // Fetch anime section with proper error handling
@@ -232,8 +235,40 @@ export default function Home() {
     refetchOnWindowFocus: false
   });
 
-  // Debug logs for sections
+  // Prepare featured movies for the carousel with PROPER data mapping - MOVE BEFORE useEffect
+  const featuredMovies: MovieDetailResponse[] = React.useMemo(() => {
+    return (recommendedMovies?.items || [])
+      .slice(0, 5)
+      .map(movie => ({
+        movie: {
+          _id: movie._id || movie.movieId || "",
+          name: movie.name || "Unknown Title",
+          slug: movie.slug || "",
+          origin_name: movie.origin_name || movie.originName || movie.name || "",
+          content: movie.content || movie.description || `Discover ${movie.name || 'this amazing content'} and dive into an incredible viewing experience with high-quality streaming.`,
+          type: movie.type || "movie",
+          status: movie.status || "completed",
+          thumb_url: movie.thumb_url || movie.thumbUrl || movie.poster_url || movie.posterUrl || "",
+          poster_url: movie.poster_url || movie.posterUrl || movie.thumb_url || movie.thumbUrl || "",
+          time: movie.time || movie.duration || "120 min",
+          quality: movie.quality || "HD",
+          lang: movie.lang || movie.language || "English",
+          episode_current: movie.episode_current || movie.episodeCurrent || "",
+          episode_total: movie.episode_total || movie.episodeTotal || "",
+          view: movie.view || movie.views || Math.floor(Math.random() * 10000000),
+          year: movie.year || new Date().getFullYear(),
+          actor: movie.actor || movie.actors || movie.cast || [],
+          director: movie.director || movie.directors || [],
+          category: movie.category || movie.categories || movie.genres || [],
+          country: movie.country || movie.countries || []
+        },
+        episodes: movie.episodes || []
+      }));
+  }, [recommendedMovies]);
+
+  // ALL useEffect hooks grouped together - ALWAYS run in same order
   React.useEffect(() => {
+    // Debug logs for sections
     if (popularTvSeries) {
       console.log('Popular TV Series data:', popularTvSeries);
       console.log('Number of TV items:', popularTvSeries.items?.length || 0);
@@ -241,7 +276,10 @@ export default function Home() {
     if (tvSeriesError) {
       console.error('Error fetching popular TV series:', tvSeriesError);
     }
-    
+  }, [popularTvSeries, tvSeriesError]);
+
+  React.useEffect(() => {
+    // Anime debug logs
     if (animeMovies) {
       console.log('Anime data:', animeMovies);
       console.log('Number of anime items:', animeMovies.items?.length || 0);
@@ -249,7 +287,10 @@ export default function Home() {
     if (animeError) {
       console.error('Error fetching anime:', animeError);
     }
+  }, [animeMovies, animeError]);
 
+  React.useEffect(() => {
+    // China movies debug logs
     if (chinaMovies) {
       console.log('China movies data:', chinaMovies);
       console.log('Number of China movies:', chinaMovies.items?.length || 0);
@@ -257,7 +298,10 @@ export default function Home() {
     if (chinaError) {
       console.error('Error fetching China movies:', chinaError);
     }
+  }, [chinaMovies, chinaError]);
 
+  React.useEffect(() => {
+    // Korean movies debug logs
     if (koreanMovies) {
       console.log('Korean movies data:', koreanMovies);
       console.log('Number of Korean movies:', koreanMovies.items?.length || 0);
@@ -265,9 +309,10 @@ export default function Home() {
     if (koreanError) {
       console.error('Error fetching Korean movies:', koreanError);
     }
-  }, [popularTvSeries, tvSeriesError, animeMovies, animeError, chinaMovies, chinaError, koreanMovies, koreanError]);
-  
-  // Loading state
+  }, [koreanMovies, koreanError]);
+
+
+  // Loading state check - AFTER all hooks
   if (trendingLoading || latestLoading || topRatedLoading || tvSeriesLoading || recommendedLoading || animeLoading || chinaLoading || koreanLoading) {
     return (
       <div className="flex items-center justify-center min-h-[70vh]">
@@ -275,43 +320,18 @@ export default function Home() {
       </div>
     );
   }
-  // Prepare featured movies for the carousel (using recommended movies)
-  const featuredMovies: MovieDetailResponse[] = (recommendedMovies?.items || [])
-    .slice(0, 5)
-    .map(movie => ({
-      movie: {
-        _id: movie._id || movie.movieId || "",
-        name: movie.name,
-        slug: movie.slug,
-        origin_name: movie.origin_name || movie.originName || "",
-        content: "",
-        type: movie.type || "movie",
-        status: "ongoing",
-        thumb_url: movie.thumb_url || movie.thumbUrl || "",
-        poster_url: movie.poster_url || movie.posterUrl || "",
-        time: "",
-        quality: "",
-        lang: "",
-        episode_current: "",
-        episode_total: "",
-        view: 0,
-        actor: [],
-        director: [],
-        category: [],
-        country: []
-      },
-      episodes: []
-    }));
+
+  // Render JSX - AFTER all hooks and logic
   return (
     <div className="min-h-screen bg-background">
-      {/* Existing Hero Carousel */}
+      {/* Hero Carousel */}
       {featuredMovies.length > 0 && (
         <div className="mt-8">
           <HeroCarousel movies={featuredMovies} />
         </div>
       )}
 
-      {/* Existing movie sections */}
+      {/* Movie sections */}
       <div className="space-y-8 py-8">
         {/* Trending Now Section */}
         {trendingMovies?.items && trendingMovies.items.length > 0 && (
