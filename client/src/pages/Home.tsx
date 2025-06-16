@@ -10,11 +10,9 @@ import { Button } from '@/components/ui/button';
 // TV Series Section Component with navigation buttons
 function TvSeriesSection({ title, movies }: { title: string; movies: MovieListResponse['items'] }) {
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
-
   // Filter for TV series with more flexible type checking and data validation
   const tvSeries = React.useMemo(() => {
     if (!Array.isArray(movies)) {
-      console.warn('Invalid movies data', movies);
       return [];
     }
 
@@ -26,25 +24,14 @@ function TvSeriesSection({ title, movies }: { title: string; movies: MovieListRe
       const type = String(movie.type || '').toLowerCase();
       const isTV = type === 'tv' || type === 'series' || type === 'tv series';
 
-      // Log invalid TV series entries for debugging
+      // Skip invalid TV series entries
       if (isTV && (!movie.slug || !movie.name)) {
-        console.warn('Found TV series with missing data:', movie);
         return false;
       }
 
       return isTV;
     }).slice(0, 30); // Limit to 30 items
   }, [movies]);
-
-  // Add debug logging
-  React.useEffect(() => {
-    if (!Array.isArray(movies)) {
-      console.warn('Movies array is not valid:', movies);
-    } else {
-      console.log(`Found ${tvSeries.length} TV series out of ${movies.length} total items`);
-    }
-  }, [movies, tvSeries]);
-
   const scroll = (direction: 'left' | 'right') => {
     if (!scrollContainerRef.current) return;
 
@@ -109,38 +96,21 @@ function TvSeriesSection({ title, movies }: { title: string; movies: MovieListRe
 // Dedicated Anime Section Component with navigation buttons
 function AnimeSection({ title, movies }: { title: string; movies: MovieListResponse['items'] }) {
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
-
   // Since the API endpoint /api/movies/sections/anime should already return anime content,
   // we don't need aggressive filtering. Just ensure valid movie data.
   const animeContent = React.useMemo(() => {
     if (!Array.isArray(movies)) {
-      console.warn('Invalid anime movies data', movies);
       return [];
     }
 
     return movies.filter(movie => {
       // Skip if movie is null/undefined or missing required fields
       if (!movie || !movie.slug || !movie.name) {
-        console.warn('Found anime with missing data:', movie);
         return false;
       }
       return true;
     }).slice(0, 30); // Limit to 30 items
   }, [movies]);
-
-  // Add debug logging for anime
-  React.useEffect(() => {
-    if (!Array.isArray(movies)) {
-      console.warn('Anime movies array is not valid:', movies);
-    } else {
-      console.log(`Anime section received ${movies.length} items from API`);
-      console.log(`After filtering: ${animeContent.length} valid anime items`);
-      if (movies.length > 0) {
-        console.log('First anime item:', movies[0]);
-      }
-    }
-  }, [movies, animeContent]);
-
   const scroll = (direction: 'left' | 'right') => {
     if (!scrollContainerRef.current) return;
 

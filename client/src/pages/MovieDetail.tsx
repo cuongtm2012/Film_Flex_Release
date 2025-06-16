@@ -163,9 +163,7 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
         title: "Added to My List",
         description: "This title has been added to your watchlist",
       });
-    },
-    onError: (error) => {
-      console.error("Watchlist error:", error);
+    },    onError: (error) => {
       toast({
         title: "Error",
         description: "Failed to add to watchlist",
@@ -186,9 +184,7 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
         title: "Removed from My List",
         description: "This title has been removed from your watchlist",
       });
-    },
-    onError: (error) => {
-      console.error("Watchlist removal error:", error);
+    },    onError: (error) => {
       toast({
         title: "Error",
         description: "Failed to remove from watchlist",
