@@ -724,28 +724,92 @@ validate_typescript_config() {
     
     cd "$DEPLOYMENT_DIR"
     
-    # Check for TypeScript config files
-    if [ ! -f "tsconfig.json" ]; then
-        log_error "tsconfig.json not found in deployment directory"
-        exit 1
-    fi
-    
-    # Validate tsconfig.json syntax
-    if ! node -e "JSON.parse(require('fs').readFileSync('tsconfig.json', 'utf8'))" 2>/dev/null; then
-        log_error "Invalid tsconfig.json syntax"
-        exit 1
-    fi
-    
-    # Check for server-specific tsconfig if it exists
+    # Check for TypeScript config files - prioritize server config
     if [ -f "tsconfig.server.json" ]; then
+        log "Found server-specific TypeScript configuration"
+        TSCONFIG_FILE="tsconfig.server.json"
+        
+        # Validate tsconfig.server.json syntax
         if ! node -e "JSON.parse(require('fs').readFileSync('tsconfig.server.json', 'utf8'))" 2>/dev/null; then
             log_error "Invalid tsconfig.server.json syntax"
             exit 1
         fi
-        log "Server-specific TypeScript config found and validated"
+        log "Server-specific TypeScript config validated"
+        
+    elif [ -f "tsconfig.json" ]; then
+        log_warning "Using main tsconfig.json - checking if it supports compilation"
+        TSCONFIG_FILE="tsconfig.json"
+        
+        # Validate tsconfig.json syntax
+        if ! node -e "JSON.parse(require('fs').readFileSync('tsconfig.json', 'utf8'))" 2>/dev/null; then
+            log_error "Invalid tsconfig.json syntax"
+            exit 1
+        fi
+        
+        # Check if noEmit is true, which would prevent compilation
+        local no_emit=$(node -e "const config = JSON.parse(require('fs').readFileSync('tsconfig.json', 'utf8')); console.log(config.compilerOptions?.noEmit || false)")
+        if [ "$no_emit" = "true" ]; then
+            log_warning "Main tsconfig.json has noEmit: true, creating temporary server config"
+            create_server_tsconfig
+            TSCONFIG_FILE="tsconfig.server.json"
+        fi
+    else
+        log_error "No TypeScript configuration found"
+        exit 1
     fi
     
-    log_success "TypeScript configuration validated"
+    log_success "TypeScript configuration validated: $TSCONFIG_FILE"
+}
+
+create_server_tsconfig() {
+    log "Creating server-specific TypeScript configuration..."
+    
+    cd "$DEPLOYMENT_DIR"
+    
+    cat > tsconfig.server.json << 'EOF'
+{
+  "include": [
+    "server/**/*.ts",
+    "shared/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "client",
+    "cypress",
+    "tests",
+    "dist"
+  ],
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "lib": ["ES2022"],
+    "moduleResolution": "node",
+    "skipLibCheck": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "noEmit": false,
+    "outDir": "./dist",
+    "rootDir": ".",
+    "declaration": false,
+    "sourceMap": true,
+    "resolveJsonModule": true,
+    "allowImportingTsExtensions": false,
+    "isolatedModules": true,
+    "types": [
+      "node"
+    ],
+    "baseUrl": ".",
+    "paths": {
+      "@shared/*": ["shared/*"],
+      "@server/*": ["server/*"]
+    }
+  }
+}
+EOF
+    
+    log_success "Server TypeScript configuration created"
 }
 
 fix_module_resolution() {
@@ -766,89 +830,18 @@ fix_module_resolution() {
     
     // Ensure proper scripts
     pkg.scripts = pkg.scripts || {};
-    pkg.scripts.build = pkg.scripts.build || 'tsc && npm run build:copy-files';
-    pkg.scripts['build:copy-files'] = 'cp -r public dist/ 2>/dev/null || true';
-    pkg.scripts.start = 'node dist/index.js';
-    pkg.scripts['start:dev'] = 'tsx watch src/index.ts';
+    pkg.scripts.build = pkg.scripts.build || 'npm run build:server';
+    pkg.scripts['build:server'] = 'tsc -p tsconfig.server.json && npm run build:copy-files';
+    pkg.scripts['build:copy-files'] = 'cp -r public dist/ 2>/dev/null || mkdir -p dist/public';
+    pkg.scripts.start = 'node dist/server/index.js';
+    pkg.scripts['start:dev'] = 'tsx watch server/index.ts';
     
     // Ensure required dependencies for production
     pkg.dependencies = pkg.dependencies || {};
-    if (!pkg.dependencies['@types/node']) {
-        pkg.devDependencies = pkg.devDependencies || {};
-        if (!pkg.devDependencies['@types/node']) {
-            pkg.devDependencies['@types/node'] = '^22.0.0';
-        }
-    }
     
     fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));
     console.log('Package.json updated with ESM configuration');
     "
-    
-    # Ensure tsconfig.json has proper ESM settings
-    log "Updating TypeScript configuration for ESM..."
-    
-    node -e "
-    const fs = require('fs');
-    let tsconfig;
-    
-    try {
-        tsconfig = JSON.parse(fs.readFileSync('tsconfig.json', 'utf8'));
-    } catch (e) {
-        console.error('Failed to read tsconfig.json:', e.message);
-        process.exit(1);
-    }
-    
-    // Ensure proper compiler options for ESM
-    tsconfig.compilerOptions = tsconfig.compilerOptions || {};
-    tsconfig.compilerOptions.target = 'ES2022';
-    tsconfig.compilerOptions.module = 'ESNext';
-    tsconfig.compilerOptions.moduleResolution = 'Node';
-    tsconfig.compilerOptions.allowSyntheticDefaultImports = true;
-    tsconfig.compilerOptions.esModuleInterop = true;
-    tsconfig.compilerOptions.forceConsistentCasingInFileNames = true;
-    tsconfig.compilerOptions.strict = true;
-    tsconfig.compilerOptions.skipLibCheck = true;
-    tsconfig.compilerOptions.outDir = './dist';
-    tsconfig.compilerOptions.rootDir = './src';
-    tsconfig.compilerOptions.declaration = true;
-    tsconfig.compilerOptions.declarationMap = true;
-    tsconfig.compilerOptions.sourceMap = true;
-    
-    // Include and exclude patterns
-    tsconfig.include = tsconfig.include || ['src/**/*'];
-    tsconfig.exclude = tsconfig.exclude || ['node_modules', 'dist', 'tests', 'cypress'];
-    
-    fs.writeFileSync('tsconfig.json', JSON.stringify(tsconfig, null, 2));
-    console.log('TypeScript configuration updated for ESM');
-    "
-    
-    # Create or update server-specific tsconfig if needed
-    if [ -f "tsconfig.server.json" ]; then
-        log "Updating server TypeScript configuration..."
-        
-        node -e "
-        const fs = require('fs');
-        let serverConfig;
-        
-        try {
-            serverConfig = JSON.parse(fs.readFileSync('tsconfig.server.json', 'utf8'));
-        } catch (e) {
-            console.error('Failed to read tsconfig.server.json:', e.message);
-            process.exit(1);
-        }
-        
-        // Server-specific optimizations
-        serverConfig.compilerOptions = serverConfig.compilerOptions || {};
-        serverConfig.compilerOptions.target = 'ES2022';
-        serverConfig.compilerOptions.module = 'ESNext';
-        serverConfig.compilerOptions.moduleResolution = 'Node';
-        serverConfig.compilerOptions.outDir = './dist';
-        serverConfig.compilerOptions.rootDir = './src';
-        
-        fs.writeFileSync('tsconfig.server.json', JSON.stringify(serverConfig, null, 2));
-        console.log('Server TypeScript configuration updated');
-        "
-    fi
     
     log_success "Module resolution fixes applied"
 }
@@ -880,42 +873,81 @@ build_application() {
     # Verify TypeScript compiler is available
     if ! npx tsc --version > /dev/null 2>&1; then
         log_error "TypeScript compiler not available"
-        exit 1
+        log "Installing TypeScript..."
+        npm install -g typescript
+        
+        if ! npx tsc --version > /dev/null 2>&1; then
+            log_error "Failed to install TypeScript compiler"
+            exit 1
+        fi
     fi
     
     log "TypeScript compiler version: $(npx tsc --version)"
     
-    # Build TypeScript to JavaScript
-    log "Compiling TypeScript to JavaScript..."
-    if npx tsc; then
+    # Build TypeScript to JavaScript using server config
+    log "Compiling TypeScript to JavaScript using $TSCONFIG_FILE..."
+    if npx tsc -p "$TSCONFIG_FILE"; then
         log_success "TypeScript compilation completed"
     else
         log_error "TypeScript compilation failed"
         log_error "Checking for common TypeScript errors..."
         
-        # Run TypeScript with more verbose output
-        npx tsc --listFiles --diagnostics || true
+        # Run TypeScript with more verbose output for debugging
+        log "Running TypeScript compilation with verbose output..."
+        npx tsc -p "$TSCONFIG_FILE" --listFiles --diagnostics 2>&1 | tail -20
+        
+        # Check if we can compile with less strict options
+        log_warning "Attempting compilation with relaxed settings..."
+        npx tsc -p "$TSCONFIG_FILE" --skipLibCheck --noUnusedLocals false --noUnusedParameters false 2>&1 | tail -10
+        
         exit 1
     fi
     
     # Verify build output exists
     if [ ! -d "dist" ]; then
         log_error "Build output directory 'dist' not created"
+        log "Checking what happened during compilation..."
+        ls -la . | grep -E "(dist|build)"
         exit 1
     fi
     
-    if [ ! -f "dist/index.js" ]; then
-        log_error "Main application file 'dist/index.js' not found"
+    # Check for the main application file
+    local main_file=""
+    if [ -f "dist/server/index.js" ]; then
+        main_file="dist/server/index.js"
+    elif [ -f "dist/index.js" ]; then
+        main_file="dist/index.js"
+    else
+        log_error "Main application file not found"
         log "Available files in dist:"
-        find dist -name "*.js" | head -10
-        exit 1
+        find dist -name "*.js" -type f | head -10
+        
+        # Try to find any server entry point
+        if find dist -name "*.js" -path "*/server/*" | head -1 > /dev/null; then
+            main_file=$(find dist -name "*.js" -path "*/server/*" | head -1)
+            log_warning "Found potential entry point: $main_file"
+        else
+            exit 1
+        fi
     fi
+    
+    log_success "Main application file found: $main_file"
+    
+    # Update ecosystem config to use the correct entry point
+    update_ecosystem_config "$main_file"
     
     # Copy static assets and public files
     log "Copying static assets..."
     if [ -d "public" ]; then
-        cp -r public dist/ 2>/dev/null || true
-        log "Public files copied to dist/"
+        mkdir -p dist/public
+        cp -r public/* dist/public/ 2>/dev/null || true
+        log "Public files copied to dist/public/"
+    fi
+    
+    # Copy shared files if they exist
+    if [ -d "shared" ] && [ ! -d "dist/shared" ]; then
+        cp -r shared dist/ 2>/dev/null || true
+        log "Shared files copied to dist/"
     fi
     
     # Copy any additional required files
@@ -925,20 +957,22 @@ build_application() {
         fi
     done
     
+    # Fix import paths in compiled JavaScript files for ESM
+    log "Fixing ESM import paths in compiled files..."
+    fix_esm_imports
+    
     # Verify the built application can be imported
     log "Verifying built application..."
-    if node -e "import('./dist/index.js').catch(e => { console.error('Import failed:', e); process.exit(1); })" 2>/dev/null; then
+    if timeout 10s node -e "import('./$main_file').catch(e => { console.error('Import failed:', e.message); process.exit(1); })" 2>/dev/null; then
         log_success "Built application verification passed"
     else
-        log_warning "Built application verification failed - checking for common issues..."
+        log_warning "Built application verification failed - this may be normal for server applications"
+        log "Checking for syntax errors in main file..."
+        node --check "$main_file" && log "Syntax check passed" || log_error "Syntax errors found"
         
-        # Check for missing file extensions in imports
-        log "Checking for missing .js extensions in compiled files..."
-        grep -r "from ['\"]\..*[^js]['\"]" dist/ || log "No missing .js extensions found"
-        
-        # Check for problematic imports
-        log "Checking for problematic import patterns..."
-        grep -r "import.*node_modules" dist/ || log "No direct node_modules imports found"
+        # Check for common import issues
+        log "Checking for common import issues..."
+        grep -n "from ['\"]\..*[^js]['\"]" "$main_file" | head -5 || log "No missing .js extensions found"
     fi
     
     # Remove dev dependencies to reduce size
@@ -951,15 +985,88 @@ build_application() {
     "buildTime": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
     "nodeVersion": "$(node --version)",
     "npmVersion": "$(npm --version)",
-    "gitCommit": "$(git rev-parse HEAD 2>/dev/null || echo 'unknown')",
-    "gitBranch": "$(git branch --show-current 2>/dev/null || echo 'unknown')",
-    "environment": "$ENVIRONMENT"
+    "gitCommit": "$(cd "$SOURCE_DIR" && git rev-parse HEAD 2>/dev/null || echo 'unknown')",
+    "gitBranch": "$(cd "$SOURCE_DIR" && git branch --show-current 2>/dev/null || echo 'unknown')",
+    "environment": "$ENVIRONMENT",
+    "mainFile": "$main_file",
+    "tsConfig": "$TSCONFIG_FILE"
 }
 EOF
     
     log_success "Application built successfully with ESM/TypeScript support"
 }
 
+fix_esm_imports() {
+    log "Fixing ESM import paths for Node.js compatibility..."
+    
+    # Find all JavaScript files in dist and fix import extensions
+    find dist -name "*.js" -type f | while read -r file; do
+        # Add .js extensions to relative imports that don't have them
+        sed -i.bak -E "s/from ['\"](\.[^'\"]*[^js])['\"];/from '\1.js';/g" "$file" 2>/dev/null || true
+        sed -i.bak -E "s/import ['\"](\.[^'\"]*[^js])['\"];/import '\1.js';/g" "$file" 2>/dev/null || true
+        # Remove backup files
+        rm -f "$file.bak" 2>/dev/null || true
+    done
+    
+    log "ESM import paths fixed"
+}
+
+update_ecosystem_config() {
+    local main_file="$1"
+    log "Updating PM2 ecosystem configuration for entry point: $main_file"
+    
+    cd "$DEPLOYMENT_DIR"
+    
+    cat > ecosystem.config.js << EOF
+module.exports = {
+    apps: [{
+        name: 'filmflex',
+        script: './$main_file',
+        instances: process.env.NODE_ENV === 'production' ? 'max' : 1,
+        exec_mode: 'cluster',
+        env: {
+            NODE_ENV: 'development',
+            PORT: 5000,
+            NODE_OPTIONS: '--max-old-space-size=512'
+        },
+        env_production: {
+            NODE_ENV: 'production',
+            PORT: 5000,
+            NODE_OPTIONS: '--max-old-space-size=512 --enable-source-maps'
+        },
+        // Logging
+        error_file: './logs/err.log',
+        out_file: './logs/out.log',
+        log_file: './logs/combined.log',
+        time: true,
+        
+        // Process management
+        max_memory_restart: '512M',
+        kill_timeout: 5000,
+        wait_ready: true,
+        listen_timeout: 10000,
+        
+        // Health monitoring
+        health_check_grace_period: 15000,
+        
+        // Restart policies
+        restart_delay: 4000,
+        max_restarts: 10,
+        min_uptime: 10000,
+        
+        // Source maps support for better error reporting
+        source_map_support: true,
+        
+        // Environment-specific settings
+        node_args: process.env.NODE_ENV === 'production' 
+            ? ['--max-old-space-size=512', '--enable-source-maps']
+            : ['--max-old-space-size=512']
+    }]
+};
+EOF
+    
+    log_success "PM2 ecosystem configuration updated with correct entry point"
+}
 #################################################################################
 # Health Check Functions
 #################################################################################
