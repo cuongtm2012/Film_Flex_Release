@@ -395,26 +395,24 @@ stop_application() {
     if pm2 describe "$PM2_APP_NAME" > /dev/null 2>&1; then
         log "Found PM2 process: $PM2_APP_NAME"
         
-        # Graceful stop with timeout
-        if pm2 stop "$PM2_APP_NAME"; then
-            log_success "Application stopped successfully"
-            
-            # Wait for process to fully stop
-            local timeout=30
-            local count=0
-            while pm2 info "$PM2_APP_NAME" | grep -q "online" && [ $count -lt $timeout ]; do
-                sleep 1
-                count=$((count + 1))
-            done
-            
-            if [ $count -ge $timeout ]; then
-                log_warning "Graceful stop timeout. Force stopping..."
-                pm2 kill "$PM2_APP_NAME" || true
-            fi
-        else
-            log_warning "Failed to stop PM2 process gracefully. Attempting force stop..."
-            pm2 kill "$PM2_APP_NAME" || true
+        # Force delete the process to ensure complete restart
+        log "Force stopping PM2 process to ensure clean restart..."
+        pm2 delete "$PM2_APP_NAME" || true
+        
+        # Wait for process to fully stop
+        local timeout=10
+        local count=0
+        while pm2 describe "$PM2_APP_NAME" > /dev/null 2>&1 && [ $count -lt $timeout ]; do
+            sleep 1
+            count=$((count + 1))
+        done
+        
+        if [ $count -ge $timeout ]; then
+            log_warning "Force killing all PM2 processes..."
+            pm2 kill || true
         fi
+        
+        log_success "Application stopped completely"
     else
         log_warning "PM2 process '$PM2_APP_NAME' not found or not running"
     fi
@@ -484,8 +482,19 @@ start_application() {
     # Create logs directory
     mkdir -p logs
     
-    # Create enhanced PM2 configuration
-    create_enhanced_ecosystem_config
+    # Update ecosystem config to use the correct entry point
+    if [ -f "dist/server/index.js" ]; then
+        update_ecosystem_config "dist/server/index.js"
+    elif [ -f "dist/index.js" ]; then
+        update_ecosystem_config "dist/index.js"
+    else
+        log_error "Cannot find main application file"
+        exit 1
+    fi
+    
+    # Ensure PM2 is completely clean
+    pm2 kill 2>/dev/null || true
+    sleep 2
     
     # Start with ecosystem config
     log "Starting application with PM2..."
@@ -496,23 +505,30 @@ start_application() {
         log "Attempting to start with direct command..."
         
         # Fallback to direct start
-        if pm2 start dist/index.js --name "$PM2_APP_NAME" --node-args="--max-old-space-size=512"; then
+        local main_file=""
+        if [ -f "dist/server/index.js" ]; then
+            main_file="dist/server/index.js"
+        elif [ -f "dist/index.js" ]; then
+            main_file="dist/index.js"
+        fi
+        
+        if [ -n "$main_file" ] && pm2 start "$main_file" --name "$PM2_APP_NAME" --node-args="--max-old-space-size=512"; then
             log_success "Application started with fallback method"
         else
             log_error "Failed to start application with fallback method"
             log_error "Checking for common startup issues..."
             
             # Check if the file exists and is executable
-            if [ ! -f "dist/index.js" ]; then
-                log_error "dist/index.js not found"
+            if [ ! -f "$main_file" ]; then
+                log_error "$main_file not found"
             else
-                log "dist/index.js exists, checking permissions..."
-                ls -la dist/index.js
+                log "$main_file exists, checking permissions..."
+                ls -la "$main_file"
             fi
             
             # Try to run directly to see error
             log "Attempting direct execution for debugging..."
-            timeout 10s node dist/index.js || log_error "Direct execution failed"
+            timeout 10s node "$main_file" || log_error "Direct execution failed"
             
             exit 1
         fi
@@ -527,9 +543,18 @@ start_application() {
         log "Run the command provided by PM2 startup"
     fi
     
+    # Wait for application to stabilize
+    sleep 5
+    
     # Show application status
     pm2 status
     pm2 info "$PM2_APP_NAME"
+    
+    # Display build version information
+    if [ -f "dist/build-info.json" ]; then
+        local build_version=$(node -e "const info = require('./dist/build-info.json'); console.log(info.buildVersion || 'unknown')")
+        log_success "Application started with build version: $build_version"
+    fi
 }
 
 #################################################################################
@@ -822,26 +847,24 @@ fix_module_resolution() {
     
     # Use Node.js to safely update package.json
     node -e "
-    const fs = require('fs');
-    const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-    
-    // Ensure type: module for ESM support
-    pkg.type = 'module';
-    
-    // Ensure proper scripts
-    pkg.scripts = pkg.scripts || {};
-    pkg.scripts.build = pkg.scripts.build || 'npm run build:server';
-    pkg.scripts['build:server'] = 'tsc -p tsconfig.server.json && npm run build:copy-files';
-    pkg.scripts['build:copy-files'] = 'cp -r public dist/ 2>/dev/null || mkdir -p dist/public';
-    pkg.scripts.start = 'node dist/server/index.js';
-    pkg.scripts['start:dev'] = 'tsx watch server/index.ts';
-    
-    // Ensure required dependencies for production
-    pkg.dependencies = pkg.dependencies || {};
-    
-    fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));
-    console.log('Package.json updated with ESM configuration');
-    "
+        const fs = require('fs');
+        const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+        
+        // Ensure ESM configuration
+        pkg.type = 'module';
+        
+        // Update main entry point if needed
+        if (!pkg.main || pkg.main === 'index.js') {
+            pkg.main = 'dist/server/index.js';
+        }
+        
+        // Ensure scripts exist
+        if (!pkg.scripts) pkg.scripts = {};
+        if (!pkg.scripts.start) pkg.scripts.start = 'node dist/server/index.js';
+        
+        fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));
+        console.log('package.json updated with ESM configuration');
+    " 2>/dev/null || log_warning "Failed to update package.json automatically"
     
     log_success "Module resolution fixes applied"
 }
@@ -857,10 +880,15 @@ build_application() {
     # Apply module resolution fixes
     fix_module_resolution
     
-    # Clean previous build
-    log "Cleaning previous build artifacts..."
+    # Clean previous build COMPLETELY
+    log "Cleaning previous build artifacts completely..."
     rm -rf dist/ 2>/dev/null || true
     rm -rf build/ 2>/dev/null || true
+    rm -rf client/dist/ 2>/dev/null || true
+    rm -rf .vite/ 2>/dev/null || true
+    
+    # Clear any cached builds
+    npm cache clean --force 2>/dev/null || true
     
     # Install all dependencies (including dev) for build
     log "Installing dependencies for build..."
@@ -883,6 +911,16 @@ build_application() {
     fi
     
     log "TypeScript compiler version: $(npx tsc --version)"
+    
+    # Build client-side application first (if exists)
+    if [ -f "vite.config.ts" ] || [ -f "vite.config.js" ]; then
+        log "Building client-side application with Vite..."
+        if npm run build:client 2>/dev/null || npm run build 2>/dev/null; then
+            log_success "Client-side build completed"
+        else
+            log_warning "Client-side build failed, continuing with server build..."
+        fi
+    fi
     
     # Build TypeScript to JavaScript using server config
     log "Compiling TypeScript to JavaScript using $TSCONFIG_FILE..."
@@ -936,12 +974,20 @@ build_application() {
     # Update ecosystem config to use the correct entry point
     update_ecosystem_config "$main_file"
     
-    # Copy static assets and public files
-    log "Copying static assets..."
+    # Copy static assets and public files with version busting
+    log "Copying static assets with cache busting..."
     if [ -d "public" ]; then
         mkdir -p dist/public
         cp -r public/* dist/public/ 2>/dev/null || true
         log "Public files copied to dist/public/"
+    fi
+    
+    # Copy client build output if it exists
+    if [ -d "client/dist" ]; then
+        log "Copying client-side build output..."
+        mkdir -p dist/public
+        cp -r client/dist/* dist/public/ 2>/dev/null || true
+        log "Client build files copied to dist/public/"
     fi
     
     # Copy shared files if they exist
@@ -956,6 +1002,11 @@ build_application() {
             cp "$file" dist/ 2>/dev/null || true
         fi
     done
+    
+    # Create cache-busting version file
+    local build_version=$(date +%s)
+    echo "$build_version" > dist/public/.version 2>/dev/null || true
+    echo "window.APP_VERSION = '$build_version';" > dist/public/version.js 2>/dev/null || true
     
     # Fix import paths in compiled JavaScript files for ESM
     log "Fixing ESM import paths in compiled files..."
@@ -979,10 +1030,11 @@ build_application() {
     log "Removing development dependencies..."
     npm prune --production
     
-    # Create build info file
+    # Create build info file with version information
     cat > dist/build-info.json << EOF
 {
     "buildTime": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+    "buildVersion": "$build_version",
     "nodeVersion": "$(node --version)",
     "npmVersion": "$(npm --version)",
     "gitCommit": "$(cd "$SOURCE_DIR" && git rev-parse HEAD 2>/dev/null || echo 'unknown')",
@@ -993,7 +1045,7 @@ build_application() {
 }
 EOF
     
-    log_success "Application built successfully with ESM/TypeScript support"
+    log_success "Application built successfully with ESM/TypeScript support (Version: $build_version)"
 }
 
 fix_esm_imports() {
