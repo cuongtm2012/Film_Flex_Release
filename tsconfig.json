@@ -32,14 +32,8 @@
     "noImplicitAny": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
-    "jsx": "react-jsx",
-    "types": [
-      "node",
-      "express",
-      "passport",
-      "passport-local",
-      "express-session",
-      "connect-pg-simple"
+    "jsx": "react-jsx",    "types": [
+      "node"
     ],
     "baseUrl": ".",
     "paths": {
