@@ -141,7 +141,7 @@ export default function Navbar() {
                 <SheetContent side="left" className="w-80 bg-background border-gray-800">
                   <SheetHeader>
                     <SheetTitle className="text-left text-primary font-bold text-xl">
-                      FilmFlex
+                      PhimGG
                     </SheetTitle>
                   </SheetHeader>
                   <nav className="mt-8 space-y-4">
@@ -186,7 +186,7 @@ export default function Navbar() {
 
             {/* Logo */}
             <Link to="/" className="text-primary font-bold text-2xl">
-              FilmFlex
+              PhimGG
             </Link>
 
             {/* Main Navigation - Hide on Mobile */}
