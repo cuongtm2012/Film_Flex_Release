@@ -712,8 +712,7 @@ install_dependencies() {
     
     # Clean npm cache
     npm cache clean --force 2>/dev/null || true
-    
-    # Remove existing node_modules for clean install
+      # Remove existing node_modules for clean install
     if [ -d "node_modules" ]; then
         log "Removing existing node_modules for clean install..."
         rm -rf node_modules/
@@ -777,8 +776,7 @@ validate_typescript_config() {
             log_warning "Main tsconfig.json has noEmit: true, creating temporary server config"
             create_server_tsconfig
             TSCONFIG_FILE="tsconfig.server.json"
-        fi
-    else
+        fi    else
         log_error "No TypeScript configuration found"
         exit 1
     fi
@@ -1480,8 +1478,261 @@ EOF
     
     # Setup cron job for monitoring
     (crontab -l 2>/dev/null; echo "*/5 * * * * $monitor_script") | crontab -
+      log_success "Monitoring and alerting setup completed"
+}
+
+#################################################################################
+# Performance Optimization Functions
+#################################################################################
+
+optimize_performance() {
+    log "Applying performance optimizations..."
     
-    log_success "Monitoring and alerting setup completed"
+    # Node.js memory settings
+    log "Configuring Node.js memory settings..."
+    export NODE_OPTIONS="--max-old-space-size=1024 --optimize-for-size"
+    
+    # PM2 performance configurations
+    if command -v pm2 &> /dev/null; then
+        log "Configuring PM2 performance settings..."
+        pm2 set pm2:max-memory-restart '512M'
+        pm2 set pm2:log-date-format 'YYYY-MM-DD HH:mm:ss Z'
+        pm2 set pm2:autodump true
+        pm2 set pm2:autodump-interval 300000  # 5 minutes
+    fi
+    
+    # System TCP optimizations
+    log "Applying system TCP optimizations..."
+    if [ -f /etc/sysctl.conf ]; then
+        # Backup original sysctl.conf
+        sudo cp /etc/sysctl.conf /etc/sysctl.conf.bak.$(date +%Y%m%d) 2>/dev/null || true
+        
+        # Apply network optimizations
+        sudo tee -a /etc/sysctl.conf > /dev/null << 'EOF'
+
+# FilmFlex Performance Optimizations
+net.core.somaxconn = 4096
+net.core.netdev_max_backlog = 5000
+net.ipv4.tcp_max_syn_backlog = 4096
+net.ipv4.tcp_keepalive_time = 120
+net.ipv4.tcp_keepalive_intvl = 30
+net.ipv4.tcp_keepalive_probes = 3
+net.ipv4.tcp_fin_timeout = 30
+EOF
+        
+        # Apply the changes
+        sudo sysctl -p 2>/dev/null || log_warning "Failed to apply sysctl optimizations"
+    fi
+    
+    # File descriptor limits
+    log "Configuring file descriptor limits..."
+    sudo tee /etc/security/limits.d/filmflex.conf > /dev/null << 'EOF'
+# FilmFlex file descriptor limits
+*               soft    nofile          65536
+*               hard    nofile          65536
+root            soft    nofile          65536
+root            hard    nofile          65536
+EOF
+    
+    log_success "Performance optimizations applied"
+}
+
+setup_ssl_certificate() {
+    log "Setting up SSL certificate..."
+    
+    # Check if domain name is set
+    if [ -z "$DOMAIN_NAME" ]; then
+        log_warning "DOMAIN_NAME not set, skipping SSL certificate setup"
+        log_warning "To setup SSL later, set DOMAIN_NAME and run: certbot --nginx -d your-domain.com"
+        return 0
+    fi
+    
+    # Check if certbot is installed
+    if ! command -v certbot &> /dev/null; then
+        log "Installing certbot..."
+        if [ -n "$PACKAGE_MANAGER" ]; then
+            case "$PACKAGE_MANAGER" in
+                apt-get)
+                    sudo apt-get update
+                    sudo apt-get install -y certbot python3-certbot-nginx
+                    ;;
+                yum|dnf)
+                    sudo $PACKAGE_MANAGER install -y certbot python3-certbot-nginx
+                    ;;
+                *)
+                    log_warning "Unknown package manager, please install certbot manually"
+                    return 0
+                    ;;
+            esac
+        else
+            log_warning "Cannot install certbot automatically"
+            return 0
+        fi
+    fi
+    
+    # Check if nginx is running
+    if ! systemctl is-active --quiet nginx; then
+        log "Starting nginx for SSL certificate validation..."
+        sudo systemctl start nginx
+    fi
+    
+    # Obtain Let's Encrypt certificate
+    log "Obtaining Let's Encrypt certificate for $DOMAIN_NAME..."
+    if sudo certbot --nginx -d "$DOMAIN_NAME" --non-interactive --agree-tos --email "admin@$DOMAIN_NAME" --redirect; then
+        log_success "SSL certificate obtained and configured"
+        
+        # Setup auto-renewal
+        log "Setting up SSL certificate auto-renewal..."
+        (crontab -l 2>/dev/null; echo "0 12 * * * /usr/bin/certbot renew --quiet") | sudo crontab -
+        
+        log_success "SSL certificate auto-renewal configured"
+    else
+        log_error "Failed to obtain SSL certificate"
+        log_warning "SSL setup failed, application will run on HTTP only"
+    fi
+}
+
+setup_firewall() {
+    log "Configuring firewall..."
+    
+    # Check if UFW is available (Ubuntu/Debian)
+    if command -v ufw &> /dev/null; then
+        log "Configuring UFW firewall..."
+        
+        # Enable UFW
+        sudo ufw --force enable
+        
+        # Allow SSH
+        sudo ufw allow ssh
+        sudo ufw allow 22/tcp
+        
+        # Allow HTTP and HTTPS
+        sudo ufw allow 80/tcp
+        sudo ufw allow 443/tcp
+        
+        # Allow application port (restrict to localhost)
+        sudo ufw allow from 127.0.0.1 to any port 5000
+        
+        log_success "UFW firewall configured"
+        
+    elif command -v firewall-cmd &> /dev/null; then
+        log "Configuring firewalld..."
+        
+        # Start firewalld
+        sudo systemctl enable firewalld
+        sudo systemctl start firewalld
+        
+        # Allow HTTP and HTTPS
+        sudo firewall-cmd --permanent --add-service=http
+        sudo firewall-cmd --permanent --add-service=https
+        sudo firewall-cmd --permanent --add-service=ssh
+        
+        # Reload firewall
+        sudo firewall-cmd --reload
+        
+        log_success "Firewalld configured"
+        
+    elif command -v iptables &> /dev/null; then
+        log "Configuring iptables..."
+        
+        # Basic iptables rules
+        sudo iptables -A INPUT -i lo -j ACCEPT
+        sudo iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+        sudo iptables -A INPUT -p tcp --dport 22 -j ACCEPT
+        sudo iptables -A INPUT -p tcp --dport 80 -j ACCEPT
+        sudo iptables -A INPUT -p tcp --dport 443 -j ACCEPT
+        sudo iptables -A INPUT -p tcp --dport 5000 -s 127.0.0.1 -j ACCEPT
+        sudo iptables -A INPUT -j DROP
+        
+        # Save iptables rules
+        if command -v iptables-save &> /dev/null; then
+            sudo iptables-save > /etc/iptables/rules.v4 2>/dev/null || true
+        fi
+        
+        log_success "Iptables configured"
+    else
+        log_warning "No supported firewall found, skipping firewall configuration"
+        log_warning "Please configure your firewall manually to allow ports 80, 443, and restrict 5000 to localhost"
+    fi
+}
+
+cleanup_deployment() {
+    log "Performing post-deployment cleanup..."
+    
+    cd "$DEPLOYMENT_DIR"
+    
+    # Clean up temporary files
+    log "Cleaning up temporary files..."
+    rm -rf /tmp/filmflex-* 2>/dev/null || true
+    find . -name "*.tmp" -delete 2>/dev/null || true
+    find . -name "*.log.old" -delete 2>/dev/null || true
+    
+    # Clean up old node_modules cache
+    if [ -d "node_modules/.cache" ]; then
+        rm -rf node_modules/.cache/* 2>/dev/null || true
+    fi
+    
+    # Clean npm cache
+    npm cache clean --force 2>/dev/null || true
+    
+    # Set final file permissions
+    log "Setting final file permissions..."
+    
+    # Ensure proper ownership
+    if [ "$(whoami)" != "root" ]; then
+        sudo chown -R $(whoami):$(whoami) "$DEPLOYMENT_DIR" 2>/dev/null || true
+    fi
+    
+    # Set proper permissions for key files
+    chmod 755 "$DEPLOYMENT_DIR" 2>/dev/null || true
+    find "$DEPLOYMENT_DIR" -type d -exec chmod 755 {} \; 2>/dev/null || true
+    find "$DEPLOYMENT_DIR" -type f -name "*.js" -exec chmod 644 {} \; 2>/dev/null || true
+    find "$DEPLOYMENT_DIR" -type f -name "*.json" -exec chmod 644 {} \; 2>/dev/null || true
+    
+    # Secure sensitive files
+    if [ -f ".env" ]; then
+        chmod 600 .env
+    fi
+    
+    # Create log rotation for application logs
+    if [ -d "logs" ]; then
+        log "Setting up log rotation..."
+        sudo tee /etc/logrotate.d/filmflex > /dev/null << EOF
+$DEPLOYMENT_DIR/logs/*.log {
+    daily
+    missingok
+    rotate 30
+    compress
+    delaycompress
+    notifempty
+    create 644 $(whoami) $(whoami)
+    postrotate
+        pm2 reloadLogs > /dev/null 2>&1 || true
+    endscript
+}
+EOF
+    fi
+    
+    # Optimize file system cache
+    log "Optimizing file system cache..."
+    sync
+    echo 3 | sudo tee /proc/sys/vm/drop_caches > /dev/null 2>&1 || true
+    
+    # Create deployment info file
+    log "Creating deployment information file..."
+    cat > deployment-info.json << EOF
+{
+    "deploymentDate": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+    "deploymentVersion": "$(git rev-parse HEAD 2>/dev/null || echo 'unknown')",
+    "nodeVersion": "$(node --version)",
+    "npmVersion": "$(npm --version)",
+    "environment": "$ENVIRONMENT",
+    "deploymentDir": "$DEPLOYMENT_DIR",
+    "healthCheckUrl": "$HEALTH_CHECK_URL"
+}
+EOF
+    
+    log_success "Post-deployment cleanup completed"
 }
 
 #################################################################################

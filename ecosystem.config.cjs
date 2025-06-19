@@ -3,7 +3,7 @@ module.exports = {
     {
       name: "filmflex",
       script: "dist/index.js",
-      cwd: "/root/Film_Flex_Release",
+      cwd: "/var/www/filmflex",
       instances: "max",
       exec_mode: "cluster",
       watch: false,
