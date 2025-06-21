@@ -36,7 +36,7 @@ export function MovieSEO({ movie, slug }: MovieSEOProps) {
       "name": movie.name,
       "alternateName": movie.origin_name,
       "description": movie.content || movieDescription,
-      "url": `https://phimgg.com/movie/${slug}`,
+      "url": `https://phimgg.com/movie/${slug}/`,
       "image": movie.poster_url || movie.thumb_url,
       "datePublished": movie.year ? `${movie.year}-01-01` : undefined,
       "genre": movie.category?.map(cat => cat.name) ?? [],
@@ -70,13 +70,13 @@ export function MovieSEO({ movie, slug }: MovieSEOProps) {
         <title>{movieTitle}</title>
         <meta name="description" content={movieDescription} />
         <meta name="keywords" content={keywords} />
-        <link rel="canonical" href={`https://phimgg.com/movie/${slug}`} />
+        <link rel="canonical" href={`https://phimgg.com/movie/${slug}/`} />
         
         {/* Open Graph Meta Tags */}
         <meta property="og:title" content={movieTitle} />
         <meta property="og:description" content={movieDescription} />
         <meta property="og:type" content="video.movie" />
-        <meta property="og:url" content={`https://phimgg.com/movie/${slug}`} />
+        <meta property="og:url" content={`https://phimgg.com/movie/${slug}/`} />
         <meta property="og:image" content={movie.poster_url || movie.thumb_url} />
         <meta property="og:site_name" content="PhimGG" />
         <meta property="og:locale" content="en_US" />
