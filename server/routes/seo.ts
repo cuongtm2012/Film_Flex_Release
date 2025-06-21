@@ -120,7 +120,7 @@ router.get('/sitemap.xml', async (_req, res) => {
           currentDate;
           
         sitemap += `  <url>
-    <loc>https://phimgg.com/movie/${movie.slug}</loc>
+    <loc>https://phimgg.com/movie/${movie.slug}/</loc>
     <lastmod>${movieLastMod}</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>

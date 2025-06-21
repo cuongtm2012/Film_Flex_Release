@@ -19,6 +19,7 @@ import { ThemeProvider } from "@/components/ui/theme-provider";
 import { AuthProvider } from "@/hooks/use-auth";
 import { ProtectedRoute } from "@/lib/protected-route";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import SplashScreen from "@/components/SplashScreen";
 
 import MoviesPage from "@/pages/MoviesPage";
 import NewsPage from "@/pages/NewsPage";
@@ -292,8 +293,15 @@ function Router() {
 }
 
 function App() {
+  const [showSplash, setShowSplash] = React.useState(() => {
+    // Check if splash screen has been seen in this session
+    const hasSeenSplash = localStorage.getItem('filmflex-splash-seen');
+    debugLog('Checking splash screen status', { hasSeenSplash, shouldShow: !hasSeenSplash });
+    return !hasSeenSplash;
+  });
+
   React.useEffect(() => {
-    debugLog('App component mounted');
+    debugLog('App component mounted', { showSplash });
     
     // Add debugging info to window
     if (DEBUG_MODE) {
@@ -316,6 +324,25 @@ function App() {
           localStorage.removeItem('filmflex-debug');
           location.reload();
         },
+        showSplash: () => {
+          localStorage.removeItem('filmflex-splash-seen');
+          setShowSplash(true);
+          debugLog('Force showing splash screen');
+        },
+        hideSplash: () => {
+          localStorage.setItem('filmflex-splash-seen', 'true');
+          setShowSplash(false);
+          debugLog('Force hiding splash screen');
+        },
+        checkSplashStatus: () => {
+          const status = {
+            showSplash,
+            hasSeenSplash: localStorage.getItem('filmflex-splash-seen'),
+            localStorage: Object.keys(localStorage)
+          };
+          console.log('Splash Status:', status);
+          return status;
+        },
         getAppInfo: () => ({
           userAgent: navigator.userAgent,
           url: location.href,
@@ -326,10 +353,21 @@ function App() {
       };
       
       console.log('🔧 Debug utilities available at window.filmflexDebug');
+      console.log('🎬 To test splash screen: window.filmflexDebug.showSplash()');
+      console.log('📊 Check splash status: window.filmflexDebug.checkSplashStatus()');
     }
     
     return () => debugLog('App component unmounted');
-  }, []);
+  }, [showSplash]);
+
+  const handleCloseSplash = () => {
+    debugLog('Closing splash screen');
+    localStorage.setItem('filmflex-splash-seen', 'true');
+    setShowSplash(false);
+  };
+
+  // Log current state
+  debugLog('App render', { showSplash });
 
   return (
     <ErrorBoundary>
@@ -344,6 +382,7 @@ function App() {
                       <TooltipProvider>
                         <ErrorBoundary>
                           <Toaster />
+                          {showSplash && <SplashScreen onClose={handleCloseSplash} />}
                           <Router />
                         </ErrorBoundary>
                       </TooltipProvider>
