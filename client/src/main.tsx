@@ -1,6 +1,7 @@
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
+import "./i18n"; // Initialize i18n configuration
 
 // Enhanced error handling for blank page debugging
 window.addEventListener('error', (event) => {

@@ -1,0 +1,124 @@
+{
+  "pages": {
+    "home": {
+      "title": "Chào mừng đến với FilmFlex",
+      "hero_description": "Khám phá hàng nghìn bộ phim và chương trình truyền hình từ nhiều nguồn phát trực tuyến trong một nơi.",
+      "trending_now": "Xu hướng hiện tại",
+      "latest_movies": "Phim mới nhất",
+      "popular_tv": "Phim bộ phổ biến",
+      "top_rated": "Phim được đánh giá cao",
+      "anime_section": "Bộ sưu tập Anime"
+    },
+    "profile": {
+      "title": "Hồ sơ",
+      "edit_profile": "Chỉnh sửa hồ sơ",
+      "profile_image": "Ảnh hồ sơ",
+      "change_profile_picture": "Thay đổi ảnh hồ sơ của bạn",
+      "account_information": "Thông tin tài khoản",
+      "update_account_details": "Cập nhật chi tiết tài khoản của bạn",
+      "recent_activity": "Hoạt động gần đây",
+      "watchlist_count": "Danh sách xem",
+      "watched_count": "Đã xem",
+      "change_password": "Đổi mật khẩu",
+      "logout": "Đăng xuất",
+      "no_activity": "Không có hoạt động gần đây",
+      "upload_image": "Tải ảnh lên",
+      "remove_image": "Xóa ảnh"
+    },
+    "settings": {
+      "title": "Cài đặt tài khoản",
+      "password_tab": "Mật khẩu",
+      "notifications_tab": "Thông báo",
+      "preferences_tab": "Tùy chọn",
+      "change_password_title": "Đổi mật khẩu",
+      "change_password_description": "Cập nhật mật khẩu để bảo mật tài khoản của bạn",
+      "notification_settings_title": "Cài đặt thông báo",
+      "notification_settings_description": "Quản lý tùy chọn thông báo của bạn",
+      "email_notifications": "Thông báo email",
+      "email_notifications_desc": "Nhận thông báo email cho các cập nhật và tin tức",
+      "new_episodes": "Tập phim mới",
+      "new_episodes_desc": "Nhận thông báo khi có tập phim mới",
+      "new_releases": "Phát hành mới",
+      "new_releases_desc": "Thông báo cho phim và chương trình TV mới phát hành",
+      "account_alerts": "Cảnh báo tài khoản",
+      "account_alerts_desc": "Nhận cảnh báo cho thay đổi mật khẩu, đăng nhập thiết bị mới, v.v.",
+      "save_notification_settings": "Lưu cài đặt thông báo",
+      "back_to_profile": "Quay lại hồ sơ"
+    },
+    "contact": {
+      "title": "Liên hệ với chúng tôi",
+      "description": "Chúng tôi rất muốn nghe từ bạn. Gửi tin nhắn và chúng tôi sẽ phản hồi sớm nhất có thể.",
+      "get_in_touch": "Liên lạc",
+      "send_message": "Gửi tin nhắn cho chúng tôi",
+      "your_name": "Tên của bạn",
+      "email_address": "Địa chỉ email",
+      "subject": "Chủ đề",
+      "category": "Danh mục",
+      "your_message": "Tin nhắn của bạn",
+      "send_message_btn": "Gửi tin nhắn",
+      "categories": {
+        "account": "Tài khoản & Thanh toán",
+        "technical": "Hỗ trợ kỹ thuật",
+        "content": "Yêu cầu nội dung",
+        "feedback": "Phản hồi chung",
+        "business": "Tư vấn kinh doanh"
+      },
+      "contact_info": {
+        "email": "Email",
+        "phone": "Điện thoại",
+        "address": "Địa chỉ",
+        "hours": "Giờ làm việc"
+      }
+    },
+    "admin": {
+      "title": "Bảng điều khiển quản trị",
+      "access_denied": "Truy cập bị từ chối",
+      "admin_only": "Bạn phải là quản trị viên để truy cập trang này.",
+      "user_management": "Quản lý người dùng",
+      "content_management": "Quản lý nội dung",
+      "system_settings": "Cài đặt hệ thống",
+      "analytics": "Phân tích",
+      "security": "Bảo mật",
+      "audit_logs": "Nhật ký kiểm tra",
+      "site_title": "Tiêu đề trang",
+      "site_description": "Mô tả trang",
+      "site_url": "URL trang",
+      "admin_email": "Email quản trị",
+      "support_email": "Email hỗ trợ",
+      "language": "Ngôn ngữ",
+      "timezone": "Múi giờ",
+      "currency": "Tiền tệ",
+      "maintenance_mode": "Chế độ bảo trì",
+      "save_changes": "Lưu thay đổi"
+    },
+    "devices": {
+      "title": "Thiết bị được hỗ trợ",
+      "description": "FilmFlex hoạt động trên tất cả thiết bị yêu thích của bạn. Phát trực tuyến mọi lúc, mọi nơi.",
+      "streaming_devices": "Thiết bị phát trực tuyến",
+      "mobile_devices": "Di động & Máy tính bảng",
+      "web_browsers": "Trình duyệt web",
+      "gaming_consoles": "Console chơi game",
+      "smart_tvs": "TV thông minh",
+      "roku": {
+        "title": "Roku",
+        "description": "Cài đặt dễ dàng và giá trị tuyệt vời",
+        "4k_support": "Hỗ trợ 4K",
+        "setup_difficulty": "Độ khó cài đặt",
+        "price_range": "Khoảng giá",
+        "easy": "Dễ"
+      },
+      "nvidia_shield": {
+        "title": "NVIDIA Shield TV",
+        "description": "Trải nghiệm Android TV mạnh mẽ nhất"
+      },
+      "apple_tv": {
+        "title": "Apple TV 4K",
+        "description": "Giao diện tinh tế và hệ sinh thái"
+      }
+    },
+    "not_found": {
+      "title": "404 Không tìm thấy trang",
+      "description": "Bạn có quên thêm trang vào router không?"
+    }
+  }
+}

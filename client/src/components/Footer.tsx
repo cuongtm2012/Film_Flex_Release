@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
+import { useTranslation } from "react-i18next";
 import { 
   Film, 
   Tv,
@@ -92,6 +93,7 @@ interface FooterSectionProps {
 }
 
 const FooterSection = ({ title, children }: FooterSectionProps) => {
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   
   return (
@@ -101,7 +103,7 @@ const FooterSection = ({ title, children }: FooterSectionProps) => {
         onClick={() => setIsOpen(!isOpen)}
       >
         <h3 className="text-lg font-bold mb-2 md:mb-4">{title}</h3>
-        <button className="md:hidden" aria-label={isOpen ? "Collapse section" : "Expand section"}>
+        <button className="md:hidden" aria-label={isOpen ? t('collapse_section') : t('expand_section')}>
           {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         </button>
       </div>
@@ -113,6 +115,7 @@ const FooterSection = ({ title, children }: FooterSectionProps) => {
 };
 
 const Footer = () => {
+  const { t } = useTranslation();
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [, setLocation] = useLocation();
 
@@ -168,7 +171,7 @@ const Footer = () => {
         <button
           onClick={scrollToTop}
           className="scroll-to-top-btn fixed bottom-20 right-6 bg-primary text-white p-3 rounded-full shadow-lg hover:bg-primary-dark transition-all duration-300 z-50 animate-fade-in"
-          aria-label="Scroll to top"
+          aria-label={t('scroll_to_top')}
         >
           <ChevronUp className="h-6 w-6" />
         </button>
@@ -183,98 +186,98 @@ const Footer = () => {
                 <span className="text-2xl font-bold text-primary">FilmFlex</span>
               </div>
             </Link>
-            <p className="text-gray-400 mt-2">Your ultimate streaming destination</p>
+            <p className="text-gray-400 mt-2">{t('tagline')}</p>
           </div>
         </div>
 
         {/* Footer navigation sections */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-8">
-          {/* Browse section - with fewer links for mobile */}
-          <FooterSection title="Browse">
+          {/* Browse section */}
+          <FooterSection title={t('browse')}>
             <ul className="space-y-2 mb-4 md:mb-0">
               <FooterLink 
                 href="/movies" 
                 icon={<Film className="h-4 w-4 mr-2" />}
                 onCustomClick={handleMoviesClick}
               >
-                Movies
+                {t('movies')}
               </FooterLink>
               <FooterLink href="/tv" icon={<Tv className="h-4 w-4 mr-2" />}>
-                TV Shows
+                {t('tv_series')}
               </FooterLink>
               <FooterLink href="/new-releases" icon={<Calendar className="h-4 w-4 mr-2" />}>
-                New Releases
+                {t('new_releases')}
               </FooterLink>
               <FooterLink href="/top-rated" icon={<Star className="h-4 w-4 mr-2" />}>
-                Top Rated
+                {t('top_rated')}
               </FooterLink>
             </ul>
           </FooterSection>
 
-          {/* Help section - with fewer links for mobile */}
-          <FooterSection title="Help">
+          {/* Help section */}
+          <FooterSection title={t('help')}>
             <ul className="space-y-2 mb-4 md:mb-0">
               <FooterLink href="/account" icon={<HelpCircle className="h-4 w-4 mr-2" />}>
-                Account
+                {t('account')}
               </FooterLink>
               <FooterLink href="/how-to-watch" icon={<Monitor className="h-4 w-4 mr-2" />}>
-                How to Watch
+                {t('how_to_watch')}
               </FooterLink>
               <FooterLink href="/faqs" icon={<FileText className="h-4 w-4 mr-2" />}>
-                FAQs
+                {t('faqs')}
               </FooterLink>
               <FooterLink href="/contact" icon={<Mail className="h-4 w-4 mr-2" />}>
-                Contact Us
+                {t('contact_us')}
               </FooterLink>
             </ul>
           </FooterSection>
 
-          {/* About section - with fewer links for mobile */}
-          <FooterSection title="About">
+          {/* About section */}
+          <FooterSection title={t('about')}>
             <ul className="space-y-2 mb-4 md:mb-0">
               <FooterLink href="/about" icon={<Info className="h-4 w-4 mr-2" />}>
-                About Us
+                {t('about_us')}
               </FooterLink>
               <FooterLink href="/careers" icon={<Briefcase className="h-4 w-4 mr-2" />}>
-                Careers
+                {t('careers')}
               </FooterLink>
               <FooterLink href="/blog" icon={<BookOpen className="h-4 w-4 mr-2" />}>
-                Blog
+                {t('blog')}
               </FooterLink>
             </ul>
           </FooterSection>
 
-          {/* Legal section - with fewer links for mobile */}
-          <FooterSection title="Legal">
+          {/* Legal section */}
+          <FooterSection title={t('legal')}>
             <ul className="space-y-2">
               <FooterLink href="/terms" icon={<FileTerminal className="h-4 w-4 mr-2" />}>
-                Terms of Use
+                {t('terms_of_use')}
               </FooterLink>
               <FooterLink href="/privacy" icon={<Shield className="h-4 w-4 mr-2" />}>
-                Privacy Policy
+                {t('privacy_policy')}
               </FooterLink>
               <FooterLink href="/cookie-policy" icon={<Cookie className="h-4 w-4 mr-2" />}>
-                Cookie Policy
+                {t('cookie_policy')}
               </FooterLink>
             </ul>
           </FooterSection>
         </div>
 
-        {/* Bottom copyright section - more compact */}
+        {/* Bottom copyright section */}
         <div className="border-t border-gray-800 mt-6 pt-4 text-center text-gray-400">
           <div className="flex justify-center mb-3">
             <button 
               onClick={scrollToTop}
               className="flex items-center text-gray-300 hover:text-primary transition-colors duration-200"
-              aria-label="Back to top"
+              aria-label={t('back_to_top')}
             >
               <ChevronUp className="h-4 w-4 mr-1" />
-              <span>Back to Top</span>
+              <span>{t('back_to_top')}</span>
             </button>
           </div>
-          <p className="text-sm">© {new Date().getFullYear()} FilmFlex. All rights reserved.</p>
+          <p className="text-sm">{t('copyright', { year: new Date().getFullYear() })}</p>
           <p className="mt-1 text-xs">
-            For demonstration purposes only.
+            {t('demo_notice')}
           </p>
         </div>
       </div>

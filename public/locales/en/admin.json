@@ -1,0 +1,166 @@
+{
+  "admin": {
+    "user_management": {
+      "title": "User Management",
+      "description": "Manage users and their permissions",
+      "create_user": "Create User",
+      "edit_user": "Edit User", 
+      "delete_user": "Delete User",
+      "user_details": "User Details",
+      "search_users": "Search users...",
+      "filter_by_role": "Filter by Role",
+      "filter_by_status": "Filter by Status",
+      "all_roles": "All Roles",
+      "all_statuses": "All Statuses",
+      "user_roles": {
+        "admin": "Admin",
+        "moderator": "Moderator", 
+        "user": "User",
+        "normal": "Normal"
+      },
+      "user_statuses": {
+        "active": "Active",
+        "suspended": "Suspended",
+        "pending": "Pending",
+        "banned": "Banned"
+      },
+      "table_headers": {
+        "username": "Username",
+        "email": "Email",
+        "role": "Role", 
+        "status": "Status",
+        "last_login": "Last Login",
+        "email_verified": "Email Verified",
+        "actions": "Actions",
+        "created_at": "Created",
+        "display_name": "Display Name"
+      },
+      "actions": {
+        "view": "View",
+        "edit": "Edit",
+        "delete": "Delete",
+        "suspend": "Suspend",
+        "activate": "Activate",
+        "ban": "Ban",
+        "unban": "Unban"
+      },
+      "form": {
+        "username_required": "Username is required",
+        "email_required": "Email is required", 
+        "password_required": "Password is required",
+        "role_required": "Role is required",
+        "enter_username": "Enter username",
+        "enter_email": "Enter email",
+        "enter_password": "Enter password",
+        "enter_display_name": "Enter display name",
+        "confirm_password": "Confirm password",
+        "leave_blank_keep_password": "Leave blank to keep current password",
+        "email_verified": "Email Verified",
+        "update_user": "Update User",
+        "create_user": "Create User",
+        "generate_default_password": "Generate Default Password"
+      },
+      "messages": {
+        "user_created": "User created successfully",
+        "user_updated": "User updated successfully",
+        "user_deleted": "User deleted successfully",
+        "operation_failed": "Operation failed",
+        "confirm_delete": "Are you sure you want to delete this user?",
+        "never_logged_in": "Never",
+        "verified": "Verified",
+        "unverified": "Unverified"
+      }
+    },
+    "content_management": {
+      "title": "Content Management",
+      "description": "Manage movies, TV shows, and other content",
+      "add_content": "Add Content",
+      "edit_content": "Edit Content",
+      "delete_content": "Delete Content", 
+      "search_content": "Search content...",
+      "filter_by_type": "Filter by Type",
+      "filter_by_section": "Filter by Section",
+      "all_types": "All Types",
+      "all_sections": "All Sections",
+      "content_types": {
+        "movie": "Movie",
+        "tv_show": "TV Show",
+        "anime": "Anime",
+        "documentary": "Documentary"
+      },
+      "sections": {
+        "trending_now": "Trending Now",
+        "latest_movies": "Latest Movies", 
+        "top_rated": "Top Rated Movies",
+        "popular_tv": "Popular TV Series",
+        "anime": "Anime",
+        "none": "None"
+      },
+      "table_headers": {
+        "title": "Title",
+        "type": "Type",
+        "year": "Year",
+        "rating": "Rating",
+        "section": "Section",
+        "status": "Status",
+        "actions": "Actions"
+      }
+    },
+    "system_settings": {
+      "title": "System Settings",
+      "description": "Configure system-wide settings and preferences",
+      "general": "General Settings",
+      "email": "Email Settings",
+      "security": "Security Settings",
+      "analytics": "Analytics Settings",
+      "site_information": {
+        "title": "Site Information",
+        "site_title": "Site Title",
+        "site_description": "Site Description",
+        "site_url": "Site URL",
+        "admin_email": "Admin Email",
+        "support_email": "Support Email"
+      },
+      "localization": {
+        "title": "Localization",
+        "language": "Language",
+        "timezone": "Timezone", 
+        "currency": "Currency",
+        "date_format": "Date Format"
+      },
+      "email_settings": {
+        "smtp_server": "SMTP Server",
+        "smtp_port": "SMTP Port",
+        "smtp_username": "SMTP Username",
+        "smtp_password": "SMTP Password",
+        "email_from_address": "Email From Address",
+        "email_from_name": "Email From Name"
+      },
+      "security_settings": {
+        "admin_password": "Admin Password",
+        "confirm_password": "Confirm Password",
+        "two_factor_auth": "Two-Factor Authentication",
+        "ip_whitelist": "IP Whitelist",
+        "session_timeout": "Session Timeout",
+        "password_requirements": "Password Requirements"
+      }
+    },
+    "analytics": {
+      "title": "Analytics",
+      "description": "View and analyze site usage and performance",
+      "google_analytics": "Google Analytics",
+      "facebook_pixel": "Facebook Pixel",
+      "twitter_analytics": "Twitter Analytics"
+    },
+    "audit_logs": {
+      "title": "Audit Logs", 
+      "description": "Track all administrative actions and changes",
+      "user": "User",
+      "action": "Action",
+      "details": "Details",
+      "timestamp": "Timestamp",
+      "ip_address": "IP Address",
+      "export_logs": "Export Logs"
+    }
+  }
+}

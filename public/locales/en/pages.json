@@ -1,0 +1,124 @@
+{
+  "pages": {
+    "home": {
+      "title": "Welcome to FilmFlex",
+      "hero_description": "Discover thousands of movies and TV shows across multiple streaming sources in one place.",
+      "trending_now": "Trending Now",
+      "latest_movies": "Latest Movies",
+      "popular_tv": "Popular TV Series",
+      "top_rated": "Top Rated Movies",
+      "anime_section": "Anime Collection"
+    },
+    "profile": {
+      "title": "Profile",
+      "edit_profile": "Edit Profile",
+      "profile_image": "Profile Image",
+      "change_profile_picture": "Change your profile picture",
+      "account_information": "Account Information",
+      "update_account_details": "Update your account details",
+      "recent_activity": "Recent Activity",
+      "watchlist_count": "Watchlist",
+      "watched_count": "Watched",
+      "change_password": "Change Password",
+      "logout": "Logout",
+      "no_activity": "No recent activity",
+      "upload_image": "Upload Image",
+      "remove_image": "Remove Image"
+    },
+    "settings": {
+      "title": "Account Settings",
+      "password_tab": "Password",
+      "notifications_tab": "Notifications",
+      "preferences_tab": "Preferences",
+      "change_password_title": "Change Password",
+      "change_password_description": "Update your password to keep your account secure",
+      "notification_settings_title": "Notification Settings",
+      "notification_settings_description": "Manage your notification preferences",
+      "email_notifications": "Email Notifications",
+      "email_notifications_desc": "Receive email notifications for updates and news",
+      "new_episodes": "New Episodes",
+      "new_episodes_desc": "Get notified when new episodes are available",
+      "new_releases": "New Releases", 
+      "new_releases_desc": "Notifications for new movie and TV show releases",
+      "account_alerts": "Account Alerts",
+      "account_alerts_desc": "Receive alerts for password changes, new device logins, etc.",
+      "save_notification_settings": "Save Notification Settings",
+      "back_to_profile": "Back to Profile"
+    },
+    "contact": {
+      "title": "Contact Us",
+      "description": "We'd love to hear from you. Send us a message and we'll respond as soon as possible.",
+      "get_in_touch": "Get in Touch",
+      "send_message": "Send Us a Message",
+      "your_name": "Your Name",
+      "email_address": "Email Address",
+      "subject": "Subject",
+      "category": "Category",
+      "your_message": "Your Message",
+      "send_message_btn": "Send Message",
+      "categories": {
+        "account": "Account & Billing",
+        "technical": "Technical Support", 
+        "content": "Content Request",
+        "feedback": "General Feedback",
+        "business": "Business Inquiry"
+      },
+      "contact_info": {
+        "email": "Email",
+        "phone": "Phone", 
+        "address": "Address",
+        "hours": "Hours"
+      }
+    },
+    "admin": {
+      "title": "Admin Dashboard",
+      "access_denied": "Access Denied",
+      "admin_only": "You must be an admin to access this page.",
+      "user_management": "User Management",
+      "content_management": "Content Management", 
+      "system_settings": "System Settings",
+      "analytics": "Analytics",
+      "security": "Security",
+      "audit_logs": "Audit Logs",
+      "site_title": "Site Title",
+      "site_description": "Site Description",
+      "site_url": "Site URL",
+      "admin_email": "Admin Email",
+      "support_email": "Support Email",
+      "language": "Language",
+      "timezone": "Timezone",
+      "currency": "Currency",
+      "maintenance_mode": "Maintenance Mode",
+      "save_changes": "Save Changes"
+    },
+    "devices": {
+      "title": "Supported Devices",
+      "description": "FilmFlex works on all your favorite devices. Stream anywhere, anytime.",
+      "streaming_devices": "Streaming Devices",
+      "mobile_devices": "Mobile & Tablet",
+      "web_browsers": "Web Browsers",
+      "gaming_consoles": "Gaming Consoles",
+      "smart_tvs": "Smart TVs",
+      "roku": {
+        "title": "Roku",
+        "description": "Easy setup and great value",
+        "4k_support": "4K Support",
+        "setup_difficulty": "Setup Difficulty", 
+        "price_range": "Price Range",
+        "easy": "Easy"
+      },
+      "nvidia_shield": {
+        "title": "NVIDIA Shield TV",
+        "description": "Most powerful Android TV experience"
+      },
+      "apple_tv": {
+        "title": "Apple TV 4K",
+        "description": "Sleek interface and ecosystem"
+      }
+    },
+    "not_found": {
+      "title": "404 Page Not Found",
+      "description": "Did you forget to add the page to the router?"
+    }
+  }
+}

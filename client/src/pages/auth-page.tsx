@@ -19,33 +19,37 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-
-const loginSchema = z.object({
-  username: z.string().min(3, "Username must be at least 3 characters"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-});
-
-const registerSchema = z
-  .object({
-    username: z.string().min(3, "Username must be at least 3 characters"),
-    email: z.string().email("Invalid email address"),
-    password: z.string().min(6, "Password must be at least 6 characters"),
-    confirmPassword: z
-      .string()
-      .min(6, "Password must be at least 6 characters"),
-    agreeToTerms: z.boolean().refine((val) => val === true, {
-      message: "You must agree to the Terms of Service and Privacy Policy",
-    }),
-  })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: "Passwords don't match",
-    path: ["confirmPassword"],
-  });
-
-type LoginFormValues = z.infer<typeof loginSchema>;
-type RegisterFormValues = z.infer<typeof registerSchema>;
+import useI18n from "@/hooks/use-i18n";
 
 export default function AuthPage() {
+  const { ta, tf } = useI18n();
+  
+  // Create schemas with translated messages
+  const loginSchema = z.object({
+    username: z.string().min(3, tf("validation.username_min")),
+    password: z.string().min(6, tf("validation.password_min")),
+  });
+
+  const registerSchema = z
+    .object({
+      username: z.string().min(3, tf("validation.username_min")),
+      email: z.string().email(tf("validation.email_invalid")),
+      password: z.string().min(6, tf("validation.password_min")),
+      confirmPassword: z
+        .string()
+        .min(6, tf("validation.password_min")),
+      agreeToTerms: z.boolean().refine((val) => val === true, {
+        message: tf("validation.terms_required"),
+      }),
+    })
+    .refine((data) => data.password === data.confirmPassword, {
+      message: tf("validation.passwords_match"),
+      path: ["confirmPassword"],
+    });
+
+  type LoginFormValues = z.infer<typeof loginSchema>;
+  type RegisterFormValues = z.infer<typeof registerSchema>;
+
   const [activeTab, setActiveTab] = useState<string>("login");
   const [, navigate] = useLocation();
   const { toast } = useToast();
@@ -83,16 +87,16 @@ export default function AuthPage() {
     loginMutation.mutate(data, {
       onSuccess: () => {
         toast({
-          title: "Login successful",
-          description: "Welcome back!",
+          title: ta("login.welcome_back"),
+          description: ta("login.welcome_back"),
         });
         navigate("/");
       },
       onError: (error) => {
-        setAuthError(error.message || "We're having trouble signing you in. Please check your credentials and try again.");
+        setAuthError(error.message || ta("login.login_error"));
         toast({
-          title: "Login failed",
-          description: error.message || "Please check your credentials and try again",
+          title: ta("errors.login_failed"),
+          description: error.message || ta("errors.login_failed"),
           variant: "destructive",
         });
       },
@@ -105,16 +109,15 @@ export default function AuthPage() {
     registerMutation.mutate(registerData, {
       onSuccess: () => {
         toast({
-          title: "Registration successful",
-          description: "Your account has been created",
+          title: ta("register.create_account"),
+          description: ta("register.create_account"),
         });
         navigate("/");
       },
       onError: (error) => {
         toast({
-          title: "Registration failed",
-          description:
-            error.message || "Please try again with different information",
+          title: ta("errors.registration_failed"),
+          description: error.message || ta("errors.registration_failed"),
           variant: "destructive",
         });
       },
@@ -131,16 +134,16 @@ export default function AuthPage() {
             value={activeTab}
           >
             <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="login">Login</TabsTrigger>
-              <TabsTrigger value="register">Register</TabsTrigger>
+              <TabsTrigger value="login">{ta("login.title")}</TabsTrigger>
+              <TabsTrigger value="register">{ta("register.title")}</TabsTrigger>
             </TabsList>
 
             <TabsContent value="login">
               <Card>
                 <CardHeader>
-                  <CardTitle>Login</CardTitle>
+                  <CardTitle>{ta("login.title")}</CardTitle>
                   <CardDescription>
-                    Enter your credentials to access your account
+                    {ta("login.description")}
                   </CardDescription>
                 </CardHeader>
                 <form
@@ -158,7 +161,7 @@ export default function AuthPage() {
                     )}
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <Label htmlFor="username">Username</Label>
+                        <Label htmlFor="username">{ta("login.username_label")}</Label>
                         {loginForm.formState.errors.username && (
                           <span className="text-xs text-destructive">
                             {loginForm.formState.errors.username.message}
@@ -175,7 +178,7 @@ export default function AuthPage() {
                               ? "border-destructive"
                               : ""
                           }`}
-                          placeholder="Enter your username"
+                          placeholder={tf("placeholders.enter_username")}
                           {...loginForm.register("username", { required: true })}
                         />
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-muted-foreground/70">
@@ -201,7 +204,7 @@ export default function AuthPage() {
 
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <Label htmlFor="password">Password</Label>
+                        <Label htmlFor="password">{ta("login.password_label")}</Label>
                         {loginForm.formState.errors.password && (
                           <span className="text-xs text-destructive">
                             {loginForm.formState.errors.password.message}
@@ -248,7 +251,7 @@ export default function AuthPage() {
                           htmlFor="remember"
                           className="text-sm text-muted-foreground"
                         >
-                          Remember me
+                          {ta("login.remember_me")}
                         </label>
                       </div>
 
@@ -256,7 +259,7 @@ export default function AuthPage() {
                         href="#"
                         className="text-sm text-primary hover:underline"
                       >
-                        Forgot password?
+                        {ta("login.forgot_password")}
                       </a>
                     </div>
                   </CardContent>
@@ -290,10 +293,10 @@ export default function AuthPage() {
                               d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                             ></path>
                           </svg>
-                          Logging in...
+                          {ta("login.logging_in")}
                         </span>
                       ) : (
-                        "Sign In"
+                        ta("login.sign_in")
                       )}
                     </Button>
 
@@ -303,7 +306,7 @@ export default function AuthPage() {
                       </div>
                       <div className="relative flex justify-center text-xs">
                         <span className="px-2 bg-background text-muted-foreground">
-                          Or continue with
+                          {ta("login.or_continue_with")}
                         </span>
                       </div>
                     </div>
@@ -334,7 +337,7 @@ export default function AuthPage() {
                           />
                           <path d="M1 1h22v22H1z" fill="none" />
                         </svg>
-                        Continue with Google
+                        {ta("login.continue_with_google")}
                       </button>
                     </div>
                   </CardFooter>
@@ -345,16 +348,16 @@ export default function AuthPage() {
             <TabsContent value="register">
               <Card>
                 <CardHeader>
-                  <CardTitle>Create an account</CardTitle>
+                  <CardTitle>{ta("register.title")}</CardTitle>
                   <CardDescription>
-                    Join FilmFlex to access our vast collection of movies
+                    {ta("register.description")}
                   </CardDescription>
                 </CardHeader>
                 <form onSubmit={registerForm.handleSubmit(onRegisterSubmit)}>
                   <CardContent className="space-y-4">
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <Label htmlFor="registerUsername">Username</Label>
+                        <Label htmlFor="registerUsername">{ta("register.username_label")}</Label>
                         {registerForm.formState.errors.username && (
                           <span className="text-xs text-destructive">
                             {registerForm.formState.errors.username.message}
@@ -370,7 +373,7 @@ export default function AuthPage() {
                               ? "border-destructive"
                               : ""
                           }`}
-                          placeholder="Choose a username"
+                          placeholder={tf("placeholders.choose_username")}
                           {...registerForm.register("username")}
                         />
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-muted-foreground/70">
@@ -396,7 +399,7 @@ export default function AuthPage() {
 
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <Label htmlFor="email">Email</Label>
+                        <Label htmlFor="email">{ta("register.email_label")}</Label>
                         {registerForm.formState.errors.email && (
                           <span className="text-xs text-destructive">
                             {registerForm.formState.errors.email.message}
@@ -412,7 +415,7 @@ export default function AuthPage() {
                               ? "border-destructive"
                               : ""
                           }`}
-                          placeholder="you@example.com"
+                          placeholder={tf("placeholders.your_email")}
                           {...registerForm.register("email")}
                         />
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-muted-foreground/70">
@@ -438,7 +441,7 @@ export default function AuthPage() {
 
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <Label htmlFor="registerPassword">Password</Label>
+                        <Label htmlFor="registerPassword">{ta("register.password_label")}</Label>
                         {registerForm.formState.errors.password && (
                           <span className="text-xs text-destructive">
                             {registerForm.formState.errors.password.message}
@@ -476,14 +479,13 @@ export default function AuthPage() {
                         </div>
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        Password must be at least 8 characters long with at least one
-                        uppercase letter, one lowercase letter, and one number
+                        {ta("register.password_requirements")}
                       </p>
                     </div>
 
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <Label htmlFor="confirmPassword">Confirm Password</Label>
+                        <Label htmlFor="confirmPassword">{ta("register.confirm_password_label")}</Label>
                         {registerForm.formState.errors.confirmPassword && (
                           <span className="text-xs text-destructive">
                             {registerForm.formState.errors.confirmPassword.message}
@@ -540,23 +542,23 @@ export default function AuthPage() {
                             htmlFor="terms"
                             className="text-sm text-muted-foreground cursor-pointer"
                           >
-                            I agree to the{" "}
+                            {ta("register.agree_to_terms")}{" "}
                             <a
                               href="/terms"
                               className="text-primary hover:underline"
                               target="_blank"
                               rel="noopener noreferrer"
                             >
-                              Terms of Service
+                              {ta("register.terms_of_service")}
                             </a>{" "}
-                            and{" "}
+                            {ta("register.and")}{" "}
                             <a
                               href="/privacy"
                               className="text-primary hover:underline"
                               target="_blank"
                               rel="noopener noreferrer"
                             >
-                              Privacy Policy
+                              {ta("register.privacy_policy")}
                             </a>
                           </label>
                           {registerForm.formState.errors.agreeToTerms && (
@@ -598,10 +600,10 @@ export default function AuthPage() {
                               d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                             ></path>
                           </svg>
-                          Creating account...
+                          {ta("register.creating_account")}
                         </span>
                       ) : (
-                        "Create Account"
+                        ta("register.create_account")
                       )}
                     </Button>
                   </CardFooter>

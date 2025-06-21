@@ -6,6 +6,8 @@ import { Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { MovieListResponse, MovieDetailResponse } from '@shared/schema';
 import TvSeriesCard from '@/components/TvSeriesCard';
 import { Button } from '@/components/ui/button';
+import LanguageSwitcher from '../components/LanguageSwitcher';
+import { useTranslation } from 'react-i18next';
 
 // TV Series Section Component with navigation buttons
 function TvSeriesSection({ title, movies }: { title: string; movies: MovieListResponse['items'] }) {
@@ -177,6 +179,8 @@ function AnimeSection({ title, movies }: { title: string; movies: MovieListRespo
 }
 
 export default function Home() {
+  const { t } = useTranslation();
+
   // ALL HOOKS MUST BE AT THE TOP - NEVER CALL HOOKS CONDITIONALLY OR AFTER RETURNS
 
   // Fetch movies by sections - limit to 30 items each
@@ -324,6 +328,11 @@ export default function Home() {
   // Render JSX - AFTER all hooks and logic
   return (
     <div className="min-h-screen bg-background">
+      {/* Add Language Switcher at the top of the page */}
+      <div className="fixed top-4 right-4 z-50">
+        <LanguageSwitcher />
+      </div>
+
       {/* Hero Carousel */}
       {featuredMovies.length > 0 && (
         <div className="mt-8">
@@ -336,7 +345,7 @@ export default function Home() {
         {/* Trending Now Section */}
         {trendingMovies?.items && trendingMovies.items.length > 0 && (
           <MovieSection
-            title="Trending Now"
+            title={t('trending_now')}
             movies={trendingMovies.items.filter(movie => movie.type?.toLowerCase() !== 'tv').slice(0, 30)}
           />
         )}
@@ -344,7 +353,7 @@ export default function Home() {
         {/* Latest Releases Section */}
         {latestMovies?.items && latestMovies.items.length > 0 && (
           <MovieSection
-            title="Latest Movies"
+            title={t('latest_movies')}
             movies={latestMovies.items.filter(movie => movie.type?.toLowerCase() !== 'tv').slice(0, 30)}
           />
         )}
@@ -352,7 +361,7 @@ export default function Home() {
         {/* Top Rated Section */}
         {topRatedMovies?.items && topRatedMovies.items.length > 0 && (
           <MovieSection
-            title="Top Rated Movies"
+            title={t('top_rated')}
             movies={topRatedMovies.items.filter(movie => movie.type?.toLowerCase() !== 'tv').slice(0, 30)}
           />
         )}
@@ -360,7 +369,7 @@ export default function Home() {
         {/* China Movie Section */}
         {chinaMovies?.items && chinaMovies.items.length > 0 && (
           <MovieSection
-            title="China Movie"
+            title={t('china_movie')}
             movies={chinaMovies.items.filter(movie => 
               movie.type?.toLowerCase() !== 'tv' && 
               movie.type?.toLowerCase() !== 'hoathinh'
@@ -371,7 +380,7 @@ export default function Home() {
         {/* Korean Movie Section */}
         {koreanMovies?.items && koreanMovies.items.length > 0 && (
           <MovieSection
-            title="Korean Movie"
+            title={t('korean_movie')}
             movies={koreanMovies.items.filter(movie => 
               movie.type?.toLowerCase() !== 'tv' && 
               movie.type?.toLowerCase() !== 'hoathinh'
@@ -383,7 +392,7 @@ export default function Home() {
         <div className="mt-8 pt-8 border-t border-gray-800">
           {popularTvSeries?.items && popularTvSeries.items.length > 0 && (
             <TvSeriesSection
-              title="Popular TV Series"
+              title={t('popular_tv_series')}
               movies={popularTvSeries.items}
             />
           )}
@@ -391,7 +400,7 @@ export default function Home() {
 
         {/* Anime Section - Always render with fallback */}
         <AnimeSection 
-          title="Anime" 
+          title={t('anime')} 
           movies={animeMovies?.items || []} 
         />
       </div>

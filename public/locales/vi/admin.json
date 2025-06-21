@@ -1,0 +1,166 @@
+{
+  "admin": {
+    "user_management": {
+      "title": "Quản lý người dùng",
+      "description": "Quản lý người dùng và quyền hạn của họ",
+      "create_user": "Tạo người dùng",
+      "edit_user": "Chỉnh sửa người dùng", 
+      "delete_user": "Xóa người dùng",
+      "user_details": "Chi tiết người dùng",
+      "search_users": "Tìm kiếm người dùng...",
+      "filter_by_role": "Lọc theo vai trò",
+      "filter_by_status": "Lọc theo trạng thái",
+      "all_roles": "Tất cả vai trò",
+      "all_statuses": "Tất cả trạng thái",
+      "user_roles": {
+        "admin": "Quản trị viên",
+        "moderator": "Điều hành viên", 
+        "user": "Người dùng",
+        "normal": "Bình thường"
+      },
+      "user_statuses": {
+        "active": "Hoạt động",
+        "suspended": "Tạm ngưng",
+        "pending": "Đang chờ",
+        "banned": "Bị cấm"
+      },
+      "table_headers": {
+        "username": "Tên đăng nhập",
+        "email": "Email",
+        "role": "Vai trò", 
+        "status": "Trạng thái",
+        "last_login": "Đăng nhập cuối",
+        "email_verified": "Email đã xác minh",
+        "actions": "Hành động",
+        "created_at": "Ngày tạo",
+        "display_name": "Tên hiển thị"
+      },
+      "actions": {
+        "view": "Xem",
+        "edit": "Chỉnh sửa",
+        "delete": "Xóa",
+        "suspend": "Tạm ngưng",
+        "activate": "Kích hoạt",
+        "ban": "Cấm",
+        "unban": "Bỏ cấm"
+      },
+      "form": {
+        "username_required": "Tên đăng nhập là bắt buộc",
+        "email_required": "Email là bắt buộc", 
+        "password_required": "Mật khẩu là bắt buộc",
+        "role_required": "Vai trò là bắt buộc",
+        "enter_username": "Nhập tên đăng nhập",
+        "enter_email": "Nhập email",
+        "enter_password": "Nhập mật khẩu",
+        "enter_display_name": "Nhập tên hiển thị",
+        "confirm_password": "Xác nhận mật khẩu",
+        "leave_blank_keep_password": "Để trống để giữ mật khẩu hiện tại",
+        "email_verified": "Email đã xác minh",
+        "update_user": "Cập nhật người dùng",
+        "create_user": "Tạo người dùng",
+        "generate_default_password": "Tạo mật khẩu mặc định"
+      },
+      "messages": {
+        "user_created": "Tạo người dùng thành công",
+        "user_updated": "Cập nhật người dùng thành công",
+        "user_deleted": "Xóa người dùng thành công",
+        "operation_failed": "Thao tác thất bại",
+        "confirm_delete": "Bạn có chắc chắn muốn xóa người dùng này không?",
+        "never_logged_in": "Chưa bao giờ",
+        "verified": "Đã xác minh",
+        "unverified": "Chưa xác minh"
+      }
+    },
+    "content_management": {
+      "title": "Quản lý nội dung",
+      "description": "Quản lý phim, chương trình TV và nội dung khác",
+      "add_content": "Thêm nội dung",
+      "edit_content": "Chỉnh sửa nội dung",
+      "delete_content": "Xóa nội dung", 
+      "search_content": "Tìm kiếm nội dung...",
+      "filter_by_type": "Lọc theo loại",
+      "filter_by_section": "Lọc theo mục",
+      "all_types": "Tất cả loại",
+      "all_sections": "Tất cả mục",
+      "content_types": {
+        "movie": "Phim lẻ",
+        "tv_show": "Phim bộ",
+        "anime": "Anime",
+        "documentary": "Phim tài liệu"
+      },
+      "sections": {
+        "trending_now": "Xu hướng hiện tại",
+        "latest_movies": "Phim mới nhất", 
+        "top_rated": "Phim được đánh giá cao",
+        "popular_tv": "Phim bộ phổ biến",
+        "anime": "Anime",
+        "none": "Không có"
+      },
+      "table_headers": {
+        "title": "Tiêu đề",
+        "type": "Loại",
+        "year": "Năm",
+        "rating": "Đánh giá",
+        "section": "Mục",
+        "status": "Trạng thái",
+        "actions": "Hành động"
+      }
+    },
+    "system_settings": {
+      "title": "Cài đặt hệ thống",
+      "description": "Cấu hình cài đặt và tùy chọn toàn hệ thống",
+      "general": "Cài đặt chung",
+      "email": "Cài đặt email",
+      "security": "Cài đặt bảo mật",
+      "analytics": "Cài đặt phân tích",
+      "site_information": {
+        "title": "Thông tin trang web",
+        "site_title": "Tiêu đề trang",
+        "site_description": "Mô tả trang",
+        "site_url": "URL trang",
+        "admin_email": "Email quản trị",
+        "support_email": "Email hỗ trợ"
+      },
+      "localization": {
+        "title": "Bản địa hóa",
+        "language": "Ngôn ngữ",
+        "timezone": "Múi giờ", 
+        "currency": "Tiền tệ",
+        "date_format": "Định dạng ngày"
+      },
+      "email_settings": {
+        "smtp_server": "Máy chủ SMTP",
+        "smtp_port": "Cổng SMTP",
+        "smtp_username": "Tên đăng nhập SMTP",
+        "smtp_password": "Mật khẩu SMTP",
+        "email_from_address": "Địa chỉ email gửi",
+        "email_from_name": "Tên người gửi email"
+      },
+      "security_settings": {
+        "admin_password": "Mật khẩu quản trị",
+        "confirm_password": "Xác nhận mật khẩu",
+        "two_factor_auth": "Xác thực hai yếu tố",
+        "ip_whitelist": "Danh sách IP cho phép",
+        "session_timeout": "Thời gian hết phiên",
+        "password_requirements": "Yêu cầu mật khẩu"
+      }
+    },
+    "analytics": {
+      "title": "Phân tích",
+      "description": "Xem và phân tích việc sử dụng trang web và hiệu suất",
+      "google_analytics": "Google Analytics",
+      "facebook_pixel": "Facebook Pixel",
+      "twitter_analytics": "Twitter Analytics"
+    },
+    "audit_logs": {
+      "title": "Nhật ký kiểm tra", 
+      "description": "Theo dõi tất cả hành động quản trị và thay đổi",
+      "user": "Người dùng",
+      "action": "Hành động",
+      "details": "Chi tiết",
+      "timestamp": "Thời gian",
+      "ip_address": "Địa chỉ IP",
+      "export_logs": "Xuất nhật ký"
+    }
+  }
+}

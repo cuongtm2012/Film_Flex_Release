@@ -1,5 +1,7 @@
 import React from 'react';
 import VideoPlayerExample from './components/VideoPlayerExample';
+import LanguageSwitcher from './components/LanguageSwitcher';
+import './i18n'; // Ensure i18n is initialized
 import './App.css';
 
 function App() {
@@ -7,6 +9,7 @@ function App() {
     <div className="app">
       <header className="app-header">
         <h1>FilmFlex HLS Player</h1>
+        <LanguageSwitcher /> {/* Add language switcher to header */}
       </header>
       <main className="app-content">
         <VideoPlayerExample />
@@ -18,4 +21,4 @@ function App() {
   );
 }
 
-export default App; 
+export default App;

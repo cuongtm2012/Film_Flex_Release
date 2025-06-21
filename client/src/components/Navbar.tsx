@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "wouter";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/use-auth";
@@ -45,6 +46,7 @@ export default function Navbar() {
   const { toast } = useToast();
   const searchBoxRef = useRef<HTMLDivElement>(null);
   const debouncedSearch = useDebounce(search, 400);
+  const { t } = useTranslation();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -151,7 +153,7 @@ export default function Navbar() {
                       onClick={() => setIsMobileMenuOpen(false)}
                     >
                       <Home className="h-5 w-5" />
-                      <span className="font-medium">Home</span>
+                      <span className="font-medium">{t('home')}</span>
                     </Link>
                     <Link 
                       to="/movies" 
@@ -159,7 +161,7 @@ export default function Navbar() {
                       onClick={() => setIsMobileMenuOpen(false)}
                     >
                       <Film className="h-5 w-5" />
-                      <span className="font-medium">Movies</span>
+                      <span className="font-medium">{t('movies')}</span>
                     </Link>
                     <Link 
                       to="/news" 
@@ -167,7 +169,7 @@ export default function Navbar() {
                       onClick={() => setIsMobileMenuOpen(false)}
                     >
                       <Newspaper className="h-5 w-5" />
-                      <span className="font-medium">News & Popular</span>
+                      <span className="font-medium">{t('news_popular')}</span>
                     </Link>
                     {user && (
                       <Link 
@@ -176,7 +178,7 @@ export default function Navbar() {
                         onClick={() => setIsMobileMenuOpen(false)}
                       >
                         <BookmarkPlus className="h-5 w-5" />
-                        <span className="font-medium">My List</span>
+                        <span className="font-medium">{t('my_list')}</span>
                       </Link>
                     )}
                   </nav>
@@ -193,17 +195,17 @@ export default function Navbar() {
             {!isMobile && (
               <nav className="hidden md:flex space-x-6">
                 <Link to="/" className="text-white font-medium hover:text-primary transition">
-                  Home
+                  {t('home')}
                 </Link>
                 <Link to="/movies" className="text-muted-foreground font-medium hover:text-white transition">
-                  Movies
+                  {t('movies')}
                 </Link>
                 <Link to="/news" className="text-muted-foreground font-medium hover:text-white transition">
-                  News & Popular
+                  {t('news_popular')}
                 </Link>
                 {user && (
                   <Link to="/my-list" className="text-muted-foreground font-medium hover:text-white transition">
-                    My List
+                    {t('my_list')}
                   </Link>
                 )}
               </nav>

@@ -1,6 +1,99 @@
-node_modules
-dist
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Build outputs
+dist/
+build/
+out/
+.next/
+.nuxt/
+.vite/
+server/public/
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.*.local
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+film-flex.db
+server/film-flex.db
+
+# Logs
+logs/
+*.log
+log/
+combined.log
+error.log
+server_*.log
+db-reset-*.log
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+.nyc_output
+
+# Cypress
+cypress/videos/
+cypress/screenshots/
+
+# OS generated files
 .DS_Store
-server/public
-vite.config.ts.*
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Temporary files
+*.tmp
+*.temp
+temp/
+tmp/
+.cache/
+archive/temp-files/
+
+# SSH keys and security
+*.pem
+*.key
+*.pub
+github_actions_key
+github_actions_key.pub
+
+# Build artifacts
+*.tsbuildinfo
 *.tar.gz
+vite.config.ts.*
+
+# Test files
+.jest/
+coverage/
+
+# PM2
+ecosystem.config.js
+ecosystem.config.cjs
