@@ -19,6 +19,75 @@ export function log(message: string, source = "express") {
   console.log(`${formattedTime} [${source}] ${message}`);
 }
 
+// Define valid routes for your application
+const VALID_ROUTES = [
+  '/',
+  '/auth',
+  '/movies',
+  '/news',
+  '/my-list',
+  '/search',
+  '/profile',
+  '/settings',
+  '/watchlist',
+  '/history',
+  '/admin',
+  '/about',
+  '/faqs',
+  '/terms',
+  '/tv',
+  '/new-releases',
+  '/top-rated',
+  '/genres',
+  '/contact',
+  '/how-to-watch',
+  '/devices',
+  '/careers',
+  '/press',
+  '/blog',
+  '/partners'
+];
+
+// Define valid route patterns (for dynamic routes like /movie/:slug)
+const VALID_ROUTE_PATTERNS = [
+  /^\/movie\/[a-zA-Z0-9-_]+$/, // /movie/:slug
+];
+
+// Check if a route is valid
+function isValidRoute(path: string): boolean {
+  // Check exact matches
+  if (VALID_ROUTES.includes(path)) {
+    return true;
+  }
+  
+  // Check pattern matches
+  return VALID_ROUTE_PATTERNS.some(pattern => pattern.test(path));
+}
+
+// Middleware to handle 404s for invalid routes
+function handle404Middleware(req: express.Request, res: express.Response, next: express.NextFunction) {
+  const url = req.originalUrl;
+  
+  // Skip API routes - they handle their own 404s
+  if (url.startsWith('/api/')) {
+    return next();
+  }
+  
+  // Skip static assets
+  if (url.startsWith('/assets/') || url.match(/\.(js|css|png|jpg|jpeg|gif|svg|ico|webp|woff|woff2|ttf|eot)$/)) {
+    return next();
+  }
+  
+  // Check if this is a valid route
+  const path = url.split('?')[0]; // Remove query parameters
+  if (!isValidRoute(path)) {
+    // Return 404 for invalid routes
+    return res.status(404).send('<!DOCTYPE html><html><head><title>404 - Page Not Found</title></head><body><h1>404 - Page Not Found</h1><p>The requested page could not be found.</p></body></html>');
+  }
+  
+  next();
+}
+
 export async function setupVite(app: Express, server: Server) {
   const serverOptions = {
     middlewareMode: true,
@@ -41,6 +110,10 @@ export async function setupVite(app: Express, server: Server) {
   });
 
   app.use(vite.middlewares);
+  
+  // Add 404 handling middleware before the catch-all
+  app.use("*", handle404Middleware);
+  
   app.use("*", async (req, res, next) => {
     const url = req.originalUrl;
 
@@ -107,7 +180,10 @@ export function serveStatic(app: Express) {
     }
   }));
 
-  // fall through to index.html if the file doesn't exist
+  // Add 404 handling middleware before the catch-all
+  app.use("*", handle404Middleware);
+
+  // fall through to index.html if the file doesn't exist (only for valid routes)
   app.use("*", (_req, res) => {
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.setHeader('Pragma', 'no-cache');

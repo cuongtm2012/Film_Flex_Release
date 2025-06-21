@@ -20,147 +20,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useLocation, Link } from "wouter";
 import { Helmet } from 'react-helmet-async';
 
-// SEO Content Section Component - Moved from Home page and adapted for News & Popular
-function SEOContentSection() {
-  return (
-    <section className="py-16 bg-gradient-to-b from-background to-background/80" aria-labelledby="seo-main-heading">
-      <div className="container mx-auto px-4">
-        {/* Main H1 heading for SEO */}
-        <header className="text-center mb-12">
-          <h1 id="seo-main-heading" className="text-4xl md:text-5xl font-bold mb-6 bg-gradient-to-r from-primary to-blue-400 bg-clip-text text-transparent">
-            Latest Movie News & Popular Content
-          </h1>
-          <p className="text-xl text-muted-foreground mb-8 max-w-4xl mx-auto">
-            Stay updated with the latest movie news, reviews, trailers, and discover the most popular films and TV shows. 
-            Your ultimate destination for entertainment news and trending content on PhimGG.com.
-          </p>
-        </header>
-
-        {/* Feature highlights with internal links */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
-          <article className="text-center p-6 bg-black/20 rounded-lg">
-            <Newspaper className="h-12 w-12 text-primary mx-auto mb-4" />
-            <h2 className="text-2xl font-semibold mb-3">Breaking News</h2>
-            <p className="text-muted-foreground mb-4">
-              Get the latest updates on upcoming releases, industry news, celebrity interviews, and behind-the-scenes content. 
-              Stay informed about everything happening in the entertainment world.
-            </p>
-            <Link href="/news">
-              <Button variant="outline" className="w-full">
-                <ArrowRight className="mr-2 h-4 w-4" />
-                Read Latest News
-              </Button>
-            </Link>
-          </article>
-          
-          <article className="text-center p-6 bg-black/20 rounded-lg">
-            <Star className="h-12 w-12 text-primary mx-auto mb-4" />
-            <h2 className="text-2xl font-semibold mb-3">Reviews & Ratings</h2>
-            <p className="text-muted-foreground mb-4">
-              Discover expert reviews and user ratings for the latest movies and TV shows. Make informed viewing decisions 
-              with our comprehensive review system and community feedback.
-            </p>
-            <Link href="/reviews">
-              <Button variant="outline" className="w-full">
-                <Star className="mr-2 h-4 w-4" />
-                Browse Reviews
-              </Button>
-            </Link>
-          </article>
-          
-          <article className="text-center p-6 bg-black/20 rounded-lg">
-            <TrendingUp className="h-12 w-12 text-primary mx-auto mb-4" />
-            <h2 className="text-2xl font-semibold mb-3">Trending Content</h2>
-            <p className="text-muted-foreground mb-4">
-              Explore what's trending right now. From viral movie moments to popular TV series discussions, 
-              discover what the community is watching and talking about.
-            </p>
-            <Link href="/trending">
-              <Button variant="outline" className="w-full">
-                <TrendingUp className="mr-2 h-4 w-4" />
-                See What's Trending
-              </Button>
-            </Link>
-          </article>
-        </div>
-
-        {/* Platform highlights section */}
-        <div className="bg-black/30 rounded-lg p-8 mb-12">
-          <h2 className="text-3xl font-bold mb-6 text-center">Why PhimGG for News & Entertainment?</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div>
-              <h3 className="text-xl font-semibold mb-4">Comprehensive Coverage</h3>
-              <p className="text-muted-foreground mb-4">
-                Our dedicated team brings you comprehensive coverage of the entertainment industry. From exclusive interviews 
-                to first-look trailers, we keep you connected to the world of movies and television.
-              </p>
-              <p className="text-muted-foreground mb-4">
-                We cover everything from Hollywood blockbusters to independent films, international cinema, and streaming exclusives, 
-                ensuring you never miss the latest entertainment news.
-              </p>
-            </div>
-            <div>
-              <h3 className="text-xl font-semibold mb-4">Community-Driven Content</h3>
-              <p className="text-muted-foreground mb-4">
-                Join a vibrant community of movie enthusiasts who share reviews, discussions, and recommendations. 
-                Our platform combines professional journalism with authentic user-generated content.
-              </p>
-              <div className="flex items-center gap-6 mt-6">
-                <div className="text-center">
-                  <Users className="h-8 w-8 text-primary mx-auto mb-2" />
-                  <div className="font-semibold">25K+</div>
-                  <div className="text-sm text-muted-foreground">Active Readers</div>
-                </div>
-                <div className="text-center">
-                  <Newspaper className="h-8 w-8 text-primary mx-auto mb-2" />
-                  <div className="font-semibold">500+</div>
-                  <div className="text-sm text-muted-foreground">Articles Monthly</div>
-                </div>
-                <div className="text-center">
-                  <Star className="h-8 w-8 text-primary mx-auto mb-2" />
-                  <div className="font-semibold">1000+</div>
-                  <div className="text-sm text-muted-foreground">Reviews</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Navigation links for better internal linking */}
-        <nav className="text-center" aria-label="Content categories">
-          <h3 className="text-2xl font-semibold mb-6">Explore Content Categories</h3>
-          <div className="flex flex-wrap justify-center gap-4">
-            <Link href="/news/movie-releases">
-              <Button variant="secondary">
-                <Film className="mr-2 h-4 w-4" />
-                Movie Releases
-              </Button>
-            </Link>
-            <Link href="/news/tv-shows">
-              <Button variant="secondary">
-                <PlayCircle className="mr-2 h-4 w-4" />
-                TV Show News
-              </Button>
-            </Link>
-            <Link href="/news/celebrity">
-              <Button variant="secondary">
-                <Users className="mr-2 h-4 w-4" />
-                Celebrity News
-              </Button>
-            </Link>
-            <Link href="/news/industry">
-              <Button variant="secondary">
-                <Globe className="mr-2 h-4 w-4" />
-                Industry Updates
-              </Button>
-            </Link>
-          </div>
-        </nav>
-      </div>
-    </section>
-  );
-}
-
 // Placeholder news articles (in a real app, this would come from an API)
 const newsArticles = [
   {
@@ -237,7 +96,7 @@ export default function NewsPage() {
         <title>Latest Movie News & Popular Content | PhimGG</title>
         <meta name="description" content="Stay updated with the latest movie news, reviews, trailers, and discover popular films and TV shows. Your entertainment news destination on PhimGG." />
         <meta name="keywords" content="movie news, film reviews, movie trailers, popular movies, entertainment news, PhimGG news, latest releases" />
-        <link rel="canonical" href="https://phimgg.com/news" />
+        <link rel="canonical" href="https://phimgg.com/news/" />
         
         {/* Open Graph */}
         <meta property="og:title" content="Latest Movie News & Popular Content | PhimGG" />
@@ -252,8 +111,6 @@ export default function NewsPage() {
       </Helmet>
 
       <div className="min-h-screen bg-background">
-        {/* SEO Content Section */}
-        <SEOContentSection />
 
         {/* Main Content Container */}
         <main className="container mx-auto px-4 py-8">
