@@ -6,7 +6,6 @@ import { Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { MovieListResponse, MovieDetailResponse } from '@shared/schema';
 import TvSeriesCard from '@/components/TvSeriesCard';
 import { Button } from '@/components/ui/button';
-import LanguageSwitcher from '../components/LanguageSwitcher';
 import { useTranslation } from 'react-i18next';
 
 // TV Series Section Component with navigation buttons
@@ -328,11 +327,6 @@ export default function Home() {
   // Render JSX - AFTER all hooks and logic
   return (
     <div className="min-h-screen bg-background">
-      {/* Add Language Switcher at the top of the page */}
-      <div className="fixed top-4 right-4 z-50">
-        <LanguageSwitcher />
-      </div>
-
       {/* Hero Carousel */}
       {featuredMovies.length > 0 && (
         <div className="mt-8">

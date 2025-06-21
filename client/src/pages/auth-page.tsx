@@ -639,14 +639,11 @@ export default function AuthPage() {
           </div>
 
           <h2 className="text-3xl font-semibold mb-6 leading-tight">
-            Your Ultimate{" "}
-            <span className="text-primary">Movie Experience</span>
+            {ta("hero_section.title")}
           </h2>
 
           <p className="text-lg mb-8 text-gray-300 max-w-lg">
-            Discover, watch, and enjoy thousands of movies and TV shows from
-            around the world. With FilmFlex, your entertainment journey knows no
-            bounds.
+            {ta("hero_section.description")}
           </p>
 
           <div className="grid grid-cols-2 gap-6 mb-8">
@@ -669,9 +666,9 @@ export default function AuthPage() {
                   </svg>
                 </div>
                 <div>
-                  <h3 className="font-semibold">Secure Access</h3>
+                  <h3 className="font-semibold">{ta("hero_section.features.secure_access.title")}</h3>
                   <p className="text-sm text-gray-400">
-                    Role-based permissions for personalized experience
+                    {ta("hero_section.features.secure_access.description")}
                   </p>
                 </div>
               </div>
@@ -696,9 +693,9 @@ export default function AuthPage() {
                   </svg>
                 </div>
                 <div>
-                  <h3 className="font-semibold">Seamless Experience</h3>
+                  <h3 className="font-semibold">{ta("hero_section.features.seamless_experience.title")}</h3>
                   <p className="text-sm text-gray-400">
-                    Continue watching where you left off
+                    {ta("hero_section.features.seamless_experience.description")}
                   </p>
                 </div>
               </div>
@@ -723,9 +720,9 @@ export default function AuthPage() {
                   </svg>
                 </div>
                 <div>
-                  <h3 className="font-semibold">HD Streaming</h3>
+                  <h3 className="font-semibold">{ta("hero_section.features.hd_streaming.title")}</h3>
                   <p className="text-sm text-gray-400">
-                    Premium quality on all your devices
+                    {ta("hero_section.features.hd_streaming.description")}
                   </p>
                 </div>
               </div>
@@ -750,9 +747,9 @@ export default function AuthPage() {
                   </svg>
                 </div>
                 <div>
-                  <h3 className="font-semibold">Watchlists</h3>
+                  <h3 className="font-semibold">{ta("hero_section.features.watchlists.title")}</h3>
                   <p className="text-sm text-gray-400">
-                    Organize and save your favorites
+                    {ta("hero_section.features.watchlists.description")}
                   </p>
                 </div>
               </div>
@@ -760,7 +757,7 @@ export default function AuthPage() {
           </div>
 
           <div className="flex items-center text-sm text-gray-400">
-            <span>Already have thousands of happy users worldwide</span>
+            <span>{ta("hero_section.happy_users")}</span>
             <div className="flex -space-x-2 ml-4">
               <div className="w-6 h-6 rounded-full bg-blue-500 border border-gray-800"></div>
               <div className="w-6 h-6 rounded-full bg-green-500 border border-gray-800"></div>

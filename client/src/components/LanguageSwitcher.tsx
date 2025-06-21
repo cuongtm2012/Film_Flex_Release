@@ -1,49 +1,29 @@
-import React from 'react';
-import { Globe } from 'lucide-react';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import useI18n from '@/hooks/use-i18n';
-
-const languages = [
-  { code: 'en', name: 'English', flag: '🇺🇸' },
-  { code: 'vi', name: 'Tiếng Việt', flag: '🇻🇳' },
-];
 
 export default function LanguageSwitcher() {
   const { getCurrentLanguage, changeLanguage } = useI18n();
   const currentLang = getCurrentLanguage();
-  const currentLanguage = languages.find(lang => lang.code === currentLang) || languages[0];
-
-  const handleLanguageChange = (languageCode: string) => {
-    changeLanguage(languageCode);
+  
+  const toggleLanguage = () => {
+    const newLang = currentLang === 'en' ? 'vi' : 'en';
+    changeLanguage(newLang);
   };
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" className="gap-2">
-          <Globe className="h-4 w-4" />
-          <span className="hidden sm:inline">{currentLanguage.flag} {currentLanguage.name}</span>
-          <span className="sm:hidden">{currentLanguage.flag}</span>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        {languages.map((language) => (
-          <DropdownMenuItem
-            key={language.code}
-            onClick={() => handleLanguageChange(language.code)}
-            className={`gap-2 ${currentLang === language.code ? 'bg-accent' : ''}`}
-          >
-            <span>{language.flag}</span>
-            <span>{language.name}</span>
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <Button
+      onClick={toggleLanguage}
+      variant="outline"
+      size="sm"
+      className="bg-background/80 backdrop-blur-sm border border-white/20 text-white hover:bg-white/10 hover:text-white transition-all duration-200 min-w-[60px] font-medium"
+    >
+      <span className="text-sm font-semibold">
+        {currentLang === 'en' ? 'EN' : 'VI'}
+      </span>
+      <span className="mx-1 text-white/60">|</span>
+      <span className="text-xs text-white/80">
+        {currentLang === 'en' ? 'VI' : 'EN'}
+      </span>
+    </Button>
   );
 }

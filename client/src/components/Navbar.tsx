@@ -21,10 +21,11 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { ChevronDown, LogOut, User, Settings, BookmarkPlus, Clock, Search, ChevronRight, Menu, Home, Film, Newspaper } from "lucide-react";
+import { ChevronDown, LogOut, User, Settings, BookmarkPlus, Clock, Search, ChevronRight, Menu, Home, Film, Newspaper, Globe } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useQuery } from "@tanstack/react-query";
+import LanguageSwitcher from "./LanguageSwitcher";
 
 interface SearchSuggestion {
   _id: string;
@@ -181,6 +182,15 @@ export default function Navbar() {
                         <span className="font-medium">{t('my_list')}</span>
                       </Link>
                     )}
+                    
+                    {/* Language Switcher in Mobile Menu */}
+                    <div className="border-t border-gray-700 pt-4 mt-6">
+                      <div className="flex items-center space-x-3 p-3 rounded-lg bg-white/5">
+                        <Globe className="h-5 w-5 text-muted-foreground" />
+                        <span className="font-medium text-muted-foreground mr-auto">{t('language')}</span>
+                        <LanguageSwitcher />
+                      </div>
+                    </div>
                   </nav>
                 </SheetContent>
               </Sheet>
@@ -213,7 +223,7 @@ export default function Navbar() {
           </div>
 
           <div className="flex items-center space-x-2 md:space-x-4">
-            {/* Search Box - Improved mobile layout */}
+            {/* Search Box */}
             <div ref={searchBoxRef} className="relative">
               <form onSubmit={handleSubmitSearch} className="relative">
                 <Input
@@ -315,6 +325,13 @@ export default function Navbar() {
                 </div>
               )}
             </div>
+
+            {/* Language Switcher - Desktop Only */}
+            {!isMobile && (
+              <div className="hidden md:block">
+                <LanguageSwitcher />
+              </div>
+            )}
 
             {/* User Menu */}
             <DropdownMenu>
