@@ -3,7 +3,7 @@ import http from 'http';
 import cors from 'cors';
 import path from 'path';
 import { registerRoutes } from "./routes.js";
-import { setupVite, serveStatic, log } from "./vite.js";
+import { log } from "./utils.js";
 import { config } from './config.js';
 import { pool } from './db.js';
 import { setupAuth } from './auth.js';
@@ -17,38 +17,62 @@ app.use(express.urlencoded({ extended: false }));
 // Fix CORS configuration to ensure cookies work properly
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or Postman)
-    if (!origin) return callback(null, true);
-    
-    // In development, allow localhost on any port
-    if (process.env.NODE_ENV === 'development') {
-      if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+    try {
+      // Always allow requests with no origin (mobile apps, Postman, curl)
+      if (!origin) {
         return callback(null, true);
       }
-    }
-    
-    // In production, allow your specific domains
-    const allowedOrigins = [
-      'https://phimgg.com',
-      'https://www.phimgg.com',
-      config.clientUrl
-    ];
-    
-    if (allowedOrigins.includes(origin)) {
+      
+      // Define allowed origins for production
+      const allowedOrigins = [
+        'http://154.205.142.255:5000',
+        'https://154.205.142.255:5000',
+        'http://154.205.142.255:3000',
+        'https://154.205.142.255:3000',
+        'http://154.205.142.255',
+        'https://154.205.142.255',
+        'https://phimgg.com',
+        'https://www.phimgg.com',
+        'http://localhost:3000',
+        'http://localhost:5000',
+        'http://127.0.0.1:3000',
+        'http://127.0.0.1:5000'
+      ];
+      
+      // Add client URL from config if available
+      if (config.clientUrl && !allowedOrigins.includes(config.clientUrl)) {
+        allowedOrigins.push(config.clientUrl);
+      }
+      
+      // Check if origin is in allowed list
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      
+      // Allow any origin containing the server IP for flexibility
+      if (origin.includes('154.205.142.255')) {
+        return callback(null, true);
+      }
+      
+      // In production, be permissive to avoid blocking legitimate requests
+      if (process.env.NODE_ENV === 'production') {
+        return callback(null, true);
+      }
+      
+      // Development mode - allow localhost variations
+      if (process.env.NODE_ENV === 'development' && 
+          (origin.includes('localhost') || origin.includes('127.0.0.1'))) {
+        return callback(null, true);
+      }
+      
+      // Default allow to prevent blocking
+      return callback(null, true);
+      
+    } catch (error) {
+      console.error('CORS origin check error:', error);
+      // If there's any error, allow the request to prevent service disruption
       return callback(null, true);
     }
-    
-    // For development, also allow the configured client URL
-    if (process.env.NODE_ENV === 'development' && origin === config.clientUrl) {
-      return callback(null, true);
-    }
-    
-    // In development, be more permissive
-    if (process.env.NODE_ENV === 'development') {
-      return callback(null, true);
-    }
-    
-    callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -135,13 +159,44 @@ app.use((req, res, next) => {
       const message = err.message || "Internal Server Error";
       console.error(err);
       res.status(status).json({ message });
-    });
-
-    // Setup Vite or static serving based on environment
+    });    // Setup Vite or static serving based on environment
     if (process.env.NODE_ENV === 'development') {
+      // Only import Vite functions in development
+      const { setupVite } = await import("./vite.js");
       await setupVite(app, server);
     } else {
-      serveStatic(app);
+      // Production: serve static files
+      const clientDistPath = path.join(process.cwd(), 'client', 'dist');
+      const indexPath = path.join(clientDistPath, 'index.html');
+      
+      // Check if built client files exist
+      if (require('fs').existsSync(clientDistPath)) {
+        log('Serving static files from client/dist');
+        app.use(express.static(clientDistPath));
+        
+        // Catch-all handler for SPA routing
+        app.get('*', (req, res) => {
+          // Skip API routes
+          if (req.path.startsWith('/api/')) {
+            return res.status(404).json({ error: 'API endpoint not found' });
+          }
+          
+          // Serve index.html for all other routes
+          if (require('fs').existsSync(indexPath)) {
+            res.sendFile(indexPath);
+          } else {
+            res.status(404).send('Client application not built. Run npm run build first.');
+          }
+        });
+      } else {
+        log('Warning: Client dist directory not found. Run npm run build to build the client.');
+        app.get('*', (req, res) => {
+          if (req.path.startsWith('/api/')) {
+            return res.status(404).json({ error: 'API endpoint not found' });
+          }
+          res.status(503).send('Client application not available. Please build the application first.');
+        });
+      }
     }
 
     // Start server

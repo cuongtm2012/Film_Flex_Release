@@ -2,8 +2,8 @@ module.exports = {
   apps: [
     {
       name: "filmflex",
-      script: "./server/index.js",
-      cwd: "/var/www/filmflex",
+      script: "./dist/index.js",
+      cwd: process.cwd(),
       instances: "max",
       exec_mode: "cluster",
 
@@ -25,12 +25,10 @@ module.exports = {
       max_memory_restart: "500M",
       min_uptime: "10s",
       max_restarts: 10,
-      restart_delay: 4000,
-
-      // Logging configuration
-      log_file: "/var/log/filmflex/combined.log",
-      out_file: "/var/log/filmflex/out.log",
-      error_file: "/var/log/filmflex/error.log",
+      restart_delay: 4000,      // Logging configuration
+      log_file: "./logs/combined.log",
+      out_file: "./logs/out.log",
+      error_file: "./logs/error.log",
       log_date_format: "YYYY-MM-DD HH:mm:ss Z",
       merge_logs: true,
 

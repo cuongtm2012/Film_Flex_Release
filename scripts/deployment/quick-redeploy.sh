@@ -567,9 +567,8 @@ for i in $(seq 1 $MAX_ATTEMPTS); do
         log "API endpoint responding"
         break
     fi
-    
-    # Check if server is at least listening on port
-    if netstat -tln | grep -q ":5000 "; then
+      # Check if server is at least listening on port (using ss instead of netstat)
+    if ss -tln | grep -q ":5000 " || lsof -i :5000 >/dev/null 2>&1; then
         log "Port 5000 is listening, checking response..."
         if curl -s --max-time 10 http://localhost:5000/ | grep -q -E "(html|json|text|<!DOCTYPE)" 2>/dev/null; then
             HEALTH_CHECK_SUCCESS=true

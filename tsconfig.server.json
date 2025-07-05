@@ -17,6 +17,13 @@
     "moduleResolution": "node",
     "allowImportingTsExtensions": false,
     "declaration": false,
-    "sourceMap": true
+    "sourceMap": true,
+    "module": "ESNext",
+    "target": "ES2020",
+    "baseUrl": ".",
+    "paths": {
+      "@shared/*": ["shared/*"],
+      "@server/*": ["server/*"]
+    }
   }
 }
