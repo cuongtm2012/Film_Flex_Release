@@ -20,6 +20,15 @@ app.use(cors({
     // Allow requests with no origin (like mobile apps or Postman)
     if (!origin) return callback(null, true);
     
+    // Check for wildcard CORS setting - ALLOW ALL ORIGINS
+    if (process.env.ALLOWED_ORIGINS === '*' || process.env.CLIENT_URL === '*') {
+      return callback(null, true);
+    }
+    
+    // Get allowed origins from environment variable or use defaults
+    const envAllowedOrigins = process.env.ALLOWED_ORIGINS ? 
+      process.env.ALLOWED_ORIGINS.split(',') : [];
+    
     // In development, allow localhost on any port
     if (process.env.NODE_ENV === 'development') {
       if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
@@ -27,14 +36,36 @@ app.use(cors({
       }
     }
     
-    // In production, allow your specific domains
+    // In production, allow your specific domains and IP addresses
     const allowedOrigins = [
       'https://phimgg.com',
       'https://www.phimgg.com',
-      config.clientUrl
+      'http://phimgg.com',
+      'http://www.phimgg.com',
+      'http://154.205.142.255:5000',
+      'https://154.205.142.255:5000',
+      'http://154.205.142.255',
+      'https://154.205.142.255',
+      config.clientUrl,
+      ...envAllowedOrigins
     ];
     
+    // Check if origin is allowed
     if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    
+    // More flexible matching for domains and IPs
+    if (origin.includes('phimgg.com')) {
+      return callback(null, true);
+    }
+    
+    // Allow IP address access for testing
+    if (origin.includes('154.205.142.255')) {
+      return callback(null, true);    }
+    
+    // Allow localhost and 127.0.0.1 for testing
+    if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
       return callback(null, true);
     }
     
@@ -48,6 +79,12 @@ app.use(cors({
       return callback(null, true);
     }
     
+    // TEMPORARY: Allow all origins in production for initial deployment
+    if (process.env.ALLOWED_ORIGINS === '*') {
+      return callback(null, true);
+    }
+    
+    console.log('CORS blocked origin:', origin);
     callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
