@@ -1,17 +1,18 @@
 #!/bin/bash
 
-# FilmFlex Production Deployment Script
-# Complete, robust deployment for production servers with ESM support
-# Version: 3.0 - Production Ready with Comprehensive Fixes
+# FilmFlex Production Deployment Script v3.1 - phimgg.com Production
+# Complete, robust deployment for production servers with ES module support
+# Updated for phimgg.com production environment (154.205.142.255)
 # 
 # Features:
-# - Comprehensive ESM import path fixes
-# - Rollup native dependency handling
-# - Multiple build fallback strategies
-# - Enhanced error handling with rollback
-# - Database migration support
-# - Health checks and monitoring
+# - phimgg.com production configuration
+# - ES module build support with esbuild
+# - Enhanced dependency management (@esbuild/linux-x64, @rollup/rollup-linux-x64-gnu)
+# - Production environment variables and CORS configuration
+# - Database migration support with RBAC system
+# - Enhanced health checks and monitoring for production
 # - Automatic cleanup and optimization
+# - Rollback capability for failed deployments
 
 set -e
 
@@ -23,10 +24,12 @@ BLUE='\033[0;34m'
 PURPLE='\033[0;35m'
 NC='\033[0m'
 
-# Configuration
+# Configuration - Updated for phimgg.com production
 SOURCE_DIR="${HOME}/Film_Flex_Release"
 DEPLOY_DIR="/var/www/filmflex"
 BACKUP_DIR="/var/backups/filmflex"
+PRODUCTION_IP="154.205.142.255"
+PRODUCTION_DOMAIN="phimgg.com"
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 LOG_FILE="/var/log/filmflex/production-deploy-$TIMESTAMP.log"
 MAX_RETRIES=3
@@ -577,42 +580,142 @@ set_permissions() {
     success "Permissions set"
 }
 
-# Start application with multiple strategies
-start_application() {
-    info "Starting application with multiple strategies..."
+# Setup production environment configuration
+setup_environment() {
+    info "Setting up production environment configuration..."
     cd "$DEPLOY_DIR" || handle_error "Deploy directory access failed"
+    
+    # Create production environment file
+    cat > ".env.production" << 'EOENV'
+NODE_ENV=production
+PORT=5000
+ALLOWED_ORIGINS=*
+CLIENT_URL=*
+DATABASE_URL=postgresql://filmflex:filmflex2024@localhost:5432/filmflex
+SESSION_SECRET=5841abaec918d944cd79481791440643540a3ac9ec33800500ea3ac03d543d61
+DOMAIN=phimgg.com
+SERVER_IP=154.205.142.255
+EOENV
+
+    # Create main .env file
+    cp ".env.production" ".env"
+    
+    # Create PM2 ecosystem config for phimgg.com production
+    cat > "ecosystem.config.cjs" << 'EOCONFIG'
+module.exports = {
+  apps: [
+    {
+      name: "filmflex",
+      script: "dist/index.js",
+      instances: "max",
+      exec_mode: "cluster",
+      watch: false,
+      env: {
+        NODE_ENV: "production",
+        PORT: 5000,
+        ALLOWED_ORIGINS: "*",
+        CLIENT_URL: "*",
+        DATABASE_URL: "postgresql://filmflex:filmflex2024@localhost:5432/filmflex",
+        SESSION_SECRET: "5841abaec918d944cd79481791440643540a3ac9ec33800500ea3ac03d543d61",
+        DOMAIN: "phimgg.com",
+        SERVER_IP: "154.205.142.255"
+      },
+      log_date_format: "YYYY-MM-DD HH:mm:ss",
+      error_file: "/var/log/filmflex/error.log",
+      out_file: "/var/log/filmflex/out.log",
+      merge_logs: true,
+      max_memory_restart: "500M"
+    }
+  ]
+};
+EOCONFIG
+
+    # Create enhanced restart script
+    cat > "restart.sh" << 'EORESTART'
+#!/bin/bash
+# FilmFlex Production Restart Script for phimgg.com
+export NODE_ENV="production"
+export DOMAIN="phimgg.com"
+export SERVER_IP="154.205.142.255"
+
+cd "$(dirname "$0")"
+
+echo "🚀 Restarting FilmFlex for phimgg.com production..."
+echo "📍 Production IP: 154.205.142.255"
+echo "🌐 Domain: phimgg.com"
+
+if pm2 list | grep -q "filmflex"; then
+  echo "🔄 Restarting FilmFlex with PM2..."
+  pm2 restart filmflex
+else
+  echo "▶️  Starting FilmFlex with PM2..."
+  pm2 start ecosystem.config.cjs || pm2 start dist/index.js --name filmflex
+fi
+
+echo "⏳ Checking application status..."
+sleep 3
+
+echo "🏥 Health check:"
+curl -s http://localhost:5000/api/health | head -c 200 || echo "Health endpoint not ready"
+echo ""
+
+echo "🌐 Production URLs:"
+echo "  • Local: http://localhost:5000"
+echo "  • Production IP: http://154.205.142.255:5000"
+echo "  • Domain: https://phimgg.com"
+EORESTART
+
+    chmod +x "restart.sh"
+    success "Production environment configuration completed"
+}
+
+# Start application with multiple strategies for phimgg.com production
+start_application() {
+    info "Starting application with production configuration for phimgg.com..."
+    cd "$DEPLOY_DIR" || handle_error "Deploy directory access failed"
+    
+    # Stop any existing processes first
+    pm2 stop filmflex 2>/dev/null || true
+    pm2 delete filmflex 2>/dev/null || true
     
     local start_success=false
     
-    # Strategy 1: Use ecosystem config
-    if [ -f "ecosystem.config.js" ]; then
-        info "Starting with ecosystem.config.js..."
-        if pm2 start ecosystem.config.js --env production; then
-            start_success=true
-            success "Started with ecosystem config"
-        fi
-    fi
-    
-    # Strategy 2: Use CJS ecosystem config
-    if [ "$start_success" = false ] && [ -f "ecosystem.config.cjs" ]; then
-        info "Starting with ecosystem.config.cjs..."
-        if pm2 start ecosystem.config.cjs --env production; then
+    # Strategy 1: Use CJS ecosystem config (preferred for production)
+    if [ -f "ecosystem.config.cjs" ]; then
+        info "Starting with ecosystem.config.cjs for phimgg.com production..."
+        if pm2 start ecosystem.config.cjs; then
             start_success=true
             success "Started with CJS ecosystem config"
         fi
     fi
     
-    # Strategy 3: Direct start
+    # Strategy 2: Use JS ecosystem config
+    if [ "$start_success" = false ] && [ -f "ecosystem.config.js" ]; then
+        info "Starting with ecosystem.config.js..."
+        if pm2 start ecosystem.config.js --env production; then
+            start_success=true
+            success "Started with JS ecosystem config"
+        fi
+    fi
+    
+    # Strategy 3: Direct start with production environment
     if [ "$start_success" = false ]; then
         local main_file=""
-        if [ -f "dist/server/index.js" ]; then
-            main_file="dist/server/index.js"
-        elif [ -f "dist/index.js" ]; then
+        if [ -f "dist/index.js" ]; then
             main_file="dist/index.js"
+        elif [ -f "dist/server/index.js" ]; then
+            main_file="dist/server/index.js"
         fi
         
         if [ -n "$main_file" ]; then
-            info "Starting directly with $main_file..."
+            info "Starting directly with $main_file and production environment..."
+            # Set production environment variables
+            export NODE_ENV="production"
+            export DOMAIN="phimgg.com"
+            export SERVER_IP="154.205.142.255"
+            export ALLOWED_ORIGINS="*"
+            export DATABASE_URL="postgresql://filmflex:filmflex2024@localhost:5432/filmflex"
+            
             if pm2 start "$main_file" --name filmflex --node-args="--max-old-space-size=512"; then
                 start_success=true
                 success "Started with direct PM2 command"
@@ -637,12 +740,12 @@ start_application() {
     # Save PM2 configuration
     pm2 save &>/dev/null || warning "Failed to save PM2 configuration"
     
-    success "Application started successfully"
+    success "Application started successfully for phimgg.com production"
 }
 
-# Comprehensive health checks
+# Comprehensive health checks for phimgg.com production
 health_checks() {
-    info "Running comprehensive health checks..."
+    info "Running comprehensive health checks for phimgg.com production..."
     
     # Wait for application to initialize
     sleep 10
@@ -666,9 +769,9 @@ health_checks() {
                     health_success=true
                     success "Root endpoint responding"
                     break
-                elif curl -f -s --max-time 10 http://localhost:5000/api >/dev/null 2>&1; then
+                elif curl -f -s --max-time 10 http://localhost:5000/api/health >/dev/null 2>&1; then
                     health_success=true
-                    success "API endpoint responding"
+                    success "Health API endpoint responding"
                     break
                 elif curl -s --max-time 10 http://localhost:5000/ | grep -q -E "(html|json|text|<!DOCTYPE)" 2>/dev/null; then
                     health_success=true
@@ -688,6 +791,25 @@ health_checks() {
             sleep 6
         fi
     done
+    
+    # Test production IP accessibility if possible
+    if command -v timeout >/dev/null 2>&1; then
+        info "Testing production IP accessibility (154.205.142.255)..."
+        if timeout 10 curl -f -s http://154.205.142.255:5000/api/health >/dev/null 2>&1; then
+            success "Production IP accessible: 154.205.142.255:5000"
+        else
+            warning "Production IP not accessible (may need firewall configuration)"
+        fi
+    fi
+    
+    # Test CORS headers
+    info "Testing CORS configuration..."
+    CORS_TEST=$(curl -s -I -H "Origin: https://phimgg.com" http://localhost:5000/api/health | grep -i "access-control-allow-origin" || echo "No CORS headers")
+    if [[ "$CORS_TEST" == *"access-control-allow-origin"* ]]; then
+        success "CORS headers configured correctly"
+    else
+        warning "CORS headers not detected: $CORS_TEST"
+    fi
     
     # Final health check report
     if [ "$health_success" = true ]; then
@@ -757,13 +879,15 @@ main() {
     # Print banner
     echo -e "${PURPLE}"
     echo "=========================================="
-    echo "    FilmFlex Production Deployment v3.0"
-    echo "    Complete & Robust Production Deploy"
-    echo "    Date: $(date '+%Y-%m-%d %H:%M:%S')"
+    echo "  FilmFlex Production Deployment v3.1"
+    echo "  phimgg.com Production Environment"
+    echo "  Date: $(date '+%Y-%m-%d %H:%M:%S')"
     echo "=========================================="
     echo -e "${NC}"
     
-    info "Starting FilmFlex Production Deployment"
+    info "Starting FilmFlex Production Deployment for phimgg.com"
+    info "Production IP: $PRODUCTION_IP"
+    info "Production Domain: $PRODUCTION_DOMAIN"
     info "Source: $SOURCE_DIR"
     info "Target: $DEPLOY_DIR"
     info "Log: $LOG_FILE"
@@ -779,6 +903,7 @@ main() {
     fix_esm_imports
     verify_build
     run_migrations
+    setup_environment
     set_permissions
     start_application
     health_checks
@@ -789,7 +914,7 @@ main() {
     echo ""
     success "🎉 FilmFlex Production Deployment Completed Successfully!"
     echo ""
-    info "Deployment Summary:"
+    info "Deployment Summary for phimgg.com:"
     info "• Source updated from main branch"
     info "• Application built and optimized"
     info "• ESM imports fixed for production"

@@ -22,7 +22,7 @@ SET default_tablespace = '';
 SET default_table_access_method = heap;
 
 --
--- Name: analytics_events; Type: TABLE; Schema: public; Owner: filmflex
+-- Name: analytics_events; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.analytics_events (
@@ -42,10 +42,8 @@ CREATE TABLE public.analytics_events (
 );
 
 
-ALTER TABLE public.analytics_events OWNER TO filmflex;
-
 --
--- Name: analytics_events_id_seq; Type: SEQUENCE; Schema: public; Owner: filmflex
+-- Name: analytics_events_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
 CREATE SEQUENCE public.analytics_events_id_seq
@@ -57,17 +55,15 @@ CREATE SEQUENCE public.analytics_events_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.analytics_events_id_seq OWNER TO filmflex;
-
 --
--- Name: analytics_events_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: filmflex
+-- Name: analytics_events_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
 
 ALTER SEQUENCE public.analytics_events_id_seq OWNED BY public.analytics_events.id;
 
 
 --
--- Name: api_keys; Type: TABLE; Schema: public; Owner: filmflex
+-- Name: api_keys; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.api_keys (
@@ -86,10 +82,8 @@ CREATE TABLE public.api_keys (
 );
 
 
-ALTER TABLE public.api_keys OWNER TO filmflex;
-
 --
--- Name: api_keys_id_seq; Type: SEQUENCE; Schema: public; Owner: filmflex
+-- Name: api_keys_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
 CREATE SEQUENCE public.api_keys_id_seq
@@ -101,17 +95,15 @@ CREATE SEQUENCE public.api_keys_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.api_keys_id_seq OWNER TO filmflex;
-
 --
--- Name: api_keys_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: filmflex
+-- Name: api_keys_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
 
 ALTER SEQUENCE public.api_keys_id_seq OWNED BY public.api_keys.id;
 
 
 --
--- Name: api_requests; Type: TABLE; Schema: public; Owner: filmflex
+-- Name: api_requests; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.api_requests (
@@ -127,10 +119,8 @@ CREATE TABLE public.api_requests (
 );
 
 
-ALTER TABLE public.api_requests OWNER TO filmflex;
-
 --
--- Name: api_requests_id_seq; Type: SEQUENCE; Schema: public; Owner: filmflex
+-- Name: api_requests_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
 CREATE SEQUENCE public.api_requests_id_seq
@@ -142,17 +132,15 @@ CREATE SEQUENCE public.api_requests_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.api_requests_id_seq OWNER TO filmflex;
-
 --
--- Name: api_requests_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: filmflex
+-- Name: api_requests_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
 
 ALTER SEQUENCE public.api_requests_id_seq OWNED BY public.api_requests.id;
 
 
 --
--- Name: audit_logs; Type: TABLE; Schema: public; Owner: filmflex
+-- Name: audit_logs; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.audit_logs (
@@ -166,10 +154,8 @@ CREATE TABLE public.audit_logs (
 );
 
 
-ALTER TABLE public.audit_logs OWNER TO filmflex;
-
 --
--- Name: audit_logs_id_seq; Type: SEQUENCE; Schema: public; Owner: filmflex
+-- Name: audit_logs_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
 CREATE SEQUENCE public.audit_logs_id_seq
@@ -181,17 +167,15 @@ CREATE SEQUENCE public.audit_logs_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.audit_logs_id_seq OWNER TO filmflex;
-
 --
--- Name: audit_logs_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: filmflex
+-- Name: audit_logs_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
 
 ALTER SEQUENCE public.audit_logs_id_seq OWNED BY public.audit_logs.id;
 
 
 --
--- Name: comments; Type: TABLE; Schema: public; Owner: filmflex
+-- Name: comments; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.comments (
@@ -205,10 +189,8 @@ CREATE TABLE public.comments (
 );
 
 
-ALTER TABLE public.comments OWNER TO filmflex;
-
 --
--- Name: comments_id_seq; Type: SEQUENCE; Schema: public; Owner: filmflex
+-- Name: comments_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
 CREATE SEQUENCE public.comments_id_seq
@@ -220,17 +202,15 @@ CREATE SEQUENCE public.comments_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.comments_id_seq OWNER TO filmflex;
-
 --
--- Name: comments_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: filmflex
+-- Name: comments_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
 
 ALTER SEQUENCE public.comments_id_seq OWNED BY public.comments.id;
 
 
 --
--- Name: content_approvals; Type: TABLE; Schema: public; Owner: filmflex
+-- Name: content_approvals; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.content_approvals (
@@ -245,10 +225,8 @@ CREATE TABLE public.content_approvals (
 );
 
 
-ALTER TABLE public.content_approvals OWNER TO filmflex;
-
 --
--- Name: content_approvals_id_seq; Type: SEQUENCE; Schema: public; Owner: filmflex
+-- Name: content_approvals_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
 CREATE SEQUENCE public.content_approvals_id_seq
@@ -260,17 +238,15 @@ CREATE SEQUENCE public.content_approvals_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.content_approvals_id_seq OWNER TO filmflex;
-
 --
--- Name: content_approvals_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: filmflex
+-- Name: content_approvals_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
 
 ALTER SEQUENCE public.content_approvals_id_seq OWNED BY public.content_approvals.id;
 
 
 --
--- Name: content_performance; Type: TABLE; Schema: public; Owner: filmflex
+-- Name: content_performance; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.content_performance (
@@ -289,10 +265,8 @@ CREATE TABLE public.content_performance (
 );
 
 
-ALTER TABLE public.content_performance OWNER TO filmflex;
-
 --
--- Name: content_performance_id_seq; Type: SEQUENCE; Schema: public; Owner: filmflex
+-- Name: content_performance_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
 CREATE SEQUENCE public.content_performance_id_seq
@@ -304,17 +278,15 @@ CREATE SEQUENCE public.content_performance_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.content_performance_id_seq OWNER TO filmflex;
-
 --
--- Name: content_performance_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: filmflex
+-- Name: content_performance_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
 
 ALTER SEQUENCE public.content_performance_id_seq OWNED BY public.content_performance.id;
 
 
 --
--- Name: episodes; Type: TABLE; Schema: public; Owner: filmflex
+-- Name: episodes; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.episodes (
@@ -329,10 +301,8 @@ CREATE TABLE public.episodes (
 );
 
 
-ALTER TABLE public.episodes OWNER TO filmflex;
-
 --
--- Name: episodes_id_seq; Type: SEQUENCE; Schema: public; Owner: filmflex
+-- Name: episodes_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
 CREATE SEQUENCE public.episodes_id_seq
@@ -344,17 +314,62 @@ CREATE SEQUENCE public.episodes_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.episodes_id_seq OWNER TO filmflex;
-
 --
--- Name: episodes_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: filmflex
+-- Name: episodes_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
 
 ALTER SEQUENCE public.episodes_id_seq OWNED BY public.episodes.id;
 
 
 --
--- Name: movies; Type: TABLE; Schema: public; Owner: filmflex
+-- Name: movie_reactions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.movie_reactions (
+    id integer NOT NULL,
+    user_id integer NOT NULL,
+    movie_slug text NOT NULL,
+    reaction_type text NOT NULL,
+    created_at timestamp without time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: TABLE movie_reactions; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.movie_reactions IS 'Tracks individual user reactions to movies. Heart reactions are independent, Like/Dislike are mutually exclusive';
+
+
+--
+-- Name: COLUMN movie_reactions.reaction_type; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.movie_reactions.reaction_type IS 'Type of reaction: like, dislike, or heart';
+
+
+--
+-- Name: movie_reactions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.movie_reactions_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: movie_reactions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.movie_reactions_id_seq OWNED BY public.movie_reactions.id;
+
+
+--
+-- Name: movies; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.movies (
@@ -386,10 +401,8 @@ CREATE TABLE public.movies (
 );
 
 
-ALTER TABLE public.movies OWNER TO filmflex;
-
 --
--- Name: movies_id_seq; Type: SEQUENCE; Schema: public; Owner: filmflex
+-- Name: movies_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
 CREATE SEQUENCE public.movies_id_seq
@@ -401,17 +414,15 @@ CREATE SEQUENCE public.movies_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.movies_id_seq OWNER TO filmflex;
-
 --
--- Name: movies_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: filmflex
+-- Name: movies_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
 
 ALTER SEQUENCE public.movies_id_seq OWNED BY public.movies.id;
 
 
 --
--- Name: permissions; Type: TABLE; Schema: public; Owner: filmflex
+-- Name: permissions; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.permissions (
@@ -424,10 +435,8 @@ CREATE TABLE public.permissions (
 );
 
 
-ALTER TABLE public.permissions OWNER TO filmflex;
-
 --
--- Name: permissions_id_seq; Type: SEQUENCE; Schema: public; Owner: filmflex
+-- Name: permissions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
 CREATE SEQUENCE public.permissions_id_seq
@@ -439,17 +448,15 @@ CREATE SEQUENCE public.permissions_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.permissions_id_seq OWNER TO filmflex;
-
 --
--- Name: permissions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: filmflex
+-- Name: permissions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
 
 ALTER SEQUENCE public.permissions_id_seq OWNED BY public.permissions.id;
 
 
 --
--- Name: role_permissions; Type: TABLE; Schema: public; Owner: filmflex
+-- Name: role_permissions; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.role_permissions (
@@ -459,10 +466,8 @@ CREATE TABLE public.role_permissions (
 );
 
 
-ALTER TABLE public.role_permissions OWNER TO filmflex;
-
 --
--- Name: role_permissions_id_seq; Type: SEQUENCE; Schema: public; Owner: filmflex
+-- Name: role_permissions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
 CREATE SEQUENCE public.role_permissions_id_seq
@@ -474,17 +479,15 @@ CREATE SEQUENCE public.role_permissions_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.role_permissions_id_seq OWNER TO filmflex;
-
 --
--- Name: role_permissions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: filmflex
+-- Name: role_permissions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
 
 ALTER SEQUENCE public.role_permissions_id_seq OWNED BY public.role_permissions.id;
 
 
 --
--- Name: roles; Type: TABLE; Schema: public; Owner: filmflex
+-- Name: roles; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.roles (
@@ -496,10 +499,8 @@ CREATE TABLE public.roles (
 );
 
 
-ALTER TABLE public.roles OWNER TO filmflex;
-
 --
--- Name: roles_id_seq; Type: SEQUENCE; Schema: public; Owner: filmflex
+-- Name: roles_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
 CREATE SEQUENCE public.roles_id_seq
@@ -511,17 +512,15 @@ CREATE SEQUENCE public.roles_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.roles_id_seq OWNER TO filmflex;
-
 --
--- Name: roles_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: filmflex
+-- Name: roles_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
 
 ALTER SEQUENCE public.roles_id_seq OWNED BY public.roles.id;
 
 
 --
--- Name: sessions; Type: TABLE; Schema: public; Owner: filmflex
+-- Name: sessions; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.sessions (
@@ -531,29 +530,75 @@ CREATE TABLE public.sessions (
 );
 
 
-ALTER TABLE public.sessions OWNER TO filmflex;
+--
+-- Name: user_comment_reactions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.user_comment_reactions (
+    id integer NOT NULL,
+    user_id integer NOT NULL,
+    comment_id integer NOT NULL,
+    reaction_type text NOT NULL,
+    created_at timestamp without time zone DEFAULT now() NOT NULL
+);
+
 
 --
--- Name: users; Type: TABLE; Schema: public; Owner: filmflex
+-- Name: TABLE user_comment_reactions; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.user_comment_reactions IS 'Tracks individual user reactions to comments with mutual exclusivity (like OR dislike, not both)';
+
+
+--
+-- Name: COLUMN user_comment_reactions.reaction_type; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.user_comment_reactions.reaction_type IS 'Type of reaction: like or dislike';
+
+
+--
+-- Name: user_comment_reactions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.user_comment_reactions_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: user_comment_reactions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.user_comment_reactions_id_seq OWNED BY public.user_comment_reactions.id;
+
+
+--
+-- Name: users; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.users (
     id integer NOT NULL,
     username text NOT NULL,
-    password text NOT NULL,
+    password text,
     email text NOT NULL,
     role text DEFAULT 'normal'::text NOT NULL,
     status text DEFAULT 'active'::text NOT NULL,
     created_at timestamp without time zone DEFAULT now() NOT NULL,
     updated_at timestamp without time zone DEFAULT now() NOT NULL,
-    last_login timestamp without time zone
+    last_login timestamp without time zone,
+    google_id text,
+    avatar text,
+    display_name text
 );
 
 
-ALTER TABLE public.users OWNER TO filmflex;
-
 --
--- Name: users_id_seq; Type: SEQUENCE; Schema: public; Owner: filmflex
+-- Name: users_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
 CREATE SEQUENCE public.users_id_seq
@@ -565,17 +610,15 @@ CREATE SEQUENCE public.users_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.users_id_seq OWNER TO filmflex;
-
 --
--- Name: users_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: filmflex
+-- Name: users_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
 
 ALTER SEQUENCE public.users_id_seq OWNED BY public.users.id;
 
 
 --
--- Name: view_history; Type: TABLE; Schema: public; Owner: filmflex
+-- Name: view_history; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.view_history (
@@ -588,10 +631,8 @@ CREATE TABLE public.view_history (
 );
 
 
-ALTER TABLE public.view_history OWNER TO filmflex;
-
 --
--- Name: view_history_id_seq; Type: SEQUENCE; Schema: public; Owner: filmflex
+-- Name: view_history_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
 CREATE SEQUENCE public.view_history_id_seq
@@ -603,17 +644,15 @@ CREATE SEQUENCE public.view_history_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.view_history_id_seq OWNER TO filmflex;
-
 --
--- Name: view_history_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: filmflex
+-- Name: view_history_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
 
 ALTER SEQUENCE public.view_history_id_seq OWNED BY public.view_history.id;
 
 
 --
--- Name: watchlist; Type: TABLE; Schema: public; Owner: filmflex
+-- Name: watchlist; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.watchlist (
@@ -624,10 +663,8 @@ CREATE TABLE public.watchlist (
 );
 
 
-ALTER TABLE public.watchlist OWNER TO filmflex;
-
 --
--- Name: watchlist_id_seq; Type: SEQUENCE; Schema: public; Owner: filmflex
+-- Name: watchlist_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
 CREATE SEQUENCE public.watchlist_id_seq
@@ -639,122 +676,134 @@ CREATE SEQUENCE public.watchlist_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.watchlist_id_seq OWNER TO filmflex;
-
 --
--- Name: watchlist_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: filmflex
+-- Name: watchlist_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
 
 ALTER SEQUENCE public.watchlist_id_seq OWNED BY public.watchlist.id;
 
 
 --
--- Name: analytics_events id; Type: DEFAULT; Schema: public; Owner: filmflex
+-- Name: analytics_events id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.analytics_events ALTER COLUMN id SET DEFAULT nextval('public.analytics_events_id_seq'::regclass);
 
 
 --
--- Name: api_keys id; Type: DEFAULT; Schema: public; Owner: filmflex
+-- Name: api_keys id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.api_keys ALTER COLUMN id SET DEFAULT nextval('public.api_keys_id_seq'::regclass);
 
 
 --
--- Name: api_requests id; Type: DEFAULT; Schema: public; Owner: filmflex
+-- Name: api_requests id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.api_requests ALTER COLUMN id SET DEFAULT nextval('public.api_requests_id_seq'::regclass);
 
 
 --
--- Name: audit_logs id; Type: DEFAULT; Schema: public; Owner: filmflex
+-- Name: audit_logs id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.audit_logs ALTER COLUMN id SET DEFAULT nextval('public.audit_logs_id_seq'::regclass);
 
 
 --
--- Name: comments id; Type: DEFAULT; Schema: public; Owner: filmflex
+-- Name: comments id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.comments ALTER COLUMN id SET DEFAULT nextval('public.comments_id_seq'::regclass);
 
 
 --
--- Name: content_approvals id; Type: DEFAULT; Schema: public; Owner: filmflex
+-- Name: content_approvals id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.content_approvals ALTER COLUMN id SET DEFAULT nextval('public.content_approvals_id_seq'::regclass);
 
 
 --
--- Name: content_performance id; Type: DEFAULT; Schema: public; Owner: filmflex
+-- Name: content_performance id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.content_performance ALTER COLUMN id SET DEFAULT nextval('public.content_performance_id_seq'::regclass);
 
 
 --
--- Name: episodes id; Type: DEFAULT; Schema: public; Owner: filmflex
+-- Name: episodes id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.episodes ALTER COLUMN id SET DEFAULT nextval('public.episodes_id_seq'::regclass);
 
 
 --
--- Name: movies id; Type: DEFAULT; Schema: public; Owner: filmflex
+-- Name: movie_reactions id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.movie_reactions ALTER COLUMN id SET DEFAULT nextval('public.movie_reactions_id_seq'::regclass);
+
+
+--
+-- Name: movies id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.movies ALTER COLUMN id SET DEFAULT nextval('public.movies_id_seq'::regclass);
 
 
 --
--- Name: permissions id; Type: DEFAULT; Schema: public; Owner: filmflex
+-- Name: permissions id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.permissions ALTER COLUMN id SET DEFAULT nextval('public.permissions_id_seq'::regclass);
 
 
 --
--- Name: role_permissions id; Type: DEFAULT; Schema: public; Owner: filmflex
+-- Name: role_permissions id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.role_permissions ALTER COLUMN id SET DEFAULT nextval('public.role_permissions_id_seq'::regclass);
 
 
 --
--- Name: roles id; Type: DEFAULT; Schema: public; Owner: filmflex
+-- Name: roles id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.roles ALTER COLUMN id SET DEFAULT nextval('public.roles_id_seq'::regclass);
 
 
 --
--- Name: users id; Type: DEFAULT; Schema: public; Owner: filmflex
+-- Name: user_comment_reactions id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.user_comment_reactions ALTER COLUMN id SET DEFAULT nextval('public.user_comment_reactions_id_seq'::regclass);
+
+
+--
+-- Name: users id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.users ALTER COLUMN id SET DEFAULT nextval('public.users_id_seq'::regclass);
 
 
 --
--- Name: view_history id; Type: DEFAULT; Schema: public; Owner: filmflex
+-- Name: view_history id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.view_history ALTER COLUMN id SET DEFAULT nextval('public.view_history_id_seq'::regclass);
 
 
 --
--- Name: watchlist id; Type: DEFAULT; Schema: public; Owner: filmflex
+-- Name: watchlist id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.watchlist ALTER COLUMN id SET DEFAULT nextval('public.watchlist_id_seq'::regclass);
 
 
 --
--- Name: analytics_events analytics_events_pkey; Type: CONSTRAINT; Schema: public; Owner: filmflex
+-- Name: analytics_events analytics_events_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.analytics_events
@@ -762,7 +811,7 @@ ALTER TABLE ONLY public.analytics_events
 
 
 --
--- Name: api_keys api_keys_key_unique; Type: CONSTRAINT; Schema: public; Owner: filmflex
+-- Name: api_keys api_keys_key_unique; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.api_keys
@@ -770,7 +819,7 @@ ALTER TABLE ONLY public.api_keys
 
 
 --
--- Name: api_keys api_keys_pkey; Type: CONSTRAINT; Schema: public; Owner: filmflex
+-- Name: api_keys api_keys_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.api_keys
@@ -778,7 +827,7 @@ ALTER TABLE ONLY public.api_keys
 
 
 --
--- Name: api_requests api_requests_pkey; Type: CONSTRAINT; Schema: public; Owner: filmflex
+-- Name: api_requests api_requests_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.api_requests
@@ -786,7 +835,7 @@ ALTER TABLE ONLY public.api_requests
 
 
 --
--- Name: audit_logs audit_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: filmflex
+-- Name: audit_logs audit_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.audit_logs
@@ -794,7 +843,7 @@ ALTER TABLE ONLY public.audit_logs
 
 
 --
--- Name: comments comments_pkey; Type: CONSTRAINT; Schema: public; Owner: filmflex
+-- Name: comments comments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.comments
@@ -802,7 +851,7 @@ ALTER TABLE ONLY public.comments
 
 
 --
--- Name: content_approvals content_approvals_pkey; Type: CONSTRAINT; Schema: public; Owner: filmflex
+-- Name: content_approvals content_approvals_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.content_approvals
@@ -810,7 +859,7 @@ ALTER TABLE ONLY public.content_approvals
 
 
 --
--- Name: content_performance content_performance_pkey; Type: CONSTRAINT; Schema: public; Owner: filmflex
+-- Name: content_performance content_performance_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.content_performance
@@ -818,7 +867,7 @@ ALTER TABLE ONLY public.content_performance
 
 
 --
--- Name: episodes episodes_pkey; Type: CONSTRAINT; Schema: public; Owner: filmflex
+-- Name: episodes episodes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.episodes
@@ -826,7 +875,7 @@ ALTER TABLE ONLY public.episodes
 
 
 --
--- Name: episodes episodes_slug_unique; Type: CONSTRAINT; Schema: public; Owner: filmflex
+-- Name: episodes episodes_slug_unique; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.episodes
@@ -834,7 +883,23 @@ ALTER TABLE ONLY public.episodes
 
 
 --
--- Name: movies movies_movie_id_unique; Type: CONSTRAINT; Schema: public; Owner: filmflex
+-- Name: movie_reactions movie_reactions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.movie_reactions
+    ADD CONSTRAINT movie_reactions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: movie_reactions movie_reactions_user_id_movie_slug_reaction_type_unique; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.movie_reactions
+    ADD CONSTRAINT movie_reactions_user_id_movie_slug_reaction_type_unique UNIQUE (user_id, movie_slug, reaction_type);
+
+
+--
+-- Name: movies movies_movie_id_unique; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.movies
@@ -842,7 +907,7 @@ ALTER TABLE ONLY public.movies
 
 
 --
--- Name: movies movies_pkey; Type: CONSTRAINT; Schema: public; Owner: filmflex
+-- Name: movies movies_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.movies
@@ -850,7 +915,7 @@ ALTER TABLE ONLY public.movies
 
 
 --
--- Name: movies movies_slug_unique; Type: CONSTRAINT; Schema: public; Owner: filmflex
+-- Name: movies movies_slug_unique; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.movies
@@ -858,7 +923,7 @@ ALTER TABLE ONLY public.movies
 
 
 --
--- Name: permissions permissions_name_unique; Type: CONSTRAINT; Schema: public; Owner: filmflex
+-- Name: permissions permissions_name_unique; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.permissions
@@ -866,7 +931,7 @@ ALTER TABLE ONLY public.permissions
 
 
 --
--- Name: permissions permissions_pkey; Type: CONSTRAINT; Schema: public; Owner: filmflex
+-- Name: permissions permissions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.permissions
@@ -874,7 +939,7 @@ ALTER TABLE ONLY public.permissions
 
 
 --
--- Name: role_permissions role_permissions_pkey; Type: CONSTRAINT; Schema: public; Owner: filmflex
+-- Name: role_permissions role_permissions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.role_permissions
@@ -882,7 +947,7 @@ ALTER TABLE ONLY public.role_permissions
 
 
 --
--- Name: roles roles_name_unique; Type: CONSTRAINT; Schema: public; Owner: filmflex
+-- Name: roles roles_name_unique; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.roles
@@ -890,7 +955,7 @@ ALTER TABLE ONLY public.roles
 
 
 --
--- Name: roles roles_pkey; Type: CONSTRAINT; Schema: public; Owner: filmflex
+-- Name: roles roles_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.roles
@@ -898,7 +963,7 @@ ALTER TABLE ONLY public.roles
 
 
 --
--- Name: sessions sessions_pkey; Type: CONSTRAINT; Schema: public; Owner: filmflex
+-- Name: sessions sessions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.sessions
@@ -906,7 +971,23 @@ ALTER TABLE ONLY public.sessions
 
 
 --
--- Name: users users_email_unique; Type: CONSTRAINT; Schema: public; Owner: filmflex
+-- Name: user_comment_reactions user_comment_reactions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.user_comment_reactions
+    ADD CONSTRAINT user_comment_reactions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: user_comment_reactions user_comment_reactions_user_id_comment_id_unique; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.user_comment_reactions
+    ADD CONSTRAINT user_comment_reactions_user_id_comment_id_unique UNIQUE (user_id, comment_id);
+
+
+--
+-- Name: users users_email_unique; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.users
@@ -914,7 +995,15 @@ ALTER TABLE ONLY public.users
 
 
 --
--- Name: users users_pkey; Type: CONSTRAINT; Schema: public; Owner: filmflex
+-- Name: users users_google_id_unique; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_google_id_unique UNIQUE (google_id);
+
+
+--
+-- Name: users users_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.users
@@ -922,7 +1011,7 @@ ALTER TABLE ONLY public.users
 
 
 --
--- Name: users users_username_unique; Type: CONSTRAINT; Schema: public; Owner: filmflex
+-- Name: users users_username_unique; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.users
@@ -930,7 +1019,7 @@ ALTER TABLE ONLY public.users
 
 
 --
--- Name: view_history view_history_pkey; Type: CONSTRAINT; Schema: public; Owner: filmflex
+-- Name: view_history view_history_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.view_history
@@ -938,7 +1027,7 @@ ALTER TABLE ONLY public.view_history
 
 
 --
--- Name: watchlist watchlist_pkey; Type: CONSTRAINT; Schema: public; Owner: filmflex
+-- Name: watchlist watchlist_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.watchlist
@@ -946,14 +1035,7 @@ ALTER TABLE ONLY public.watchlist
 
 
 --
--- Name: idx_movies_episode; Type: INDEX; Schema: public; Owner: filmflex
---
-
-CREATE INDEX idx_movies_episode ON public.movies USING btree (episode_current, episode_total);
-
-
---
--- Name: analytics_events analytics_events_user_id_users_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: filmflex
+-- Name: analytics_events analytics_events_user_id_users_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.analytics_events
@@ -961,7 +1043,7 @@ ALTER TABLE ONLY public.analytics_events
 
 
 --
--- Name: api_keys api_keys_user_id_users_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: filmflex
+-- Name: api_keys api_keys_user_id_users_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.api_keys
@@ -969,7 +1051,7 @@ ALTER TABLE ONLY public.api_keys
 
 
 --
--- Name: api_requests api_requests_api_key_id_api_keys_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: filmflex
+-- Name: api_requests api_requests_api_key_id_api_keys_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.api_requests
@@ -977,7 +1059,7 @@ ALTER TABLE ONLY public.api_requests
 
 
 --
--- Name: content_performance content_performance_movie_id_movies_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: filmflex
+-- Name: content_performance content_performance_movie_id_movies_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.content_performance
@@ -985,7 +1067,15 @@ ALTER TABLE ONLY public.content_performance
 
 
 --
--- Name: role_permissions role_permissions_permission_id_permissions_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: filmflex
+-- Name: movie_reactions movie_reactions_user_id_users_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.movie_reactions
+    ADD CONSTRAINT movie_reactions_user_id_users_id_fk FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: role_permissions role_permissions_permission_id_permissions_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.role_permissions
@@ -993,7 +1083,7 @@ ALTER TABLE ONLY public.role_permissions
 
 
 --
--- Name: role_permissions role_permissions_role_id_roles_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: filmflex
+-- Name: role_permissions role_permissions_role_id_roles_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.role_permissions
@@ -1001,17 +1091,19 @@ ALTER TABLE ONLY public.role_permissions
 
 
 --
--- Name: SCHEMA public; Type: ACL; Schema: -; Owner: pg_database_owner
+-- Name: user_comment_reactions user_comment_reactions_comment_id_comments_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-GRANT ALL ON SCHEMA public TO filmflex;
+ALTER TABLE ONLY public.user_comment_reactions
+    ADD CONSTRAINT user_comment_reactions_comment_id_comments_id_fk FOREIGN KEY (comment_id) REFERENCES public.comments(id) ON DELETE CASCADE;
 
 
 --
--- Name: DEFAULT PRIVILEGES FOR TABLES; Type: DEFAULT ACL; Schema: public; Owner: postgres
+-- Name: user_comment_reactions user_comment_reactions_user_id_users_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT ALL ON TABLES TO filmflex;
+ALTER TABLE ONLY public.user_comment_reactions
+    ADD CONSTRAINT user_comment_reactions_user_id_users_id_fk FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
 
 
 --
