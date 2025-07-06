@@ -3,8 +3,18 @@ import fs from "fs";
 import path from "path";
 import { createServer as createViteServer, createLogger } from "vite";
 import { type Server } from "http";
-import viteConfig from "../vite.config.js";
 import { nanoid } from "nanoid";
+
+// Conditionally import vite config only in development
+let viteConfig: any = null;
+if (process.env.NODE_ENV !== 'production') {
+  try {
+    const viteConfigModule = await import("../vite.config.js");
+    viteConfig = viteConfigModule.default;
+  } catch (error) {
+    console.warn("Could not load vite config:", error);
+  }
+}
 
 const viteLogger = createLogger();
 
