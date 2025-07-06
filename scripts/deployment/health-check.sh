@@ -1,8 +1,9 @@
 #!/bin/bash
 
-# FilmFlex Production Health Check Script
-# Quick health monitoring for production deployments
-# Version: 1.0
+# FilmFlex Production Health Check Script v2.0
+# Enhanced health monitoring for phimgg.com production environment (154.205.142.255)
+# Comprehensive checks for production deployment
+# Version: 2.0 - Updated for phimgg.com production
 
 set -e
 
@@ -14,9 +15,12 @@ BLUE='\033[0;34m'
 PURPLE='\033[0;35m'
 NC='\033[0m'
 
-# Configuration
+# Configuration for phimgg.com production
 DEPLOY_DIR="/var/www/filmflex"
 APP_URL="http://localhost:5000"
+PRODUCTION_IP="154.205.142.255"
+PRODUCTION_DOMAIN="phimgg.com"
+PRODUCTION_URL="http://$PRODUCTION_IP:5000"
 
 # Logging functions
 success() { echo -e "${GREEN}✓ $1${NC}"; }
@@ -25,8 +29,10 @@ error() { echo -e "${RED}✗ $1${NC}"; }
 info() { echo -e "${BLUE}ℹ $1${NC}"; }
 
 echo -e "${PURPLE}=========================================="
-echo "    FilmFlex Production Health Check"
-echo "    $(date '+%Y-%m-%d %H:%M:%S')"
+echo "  FilmFlex Production Health Check v2.0"
+echo "  phimgg.com Production Environment"
+echo "  Production IP: $PRODUCTION_IP"
+echo "  $(date '+%Y-%m-%d %H:%M:%S')"
 echo -e "==========================================${NC}"
 echo
 
@@ -54,10 +60,60 @@ echo
 info "Testing application endpoints..."
 if curl -f -s --max-time 10 "$APP_URL/" >/dev/null 2>&1; then
     success "Root endpoint responding"
+elif curl -f -s --max-time 10 "$APP_URL/api/health" >/dev/null 2>&1; then
+    success "Health API endpoint responding"
+    HEALTH_RESPONSE=$(curl -s --max-time 10 "$APP_URL/api/health" 2>/dev/null | head -c 200)
+    info "Health response: $HEALTH_RESPONSE"
 elif curl -s --max-time 10 "$APP_URL/" | grep -q -E "(html|json|text|<!DOCTYPE)" 2>/dev/null; then
     success "Server responding with content"
 else
     error "Application not responding properly"
+fi
+echo
+
+# Check production IP accessibility
+info "Testing production IP accessibility ($PRODUCTION_IP)..."
+if command -v timeout >/dev/null 2>&1; then
+    if timeout 10 curl -f -s "$PRODUCTION_URL/api/health" >/dev/null 2>&1; then
+        success "Production IP accessible: $PRODUCTION_URL"
+    elif timeout 10 curl -f -s "$PRODUCTION_URL/" >/dev/null 2>&1; then
+        success "Production IP accessible (root): $PRODUCTION_URL"
+    else
+        warning "Production IP not accessible (may need firewall configuration)"
+        info "This could be normal if firewall blocks external access"
+    fi
+else
+    info "timeout command not available, skipping production IP test"
+fi
+echo
+
+# Check CORS configuration
+info "Testing CORS configuration for phimgg.com..."
+if curl -f -s --max-time 10 "$APP_URL/api/health" >/dev/null 2>&1; then
+    CORS_TEST=$(curl -s -I -H "Origin: https://phimgg.com" "$APP_URL/api/health" | grep -i "access-control-allow-origin" || echo "No CORS headers")
+    if [[ "$CORS_TEST" == *"access-control-allow-origin"* ]]; then
+        success "CORS headers configured: $CORS_TEST"
+    else
+        warning "CORS headers not detected or not configured"
+        info "CORS test result: $CORS_TEST"
+    fi
+else
+    warning "Cannot test CORS - application not responding"
+fi
+echo
+
+# Check environment variables (production settings)
+info "Checking production environment configuration..."
+if pm2 show filmflex 2>/dev/null | grep -q "NODE_ENV.*production"; then
+    success "NODE_ENV set to production"
+else
+    warning "NODE_ENV may not be set to production"
+fi
+
+if pm2 show filmflex 2>/dev/null | grep -q "DOMAIN.*phimgg.com"; then
+    success "Domain configured for phimgg.com"
+else
+    warning "Domain may not be configured for phimgg.com"
 fi
 echo
 
@@ -110,6 +166,24 @@ else
 fi
 echo
 
-success "Health check completed!"
-echo -e "${BLUE}For detailed logs: pm2 logs filmflex${NC}"
-echo -e "${BLUE}For process management: pm2 status${NC}"
+success "Health check completed for phimgg.com production!"
+echo ""
+echo -e "${GREEN}=========================================="
+echo "📊 Production Health Summary"
+echo "=========================================="
+echo -e "${NC}"
+info "🌐 Production URLs:"
+info "  • Local: $APP_URL"
+info "  • Production IP: $PRODUCTION_URL"
+info "  • Domain: https://$PRODUCTION_DOMAIN (when DNS configured)"
+echo ""
+info "📋 Management Commands:"
+info "  • Detailed logs: pm2 logs filmflex"
+info "  • Process status: pm2 status"
+info "  • Monitor: pm2 monit"
+info "  • Restart: pm2 restart filmflex"
+echo ""
+info "🔧 Quick Actions:"
+info "  • Restart server: cd $DEPLOY_DIR && ./restart.sh"
+info "  • Check errors: pm2 logs filmflex --err"
+info "  • Real-time logs: pm2 logs filmflex --follow"

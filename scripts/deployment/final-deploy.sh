@@ -1,8 +1,29 @@
 #!/bin/bash
 
-# FilmFlex Final Deployment Script
-# This script handles the final deployment step including database fixes directly
-# It handles CommonJS vs ESM conflicts and fixes database schema issues
+# FilmFlex Enhanced Final Deployment Script v4.0 - phimgg.com Production
+# =====================================================================
+# This script handles complete deployment including:
+# - Database schema import from filmflex_schema.sql (simplified approach)
+# - PostgreSQL authentication fixes (peer to md5)
+# - Node.js dependency fixes (esbuild, rollup binaries)
+# - ES module build compatibility with esbuild
+# - CORS configuration for production
+# - PM2 process management with production environment
+# - Final verification and troubleshooting
+#
+# Updated for phimgg.com production environment (154.205.142.255)
+# 
+# This script includes proven fixes for:
+# ✅ Database schema from filmflex_schema.sql dump file
+# ✅ PostgreSQL authentication (peer → md5)
+# ✅ Missing @esbuild/linux-x64 binary
+# ✅ Missing @rollup/rollup-linux-x64-gnu binary
+# ✅ Corrupted node_modules issues
+# ✅ ES module build support with esbuild
+# ✅ CORS configuration for production
+# ✅ Production environment variables with correct password
+#
+# Usage: bash final-deploy.sh
 # Everything is included in one script for simplicity and reliability
 
 # Exit on error but with better error handling
@@ -15,9 +36,11 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Configuration
+# Configuration - Updated for phimgg.com production
 SOURCE_DIR="$HOME/Film_Flex_Release"
 DEPLOY_DIR="/var/www/filmflex"
+PRODUCTION_IP="154.205.142.255"
+PRODUCTION_DOMAIN="phimgg.com"
 LOG_DIR="/var/log/filmflex"
 TIMESTAMP=$(date +"%Y%m%d%H%M%S")
 LOG_FILE="$LOG_DIR/final-deploy-$TIMESTAMP.log"
@@ -58,11 +81,13 @@ check_status() {
 
 # Start deployment
 log "${BLUE}===== FilmFlex Final Deployment Started at $(date) =====${NC}"
+log "Production Environment: phimgg.com (${PRODUCTION_IP})"
 log "Source directory: $SOURCE_DIR"
 log "Deploy directory: $DEPLOY_DIR"
+log "Log file: $LOG_FILE"
 
-# Step 0: Fix database schema
-log "${BLUE}0. Fixing database schema...${NC}"
+# Step 0: Fix database schema and authentication
+log "${BLUE}0. Fixing database schema and authentication...${NC}"
 
 # Get database connection info from environment or use default
 if [ -n "$DATABASE_URL" ]; then
@@ -70,16 +95,16 @@ if [ -n "$DATABASE_URL" ]; then
   log "Using DATABASE_URL from environment variable"
   DB_URL="$DATABASE_URL"
 else
-  # Use default connection string
+  # Use default connection string with updated password
   log "Using default DATABASE_URL"
-  DB_URL="postgresql://filmflex:filmflex2024@localhost:5432/filmflex"
+  DB_URL="postgresql://filmflex:filmflex2024!@localhost:5432/filmflex"
 fi
 
-# Set PostgreSQL environment variables
+# Set PostgreSQL environment variables with correct password
 export PGHOST="localhost"
 export PGDATABASE="filmflex"
 export PGUSER="filmflex"
-export PGPASSWORD="filmflex2024"
+export PGPASSWORD="filmflex2024!"
 export PGPORT="5432"
 
 log "${BLUE}Database connection details:${NC}"
@@ -88,430 +113,277 @@ log "  Port: $PGPORT"
 log "  Database: $PGDATABASE"
 log "  User: $PGUSER"
 
-# Create SQL fix file
-cat > /tmp/db-fix.sql << 'EOSQL'
--- First check if tables exist and create them if they don't
+# Fix PostgreSQL authentication first
+log "${BLUE}0.1. Fixing PostgreSQL authentication...${NC}"
+
+# Update filmflex user password
+log "Updating filmflex user password..."
+sudo -u postgres psql -c "ALTER USER filmflex PASSWORD 'filmflex2024!';" || {
+  log "Attempting to create filmflex user..."
+  sudo -u postgres psql << 'EOSQL'
+-- Create filmflex user if it doesn't exist
 DO $$
 BEGIN
-    IF NOT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'movies') THEN
-        CREATE TABLE movies (
-            id SERIAL PRIMARY KEY,
-            movie_id TEXT,
-            name TEXT,
-            title TEXT,
-            origin_name TEXT,
-            description TEXT,
-            thumb_url TEXT,
-            poster_url TEXT,
-            trailer_url TEXT,
-            time TEXT,
-            quality TEXT,
-            lang TEXT,
-            year TEXT,
-            view TEXT,
-            actors TEXT,
-            directors TEXT,
-            categories TEXT[],
-            countries TEXT[],
-            modified_at TIMESTAMP DEFAULT NOW(),
-            type TEXT,
-            status TEXT,
-            slug TEXT UNIQUE
-        );
-        RAISE NOTICE 'Created movies table';
-    END IF;
-END$$;
-
--- Create users table if it doesn't exist (CRITICAL for authentication)
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'users') THEN
-        CREATE TABLE users (
-            id SERIAL PRIMARY KEY,
-            username TEXT UNIQUE NOT NULL,
-            email TEXT UNIQUE NOT NULL,
-            password_hash TEXT NOT NULL,
-            display_name TEXT,
-            profile_image_url TEXT,
-            role TEXT DEFAULT 'Viewer',
-            status TEXT DEFAULT 'active',
-            email_verified BOOLEAN DEFAULT FALSE,
-            two_factor_enabled BOOLEAN DEFAULT FALSE,
-            created_at TIMESTAMP DEFAULT NOW(),
-            updated_at TIMESTAMP DEFAULT NOW()
-        );
-        RAISE NOTICE 'Created users table';
-    END IF;
-END$$;
-
--- Create roles table for RBAC system
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'roles') THEN
-        CREATE TABLE roles (
-            id SERIAL PRIMARY KEY,
-            name TEXT UNIQUE NOT NULL,
-            description TEXT,
-            created_at TIMESTAMP DEFAULT NOW(),
-            updated_at TIMESTAMP DEFAULT NOW()
-        );
-        RAISE NOTICE 'Created roles table';
-    END IF;
-END$$;
-
--- Create permissions table for RBAC system
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'permissions') THEN
-        CREATE TABLE permissions (
-            id SERIAL PRIMARY KEY,
-            name TEXT UNIQUE NOT NULL,
-            description TEXT,
-            module TEXT NOT NULL,
-            action TEXT NOT NULL,
-            created_at TIMESTAMP DEFAULT NOW()
-        );
-        RAISE NOTICE 'Created permissions table';
-    END IF;
-END$$;
-
--- Create role_permissions junction table
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'role_permissions') THEN
-        CREATE TABLE role_permissions (
-            id SERIAL PRIMARY KEY,
-            role_id INTEGER REFERENCES roles(id) ON DELETE CASCADE,
-            permission_id INTEGER REFERENCES permissions(id) ON DELETE CASCADE,
-            created_at TIMESTAMP DEFAULT NOW(),
-            UNIQUE(role_id, permission_id)
-        );
-        RAISE NOTICE 'Created role_permissions table';
-    END IF;
-END$$;
-
--- Create comments table
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'comments') THEN
-        CREATE TABLE comments (
-            id SERIAL PRIMARY KEY,
-            user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-            movie_slug TEXT NOT NULL,
-            content TEXT NOT NULL,
-            parent_id INTEGER REFERENCES comments(id) ON DELETE CASCADE,
-            status TEXT DEFAULT 'active',
-            created_at TIMESTAMP DEFAULT NOW(),
-            updated_at TIMESTAMP DEFAULT NOW()
-        );
-        RAISE NOTICE 'Created comments table';
-    END IF;
-END$$;
-
--- Create watchlist table
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'watchlist') THEN
-        CREATE TABLE watchlist (
-            id SERIAL PRIMARY KEY,
-            user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-            movie_slug TEXT NOT NULL,
-            added_at TIMESTAMP DEFAULT NOW(),
-            UNIQUE(user_id, movie_slug)
-        );
-        RAISE NOTICE 'Created watchlist table';
-    END IF;
-END$$;
-
--- Create view_history table
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'view_history') THEN
-        CREATE TABLE view_history (
-            id SERIAL PRIMARY KEY,
-            user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-            movie_slug TEXT NOT NULL,
-            episode_number INTEGER,
-            watch_time INTEGER DEFAULT 0,
-            completed BOOLEAN DEFAULT FALSE,
-            last_watched TIMESTAMP DEFAULT NOW()
-        );
-        RAISE NOTICE 'Created view_history table';
-    END IF;
-END$$;
-
--- Create audit_logs table
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'audit_logs') THEN
-        CREATE TABLE audit_logs (
-            id SERIAL PRIMARY KEY,
-            user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
-            activity_type TEXT NOT NULL,
-            details JSONB,
-            ip_address TEXT,
-            created_at TIMESTAMP DEFAULT NOW()
-        );
-        RAISE NOTICE 'Created audit_logs table';
-    END IF;
-END$$;
-
--- Create featured_sections table
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'featured_sections') THEN
-        CREATE TABLE featured_sections (
-            id SERIAL PRIMARY KEY,
-            section_name TEXT UNIQUE NOT NULL,
-            film_ids JSONB DEFAULT '[]',
-            display_order JSONB DEFAULT '[]',
-            created_at TIMESTAMP DEFAULT NOW(),
-            updated_at TIMESTAMP DEFAULT NOW()
-        );
-        RAISE NOTICE 'Created featured_sections table';
-    END IF;
-END$$;
-
--- Now proceed with the regular schema fixes
-ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS movie_id TEXT;
-ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS name TEXT;
-ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS title TEXT;
-ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS origin_name TEXT;
-ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS description TEXT;
-ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS thumb_url TEXT;
-ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS poster_url TEXT;
-ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS trailer_url TEXT;
-ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS time TEXT;
-ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS quality TEXT;
-ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS lang TEXT;
-ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS episode_current TEXT;
-ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS episode_total TEXT;
-ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS year TEXT;
-ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS view TEXT;
-ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS actors TEXT;
-ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS directors TEXT;
-ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS categories TEXT[];
-ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS countries TEXT[];
-ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS modified_at TIMESTAMP DEFAULT NOW();
-ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS type TEXT;
-ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS status TEXT;
-ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS slug TEXT;
-
--- Add unique constraint to slug if not exists
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint 
-        WHERE conname = 'movies_slug_key' AND conrelid = 'movies'::regclass
-    ) THEN
-        ALTER TABLE movies ADD CONSTRAINT movies_slug_key UNIQUE (slug);
-        RAISE NOTICE 'Added unique constraint to slug column';
-    END IF;
-END$$;
-
--- Use a simpler approach to fix array columns
-DO $$
-BEGIN
-    -- Fix categories column
-    EXECUTE 'ALTER TABLE movies ALTER COLUMN categories TYPE TEXT[] USING 
-        CASE 
-            WHEN categories IS NULL THEN NULL::TEXT[] 
-            WHEN categories::TEXT = ''{NULL}'' THEN NULL::TEXT[] 
-            ELSE CASE 
-                WHEN categories ~ E''^\\{.*\\}$'' THEN categories::TEXT[] 
-                ELSE string_to_array(categories::TEXT, '','')
-            END 
-        END';
-    RAISE NOTICE 'Fixed categories column';
-    
-    -- Fix countries column
-    EXECUTE 'ALTER TABLE movies ALTER COLUMN countries TYPE TEXT[] USING 
-        CASE 
-            WHEN countries IS NULL THEN NULL::TEXT[] 
-            WHEN countries::TEXT = ''{NULL}'' THEN NULL::TEXT[] 
-            ELSE CASE 
-                WHEN countries ~ E''^\\{.*\\}$'' THEN countries::TEXT[] 
-                ELSE string_to_array(countries::TEXT, '','')
-            END 
-        END';
-    RAISE NOTICE 'Fixed countries column';
-END$$;
-
--- Create episodes table if it doesn't exist
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'episodes') THEN
-        CREATE TABLE episodes (
-            id SERIAL PRIMARY KEY,
-            movie_slug TEXT,
-            title TEXT,
-            server_name TEXT,
-            server_data JSONB,
-            link_embed TEXT,
-            link_m3u8 TEXT,
-            episode_number INTEGER,
-            season_number INTEGER,
-            created_at TIMESTAMP DEFAULT NOW(),
-            modified_at TIMESTAMP DEFAULT NOW()
-        );
-        RAISE NOTICE 'Created episodes table';
+    IF NOT EXISTS (SELECT FROM pg_user WHERE usename = 'filmflex') THEN
+        CREATE USER filmflex WITH PASSWORD 'filmflex2024!';
+        GRANT ALL PRIVILEGES ON DATABASE filmflex TO filmflex;
+        GRANT ALL ON SCHEMA public TO filmflex;
+        ALTER USER filmflex CREATEDB;
+        RAISE NOTICE 'Created filmflex user';
     ELSE
-        RAISE NOTICE 'episodes table already exists';
-    END IF;
-    
-    -- Add movie_slug column if it doesn't exist
-    IF NOT EXISTS (
-        SELECT FROM information_schema.columns 
-        WHERE table_schema = 'public' 
-        AND table_name = 'episodes' 
-        AND column_name = 'movie_slug'
-    ) THEN
-        ALTER TABLE episodes ADD COLUMN movie_slug TEXT;
-        RAISE NOTICE 'Added movie_slug column to episodes table';
-    ELSE
-        RAISE NOTICE 'movie_slug column already exists in episodes table';
-    END IF;
-    
-    -- Add foreign key if it doesn't exist
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint 
-        WHERE conname = 'episodes_movie_slug_fkey' AND conrelid = 'episodes'::regclass
-    ) THEN
-        -- Make sure all existing movie_slug values exist in movies.slug
-        DELETE FROM episodes WHERE movie_slug NOT IN (SELECT slug FROM movies WHERE slug IS NOT NULL);
-        -- Add the foreign key constraint
-        ALTER TABLE episodes ADD CONSTRAINT episodes_movie_slug_fkey 
-            FOREIGN KEY (movie_slug) REFERENCES movies(slug) ON DELETE CASCADE;
-        RAISE NOTICE 'Added foreign key constraint to movie_slug column';
+        ALTER USER filmflex PASSWORD 'filmflex2024!';
+        GRANT ALL PRIVILEGES ON DATABASE filmflex TO filmflex;
+        GRANT ALL ON SCHEMA public TO filmflex;
+        RAISE NOTICE 'Updated filmflex user password';
     END IF;
 END$$;
+EOSQL
+}
 
--- Create more indexes to improve performance
-CREATE INDEX IF NOT EXISTS idx_movies_slug ON movies(slug);
-CREATE INDEX IF NOT EXISTS idx_movies_type ON movies(type);
-CREATE INDEX IF NOT EXISTS idx_movies_year ON movies(year);
-CREATE INDEX IF NOT EXISTS idx_movies_modified_at ON movies(modified_at);
-CREATE INDEX IF NOT EXISTS idx_episodes_movie_slug ON episodes(movie_slug);
-CREATE INDEX IF NOT EXISTS idx_role_permissions_role_id ON role_permissions(role_id);
-CREATE INDEX IF NOT EXISTS idx_role_permissions_permission_id ON role_permissions(permission_id);
-CREATE INDEX IF NOT EXISTS idx_comments_movie_slug ON comments(movie_slug);
-CREATE INDEX IF NOT EXISTS idx_watchlist_user_id ON watchlist(user_id);
-CREATE INDEX IF NOT EXISTS idx_view_history_user_id ON view_history(user_id);
+# Fix pg_hba.conf for proper authentication
+log "Fixing PostgreSQL authentication configuration..."
+PG_VERSION=$(sudo -u postgres psql -t -c "SELECT version();" | grep -oP "PostgreSQL \K[0-9]+")
+PG_HBA_PATH="/etc/postgresql/${PG_VERSION}/main/pg_hba.conf"
 
--- Insert default permissions for the RBAC system
-INSERT INTO permissions (name, description, module, action) VALUES 
--- User Management Permissions
-('user.create', 'Create new users', 'user_management', 'create'),
-('user.read', 'View user information', 'user_management', 'read'),
-('user.update', 'Update user information', 'user_management', 'update'),
-('user.delete', 'Delete users', 'user_management', 'delete'),
-('user.manage_roles', 'Assign and modify user roles', 'user_management', 'manage_roles'),
-('user.view_activity', 'View user activity logs', 'user_management', 'view_activity'),
+if [ -f "$PG_HBA_PATH" ]; then
+  # Backup original pg_hba.conf
+  sudo cp "$PG_HBA_PATH" "${PG_HBA_PATH}.backup.$(date +%Y%m%d_%H%M%S)"
+  
+  # Update pg_hba.conf to use md5 authentication
+  sudo sed -i 's/local.*all.*all.*peer/local   all             all                                     md5/' "$PG_HBA_PATH"
+  sudo sed -i 's/local.*filmflex.*filmflex.*peer/local   filmflex        filmflex                                md5/' "$PG_HBA_PATH"
+  
+  # Restart PostgreSQL to apply changes
+  sudo systemctl restart postgresql
+  sleep 3
+  
+  success "PostgreSQL authentication configuration updated"
+else
+  warning "PostgreSQL configuration file not found at $PG_HBA_PATH"
+fi
 
--- Content Management Permissions
-('content.create', 'Add new movies and content', 'content_management', 'create'),
-('content.read', 'View content details', 'content_management', 'read'),
-('content.update', 'Edit existing content', 'content_management', 'update'),
-('content.delete', 'Remove content', 'content_management', 'delete'),
-('content.approve', 'Approve pending content', 'content_management', 'approve'),
-('content.reject', 'Reject submitted content', 'content_management', 'reject'),
-('content.moderate', 'Moderate user comments and reviews', 'content_management', 'moderate'),
+# Test database connection with new credentials
+log "Testing database connection..."
+if PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" -c "SELECT version();" > /dev/null 2>&1; then
+  success "Database connection test passed"
+else
+  error "Database connection test failed - attempting to fix..."
+  
+  # Try to create database if it doesn't exist
+  sudo -u postgres createdb filmflex 2>/dev/null || true
+  sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE filmflex TO filmflex;" || true
+  
+  # Test again
+  if PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" -c "SELECT 1;" > /dev/null 2>&1; then
+    success "Database connection restored"
+  else
+    error "Database connection still failing - manual intervention may be required"
+  fi
+fi
 
--- System Administration Permissions
-('system.admin', 'Full system administration access', 'system', 'admin'),
-('system.analytics', 'View analytics and reports', 'system', 'analytics'),
-('system.settings', 'Modify system settings', 'system', 'settings'),
-('system.api_keys', 'Manage API keys', 'system', 'api_keys'),
-('system.audit_logs', 'View audit logs', 'system', 'audit_logs'),
+# Create comprehensive database schema using filmflex_schema.sql
+log "Applying database schema from filmflex_schema.sql..."
 
--- Role Management Permissions
-('role.create', 'Create new roles', 'role_management', 'create'),
-('role.read', 'View role information', 'role_management', 'read'),
-('role.update', 'Modify existing roles', 'role_management', 'update'),
-('role.delete', 'Delete roles', 'role_management', 'delete'),
-('role.assign_permissions', 'Assign permissions to roles', 'role_management', 'assign_permissions'),
+# Check if schema file exists
+SCHEMA_FILE="$SOURCE_DIR/shared/filmflex_schema.sql"
+if [ ! -f "$SCHEMA_FILE" ]; then
+    error "Schema file not found at $SCHEMA_FILE"
+    exit 1
+fi
 
--- Viewing Permissions
-('content.view', 'View movies and content', 'viewing', 'view'),
-('content.search', 'Search for content', 'viewing', 'search'),
-('content.watchlist', 'Manage personal watchlist', 'viewing', 'watchlist'),
-('content.comment', 'Comment on content', 'viewing', 'comment'),
-('content.rate', 'Rate movies and content', 'viewing', 'rate')
+# Apply the schema
+if PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" -f "$SCHEMA_FILE"; then
+    success "Database schema applied successfully from filmflex_schema.sql"
+    
+    # Verify core tables were created
+    log "Verifying schema application..."
+    TABLES_COUNT=$(PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" -t -c "SELECT count(*) FROM pg_tables WHERE schemaname = 'public' AND tablename IN ('movies', 'episodes', 'users', 'comments');" | xargs)
+    
+    if [ "$TABLES_COUNT" -ge 4 ]; then
+        success "Core tables verified: $TABLES_COUNT/4 tables present"
+        
+        # Check episodes table specifically for the filename column
+        FILENAME_COLUMN=$(PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" -t -c "SELECT count(*) FROM information_schema.columns WHERE table_name = 'episodes' AND column_name = 'filename';" | xargs)
+        if [ "$FILENAME_COLUMN" -eq 1 ]; then
+            success "Episodes filename column verified"
+        else
+            warning "Episodes filename column missing - adding it..."
+            PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" -c "ALTER TABLE episodes ADD COLUMN IF NOT EXISTS filename TEXT;"
+        fi
+        
+        # Check for episodes slug constraint
+        EPISODES_CONSTRAINT=$(PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" -t -c "SELECT count(*) FROM pg_constraint WHERE conname LIKE '%episodes%slug%';" | xargs)
+        if [ "$EPISODES_CONSTRAINT" -ge 1 ]; then
+            success "Episodes slug constraint verified"
+        else
+            warning "Episodes slug constraint missing - adding it..."
+            PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" -c "ALTER TABLE episodes ADD CONSTRAINT episodes_slug_unique UNIQUE (slug);" || warning "Could not add episodes slug constraint (may already exist with different name)"
+        fi
+        
+        # Check movies table JSONB columns
+        JSONB_COLUMNS=$(PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" -t -c "SELECT count(*) FROM information_schema.columns WHERE table_name = 'movies' AND column_name IN ('categories', 'countries') AND data_type = 'jsonb';" | xargs)
+        if [ "$JSONB_COLUMNS" -eq 2 ]; then
+            success "Movies JSONB columns verified (categories, countries)"
+        else
+            warning "Movies JSONB columns may need fixing - found $JSONB_COLUMNS/2"
+            # Convert TEXT[] to JSONB if needed
+            PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" << 'EOFIXJSONB'
+-- Fix JSONB columns if they are TEXT[]
+DO $$
+BEGIN
+    -- Fix categories column if it's TEXT[]
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'movies' AND column_name = 'categories' AND data_type = 'ARRAY'
+    ) THEN
+        ALTER TABLE movies ALTER COLUMN categories TYPE JSONB USING 
+            CASE 
+                WHEN categories IS NULL THEN '[]'::jsonb
+                ELSE array_to_json(categories)::jsonb
+            END;
+        RAISE NOTICE 'Converted categories column from TEXT[] to JSONB';
+    END IF;
 
-ON CONFLICT (name) DO NOTHING;
-
--- Insert the three default roles
+    -- Fix countries column if it's TEXT[]
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'movies' AND column_name = 'countries' AND data_type = 'ARRAY'
+    ) THEN
+        ALTER TABLE movies ALTER COLUMN countries TYPE JSONB USING 
+            CASE 
+                WHEN countries IS NULL THEN '[]'::jsonb
+                ELSE array_to_json(countries)::jsonb
+            END;
+        RAISE NOTICE 'Converted countries column from TEXT[] to JSONB';
+    END IF;
+END$$;
+EOFIXJSONB
+        fi
+    else
+        error "Core tables missing: only $TABLES_COUNT/4 tables found"
+        exit 1
+    fi
+    
+    # Add default roles and permissions if they don't exist
+    log "Adding default roles and permissions..."
+    PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" << 'EODEFAULTS'
+-- Insert default roles if they don't exist
 INSERT INTO roles (name, description) VALUES 
 ('Admin', 'Full administrative access to all system functions'),
 ('Content Manager', 'Manages content creation, editing, and moderation'),
 ('Viewer', 'Standard user with viewing and basic interaction capabilities')
 ON CONFLICT (name) DO NOTHING;
 
--- Assign permissions to Admin role (full access)
+-- Insert basic permissions if they don't exist
+INSERT INTO permissions (name, description, module, action) VALUES 
+('content.view', 'View movies and content', 'viewing', 'view'),
+('content.search', 'Search for content', 'viewing', 'search'),
+('content.comment', 'Comment on content', 'viewing', 'comment'),
+('content.rate', 'Rate movies and content', 'viewing', 'rate'),
+('content.watchlist', 'Manage personal watchlist', 'viewing', 'watchlist'),
+('content.create', 'Add new movies and content', 'content_management', 'create'),
+('content.update', 'Edit existing content', 'content_management', 'update'),
+('content.delete', 'Remove content', 'content_management', 'delete'),
+('system.admin', 'Full system administration access', 'system', 'admin')
+ON CONFLICT (name) DO NOTHING;
+
+-- Assign all permissions to Admin role
 INSERT INTO role_permissions (role_id, permission_id)
 SELECT r.id, p.id
 FROM roles r, permissions p
 WHERE r.name = 'Admin'
-ON CONFLICT (role_id, permission_id) DO NOTHING;
+ON CONFLICT DO NOTHING;
 
--- Assign permissions to Content Manager role
-INSERT INTO role_permissions (role_id, permission_id)
-SELECT r.id, p.id
-FROM roles r, permissions p
-WHERE r.name = 'Content Manager'
-AND p.name IN (
-    'content.create',
-    'content.read', 
-    'content.update',
-    'content.delete',
-    'content.approve',
-    'content.reject',
-    'content.moderate',
-    'content.view',
-    'content.search',
-    'user.read',
-    'user.view_activity',
-    'system.analytics'
-)
-ON CONFLICT (role_id, permission_id) DO NOTHING;
-
--- Assign permissions to Viewer role
+-- Assign viewing permissions to Viewer role
 INSERT INTO role_permissions (role_id, permission_id)
 SELECT r.id, p.id
 FROM roles r, permissions p
 WHERE r.name = 'Viewer'
-AND p.name IN (
-    'content.view',
-    'content.search',
-    'content.watchlist',
-    'content.comment',
-    'content.rate',
-    'content.read'
-)
-ON CONFLICT (role_id, permission_id) DO NOTHING;
-
--- Add anime section to featured_sections table
-INSERT INTO featured_sections (section_name, film_ids, display_order, created_at, updated_at)
-VALUES ('anime', '[]', '[]', NOW(), NOW())
-ON CONFLICT (section_name) DO NOTHING;
+AND p.name IN ('content.view', 'content.search', 'content.watchlist', 'content.comment', 'content.rate')
+ON CONFLICT DO NOTHING;
 
 -- Create a default admin user if none exists
-INSERT INTO users (username, email, password_hash, display_name, role, status, email_verified)
-VALUES ('admin', 'admin@filmflex.local', '$2b$10$defaulthashedpassword', 'Administrator', 'Admin', 'active', TRUE)
+INSERT INTO users (username, email, password, role, status) VALUES 
+('admin', 'admin@filmflex.local', '$2b$10$defaulthashedpassword', 'Admin', 'active')
 ON CONFLICT (username) DO NOTHING;
-
--- Insert audit log entry for this migration
-INSERT INTO audit_logs (user_id, activity_type, details, ip_address)
-VALUES (1, 'SYSTEM_MIGRATION', '{"migration": "final_deploy_schema_setup", "action": "Created complete database schema with RBAC system"}', '127.0.0.1');
-EOSQL
-
-# Execute SQL fix
-log "Executing SQL fixes..."
-if psql -f /tmp/db-fix.sql; then
-    success "Database schema fix completed successfully"
+EODEFAULTS
+    
+    success "Default roles, permissions, and admin user added"
+    
+    # Set proper ownership
+    log "Setting proper table ownership to filmflex user..."
+    PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" << 'EOOWNERSHIP'
+-- Set table ownership to filmflex user
+DO $$
+DECLARE
+    table_name text;
+BEGIN
+    FOR table_name IN (SELECT tablename FROM pg_tables WHERE schemaname = 'public')
+    LOOP
+        EXECUTE format('ALTER TABLE %I OWNER TO filmflex', table_name);
+    END LOOP;
+    
+    -- Set sequence ownership
+    FOR table_name IN (SELECT sequence_name FROM information_schema.sequences WHERE sequence_schema = 'public')
+    LOOP
+        EXECUTE format('ALTER SEQUENCE %I OWNER TO filmflex', table_name);
+    END LOOP;
+END$$;
+EOOWNERSHIP
+    
+    success "Table and sequence ownership set to filmflex user"
+    
 else
-    error "Database schema fix failed"
-    exit 1
+    error "Schema application failed"
+    log "Attempting basic fallback schema creation..."
+    
+    # Create minimal fallback schema
+    PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" << 'FALLBACK_SQL'
+-- Minimal database schema fallback
+CREATE TABLE IF NOT EXISTS movies (
+    id SERIAL PRIMARY KEY, 
+    name TEXT, 
+    slug TEXT UNIQUE,
+    categories JSONB DEFAULT '[]'::jsonb,
+    countries JSONB DEFAULT '[]'::jsonb
+);
+CREATE TABLE IF NOT EXISTS episodes (
+    id SERIAL PRIMARY KEY, 
+    name TEXT, 
+    slug TEXT UNIQUE, 
+    movie_slug TEXT, 
+    server_name TEXT, 
+    filename TEXT, 
+    link_embed TEXT, 
+    link_m3u8 TEXT
+);
+CREATE TABLE IF NOT EXISTS users (
+    id SERIAL PRIMARY KEY, 
+    username TEXT UNIQUE, 
+    email TEXT UNIQUE, 
+    password TEXT, 
+    role TEXT DEFAULT 'normal'
+);
+CREATE TABLE IF NOT EXISTS comments (
+    id SERIAL PRIMARY KEY, 
+    user_id INTEGER, 
+    movie_slug TEXT, 
+    content TEXT, 
+    created_at TIMESTAMP DEFAULT NOW()
+);
+CREATE TABLE IF NOT EXISTS sessions (
+    sid TEXT PRIMARY KEY, 
+    sess JSONB, 
+    expire TIMESTAMP
+);
+FALLBACK_SQL
+    
+    if [ $? -eq 0 ]; then
+        success "Fallback schema created successfully"
+    else
+        error "Both main schema and fallback schema failed"
+        exit 1
+    fi
 fi
 
 # 1. Stop any existing processes
@@ -571,8 +443,8 @@ else
   warning "Shared source directory not found"
 fi
 
-# 5. Create PM2 ecosystem config
-log "${BLUE}5. Creating PM2 ecosystem config...${NC}"
+# 5. Create PM2 ecosystem config with production environment
+log "${BLUE}5. Creating PM2 ecosystem config for production...${NC}"
 cat > "$DEPLOY_DIR/ecosystem.config.cjs" << 'EOCONFIG'
 module.exports = {
   apps: [
@@ -584,7 +456,13 @@ module.exports = {
       watch: false,
       env: {
         NODE_ENV: "production",
-        PORT: 5000
+        PORT: 5000,
+        ALLOWED_ORIGINS: "*",
+        CLIENT_URL: "*",
+        DATABASE_URL: "postgresql://filmflex:filmflex2024!@localhost:5432/filmflex?sslmode=disable",
+        SESSION_SECRET: "5841abaec918d944cd79481791440643540a3ac9ec33800500ea3ac03d543d61",
+        DOMAIN: "phimgg.com",
+        SERVER_IP: "154.205.142.255"
       },
       log_date_format: "YYYY-MM-DD HH:mm:ss",
       error_file: "/var/log/filmflex/error.log",
@@ -596,27 +474,89 @@ module.exports = {
 };
 EOCONFIG
 
-# 6. Install dependencies and build
-log "${BLUE}6. Installing dependencies...${NC}"
+# 6. Fix node modules and install dependencies with proven fixes
+log "${BLUE}6. Fixing node modules and installing dependencies...${NC}"
 cd "$DEPLOY_DIR"
-if npm install; then
-    success "Dependencies installed successfully"
+
+# Step 6a: Complete cleanup of corrupted dependencies
+log "   🗑️  Cleaning up corrupted node_modules and package-lock.json..."
+rm -rf node_modules
+rm -rf package-lock.json
+rm -rf ~/.npm/_cacache
+
+log "   🧹 Clearing npm cache..."
+npm cache clean --force
+
+# Step 6b: Install dependencies with optional dependencies enabled
+log "   📦 Installing dependencies with optional dependencies..."
+if npm install --include=optional; then
+    success "Base dependencies installed successfully"
+else
+    warning "Standard install failed, trying with legacy peer deps..."
+    npm install --legacy-peer-deps --include=optional
+    check_status "Dependencies installation with legacy peer deps"
+fi
+
+# Step 6c: Install platform-specific binaries that commonly cause issues
+log "   🔧 Installing platform-specific binaries..."
+npm install @esbuild/linux-x64 --save-dev 2>/dev/null || warning "esbuild binary install failed (might already exist)"
+npm install @rollup/rollup-linux-x64-gnu --save-dev 2>/dev/null || warning "rollup binary install failed (might already exist)"
+
+# Step 6d: Verify critical binaries are present
+log "   🔍 Verifying critical binaries..."
+if [ -f "node_modules/@esbuild/linux-x64/package.json" ]; then
+    success "esbuild Linux x64 binary: FOUND"
+else
+    warning "esbuild Linux x64 binary: MISSING - attempting fix..."
+    npm rebuild @esbuild/linux-x64 || npm install @esbuild/linux-x64 --force
+fi
+
+if [ -f "node_modules/@rollup/rollup-linux-x64-gnu/package.json" ]; then
+    success "Rollup Linux x64 binary: FOUND"
+else
+    warning "Rollup Linux x64 binary: MISSING - attempting fix..."
+    npm rebuild @rollup/rollup-linux-x64-gnu || npm install @rollup/rollup-linux-x64-gnu --force
+fi
+
+# Step 6e: Build application or copy pre-built files
+log "   🏗️  Building application..."
+
+# Try to build if we have the source files and build scripts
+if [ -f "package.json" ] && grep -q "build:server" package.json; then
+    log "Found build scripts, attempting ES module build with esbuild..."
     
-    log "Building application..."
-    
-    # Approach 1: Try to use the pre-built server directly from the source directory
-    if [ -d "$SOURCE_DIR/dist" ] && [ -f "$SOURCE_DIR/dist/index.js" ]; then
-        log "Found pre-built server code, using it directly..."
-        mkdir -p "$DEPLOY_DIR/dist"
-        cp -r "$SOURCE_DIR/dist"/* "$DEPLOY_DIR/dist/"
-        success "Server code copied successfully from pre-built source"
+    # Build server with esbuild (ES module compatible)
+    if npm run build:server; then
+        success "Server ES module build completed successfully"
+        BUILD_METHOD="esbuild (ES modules)"
     else
-        # Approach 2: Create a simple express server file as fallback
-        log "Pre-built server not found, creating fallback server file..."
-        mkdir -p "$DEPLOY_DIR/dist"
-        
-        # Create a simple Express server file that serves static files
-        cat > "$DEPLOY_DIR/dist/index.js" << 'EOJS'
+        warning "Server build failed, will try copying pre-built files"
+        BUILD_METHOD="fallback"
+    fi
+    
+    # Build client if build script exists
+    if grep -q "build:client" package.json && npm run build:client; then
+        success "Client build completed successfully"
+    else
+        warning "Client build failed or not available, will try copying pre-built files"
+    fi
+else
+    log "Build scripts not found, using pre-built approach..."
+    BUILD_METHOD="pre-built"
+fi
+
+# Approach 1: Use pre-built files from source if available
+if [ -d "$SOURCE_DIR/dist" ] && [ -f "$SOURCE_DIR/dist/index.js" ]; then
+    log "Found pre-built server code, copying it..."
+    mkdir -p "$DEPLOY_DIR/dist"
+    cp -r "$SOURCE_DIR/dist"/* "$DEPLOY_DIR/dist/"
+    success "Server code copied successfully from pre-built source"
+else
+    # Approach 2: Create a fallback server file
+    warning "Pre-built server not found, creating fallback server file..."
+    mkdir -p "$DEPLOY_DIR/dist"
+      # Create an enhanced Express server with CORS support
+    cat > "$DEPLOY_DIR/dist/index.js" << 'EOJS'
 const express = require('express');
 const path = require('path');
 const { Pool } = require('pg');
@@ -627,7 +567,34 @@ const port = process.env.PORT || 5000;
 
 // Database connection
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://filmflex:filmflex2024@localhost:5432/filmflex'
+  connectionString: process.env.DATABASE_URL || 'postgresql://filmflex:filmflex2024!@localhost:5432/filmflex?sslmode=disable'
+});
+
+// Enhanced CORS middleware for production
+app.use((req, res, next) => {
+  // Check for wildcard CORS setting - ALLOW ALL ORIGINS (for development/testing)
+  if (process.env.ALLOWED_ORIGINS === '*' || process.env.CLIENT_URL === '*') {
+    res.header('Access-Control-Allow-Origin', '*');
+  } else {
+    // Production CORS - allow specific origins
+    const allowedOrigins = process.env.ALLOWED_ORIGINS ? 
+      process.env.ALLOWED_ORIGINS.split(',') : ['https://phimgg.com', 'http://154.205.142.255:5000'];
+    
+    const origin = req.headers.origin;
+    if (allowedOrigins.includes(origin)) {
+      res.header('Access-Control-Allow-Origin', origin);
+    }
+  }
+  
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  
+  if (req.method === 'OPTIONS') {
+    res.sendStatus(200);
+  } else {
+    next();
+  }
 });
 
 // Middleware to parse JSON
@@ -635,7 +602,32 @@ app.use(express.json());
 
 // API Routes
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
+    domain: process.env.DOMAIN || 'localhost',
+    cors: process.env.ALLOWED_ORIGINS || 'default'
+  });
+});
+
+// Test database connection
+app.get('/api/db-test', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT NOW() as current_time, version() as postgres_version');
+    res.json({ 
+      status: 'ok', 
+      database: 'connected', 
+      time: result.rows[0].current_time,
+      version: result.rows[0].postgres_version
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      status: 'error', 
+      database: 'disconnected', 
+      error: error.message 
+    });
+  }
 });
 
 // Static files - serve the client build
@@ -648,19 +640,29 @@ app.get('*', (req, res) => {
 
 // Start server
 app.listen(port, '0.0.0.0', () => {
-  console.log(`Server running on port ${port}`);
-  console.log(`Database URL: ${process.env.DATABASE_URL || 'using default connection'}`);
+  console.log(`🚀 FilmFlex Server running on port ${port}`);
+  console.log(`📊 Database URL: ${process.env.DATABASE_URL || 'using default connection'}`);
+  console.log(`🌐 Domain: ${process.env.DOMAIN || 'localhost'}`);
+  console.log(`🔒 CORS: ${process.env.ALLOWED_ORIGINS || 'default settings'}`);
+  console.log(`🌐 Access: http://localhost:${port}`);
+  console.log(`🌐 Production: http://154.205.142.255:${port}`);
+  console.log(`🌐 Domain: https://phimgg.com`);
 });
 EOJS
-        success "Created fallback server file"
-        
-        # Install minimal dependencies needed for the fallback server
-        cd "$DEPLOY_DIR"
-        npm install express pg --save
-        check_status "Installing minimal server dependencies"
-    fi
+    success "Created enhanced production server file with CORS support"
+    
+    # Install minimal dependencies needed for the fallback server
+    npm install express pg --save
+    check_status "Installing minimal server dependencies"
+fi
+
+# Step 6f: Verify build outputs
+log "   📊 Verifying build outputs..."
+if [ -f "$DEPLOY_DIR/dist/index.js" ]; then
+    SERVER_SIZE=$(du -h "$DEPLOY_DIR/dist/index.js" | cut -f1)
+    success "Server bundle verified: $SERVER_SIZE"
 else
-    error "Failed to install dependencies"
+    error "Server bundle missing after build process"
     exit 1
 fi
 
@@ -688,14 +690,30 @@ else
   fi
 fi
 
-# 9. Set up environment
-log "${BLUE}9. Setting up environment variables...${NC}"
+# 9. Set up production environment variables with correct password
+log "${BLUE}9. Setting up production environment variables...${NC}"
 cat > "$DEPLOY_DIR/.env" << 'EOENV'
 NODE_ENV=production
 PORT=5000
-DATABASE_URL=postgresql://filmflex:filmflex2024@localhost:5432/filmflex
+ALLOWED_ORIGINS=*
+CLIENT_URL=*
+DATABASE_URL=postgresql://filmflex:filmflex2024!@localhost:5432/filmflex?sslmode=disable
 SESSION_SECRET=5841abaec918d944cd79481791440643540a3ac9ec33800500ea3ac03d543d61
+DOMAIN=phimgg.com
+SERVER_IP=154.205.142.255
 EOENV
+
+# Create .env.production file for production-specific settings
+cat > "$DEPLOY_DIR/.env.production" << 'EOENVPROD'
+NODE_ENV=production
+PORT=5000
+ALLOWED_ORIGINS=*
+CLIENT_URL=*
+DATABASE_URL=postgresql://filmflex:filmflex2024!@localhost:5432/filmflex?sslmode=disable
+SESSION_SECRET=5841abaec918d944cd79481791440643540a3ac9ec33800500ea3ac03d543d61
+DOMAIN=phimgg.com
+SERVER_IP=154.205.142.255
+EOENVPROD
 
 # Create .env.local file as well for possible dotenv module usage
 cp "$DEPLOY_DIR/.env" "$DEPLOY_DIR/.env.local"
@@ -717,7 +735,7 @@ const rootDir = path.resolve(__dirname, '..');
 const defaults = {
   NODE_ENV: 'production',
   PORT: '5000',
-  DATABASE_URL: 'postgresql://filmflex:filmflex2024@localhost:5432/filmflex',
+  DATABASE_URL: 'postgresql://filmflex:filmflex2024!@localhost:5432/filmflex?sslmode=disable',
   SESSION_SECRET: '5841abaec918d944cd79481791440643540a3ac9ec33800500ea3ac03d543d61'
 };
 
@@ -790,13 +808,84 @@ if [ -n "$PROCESSES" ]; then
   sleep 2
 fi
 
+# 10.5. Pre-deployment testing and verification
+log "${BLUE}10.5. Pre-deployment testing and verification...${NC}"
+cd "$DEPLOY_DIR"
+
+# Test Node.js module loading
+log "   🧪 Testing Node.js module loading..."
+if node -e "console.log('Node.js basic test passed')" 2>/dev/null; then
+    success "Node.js basic functionality test passed"
+else
+    error "Node.js basic functionality test failed"
+    exit 1
+fi
+
+# Test if our server file can load without running
+log "   📝 Testing server file syntax..."
+if node -c dist/index.js 2>/dev/null; then
+    success "Server file syntax check passed"
+else
+    error "Server file syntax check failed"
+    exit 1
+fi
+
+# Test database connection
+log "   🗄️  Testing database connection..."
+if PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" -c "SELECT 1;" > /dev/null 2>&1; then
+    success "Database connection test passed"
+else
+    warning "Database connection test failed - continuing anyway"
+fi
+
+# Test package dependencies
+log "   📦 Testing critical dependencies..."
+node -e "
+try {
+  require('express');
+  require('pg');
+  console.log('✅ Critical dependencies test passed');
+} catch (error) {
+  console.error('❌ Critical dependencies test failed:', error.message);
+  process.exit(1);
+}
+" || { error "Critical dependencies test failed"; exit 1; }
+
+# Quick server startup test
+log "   🚀 Testing server startup (10 second test)..."
+timeout 10s node dist/index.js &
+SERVER_PID=$!
+sleep 5
+
+# Test health endpoint
+if curl -f -s http://localhost:5000/api/health > /dev/null 2>&1; then
+    success "Health endpoint test passed"
+    HEALTH_RESPONSE=$(curl -s http://localhost:5000/api/health)
+    log "     Health response: $HEALTH_RESPONSE"
+else
+    warning "Health endpoint test failed - server might need more time to start"
+fi
+
+# Test database endpoint if available
+if curl -f -s http://localhost:5000/api/db-test > /dev/null 2>&1; then
+    success "Database endpoint test passed"
+    DB_RESPONSE=$(curl -s http://localhost:5000/api/db-test)
+    log "     Database response: $DB_RESPONSE"
+else
+    warning "Database endpoint test failed or not available"
+fi
+
+# Clean up test server
+kill $SERVER_PID 2>/dev/null || true
+sleep 2
+
 # 11. Setup systemd service for PM2 and start server
 log "${BLUE}11. Setting up PM2 startup service...${NC}"
 cd "$DEPLOY_DIR"
 pm2 startup systemd || warning "Failed to set up PM2 startup hook"
 
-# Create a direct PM2 config file with env variables explicitly set
-log "Creating PM2 startup file with environment variables..."
+# Create an enhanced PM2 config file with production environment variables
+log "Creating enhanced PM2 startup file with production environment..."
 cat > "$DEPLOY_DIR/pm2.config.cjs" << 'EOPMConfig'
 module.exports = {
   apps: [
@@ -809,8 +898,12 @@ module.exports = {
       env: {
         NODE_ENV: "production",
         PORT: 5000,
-        DATABASE_URL: "postgresql://filmflex:filmflex2024@localhost:5432/filmflex",
-        SESSION_SECRET: "5841abaec918d944cd79481791440643540a3ac9ec33800500ea3ac03d543d61"
+        ALLOWED_ORIGINS: "*",
+        CLIENT_URL: "*",
+        DATABASE_URL: "postgresql://filmflex:filmflex2024!@localhost:5432/filmflex?sslmode=disable",
+        SESSION_SECRET: "5841abaec918d944cd79481791440643540a3ac9ec33800500ea3ac03d543d61",
+        DOMAIN: "phimgg.com",
+        SERVER_IP: "154.205.142.255"
       },
       log_date_format: "YYYY-MM-DD HH:mm:ss",
       error_file: "/var/log/filmflex/error.log",
@@ -829,11 +922,14 @@ if pm2 list | grep -q "filmflex"; then
 else
   log "Starting application with PM2..."
   pm2 start "$DEPLOY_DIR/pm2.config.cjs" || { 
-    error "Failed to start with pm2.config.cjs, attempting direct start"
-    # Try direct start as fallback
-    cd "$DEPLOY_DIR"
-    export DATABASE_URL="postgresql://filmflex:filmflex2024@localhost:5432/filmflex"
+    error "Failed to start with pm2.config.cjs, attempting direct start"    # Try direct start as fallback with production environment
+    cd "$DEPLOY_DIR"    export NODE_ENV="production"
+    export ALLOWED_ORIGINS="*"
+    export CLIENT_URL="*"
+    export DATABASE_URL="postgresql://filmflex:filmflex2024!@localhost:5432/filmflex?sslmode=disable"
     export SESSION_SECRET="5841abaec918d944cd79481791440643540a3ac9ec33800500ea3ac03d543d61"
+    export DOMAIN="phimgg.com"
+    export SERVER_IP="154.205.142.255"
     pm2 start dist/index.js --name filmflex -- --env production || { error "All PM2 start methods failed"; exit 1; }
   }
 fi
@@ -865,51 +961,190 @@ else
   error "Nginx configuration test failed"
 fi
 
-# Create a restart script for easy manual restarting
-log "Creating restart script..."
+# Create an enhanced restart script for production
+log "Creating enhanced restart script for production..."
 cat > "$DEPLOY_DIR/restart.sh" << 'EORESTART'
 #!/bin/bash
-# FilmFlex Restart Script
-export DATABASE_URL="postgresql://filmflex:filmflex2024@localhost:5432/filmflex"
-export SESSION_SECRET="5841abaec918d944cd79481791440643540a3ac9ec33800500ea3ac03d543d61"
+# FilmFlex Production Restart Script for phimgg.com
 export NODE_ENV="production"
 export PORT="5000"
+export ALLOWED_ORIGINS="*"
+export CLIENT_URL="*"
+export DATABASE_URL="postgresql://filmflex:filmflex2024!@localhost:5432/filmflex?sslmode=disable"
+export SESSION_SECRET="5841abaec918d944cd79481791440643540a3ac9ec33800500ea3ac03d543d61"
+export DOMAIN="phimgg.com"
+export SERVER_IP="154.205.142.255"
 
 cd "$(dirname "$0")"
 
+echo "🚀 Restarting FilmFlex for phimgg.com production..."
+echo "📍 Production IP: 154.205.142.255"
+echo "🌐 Domain: phimgg.com"
+
 if pm2 list | grep -q "filmflex"; then
-  echo "Restarting FilmFlex with PM2..."
+  echo "🔄 Restarting FilmFlex with PM2..."
   pm2 restart filmflex
 else
-  echo "Starting FilmFlex with PM2..."
+  echo "▶️  Starting FilmFlex with PM2..."
   pm2 start pm2.config.cjs || pm2 start dist/index.js --name filmflex
 fi
 
-echo "Checking application status..."
-sleep 2
-curl -s http://localhost:5000/api/health
+echo "⏳ Checking application status..."
+sleep 3
+
+echo "🏥 Health check:"
+curl -s http://localhost:5000/api/health | head -c 200
 echo ""
-echo "Done! Check logs with: pm2 logs filmflex"
+
+echo "🌐 Production URLs:"
+echo "  • Local: http://localhost:5000"
+echo "  • Production IP: http://154.205.142.255:5000"
+echo "  • Domain: https://phimgg.com"
+echo ""
+echo "✅ Done! Check logs with: pm2 logs filmflex"
 EORESTART
 
 chmod +x "$DEPLOY_DIR/restart.sh"
 
 # End deployment
 log "${GREEN}===== FilmFlex Final Deployment Completed at $(date) =====${NC}"
+
+# Final comprehensive verification
 log ""
-log "To check the status, use these commands:"
-log "  - Server status: pm2 status filmflex"
-log "  - Server logs: pm2 logs filmflex"
-log "  - API check: curl http://localhost:5000/api/health"
-log "  - Web check: Visit https://phimgg.com"
+log "${BLUE}🔍 FINAL VERIFICATION${NC}"
+log "===================="
+
+# Check PM2 status
+log "📋 PM2 Status:"
+pm2 status
+
+# Check if the application is responding
+log ""
+log "🌐 Application Response Tests:"
+sleep 3
+
+# Test health endpoint with enhanced checks
+if curl -f -s http://localhost:5000/api/health > /dev/null 2>&1; then
+    HEALTH_RESPONSE=$(curl -s http://localhost:5000/api/health)
+    success "Health endpoint: RESPONSIVE"
+    log "   Response: $HEALTH_RESPONSE"
+    
+    # Test CORS headers
+    CORS_RESPONSE=$(curl -s -I -H "Origin: https://phimgg.com" http://localhost:5000/api/health | grep -i "access-control-allow-origin" || echo "No CORS headers")
+    log "   CORS: $CORS_RESPONSE"
+else
+    error "Health endpoint: NOT RESPONSIVE"
+    log "   Checking PM2 logs for issues..."
+    pm2 logs filmflex --lines 5
+fi
+
+# Test database endpoint if available
+if curl -f -s http://localhost:5000/api/db-test > /dev/null 2>&1; then
+    DB_RESPONSE=$(curl -s http://localhost:5000/api/db-test)
+    success "Database endpoint: RESPONSIVE"
+    log "   Response: $DB_RESPONSE"
+else
+    warning "Database endpoint: NOT AVAILABLE (might not be implemented)"
+fi
+
+# Test production IP accessibility
+if command -v timeout >/dev/null 2>&1; then
+    log "Testing production IP accessibility..."
+    if timeout 10 curl -f -s http://154.205.142.255:5000/api/health > /dev/null 2>&1; then
+        success "Production IP: ACCESSIBLE (154.205.142.255)"
+    else
+        warning "Production IP: NOT ACCESSIBLE (may need firewall configuration)"
+    fi
+fi
+
+# Test main page
+if curl -f -s http://localhost:5000 > /dev/null 2>&1; then
+    success "Main page: ACCESSIBLE"
+else
+    warning "Main page: NOT ACCESSIBLE"
+fi
+
+# Show server resource usage
+log ""
+log "📊 Server Resource Usage:"
+if command -v ps >/dev/null 2>&1; then
+    FILMFLEX_PROCESSES=$(ps aux | grep filmflex | grep -v grep | wc -l)
+    log "   FilmFlex processes: $FILMFLEX_PROCESSES"
+    if [ "$FILMFLEX_PROCESSES" -gt 0 ]; then
+        ps aux | grep filmflex | grep -v grep | head -3
+    fi
+fi
+
+# Check disk usage
+log ""
+log "💾 Deployment Size:"
+if [ -d "$DEPLOY_DIR" ]; then
+    DEPLOY_SIZE=$(du -sh "$DEPLOY_DIR" | cut -f1)
+    log "   Total deployment: $DEPLOY_SIZE"
+fi
+if [ -f "$DEPLOY_DIR/dist/index.js" ]; then
+    SERVER_SIZE=$(du -h "$DEPLOY_DIR/dist/index.js" | cut -f1)
+    log "   Server bundle: $SERVER_SIZE"
+fi
+if [ -d "$DEPLOY_DIR/client/dist" ]; then
+    CLIENT_SIZE=$(du -sh "$DEPLOY_DIR/client/dist" | cut -f1)
+    log "   Client bundle: $CLIENT_SIZE"
+fi
+
+log ""
+log "${GREEN}🎉 DEPLOYMENT SUMMARY for phimgg.com${NC}"
+log "======================================="
+log "🕒 Deployment completed at: $(date)"
+log "📁 Deployed to: $DEPLOY_DIR"
+log "🏗️  Build method: ${BUILD_METHOD:-'standard'}"
+log "🌐 Production Environment:"
+log "   • Local URL: http://localhost:5000"
+log "   • Production IP: http://154.205.142.255:5000"
+log "   • Domain: https://phimgg.com (when DNS configured)"
+log "   • Health Check: http://154.205.142.255:5000/api/health"
+log "📊 Log file: $LOG_FILE"
+log ""
+log "${BLUE}📋 MANAGEMENT COMMANDS${NC}"
+log "===================="
+log "  • Check status: pm2 status filmflex"
+log "  • View logs: pm2 logs filmflex"
+log "  • Monitor: pm2 monit"
+log "  • Restart: pm2 restart filmflex"
+log "  • Stop: pm2 stop filmflex"
+log "  • Quick restart: cd $DEPLOY_DIR && ./restart.sh"
+log ""
+log "${BLUE}🛠️  TROUBLESHOOTING${NC}"
+log "=================="
+log "  • If health check failed: pm2 logs filmflex"
+log "  • If database issues: Check database connection in logs"
+log "  • If CORS issues: Check ALLOWED_ORIGINS environment variable"
+log "  • If node modules issues: Run this script again (it includes fixes)"
+log "  • If port conflicts: Check what's using port 5000: lsof -i:5000"
+log ""
+log "${BLUE}🔒 SECURITY NOTES${NC}"
+log "=================="
+log "  • CORS currently set to wildcard (*) for development"
+log "  • Review and tighten CORS settings for production security"
+log "  • Consider implementing rate limiting and authentication"
+log ""
+log "${BLUE}📚 MOVIE IMPORT COMMANDS${NC}"
+log "======================="
 log ""
 log "Movie import commands:"
 log "  - Daily import: cd $DEPLOY_DIR/scripts/data && ./import-movies.sh"
 log "  - Full import (resumable): cd $DEPLOY_DIR/scripts/data && ./import-all-movies-resumable.sh"
 log "  - Set up cron jobs: cd $DEPLOY_DIR/scripts/data && sudo ./setup-cron.sh"
 log ""
+log "${BLUE}🌐 NEXT STEPS${NC}"
+log "=============="
+log "  1. Configure DNS for phimgg.com to point to 154.205.142.255"
+log "  2. Set up SSL certificate for HTTPS"
+log "  3. Configure proper CORS for production security"
+log "  4. Set up monitoring and alerting"
+log "  5. Configure backup procedures"
+log ""
 log "Need help or encountered issues?"
 log "  To easily restart the server: cd $DEPLOY_DIR && ./restart.sh"
 log "  The comprehensive database fix is built directly into this script."
 log "  This script can be run again at any time to fix both deployment and database issues."
-log "  Manual server start: DATABASE_URL=postgresql://filmflex:filmflex2024@localhost:5432/filmflex node $DEPLOY_DIR/dist/index.js"
+log "  Manual server start: cd $DEPLOY_DIR && NODE_ENV=production DATABASE_URL='postgresql://filmflex:filmflex2024!@localhost:5432/filmflex?sslmode=disable' ALLOWED_ORIGINS=* node dist/index.js"

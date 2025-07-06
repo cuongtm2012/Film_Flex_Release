@@ -135,7 +135,7 @@ process_page() {
   echo -e "${BLUE}Processing page $page${NC}"
   
   # Build the command - add force-import flag if requested
-  local cmd="NODE_ENV=production DATABASE_URL=\"postgresql://filmflex:filmflex2024@localhost:5432/filmflex\" node \"$APP_DIR/scripts/data/${SCRIPT_NAME}\" --single-page --page-num=$page --page-size=10"
+  local cmd="NODE_ENV=production DATABASE_URL=\"postgresql://filmflex:filmflex2024!@localhost:5432/filmflex\" node \"$APP_DIR/scripts/data/${SCRIPT_NAME}\" --single-page --page-num=$page --page-size=10"
   
   # Add force import flag if needed
   if [ "$force_import" = "true" ]; then
