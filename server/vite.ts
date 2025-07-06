@@ -5,17 +5,6 @@ import { createServer as createViteServer, createLogger } from "vite";
 import { type Server } from "http";
 import { nanoid } from "nanoid";
 
-// Conditionally import vite config only in development
-let viteConfig: any = null;
-if (process.env.NODE_ENV !== 'production') {
-  try {
-    const viteConfigModule = await import("../vite.config.js");
-    viteConfig = viteConfigModule.default;
-  } catch (error) {
-    console.warn("Could not load vite config:", error);
-  }
-}
-
 const viteLogger = createLogger();
 
 export function log(message: string, source = "express") {
@@ -99,6 +88,17 @@ function handle404Middleware(req: express.Request, res: express.Response, next: 
 }
 
 export async function setupVite(app: Express, server: Server) {
+  // Load vite config only in development
+  let viteConfig: any = {};
+  if (process.env.NODE_ENV !== 'production') {
+    try {
+      const viteConfigModule = await import("../vite.config.js");
+      viteConfig = viteConfigModule.default || {};
+    } catch (error) {
+      console.warn("Could not load vite config:", error);
+    }
+  }
+  
   const serverOptions = {
     middlewareMode: true,
     hmr: { server },
