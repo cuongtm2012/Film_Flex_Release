@@ -25,28 +25,94 @@ check_current_auth() {
 # Function to backup current configuration
 backup_config() {
     echo "2. Creating backup of pg_hba.conf..."
-    PG_VERSION=$(sudo -u postgres psql -c "SHOW server_version;" | grep -oP '\d+\.\d+' | head -1)
-    CONFIG_PATH="/etc/postgresql/${PG_VERSION}/main/pg_hba.conf"
     
+    # Get the exact config file path from PostgreSQL
+    echo "Finding PostgreSQL configuration file..."
+    CONFIG_FILE=$(sudo -u postgres psql -t -c "SHOW config_file;" 2>/dev/null | tr -d ' ')
+    if [ -z "$CONFIG_FILE" ]; then
+        echo "ERROR: Could not get config file path from PostgreSQL"
+        exit 1
+    fi
+    
+    # Get the directory and construct pg_hba.conf path
+    CONFIG_DIR=$(dirname "$CONFIG_FILE")
+    CONFIG_PATH="$CONFIG_DIR/pg_hba.conf"
+    
+    echo "PostgreSQL config directory: $CONFIG_DIR"
+    echo "Looking for pg_hba.conf at: $CONFIG_PATH"
+    
+    if [ ! -f "$CONFIG_PATH" ]; then
+        # Try alternative locations
+        echo "Config file not found, trying alternative locations..."
+        
+        # Get PostgreSQL version
+        PG_VERSION=$(sudo -u postgres psql -t -c "SELECT version();" 2>/dev/null | grep -oE 'PostgreSQL [0-9]+\.[0-9]+' | grep -oE '[0-9]+\.[0-9]+')
+        PG_MAJOR=$(echo "$PG_VERSION" | cut -d. -f1)
+        
+        echo "PostgreSQL version: $PG_VERSION (major: $PG_MAJOR)"
+        
+        # Try different common paths
+        CONFIG_PATHS=(
+            "/etc/postgresql/$PG_MAJOR/main/pg_hba.conf"
+            "/etc/postgresql/$PG_VERSION/main/pg_hba.conf"
+            "/etc/postgresql/main/pg_hba.conf"
+            "/var/lib/pgsql/data/pg_hba.conf"
+            "/usr/local/pgsql/data/pg_hba.conf"
+            "/var/lib/postgresql/data/pg_hba.conf"
+            "/var/lib/postgresql/$PG_MAJOR/main/pg_hba.conf"
+        )
+        
+        CONFIG_PATH=""
+        for path in "${CONFIG_PATHS[@]}"; do
+            echo "Checking: $path"
+            if [ -f "$path" ]; then
+                CONFIG_PATH="$path"
+                echo "Found pg_hba.conf at: $path"
+                break
+            fi
+        done
+        
+        if [ -z "$CONFIG_PATH" ]; then
+            echo "ERROR: Could not find pg_hba.conf file"
+            echo "Please run: sudo find /etc /var -name 'pg_hba.conf' 2>/dev/null"
+            exit 1
+        fi
+    fi
+    
+    echo "Using pg_hba.conf at: $CONFIG_PATH"
     sudo cp "$CONFIG_PATH" "$CONFIG_PATH.backup.$(date +%Y%m%d_%H%M%S)"
-    echo "Backup created: $CONFIG_PATH.backup.$(date +%Y%m%d_%H%M%S)"
+    echo "Backup created successfully"
     echo ""
+    
+    # Export CONFIG_PATH for use in other functions
+    export CONFIG_PATH
 }
 
 # Function to update authentication method
 update_auth_method() {
     echo "3. Updating authentication method to md5..."
-    PG_VERSION=$(sudo -u postgres psql -c "SHOW server_version;" | grep -oP '\d+\.\d+' | head -1)
-    CONFIG_PATH="/etc/postgresql/${PG_VERSION}/main/pg_hba.conf"
     
-    # Update local connections to use md5 instead of peer
-    sudo sed -i 's/^local\s\+all\s\+all\s\+peer$/local   all             all                                     md5/' "$CONFIG_PATH"
+    # Use the CONFIG_PATH from backup_config function
+    if [ -z "$CONFIG_PATH" ] || [ ! -f "$CONFIG_PATH" ]; then
+        echo "ERROR: pg_hba.conf file not found or not accessible: $CONFIG_PATH"
+        exit 1
+    fi
     
-    # Ensure host connections use md5
+    echo "Updating $CONFIG_PATH"
+    echo "Current configuration before changes:"
+    sudo cat "$CONFIG_PATH" | grep -E '^(local|host)' | head -10
+    echo ""
+    
+    # Update local connections to use md5 instead of peer (but keep postgres user as peer for system access)
+    sudo sed -i '/^local.*postgres.*peer$/!s/^local\s\+all\s\+all\s\+peer$/local   all             all                                     md5/' "$CONFIG_PATH"
+    
+    # Ensure host connections use md5 or scram-sha-256 (but change ident to md5)
     sudo sed -i 's/^host\s\+all\s\+all\s\+127\.0\.0\.1\/32\s\+ident$/host    all             all             127.0.0.1\/32            md5/' "$CONFIG_PATH"
     sudo sed -i 's/^host\s\+all\s\+all\s\+::1\/128\s\+ident$/host    all             all             ::1\/128                 md5/' "$CONFIG_PATH"
     
-    echo "Authentication method updated to md5"
+    echo "Authentication method updated"
+    echo "Current configuration after changes:"
+    sudo cat "$CONFIG_PATH" | grep -E '^(local|host)' | head -10
     echo ""
 }
 
@@ -54,18 +120,36 @@ update_auth_method() {
 create_app_user() {
     echo "4. Creating application database user..."
     
+    # First ensure the database exists
+    sudo -u postgres psql -c "
+        DO \$\$
+        BEGIN
+            IF NOT EXISTS (SELECT FROM pg_database WHERE datname = 'filmflex') THEN
+                CREATE DATABASE filmflex;
+                RAISE NOTICE 'Database filmflex created';
+            ELSE
+                RAISE NOTICE 'Database filmflex already exists';
+            END IF;
+        END
+        \$\$;
+    "
+    
     # Create filmflex user with password
     sudo -u postgres psql -c "
         DO \$\$
         BEGIN
             IF NOT EXISTS (SELECT FROM pg_catalog.pg_user WHERE usename = 'filmflex') THEN
                 CREATE USER filmflex WITH PASSWORD 'filmflex2024!';
-                GRANT ALL PRIVILEGES ON DATABASE filmflex TO filmflex;
-                ALTER USER filmflex CREATEDB;
+                RAISE NOTICE 'User filmflex created';
             ELSE
                 ALTER USER filmflex WITH PASSWORD 'filmflex2024!';
-                GRANT ALL PRIVILEGES ON DATABASE filmflex TO filmflex;
+                RAISE NOTICE 'User filmflex password updated';
             END IF;
+            
+            -- Grant privileges
+            GRANT ALL PRIVILEGES ON DATABASE filmflex TO filmflex;
+            ALTER USER filmflex CREATEDB;
+            RAISE NOTICE 'Privileges granted to filmflex user';
         END
         \$\$;
     "
