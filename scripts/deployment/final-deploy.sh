@@ -1,9 +1,10 @@
 #!/bin/bash
 
-# FilmFlex Enhanced Final Deployment Script v3.0 - phimgg.com Production
+# FilmFlex Enhanced Final Deployment Script v4.0 - phimgg.com Production
 # =====================================================================
 # This script handles complete deployment including:
-# - Database schema fixes and RBAC setup
+# - Database schema import from filmflex_schema.sql (simplified approach)
+# - PostgreSQL authentication fixes (peer to md5)
 # - Node.js dependency fixes (esbuild, rollup binaries)
 # - ES module build compatibility with esbuild
 # - CORS configuration for production
@@ -13,14 +14,14 @@
 # Updated for phimgg.com production environment (154.205.142.255)
 # 
 # This script includes proven fixes for:
+# ✅ Database schema from filmflex_schema.sql dump file
+# ✅ PostgreSQL authentication (peer → md5)
 # ✅ Missing @esbuild/linux-x64 binary
 # ✅ Missing @rollup/rollup-linux-x64-gnu binary
 # ✅ Corrupted node_modules issues
-# ✅ Database schema missing tables
-# ✅ Permission and role setup
 # ✅ ES module build support with esbuild
 # ✅ CORS configuration for production
-# ✅ Production environment variables
+# ✅ Production environment variables with correct password
 #
 # Usage: bash final-deploy.sh
 # Everything is included in one script for simplicity and reliability
@@ -85,8 +86,8 @@ log "Source directory: $SOURCE_DIR"
 log "Deploy directory: $DEPLOY_DIR"
 log "Log file: $LOG_FILE"
 
-# Step 0: Fix database schema
-log "${BLUE}0. Fixing database schema...${NC}"
+# Step 0: Fix database schema and authentication
+log "${BLUE}0. Fixing database schema and authentication...${NC}"
 
 # Get database connection info from environment or use default
 if [ -n "$DATABASE_URL" ]; then
@@ -94,16 +95,16 @@ if [ -n "$DATABASE_URL" ]; then
   log "Using DATABASE_URL from environment variable"
   DB_URL="$DATABASE_URL"
 else
-  # Use default connection string
+  # Use default connection string with updated password
   log "Using default DATABASE_URL"
-  DB_URL="postgresql://filmflex:filmflex2024@localhost:5432/filmflex"
+  DB_URL="postgresql://filmflex:filmflex2024!@localhost:5432/filmflex"
 fi
 
-# Set PostgreSQL environment variables
+# Set PostgreSQL environment variables with correct password
 export PGHOST="localhost"
 export PGDATABASE="filmflex"
 export PGUSER="filmflex"
-export PGPASSWORD="filmflex2024"
+export PGPASSWORD="filmflex2024!"
 export PGPORT="5432"
 
 log "${BLUE}Database connection details:${NC}"
@@ -112,430 +113,277 @@ log "  Port: $PGPORT"
 log "  Database: $PGDATABASE"
 log "  User: $PGUSER"
 
-# Create SQL fix file
-cat > /tmp/db-fix.sql << 'EOSQL'
--- First check if tables exist and create them if they don't
+# Fix PostgreSQL authentication first
+log "${BLUE}0.1. Fixing PostgreSQL authentication...${NC}"
+
+# Update filmflex user password
+log "Updating filmflex user password..."
+sudo -u postgres psql -c "ALTER USER filmflex PASSWORD 'filmflex2024!';" || {
+  log "Attempting to create filmflex user..."
+  sudo -u postgres psql << 'EOSQL'
+-- Create filmflex user if it doesn't exist
 DO $$
 BEGIN
-    IF NOT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'movies') THEN
-        CREATE TABLE movies (
-            id SERIAL PRIMARY KEY,
-            movie_id TEXT,
-            name TEXT,
-            title TEXT,
-            origin_name TEXT,
-            description TEXT,
-            thumb_url TEXT,
-            poster_url TEXT,
-            trailer_url TEXT,
-            time TEXT,
-            quality TEXT,
-            lang TEXT,
-            year TEXT,
-            view TEXT,
-            actors TEXT,
-            directors TEXT,
-            categories TEXT[],
-            countries TEXT[],
-            modified_at TIMESTAMP DEFAULT NOW(),
-            type TEXT,
-            status TEXT,
-            slug TEXT UNIQUE
-        );
-        RAISE NOTICE 'Created movies table';
-    END IF;
-END$$;
-
--- Create users table if it doesn't exist (CRITICAL for authentication)
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'users') THEN
-        CREATE TABLE users (
-            id SERIAL PRIMARY KEY,
-            username TEXT UNIQUE NOT NULL,
-            email TEXT UNIQUE NOT NULL,
-            password_hash TEXT NOT NULL,
-            display_name TEXT,
-            profile_image_url TEXT,
-            role TEXT DEFAULT 'Viewer',
-            status TEXT DEFAULT 'active',
-            email_verified BOOLEAN DEFAULT FALSE,
-            two_factor_enabled BOOLEAN DEFAULT FALSE,
-            created_at TIMESTAMP DEFAULT NOW(),
-            updated_at TIMESTAMP DEFAULT NOW()
-        );
-        RAISE NOTICE 'Created users table';
-    END IF;
-END$$;
-
--- Create roles table for RBAC system
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'roles') THEN
-        CREATE TABLE roles (
-            id SERIAL PRIMARY KEY,
-            name TEXT UNIQUE NOT NULL,
-            description TEXT,
-            created_at TIMESTAMP DEFAULT NOW(),
-            updated_at TIMESTAMP DEFAULT NOW()
-        );
-        RAISE NOTICE 'Created roles table';
-    END IF;
-END$$;
-
--- Create permissions table for RBAC system
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'permissions') THEN
-        CREATE TABLE permissions (
-            id SERIAL PRIMARY KEY,
-            name TEXT UNIQUE NOT NULL,
-            description TEXT,
-            module TEXT NOT NULL,
-            action TEXT NOT NULL,
-            created_at TIMESTAMP DEFAULT NOW()
-        );
-        RAISE NOTICE 'Created permissions table';
-    END IF;
-END$$;
-
--- Create role_permissions junction table
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'role_permissions') THEN
-        CREATE TABLE role_permissions (
-            id SERIAL PRIMARY KEY,
-            role_id INTEGER REFERENCES roles(id) ON DELETE CASCADE,
-            permission_id INTEGER REFERENCES permissions(id) ON DELETE CASCADE,
-            created_at TIMESTAMP DEFAULT NOW(),
-            UNIQUE(role_id, permission_id)
-        );
-        RAISE NOTICE 'Created role_permissions table';
-    END IF;
-END$$;
-
--- Create comments table
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'comments') THEN
-        CREATE TABLE comments (
-            id SERIAL PRIMARY KEY,
-            user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-            movie_slug TEXT NOT NULL,
-            content TEXT NOT NULL,
-            parent_id INTEGER REFERENCES comments(id) ON DELETE CASCADE,
-            status TEXT DEFAULT 'active',
-            created_at TIMESTAMP DEFAULT NOW(),
-            updated_at TIMESTAMP DEFAULT NOW()
-        );
-        RAISE NOTICE 'Created comments table';
-    END IF;
-END$$;
-
--- Create watchlist table
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'watchlist') THEN
-        CREATE TABLE watchlist (
-            id SERIAL PRIMARY KEY,
-            user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-            movie_slug TEXT NOT NULL,
-            added_at TIMESTAMP DEFAULT NOW(),
-            UNIQUE(user_id, movie_slug)
-        );
-        RAISE NOTICE 'Created watchlist table';
-    END IF;
-END$$;
-
--- Create view_history table
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'view_history') THEN
-        CREATE TABLE view_history (
-            id SERIAL PRIMARY KEY,
-            user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-            movie_slug TEXT NOT NULL,
-            episode_number INTEGER,
-            watch_time INTEGER DEFAULT 0,
-            completed BOOLEAN DEFAULT FALSE,
-            last_watched TIMESTAMP DEFAULT NOW()
-        );
-        RAISE NOTICE 'Created view_history table';
-    END IF;
-END$$;
-
--- Create audit_logs table
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'audit_logs') THEN
-        CREATE TABLE audit_logs (
-            id SERIAL PRIMARY KEY,
-            user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
-            activity_type TEXT NOT NULL,
-            details JSONB,
-            ip_address TEXT,
-            created_at TIMESTAMP DEFAULT NOW()
-        );
-        RAISE NOTICE 'Created audit_logs table';
-    END IF;
-END$$;
-
--- Create featured_sections table
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'featured_sections') THEN
-        CREATE TABLE featured_sections (
-            id SERIAL PRIMARY KEY,
-            section_name TEXT UNIQUE NOT NULL,
-            film_ids JSONB DEFAULT '[]',
-            display_order JSONB DEFAULT '[]',
-            created_at TIMESTAMP DEFAULT NOW(),
-            updated_at TIMESTAMP DEFAULT NOW()
-        );
-        RAISE NOTICE 'Created featured_sections table';
-    END IF;
-END$$;
-
--- Now proceed with the regular schema fixes
-ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS movie_id TEXT;
-ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS name TEXT;
-ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS title TEXT;
-ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS origin_name TEXT;
-ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS description TEXT;
-ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS thumb_url TEXT;
-ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS poster_url TEXT;
-ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS trailer_url TEXT;
-ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS time TEXT;
-ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS quality TEXT;
-ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS lang TEXT;
-ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS episode_current TEXT;
-ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS episode_total TEXT;
-ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS year TEXT;
-ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS view TEXT;
-ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS actors TEXT;
-ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS directors TEXT;
-ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS categories TEXT[];
-ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS countries TEXT[];
-ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS modified_at TIMESTAMP DEFAULT NOW();
-ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS type TEXT;
-ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS status TEXT;
-ALTER TABLE IF EXISTS movies ADD COLUMN IF NOT EXISTS slug TEXT;
-
--- Add unique constraint to slug if not exists
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint 
-        WHERE conname = 'movies_slug_key' AND conrelid = 'movies'::regclass
-    ) THEN
-        ALTER TABLE movies ADD CONSTRAINT movies_slug_key UNIQUE (slug);
-        RAISE NOTICE 'Added unique constraint to slug column';
-    END IF;
-END$$;
-
--- Use a simpler approach to fix array columns
-DO $$
-BEGIN
-    -- Fix categories column
-    EXECUTE 'ALTER TABLE movies ALTER COLUMN categories TYPE TEXT[] USING 
-        CASE 
-            WHEN categories IS NULL THEN NULL::TEXT[] 
-            WHEN categories::TEXT = ''{NULL}'' THEN NULL::TEXT[] 
-            ELSE CASE 
-                WHEN categories ~ E''^\\{.*\\}$'' THEN categories::TEXT[] 
-                ELSE string_to_array(categories::TEXT, '','')
-            END 
-        END';
-    RAISE NOTICE 'Fixed categories column';
-    
-    -- Fix countries column
-    EXECUTE 'ALTER TABLE movies ALTER COLUMN countries TYPE TEXT[] USING 
-        CASE 
-            WHEN countries IS NULL THEN NULL::TEXT[] 
-            WHEN countries::TEXT = ''{NULL}'' THEN NULL::TEXT[] 
-            ELSE CASE 
-                WHEN countries ~ E''^\\{.*\\}$'' THEN countries::TEXT[] 
-                ELSE string_to_array(countries::TEXT, '','')
-            END 
-        END';
-    RAISE NOTICE 'Fixed countries column';
-END$$;
-
--- Create episodes table if it doesn't exist
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'episodes') THEN
-        CREATE TABLE episodes (
-            id SERIAL PRIMARY KEY,
-            movie_slug TEXT,
-            title TEXT,
-            server_name TEXT,
-            server_data JSONB,
-            link_embed TEXT,
-            link_m3u8 TEXT,
-            episode_number INTEGER,
-            season_number INTEGER,
-            created_at TIMESTAMP DEFAULT NOW(),
-            modified_at TIMESTAMP DEFAULT NOW()
-        );
-        RAISE NOTICE 'Created episodes table';
+    IF NOT EXISTS (SELECT FROM pg_user WHERE usename = 'filmflex') THEN
+        CREATE USER filmflex WITH PASSWORD 'filmflex2024!';
+        GRANT ALL PRIVILEGES ON DATABASE filmflex TO filmflex;
+        GRANT ALL ON SCHEMA public TO filmflex;
+        ALTER USER filmflex CREATEDB;
+        RAISE NOTICE 'Created filmflex user';
     ELSE
-        RAISE NOTICE 'episodes table already exists';
-    END IF;
-    
-    -- Add movie_slug column if it doesn't exist
-    IF NOT EXISTS (
-        SELECT FROM information_schema.columns 
-        WHERE table_schema = 'public' 
-        AND table_name = 'episodes' 
-        AND column_name = 'movie_slug'
-    ) THEN
-        ALTER TABLE episodes ADD COLUMN movie_slug TEXT;
-        RAISE NOTICE 'Added movie_slug column to episodes table';
-    ELSE
-        RAISE NOTICE 'movie_slug column already exists in episodes table';
-    END IF;
-    
-    -- Add foreign key if it doesn't exist
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint 
-        WHERE conname = 'episodes_movie_slug_fkey' AND conrelid = 'episodes'::regclass
-    ) THEN
-        -- Make sure all existing movie_slug values exist in movies.slug
-        DELETE FROM episodes WHERE movie_slug NOT IN (SELECT slug FROM movies WHERE slug IS NOT NULL);
-        -- Add the foreign key constraint
-        ALTER TABLE episodes ADD CONSTRAINT episodes_movie_slug_fkey 
-            FOREIGN KEY (movie_slug) REFERENCES movies(slug) ON DELETE CASCADE;
-        RAISE NOTICE 'Added foreign key constraint to movie_slug column';
+        ALTER USER filmflex PASSWORD 'filmflex2024!';
+        GRANT ALL PRIVILEGES ON DATABASE filmflex TO filmflex;
+        GRANT ALL ON SCHEMA public TO filmflex;
+        RAISE NOTICE 'Updated filmflex user password';
     END IF;
 END$$;
+EOSQL
+}
 
--- Create more indexes to improve performance
-CREATE INDEX IF NOT EXISTS idx_movies_slug ON movies(slug);
-CREATE INDEX IF NOT EXISTS idx_movies_type ON movies(type);
-CREATE INDEX IF NOT EXISTS idx_movies_year ON movies(year);
-CREATE INDEX IF NOT EXISTS idx_movies_modified_at ON movies(modified_at);
-CREATE INDEX IF NOT EXISTS idx_episodes_movie_slug ON episodes(movie_slug);
-CREATE INDEX IF NOT EXISTS idx_role_permissions_role_id ON role_permissions(role_id);
-CREATE INDEX IF NOT EXISTS idx_role_permissions_permission_id ON role_permissions(permission_id);
-CREATE INDEX IF NOT EXISTS idx_comments_movie_slug ON comments(movie_slug);
-CREATE INDEX IF NOT EXISTS idx_watchlist_user_id ON watchlist(user_id);
-CREATE INDEX IF NOT EXISTS idx_view_history_user_id ON view_history(user_id);
+# Fix pg_hba.conf for proper authentication
+log "Fixing PostgreSQL authentication configuration..."
+PG_VERSION=$(sudo -u postgres psql -t -c "SELECT version();" | grep -oP "PostgreSQL \K[0-9]+")
+PG_HBA_PATH="/etc/postgresql/${PG_VERSION}/main/pg_hba.conf"
 
--- Insert default permissions for the RBAC system
-INSERT INTO permissions (name, description, module, action) VALUES 
--- User Management Permissions
-('user.create', 'Create new users', 'user_management', 'create'),
-('user.read', 'View user information', 'user_management', 'read'),
-('user.update', 'Update user information', 'user_management', 'update'),
-('user.delete', 'Delete users', 'user_management', 'delete'),
-('user.manage_roles', 'Assign and modify user roles', 'user_management', 'manage_roles'),
-('user.view_activity', 'View user activity logs', 'user_management', 'view_activity'),
+if [ -f "$PG_HBA_PATH" ]; then
+  # Backup original pg_hba.conf
+  sudo cp "$PG_HBA_PATH" "${PG_HBA_PATH}.backup.$(date +%Y%m%d_%H%M%S)"
+  
+  # Update pg_hba.conf to use md5 authentication
+  sudo sed -i 's/local.*all.*all.*peer/local   all             all                                     md5/' "$PG_HBA_PATH"
+  sudo sed -i 's/local.*filmflex.*filmflex.*peer/local   filmflex        filmflex                                md5/' "$PG_HBA_PATH"
+  
+  # Restart PostgreSQL to apply changes
+  sudo systemctl restart postgresql
+  sleep 3
+  
+  success "PostgreSQL authentication configuration updated"
+else
+  warning "PostgreSQL configuration file not found at $PG_HBA_PATH"
+fi
 
--- Content Management Permissions
-('content.create', 'Add new movies and content', 'content_management', 'create'),
-('content.read', 'View content details', 'content_management', 'read'),
-('content.update', 'Edit existing content', 'content_management', 'update'),
-('content.delete', 'Remove content', 'content_management', 'delete'),
-('content.approve', 'Approve pending content', 'content_management', 'approve'),
-('content.reject', 'Reject submitted content', 'content_management', 'reject'),
-('content.moderate', 'Moderate user comments and reviews', 'content_management', 'moderate'),
+# Test database connection with new credentials
+log "Testing database connection..."
+if PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" -c "SELECT version();" > /dev/null 2>&1; then
+  success "Database connection test passed"
+else
+  error "Database connection test failed - attempting to fix..."
+  
+  # Try to create database if it doesn't exist
+  sudo -u postgres createdb filmflex 2>/dev/null || true
+  sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE filmflex TO filmflex;" || true
+  
+  # Test again
+  if PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" -c "SELECT 1;" > /dev/null 2>&1; then
+    success "Database connection restored"
+  else
+    error "Database connection still failing - manual intervention may be required"
+  fi
+fi
 
--- System Administration Permissions
-('system.admin', 'Full system administration access', 'system', 'admin'),
-('system.analytics', 'View analytics and reports', 'system', 'analytics'),
-('system.settings', 'Modify system settings', 'system', 'settings'),
-('system.api_keys', 'Manage API keys', 'system', 'api_keys'),
-('system.audit_logs', 'View audit logs', 'system', 'audit_logs'),
+# Create comprehensive database schema using filmflex_schema.sql
+log "Applying database schema from filmflex_schema.sql..."
 
--- Role Management Permissions
-('role.create', 'Create new roles', 'role_management', 'create'),
-('role.read', 'View role information', 'role_management', 'read'),
-('role.update', 'Modify existing roles', 'role_management', 'update'),
-('role.delete', 'Delete roles', 'role_management', 'delete'),
-('role.assign_permissions', 'Assign permissions to roles', 'role_management', 'assign_permissions'),
+# Check if schema file exists
+SCHEMA_FILE="$SOURCE_DIR/shared/filmflex_schema.sql"
+if [ ! -f "$SCHEMA_FILE" ]; then
+    error "Schema file not found at $SCHEMA_FILE"
+    exit 1
+fi
 
--- Viewing Permissions
-('content.view', 'View movies and content', 'viewing', 'view'),
-('content.search', 'Search for content', 'viewing', 'search'),
-('content.watchlist', 'Manage personal watchlist', 'viewing', 'watchlist'),
-('content.comment', 'Comment on content', 'viewing', 'comment'),
-('content.rate', 'Rate movies and content', 'viewing', 'rate')
+# Apply the schema
+if PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" -f "$SCHEMA_FILE"; then
+    success "Database schema applied successfully from filmflex_schema.sql"
+    
+    # Verify core tables were created
+    log "Verifying schema application..."
+    TABLES_COUNT=$(PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" -t -c "SELECT count(*) FROM pg_tables WHERE schemaname = 'public' AND tablename IN ('movies', 'episodes', 'users', 'comments');" | xargs)
+    
+    if [ "$TABLES_COUNT" -ge 4 ]; then
+        success "Core tables verified: $TABLES_COUNT/4 tables present"
+        
+        # Check episodes table specifically for the filename column
+        FILENAME_COLUMN=$(PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" -t -c "SELECT count(*) FROM information_schema.columns WHERE table_name = 'episodes' AND column_name = 'filename';" | xargs)
+        if [ "$FILENAME_COLUMN" -eq 1 ]; then
+            success "Episodes filename column verified"
+        else
+            warning "Episodes filename column missing - adding it..."
+            PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" -c "ALTER TABLE episodes ADD COLUMN IF NOT EXISTS filename TEXT;"
+        fi
+        
+        # Check for episodes slug constraint
+        EPISODES_CONSTRAINT=$(PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" -t -c "SELECT count(*) FROM pg_constraint WHERE conname LIKE '%episodes%slug%';" | xargs)
+        if [ "$EPISODES_CONSTRAINT" -ge 1 ]; then
+            success "Episodes slug constraint verified"
+        else
+            warning "Episodes slug constraint missing - adding it..."
+            PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" -c "ALTER TABLE episodes ADD CONSTRAINT episodes_slug_unique UNIQUE (slug);" || warning "Could not add episodes slug constraint (may already exist with different name)"
+        fi
+        
+        # Check movies table JSONB columns
+        JSONB_COLUMNS=$(PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" -t -c "SELECT count(*) FROM information_schema.columns WHERE table_name = 'movies' AND column_name IN ('categories', 'countries') AND data_type = 'jsonb';" | xargs)
+        if [ "$JSONB_COLUMNS" -eq 2 ]; then
+            success "Movies JSONB columns verified (categories, countries)"
+        else
+            warning "Movies JSONB columns may need fixing - found $JSONB_COLUMNS/2"
+            # Convert TEXT[] to JSONB if needed
+            PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" << 'EOFIXJSONB'
+-- Fix JSONB columns if they are TEXT[]
+DO $$
+BEGIN
+    -- Fix categories column if it's TEXT[]
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'movies' AND column_name = 'categories' AND data_type = 'ARRAY'
+    ) THEN
+        ALTER TABLE movies ALTER COLUMN categories TYPE JSONB USING 
+            CASE 
+                WHEN categories IS NULL THEN '[]'::jsonb
+                ELSE array_to_json(categories)::jsonb
+            END;
+        RAISE NOTICE 'Converted categories column from TEXT[] to JSONB';
+    END IF;
 
-ON CONFLICT (name) DO NOTHING;
-
--- Insert the three default roles
+    -- Fix countries column if it's TEXT[]
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'movies' AND column_name = 'countries' AND data_type = 'ARRAY'
+    ) THEN
+        ALTER TABLE movies ALTER COLUMN countries TYPE JSONB USING 
+            CASE 
+                WHEN countries IS NULL THEN '[]'::jsonb
+                ELSE array_to_json(countries)::jsonb
+            END;
+        RAISE NOTICE 'Converted countries column from TEXT[] to JSONB';
+    END IF;
+END$$;
+EOFIXJSONB
+        fi
+    else
+        error "Core tables missing: only $TABLES_COUNT/4 tables found"
+        exit 1
+    fi
+    
+    # Add default roles and permissions if they don't exist
+    log "Adding default roles and permissions..."
+    PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" << 'EODEFAULTS'
+-- Insert default roles if they don't exist
 INSERT INTO roles (name, description) VALUES 
 ('Admin', 'Full administrative access to all system functions'),
 ('Content Manager', 'Manages content creation, editing, and moderation'),
 ('Viewer', 'Standard user with viewing and basic interaction capabilities')
 ON CONFLICT (name) DO NOTHING;
 
--- Assign permissions to Admin role (full access)
+-- Insert basic permissions if they don't exist
+INSERT INTO permissions (name, description, module, action) VALUES 
+('content.view', 'View movies and content', 'viewing', 'view'),
+('content.search', 'Search for content', 'viewing', 'search'),
+('content.comment', 'Comment on content', 'viewing', 'comment'),
+('content.rate', 'Rate movies and content', 'viewing', 'rate'),
+('content.watchlist', 'Manage personal watchlist', 'viewing', 'watchlist'),
+('content.create', 'Add new movies and content', 'content_management', 'create'),
+('content.update', 'Edit existing content', 'content_management', 'update'),
+('content.delete', 'Remove content', 'content_management', 'delete'),
+('system.admin', 'Full system administration access', 'system', 'admin')
+ON CONFLICT (name) DO NOTHING;
+
+-- Assign all permissions to Admin role
 INSERT INTO role_permissions (role_id, permission_id)
 SELECT r.id, p.id
 FROM roles r, permissions p
 WHERE r.name = 'Admin'
-ON CONFLICT (role_id, permission_id) DO NOTHING;
+ON CONFLICT DO NOTHING;
 
--- Assign permissions to Content Manager role
-INSERT INTO role_permissions (role_id, permission_id)
-SELECT r.id, p.id
-FROM roles r, permissions p
-WHERE r.name = 'Content Manager'
-AND p.name IN (
-    'content.create',
-    'content.read', 
-    'content.update',
-    'content.delete',
-    'content.approve',
-    'content.reject',
-    'content.moderate',
-    'content.view',
-    'content.search',
-    'user.read',
-    'user.view_activity',
-    'system.analytics'
-)
-ON CONFLICT (role_id, permission_id) DO NOTHING;
-
--- Assign permissions to Viewer role
+-- Assign viewing permissions to Viewer role
 INSERT INTO role_permissions (role_id, permission_id)
 SELECT r.id, p.id
 FROM roles r, permissions p
 WHERE r.name = 'Viewer'
-AND p.name IN (
-    'content.view',
-    'content.search',
-    'content.watchlist',
-    'content.comment',
-    'content.rate',
-    'content.read'
-)
-ON CONFLICT (role_id, permission_id) DO NOTHING;
-
--- Add anime section to featured_sections table
-INSERT INTO featured_sections (section_name, film_ids, display_order, created_at, updated_at)
-VALUES ('anime', '[]', '[]', NOW(), NOW())
-ON CONFLICT (section_name) DO NOTHING;
+AND p.name IN ('content.view', 'content.search', 'content.watchlist', 'content.comment', 'content.rate')
+ON CONFLICT DO NOTHING;
 
 -- Create a default admin user if none exists
-INSERT INTO users (username, email, password_hash, display_name, role, status, email_verified)
-VALUES ('admin', 'admin@filmflex.local', '$2b$10$defaulthashedpassword', 'Administrator', 'Admin', 'active', TRUE)
+INSERT INTO users (username, email, password, role, status) VALUES 
+('admin', 'admin@filmflex.local', '$2b$10$defaulthashedpassword', 'Admin', 'active')
 ON CONFLICT (username) DO NOTHING;
-
--- Insert audit log entry for this migration
-INSERT INTO audit_logs (user_id, activity_type, details, ip_address)
-VALUES (1, 'SYSTEM_MIGRATION', '{"migration": "final_deploy_schema_setup", "action": "Created complete database schema with RBAC system"}', '127.0.0.1');
-EOSQL
-
-# Execute SQL fix
-log "Executing SQL fixes..."
-if psql -f /tmp/db-fix.sql; then
-    success "Database schema fix completed successfully"
+EODEFAULTS
+    
+    success "Default roles, permissions, and admin user added"
+    
+    # Set proper ownership
+    log "Setting proper table ownership to filmflex user..."
+    PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" << 'EOOWNERSHIP'
+-- Set table ownership to filmflex user
+DO $$
+DECLARE
+    table_name text;
+BEGIN
+    FOR table_name IN (SELECT tablename FROM pg_tables WHERE schemaname = 'public')
+    LOOP
+        EXECUTE format('ALTER TABLE %I OWNER TO filmflex', table_name);
+    END LOOP;
+    
+    -- Set sequence ownership
+    FOR table_name IN (SELECT sequence_name FROM information_schema.sequences WHERE sequence_schema = 'public')
+    LOOP
+        EXECUTE format('ALTER SEQUENCE %I OWNER TO filmflex', table_name);
+    END LOOP;
+END$$;
+EOOWNERSHIP
+    
+    success "Table and sequence ownership set to filmflex user"
+    
 else
-    error "Database schema fix failed"
-    exit 1
+    error "Schema application failed"
+    log "Attempting basic fallback schema creation..."
+    
+    # Create minimal fallback schema
+    PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" << 'FALLBACK_SQL'
+-- Minimal database schema fallback
+CREATE TABLE IF NOT EXISTS movies (
+    id SERIAL PRIMARY KEY, 
+    name TEXT, 
+    slug TEXT UNIQUE,
+    categories JSONB DEFAULT '[]'::jsonb,
+    countries JSONB DEFAULT '[]'::jsonb
+);
+CREATE TABLE IF NOT EXISTS episodes (
+    id SERIAL PRIMARY KEY, 
+    name TEXT, 
+    slug TEXT UNIQUE, 
+    movie_slug TEXT, 
+    server_name TEXT, 
+    filename TEXT, 
+    link_embed TEXT, 
+    link_m3u8 TEXT
+);
+CREATE TABLE IF NOT EXISTS users (
+    id SERIAL PRIMARY KEY, 
+    username TEXT UNIQUE, 
+    email TEXT UNIQUE, 
+    password TEXT, 
+    role TEXT DEFAULT 'normal'
+);
+CREATE TABLE IF NOT EXISTS comments (
+    id SERIAL PRIMARY KEY, 
+    user_id INTEGER, 
+    movie_slug TEXT, 
+    content TEXT, 
+    created_at TIMESTAMP DEFAULT NOW()
+);
+CREATE TABLE IF NOT EXISTS sessions (
+    sid TEXT PRIMARY KEY, 
+    sess JSONB, 
+    expire TIMESTAMP
+);
+FALLBACK_SQL
+    
+    if [ $? -eq 0 ]; then
+        success "Fallback schema created successfully"
+    else
+        error "Both main schema and fallback schema failed"
+        exit 1
+    fi
 fi
 
 # 1. Stop any existing processes
@@ -611,7 +459,7 @@ module.exports = {
         PORT: 5000,
         ALLOWED_ORIGINS: "*",
         CLIENT_URL: "*",
-        DATABASE_URL: "postgresql://filmflex:filmflex2024@localhost:5432/filmflex",
+        DATABASE_URL: "postgresql://filmflex:filmflex2024!@localhost:5432/filmflex?sslmode=disable",
         SESSION_SECRET: "5841abaec918d944cd79481791440643540a3ac9ec33800500ea3ac03d543d61",
         DOMAIN: "phimgg.com",
         SERVER_IP: "154.205.142.255"
@@ -719,7 +567,7 @@ const port = process.env.PORT || 5000;
 
 // Database connection
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://filmflex:filmflex2024@localhost:5432/filmflex'
+  connectionString: process.env.DATABASE_URL || 'postgresql://filmflex:filmflex2024!@localhost:5432/filmflex?sslmode=disable'
 });
 
 // Enhanced CORS middleware for production
@@ -842,14 +690,14 @@ else
   fi
 fi
 
-# 9. Set up production environment variables
+# 9. Set up production environment variables with correct password
 log "${BLUE}9. Setting up production environment variables...${NC}"
 cat > "$DEPLOY_DIR/.env" << 'EOENV'
 NODE_ENV=production
 PORT=5000
 ALLOWED_ORIGINS=*
 CLIENT_URL=*
-DATABASE_URL=postgresql://filmflex:filmflex2024@localhost:5432/filmflex
+DATABASE_URL=postgresql://filmflex:filmflex2024!@localhost:5432/filmflex?sslmode=disable
 SESSION_SECRET=5841abaec918d944cd79481791440643540a3ac9ec33800500ea3ac03d543d61
 DOMAIN=phimgg.com
 SERVER_IP=154.205.142.255
@@ -861,7 +709,7 @@ NODE_ENV=production
 PORT=5000
 ALLOWED_ORIGINS=*
 CLIENT_URL=*
-DATABASE_URL=postgresql://filmflex:filmflex2024@localhost:5432/filmflex
+DATABASE_URL=postgresql://filmflex:filmflex2024!@localhost:5432/filmflex?sslmode=disable
 SESSION_SECRET=5841abaec918d944cd79481791440643540a3ac9ec33800500ea3ac03d543d61
 DOMAIN=phimgg.com
 SERVER_IP=154.205.142.255
@@ -887,7 +735,7 @@ const rootDir = path.resolve(__dirname, '..');
 const defaults = {
   NODE_ENV: 'production',
   PORT: '5000',
-  DATABASE_URL: 'postgresql://filmflex:filmflex2024@localhost:5432/filmflex',
+  DATABASE_URL: 'postgresql://filmflex:filmflex2024!@localhost:5432/filmflex?sslmode=disable',
   SESSION_SECRET: '5841abaec918d944cd79481791440643540a3ac9ec33800500ea3ac03d543d61'
 };
 
@@ -1052,7 +900,7 @@ module.exports = {
         PORT: 5000,
         ALLOWED_ORIGINS: "*",
         CLIENT_URL: "*",
-        DATABASE_URL: "postgresql://filmflex:filmflex2024@localhost:5432/filmflex",
+        DATABASE_URL: "postgresql://filmflex:filmflex2024!@localhost:5432/filmflex?sslmode=disable",
         SESSION_SECRET: "5841abaec918d944cd79481791440643540a3ac9ec33800500ea3ac03d543d61",
         DOMAIN: "phimgg.com",
         SERVER_IP: "154.205.142.255"
@@ -1075,11 +923,10 @@ else
   log "Starting application with PM2..."
   pm2 start "$DEPLOY_DIR/pm2.config.cjs" || { 
     error "Failed to start with pm2.config.cjs, attempting direct start"    # Try direct start as fallback with production environment
-    cd "$DEPLOY_DIR"
-    export NODE_ENV="production"
+    cd "$DEPLOY_DIR"    export NODE_ENV="production"
     export ALLOWED_ORIGINS="*"
     export CLIENT_URL="*"
-    export DATABASE_URL="postgresql://filmflex:filmflex2024@localhost:5432/filmflex"
+    export DATABASE_URL="postgresql://filmflex:filmflex2024!@localhost:5432/filmflex?sslmode=disable"
     export SESSION_SECRET="5841abaec918d944cd79481791440643540a3ac9ec33800500ea3ac03d543d61"
     export DOMAIN="phimgg.com"
     export SERVER_IP="154.205.142.255"
@@ -1123,7 +970,7 @@ export NODE_ENV="production"
 export PORT="5000"
 export ALLOWED_ORIGINS="*"
 export CLIENT_URL="*"
-export DATABASE_URL="postgresql://filmflex:filmflex2024@localhost:5432/filmflex"
+export DATABASE_URL="postgresql://filmflex:filmflex2024!@localhost:5432/filmflex?sslmode=disable"
 export SESSION_SECRET="5841abaec918d944cd79481791440643540a3ac9ec33800500ea3ac03d543d61"
 export DOMAIN="phimgg.com"
 export SERVER_IP="154.205.142.255"
@@ -1300,4 +1147,4 @@ log "Need help or encountered issues?"
 log "  To easily restart the server: cd $DEPLOY_DIR && ./restart.sh"
 log "  The comprehensive database fix is built directly into this script."
 log "  This script can be run again at any time to fix both deployment and database issues."
-log "  Manual server start: cd $DEPLOY_DIR && NODE_ENV=production ALLOWED_ORIGINS=* node dist/index.js"
+log "  Manual server start: cd $DEPLOY_DIR && NODE_ENV=production DATABASE_URL='postgresql://filmflex:filmflex2024!@localhost:5432/filmflex?sslmode=disable' ALLOWED_ORIGINS=* node dist/index.js"
