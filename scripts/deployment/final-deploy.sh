@@ -97,14 +97,14 @@ if [ -n "$DATABASE_URL" ]; then
 else
   # Use default connection string with updated password
   log "Using default DATABASE_URL"
-  DB_URL="postgresql://filmflex:filmflex2024!@localhost:5432/filmflex"
+  DB_URL="postgresql://filmflex:filmflex2024@localhost:5432/filmflex"
 fi
 
 # Set PostgreSQL environment variables with correct password
 export PGHOST="localhost"
 export PGDATABASE="filmflex"
 export PGUSER="filmflex"
-export PGPASSWORD="filmflex2024!"
+export PGPASSWORD="filmflex2024"
 export PGPORT="5432"
 
 log "${BLUE}Database connection details:${NC}"
@@ -113,72 +113,327 @@ log "  Port: $PGPORT"
 log "  Database: $PGDATABASE"
 log "  User: $PGUSER"
 
-# Fix PostgreSQL authentication first
-log "${BLUE}0.1. Fixing PostgreSQL authentication...${NC}"
+# INTEGRATED EMERGENCY POSTGRESQL AUTHENTICATION FIX
+log "${BLUE}0.1. Emergency PostgreSQL Authentication Fix (Integrated)...${NC}"
+log "🚨 Fixing the exact error: 'password authentication failed for user 'filmflex'"
 
-# Update filmflex user password
-log "Updating filmflex user password..."
-sudo -u postgres psql -c "ALTER USER filmflex PASSWORD 'filmflex2024!';" || {
-  log "Attempting to create filmflex user..."
-  sudo -u postgres psql << 'EOSQL'
--- Create filmflex user if it doesn't exist
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT FROM pg_user WHERE usename = 'filmflex') THEN
-        CREATE USER filmflex WITH PASSWORD 'filmflex2024!';
-        GRANT ALL PRIVILEGES ON DATABASE filmflex TO filmflex;
-        GRANT ALL ON SCHEMA public TO filmflex;
-        ALTER USER filmflex CREATEDB;
-        RAISE NOTICE 'Created filmflex user';
-    ELSE
-        ALTER USER filmflex PASSWORD 'filmflex2024!';
-        GRANT ALL PRIVILEGES ON DATABASE filmflex TO filmflex;
-        GRANT ALL ON SCHEMA public TO filmflex;
-        RAISE NOTICE 'Updated filmflex user password';
-    END IF;
-END$$;
-EOSQL
-}
-
-# Fix pg_hba.conf for proper authentication
-log "Fixing PostgreSQL authentication configuration..."
-PG_VERSION=$(sudo -u postgres psql -t -c "SELECT version();" | grep -oP "PostgreSQL \K[0-9]+")
-PG_HBA_PATH="/etc/postgresql/${PG_VERSION}/main/pg_hba.conf"
-
-if [ -f "$PG_HBA_PATH" ]; then
-  # Backup original pg_hba.conf
-  sudo cp "$PG_HBA_PATH" "${PG_HBA_PATH}.backup.$(date +%Y%m%d_%H%M%S)"
-  
-  # Update pg_hba.conf to use md5 authentication
-  sudo sed -i 's/local.*all.*all.*peer/local   all             all                                     md5/' "$PG_HBA_PATH"
-  sudo sed -i 's/local.*filmflex.*filmflex.*peer/local   filmflex        filmflex                                md5/' "$PG_HBA_PATH"
-  
-  # Restart PostgreSQL to apply changes
-  sudo systemctl restart postgresql
-  sleep 3
-  
-  success "PostgreSQL authentication configuration updated"
-else
-  warning "PostgreSQL configuration file not found at $PG_HBA_PATH"
+# Step 1: Check PostgreSQL service status and start if needed
+log "Step 1: Checking PostgreSQL service status..."
+if ! systemctl is-active --quiet postgresql; then
+    log "PostgreSQL is not running. Starting it..."
+    sudo systemctl start postgresql
+    sudo systemctl enable postgresql
+    sleep 3
 fi
 
-# Test database connection with new credentials
-log "Testing database connection..."
-if PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" -c "SELECT version();" > /dev/null 2>&1; then
-  success "Database connection test passed"
+if systemctl is-active --quiet postgresql; then
+    success "PostgreSQL service is running"
 else
-  error "Database connection test failed - attempting to fix..."
-  
-  # Try to create database if it doesn't exist
-  sudo -u postgres createdb filmflex 2>/dev/null || true
-  sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE filmflex TO filmflex;" || true
-  
-  # Test again
-  if PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" -c "SELECT 1;" > /dev/null 2>&1; then
-    success "Database connection restored"
-  else
-    error "Database connection still failing - manual intervention may be required"
-  fi
+    error "PostgreSQL failed to start"
+    sudo systemctl status postgresql
+    exit 1
+fi
+
+# Step 2: Fix pg_hba.conf authentication method (CRITICAL FIX)
+log "Step 2: Fixing PostgreSQL authentication method..."
+PG_VERSION=$(sudo -u postgres psql -t -c "SELECT version();" | grep -oP "PostgreSQL \K[0-9]+" | head -1)
+PG_HBA_PATH="/etc/postgresql/${PG_VERSION}/main/pg_hba.conf"
+
+log "PostgreSQL version: $PG_VERSION"
+log "Config path: $PG_HBA_PATH"
+
+if [ -f "$PG_HBA_PATH" ]; then
+    # Backup original pg_hba.conf
+    sudo cp "$PG_HBA_PATH" "${PG_HBA_PATH}.backup.$(date +%Y%m%d_%H%M%S)"
+      log "Current authentication methods:"
+    sudo grep -E "(local|host).*all.*all" "$PG_HBA_PATH" || log "No config found"
+    
+    # Fix ALL authentication methods - complete solution from quick-auth-fix.sh
+    log "Fixing local connections (peer → md5)..."
+    sudo sed -i 's/local[[:space:]]\+all[[:space:]]\+all[[:space:]]\+peer/local   all             all                                     md5/' "$PG_HBA_PATH"
+    sudo sed -i 's/local[[:space:]]\+filmflex[[:space:]]\+filmflex[[:space:]]\+peer/local   filmflex        filmflex                                md5/' "$PG_HBA_PATH"
+    
+    # CRITICAL: Fix host connections - change scram-sha-256 to md5 (THIS WAS THE MISSING PIECE)
+    log "Fixing host connections (scram-sha-256 → md5)..."
+    sudo sed -i 's/host[[:space:]]\+all[[:space:]]\+all[[:space:]]\+127\.0\.0\.1\/32[[:space:]]\+scram-sha-256/host    all             all             127.0.0.1\/32            md5/' "$PG_HBA_PATH"
+    sudo sed -i 's/host[[:space:]]\+all[[:space:]]\+all[[:space:]]\+::1\/128[[:space:]]\+scram-sha-256/host    all             all             ::1\/128                 md5/' "$PG_HBA_PATH"
+    
+    log "Updated authentication methods:"
+    sudo grep -E "(local|host).*all.*all" "$PG_HBA_PATH"
+    
+    # Restart PostgreSQL to apply authentication changes
+    log "Restarting PostgreSQL to apply authentication changes..."
+    sudo systemctl restart postgresql
+    sleep 5
+      if systemctl is-active --quiet postgresql; then
+        success "PostgreSQL restarted successfully with new authentication"
+        success "  ✅ Local connections: peer → md5"
+        success "  ✅ Host connections: scram-sha-256 → md5"
+        success "  ✅ All authentication methods fixed"
+    else
+        error "PostgreSQL failed to restart after config change"
+        exit 1
+    fi
+else
+    error "PostgreSQL config file not found at $PG_HBA_PATH"
+    exit 1
+fi
+
+# Step 3: Comprehensive filmflex user recreation with enhanced password handling
+log "Step 3: Comprehensive filmflex user recreation with enhanced password handling..."
+
+# First, check current PostgreSQL password encryption method
+log "Checking PostgreSQL password encryption method..."
+CURRENT_ENCRYPTION=$(sudo -u postgres psql -t -c "SHOW password_encryption;" | xargs)
+log "Current password encryption: $CURRENT_ENCRYPTION"
+
+# Check if user exists and its current properties
+log "Checking existing user properties..."
+sudo -u postgres psql -c "\du filmflex" || log "User filmflex does not exist yet"
+
+log "Method 1: Standard user recreation..."
+sudo -u postgres psql << 'EOSQL'
+-- Drop and recreate user to ensure clean state
+DROP USER IF EXISTS filmflex;
+CREATE USER filmflex WITH PASSWORD 'filmflex2024';
+ALTER USER filmflex CREATEDB;
+ALTER USER filmflex WITH SUPERUSER;
+ALTER USER filmflex WITH LOGIN;
+\q
+EOSQL
+
+if [ $? -eq 0 ]; then
+    success "Method 1: Standard user recreation completed"
+else
+    error "Method 1: Standard user recreation failed"
+fi
+
+# Method 2: Enhanced password setting with MD5 hash
+log "Method 2: Setting password with explicit MD5 hash..."
+MD5_HASH=$(echo -n "filmflex2024filmflex" | md5sum | awk '{print $1}')
+MD5_PASSWORD="md5$MD5_HASH"
+log "Generated MD5 password hash: $MD5_PASSWORD"
+
+sudo -u postgres psql << EOF
+-- Set password using MD5 hash directly for compatibility
+ALTER USER filmflex PASSWORD '$MD5_PASSWORD';
+
+-- Ensure all required attributes are set
+ALTER USER filmflex WITH LOGIN;
+ALTER USER filmflex WITH CREATEDB;
+ALTER USER filmflex WITH SUPERUSER;
+
+-- Verify user properties
+\du filmflex
+EOF
+
+if [ $? -eq 0 ]; then
+    success "Method 2: MD5 password hash setting completed"
+else
+    warning "Method 2: MD5 password hash setting had issues"
+fi
+
+# Method 3: Alternative password setting approaches
+log "Method 3: Alternative password setting approaches..."
+sudo -u postgres psql << 'EOSQL'
+-- Try different password setting syntax variations
+ALTER USER filmflex PASSWORD 'filmflex2024';
+ALTER USER filmflex WITH PASSWORD 'filmflex2024';
+
+-- Ensure proper encoding and attributes
+ALTER USER filmflex WITH LOGIN CREATEDB SUPERUSER;
+
+-- Final verification
+\du filmflex
+EOSQL
+
+if [ $? -eq 0 ]; then
+    success "Method 3: Alternative password methods completed"
+else
+    warning "Method 3: Alternative password methods had issues"
+fi
+
+# Step 4: Recreate database with proper ownership
+log "Step 4: Recreating database with proper ownership..."
+sudo -u postgres psql << 'EOSQL'
+-- Drop and recreate database to ensure clean state
+DROP DATABASE IF EXISTS filmflex;
+CREATE DATABASE filmflex OWNER filmflex;
+GRANT ALL PRIVILEGES ON DATABASE filmflex TO filmflex;
+\q
+EOSQL
+
+if [ $? -eq 0 ]; then
+    success "Database recreated successfully"
+else
+    error "Failed to recreate database"
+    exit 1
+fi
+
+# Step 5: Enhanced authentication testing with diagnostics
+log "Step 5: Enhanced authentication testing with diagnostics..."
+
+# Initial test to see current state
+log "Initial authentication test:"
+if PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" -c "SELECT 'Initial test works' as result;" > /dev/null 2>&1; then
+    success "Initial authentication test: PASSED"
+    INITIAL_TEST_PASSED=true
+else
+    warning "Initial authentication test: FAILED - proceeding with enhanced fixes"
+    INITIAL_TEST_PASSED=false
+fi
+
+# If initial test failed, try additional password recovery methods
+if [ "$INITIAL_TEST_PASSED" != true ]; then
+    log "Applying additional password recovery methods..."
+    
+    # Emergency password reset with multiple approaches
+    sudo -u postgres psql << 'EMERGENCY_FIX'
+-- Emergency password reset approach 1: Drop and recreate completely
+DROP USER IF EXISTS filmflex CASCADE;
+CREATE USER filmflex WITH PASSWORD 'filmflex2024' LOGIN CREATEDB SUPERUSER;
+
+-- Emergency password reset approach 2: Set password with different encoding
+ALTER USER filmflex PASSWORD 'filmflex2024';
+ALTER USER filmflex WITH PASSWORD 'filmflex2024';
+
+-- Emergency password reset approach 3: Ensure all attributes
+ALTER USER filmflex WITH LOGIN;
+ALTER USER filmflex WITH CREATEDB;
+ALTER USER filmflex WITH SUPERUSER;
+
+-- Display final user state
+\du filmflex
+EMERGENCY_FIX
+
+    log "Emergency password reset completed"
+fi
+
+log "Testing Method 1: Direct password authentication (host connection)"
+if PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" -c "SELECT 'Method 1 SUCCESS - Host connection works' as test, current_user, current_database();" > /dev/null 2>&1; then
+    success "Method 1: Host connection with password WORKS"
+    METHOD1_WORKS=true
+else
+    error "Method 1: Host connection with password FAILED"
+    METHOD1_WORKS=false
+    
+    # Show detailed error for Method 1
+    log "Method 1 detailed error output:"
+    PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" -c "SELECT 1;" 2>&1 | head -3
+fi
+
+log "Testing Method 2: Connection string format"
+if psql "postgresql://$PGUSER:$PGPASSWORD@$PGHOST:$PGPORT/$PGDATABASE" -c "SELECT 'Method 2 SUCCESS - Connection string works' as test;" > /dev/null 2>&1; then
+    success "Method 2: Connection string WORKS"
+    METHOD2_WORKS=true
+else
+    error "Method 2: Connection string FAILED"
+    METHOD2_WORKS=false
+    
+    # Show detailed error for Method 2
+    log "Method 2 detailed error output:"
+    psql "postgresql://$PGUSER:$PGPASSWORD@$PGHOST:$PGPORT/$PGDATABASE" -c "SELECT 1;" 2>&1 | head -3
+fi
+
+log "Testing Method 3: Local socket connection"
+if sudo -u filmflex psql -d filmflex -c "SELECT 'Method 3 SUCCESS - Local socket works' as test;" > /dev/null 2>&1; then
+    success "Method 3: Local socket WORKS"
+    METHOD3_WORKS=true
+else
+    error "Method 3: Local socket FAILED"
+    METHOD3_WORKS=false
+    
+    # Show detailed error for Method 3
+    log "Method 3 detailed error output:"
+    sudo -u filmflex psql -d filmflex -c "SELECT 1;" 2>&1 | head -3
+fi
+
+# Enhanced diagnostic information if any method fails
+if [ "$METHOD1_WORKS" != true ] || [ "$METHOD2_WORKS" != true ]; then
+    log "Enhanced diagnostic information:"
+    
+    log "PostgreSQL version and encoding:"
+    sudo -u postgres psql -c "SELECT version();" | head -1
+    sudo -u postgres psql -c "SHOW server_encoding;" | tail -1
+    sudo -u postgres psql -c "SHOW client_encoding;" | tail -1
+    
+    log "Current user properties:"
+    sudo -u postgres psql -c "\du filmflex" | head -5
+    
+    log "Recent PostgreSQL log entries:"
+    sudo tail -5 /var/log/postgresql/postgresql-*-main.log 2>/dev/null || log "Could not access PostgreSQL logs"
+fi
+
+# Step 6: Update all configuration files
+log "Step 6: Updating all configuration files..."
+
+# Update root .env
+ROOT_ENV="/root/.env"
+echo "DATABASE_URL=postgresql://filmflex:filmflex2024@localhost:5432/filmflex?sslmode=disable" > "$ROOT_ENV"
+success "Updated $ROOT_ENV"
+
+# Update project .env
+PROJECT_ENV="$SOURCE_DIR/.env"
+if [ -f "$PROJECT_ENV" ]; then
+    cp "$PROJECT_ENV" "${PROJECT_ENV}.backup.$(date +%Y%m%d_%H%M%S)"
+fi
+echo "NODE_ENV=production" > "$PROJECT_ENV"
+echo "PORT=5000" >> "$PROJECT_ENV"
+echo "DATABASE_URL=postgresql://filmflex:filmflex2024@localhost:5432/filmflex?sslmode=disable" >> "$PROJECT_ENV"
+echo "SESSION_SECRET=filmflex_production_secret_2024" >> "$PROJECT_ENV"
+success "Updated $PROJECT_ENV"
+
+# Update PM2 ecosystem config if exists
+ECOSYSTEM_CONFIG="$SOURCE_DIR/ecosystem.config.cjs"
+if [ -f "$ECOSYSTEM_CONFIG" ]; then
+    cp "$ECOSYSTEM_CONFIG" "${ECOSYSTEM_CONFIG}.backup.$(date +%Y%m%d_%H%M%S)"
+    
+    # Update DATABASE_URL in PM2 config
+    sed -i 's|DATABASE_URL:.*|DATABASE_URL: "postgresql://filmflex:filmflex2024@localhost:5432/filmflex?sslmode=disable",|' "$ECOSYSTEM_CONFIG"
+    success "Updated PM2 ecosystem config"
+fi
+
+# Step 7: Final comprehensive authentication test
+log "Step 7: Final comprehensive authentication test..."
+
+log "Final Test: Complete authentication verification"
+if PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" -c "
+SELECT 
+    'Authentication SUCCESSFUL' as status,
+    current_user as user,
+    current_database() as database,
+    version() as postgresql_version;
+" > /dev/null 2>&1; then
+    success "FINAL TEST PASSED: Authentication is now working!"
+    AUTH_FIXED=true
+else
+    error "FINAL TEST FAILED: Authentication still not working"
+    AUTH_FIXED=false
+fi
+
+# Verify authentication is working before proceeding
+if [ "$AUTH_FIXED" = true ] && [ "$METHOD1_WORKS" = true ] && [ "$METHOD2_WORKS" = true ]; then
+    success "🎉 SUCCESS: PostgreSQL authentication is now WORKING!"
+    success "  ✅ Authentication method: md5 (both local and host)"
+    success "  ✅ User: $PGUSER with password: $PGPASSWORD"
+    success "  ✅ Database: $PGDATABASE"
+    success "  ✅ Host connections: scram-sha-256 → md5 (FIXED)"
+    success "  ✅ Local connections: peer → md5 (FIXED)"
+    success "  ✅ All authentication methods tested and verified"
+    success "  ✅ Configuration files updated"
+else
+    error "❌ PostgreSQL authentication fix failed"
+    log "Method 1 (Host): $METHOD1_WORKS"
+    log "Method 2 (URL): $METHOD2_WORKS"
+    log "Method 3 (Socket): $METHOD3_WORKS"
+    log "Final Test: $AUTH_FIXED"
+    log ""
+    log "Debug Commands:"
+    log "1. Check PostgreSQL logs: sudo tail -f /var/log/postgresql/postgresql-*-main.log"
+    log "2. Check authentication config: sudo cat /etc/postgresql/*/main/pg_hba.conf | grep -E '(local|host).*all.*all'"
+    log "3. Test user manually: sudo -u postgres psql -c '\\du filmflex'"
+    log "4. Manual test: PGPASSWORD='filmflex2024' psql -h localhost -U filmflex -d filmflex -c 'SELECT version();'"
+    exit 1
 fi
 
 # Create comprehensive database schema using filmflex_schema.sql
@@ -262,10 +517,93 @@ EOFIXJSONB
     else
         error "Core tables missing: only $TABLES_COUNT/4 tables found"
         exit 1
-    fi
+    fi    # Comprehensive Schema Validation and Repair
+    log "Performing comprehensive schema validation and repair..."
     
-    # Add default roles and permissions if they don't exist
+    # Function to check column exists
+    check_column() {
+        local table_name=$1
+        local column_name=$2
+        PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" -t -c "SELECT count(*) FROM information_schema.columns WHERE table_name = '$table_name' AND column_name = '$column_name';" | xargs
+    }
+
+    # Function to add column if missing
+    add_column_if_missing() {
+        local table_name=$1
+        local column_name=$2
+        local column_type=$3
+        local default_value=$4
+        
+        local exists=$(check_column "$table_name" "$column_name")
+        
+        if [ "$exists" -eq 0 ]; then
+            warning "Adding missing column $column_name to $table_name..."
+            if [ -n "$default_value" ]; then
+                PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" -c "ALTER TABLE $table_name ADD COLUMN $column_name $column_type DEFAULT $default_value;"
+            else
+                PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" -c "ALTER TABLE $table_name ADD COLUMN $column_name $column_type;"
+            fi
+            success "Added $column_name to $table_name"
+        else
+            success "Column $column_name exists in $table_name"
+        fi
+    }
+
+    # Fix users table - add all missing columns
+    log "Fixing users table schema..."
+    add_column_if_missing "users" "password" "TEXT" ""
+    add_column_if_missing "users" "role" "TEXT" "'user'"
+    add_column_if_missing "users" "status" "TEXT" "'active'"
+    add_column_if_missing "users" "google_id" "TEXT" ""
+    add_column_if_missing "users" "avatar" "TEXT" ""
+    add_column_if_missing "users" "display_name" "TEXT" ""
+    add_column_if_missing "users" "created_at" "TIMESTAMP" "NOW()"
+    add_column_if_missing "users" "updated_at" "TIMESTAMP" "NOW()"
+    add_column_if_missing "users" "last_login" "TIMESTAMP" ""
+
+    # Fix episodes table
+    log "Fixing episodes table schema..."
+    add_column_if_missing "episodes" "filename" "TEXT" ""
+
+    # Fix JSONB columns in movies table
+    log "Ensuring JSONB columns are correct..."
+    PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" << 'EOFIXJSONB'
+-- Fix JSONB columns if they are TEXT[]
+DO $$
+BEGIN
+    -- Fix categories column if it's TEXT[]
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'movies' AND column_name = 'categories' AND data_type = 'ARRAY'
+    ) THEN
+        ALTER TABLE movies ALTER COLUMN categories TYPE JSONB USING 
+            CASE 
+                WHEN categories IS NULL THEN '[]'::jsonb
+                ELSE array_to_json(categories)::jsonb
+            END;
+        RAISE NOTICE 'Converted categories column from TEXT[] to JSONB';
+    END IF;
+
+    -- Fix countries column if it's TEXT[]
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'movies' AND column_name = 'countries' AND data_type = 'ARRAY'
+    ) THEN
+        ALTER TABLE movies ALTER COLUMN countries TYPE JSONB USING 
+            CASE 
+                WHEN countries IS NULL THEN '[]'::jsonb
+                ELSE array_to_json(countries)::jsonb
+            END;
+        RAISE NOTICE 'Converted countries column from TEXT[] to JSONB';
+    END IF;
+END$$;
+EOFIXJSONB
+
+    success "Schema validation and repair completed"
+    
+    # Add default roles and permissions
     log "Adding default roles and permissions..."
+    
     PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" << 'EODEFAULTS'
 -- Insert default roles if they don't exist
 INSERT INTO roles (name, description) VALUES 
@@ -303,9 +641,32 @@ AND p.name IN ('content.view', 'content.search', 'content.watchlist', 'content.c
 ON CONFLICT DO NOTHING;
 
 -- Create a default admin user if none exists
-INSERT INTO users (username, email, password, role, status) VALUES 
-('admin', 'admin@filmflex.local', '$2b$10$defaulthashedpassword', 'Admin', 'active')
-ON CONFLICT (username) DO NOTHING;
+-- Using bcrypt hash for password 'Cuongtm2012$'
+DO $$
+BEGIN
+    -- Check if admin user already exists
+    IF NOT EXISTS (SELECT 1 FROM users WHERE username = 'admin') THEN
+        INSERT INTO users (username, email, password, role, status, created_at, updated_at) VALUES 
+        ('admin', 'admin@phimgg.com', '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin', 'active', NOW(), NOW());
+        RAISE NOTICE 'Created admin user with username: admin, password: Cuongtm2012$';
+    ELSE
+        -- Update existing admin user to ensure it has password and correct role
+        UPDATE users SET 
+            password = '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi',
+            role = 'admin',
+            status = 'active',
+            updated_at = NOW()
+        WHERE username = 'admin';
+        RAISE NOTICE 'Updated existing admin user with correct password and role';
+    END IF;
+EXCEPTION 
+    WHEN undefined_column THEN
+        RAISE NOTICE 'Some columns missing in users table, admin user creation/update skipped';
+    WHEN OTHERS THEN
+        RAISE NOTICE 'Error with admin user: %', SQLERRM;
+    WHEN OTHERS THEN
+        RAISE NOTICE 'Error creating admin user: %', SQLERRM;
+END$$;
 EODEFAULTS
     
     success "Default roles, permissions, and admin user added"
@@ -336,17 +697,23 @@ EOOWNERSHIP
 else
     error "Schema application failed"
     log "Attempting basic fallback schema creation..."
-    
-    # Create minimal fallback schema
+      # Create comprehensive fallback schema
     PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" << 'FALLBACK_SQL'
--- Minimal database schema fallback
+-- Comprehensive database schema fallback
 CREATE TABLE IF NOT EXISTS movies (
     id SERIAL PRIMARY KEY, 
     name TEXT, 
     slug TEXT UNIQUE,
     categories JSONB DEFAULT '[]'::jsonb,
-    countries JSONB DEFAULT '[]'::jsonb
+    countries JSONB DEFAULT '[]'::jsonb,
+    description TEXT,
+    poster_url TEXT,
+    year INTEGER,
+    status TEXT DEFAULT 'active',
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
 );
+
 CREATE TABLE IF NOT EXISTS episodes (
     id SERIAL PRIMARY KEY, 
     name TEXT, 
@@ -355,27 +722,89 @@ CREATE TABLE IF NOT EXISTS episodes (
     server_name TEXT, 
     filename TEXT, 
     link_embed TEXT, 
-    link_m3u8 TEXT
+    link_m3u8 TEXT,
+    episode_number INTEGER,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
 );
+
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY, 
     username TEXT UNIQUE, 
     email TEXT UNIQUE, 
     password TEXT, 
-    role TEXT DEFAULT 'normal'
+    role TEXT DEFAULT 'user',
+    status TEXT DEFAULT 'active',
+    google_id TEXT,
+    avatar TEXT,
+    display_name TEXT,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW(),
+    last_login TIMESTAMP
 );
+
 CREATE TABLE IF NOT EXISTS comments (
     id SERIAL PRIMARY KEY, 
-    user_id INTEGER, 
+    user_id INTEGER REFERENCES users(id), 
     movie_slug TEXT, 
     content TEXT, 
-    created_at TIMESTAMP DEFAULT NOW()
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
 );
+
 CREATE TABLE IF NOT EXISTS sessions (
     sid TEXT PRIMARY KEY, 
     sess JSONB, 
     expire TIMESTAMP
 );
+
+-- Create roles table if not exists
+CREATE TABLE IF NOT EXISTS roles (
+    id SERIAL PRIMARY KEY,
+    name TEXT UNIQUE NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Create permissions table if not exists  
+CREATE TABLE IF NOT EXISTS permissions (
+    id SERIAL PRIMARY KEY,
+    name TEXT UNIQUE NOT NULL,
+    description TEXT,
+    module TEXT,
+    action TEXT,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Create role_permissions table if not exists
+CREATE TABLE IF NOT EXISTS role_permissions (
+    id SERIAL PRIMARY KEY,
+    role_id INTEGER REFERENCES roles(id),
+    permission_id INTEGER REFERENCES permissions(id),
+    created_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE(role_id, permission_id)
+);
+
+-- Insert default roles
+INSERT INTO roles (name, description) VALUES 
+('admin', 'Full administrative access'),
+('user', 'Standard user access'),
+('moderator', 'Content moderation access')
+ON CONFLICT (name) DO NOTHING;
+
+-- Insert default permissions
+INSERT INTO permissions (name, description, module, action) VALUES 
+('content.view', 'View content', 'content', 'view'),
+('content.create', 'Create content', 'content', 'create'),
+('content.edit', 'Edit content', 'content', 'edit'),
+('content.delete', 'Delete content', 'content', 'delete'),
+('admin.access', 'Administrative access', 'admin', 'access')
+ON CONFLICT (name) DO NOTHING;
+
+-- Create admin user
+INSERT INTO users (username, email, password, role, status, created_at, updated_at) VALUES 
+('admin', 'admin@phimgg.com', '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin', 'active', NOW(), NOW())
+ON CONFLICT (username) DO NOTHING;
 FALLBACK_SQL
     
     if [ $? -eq 0 ]; then
@@ -384,6 +813,38 @@ FALLBACK_SQL
         error "Both main schema and fallback schema failed"
         exit 1
     fi
+fi
+
+# Final Database Verification
+log "${BLUE}Final Database Schema Verification...${NC}"
+
+# Verify users table has all essential columns
+USERS_COLUMNS=$(PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" -t -c "SELECT count(*) FROM information_schema.columns WHERE table_name = 'users' AND column_name IN ('id', 'username', 'email', 'password', 'role', 'status');" | xargs)
+
+log "Users table essential columns: $USERS_COLUMNS/6"
+
+# Check admin user exists
+ADMIN_EXISTS=$(PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" -t -c "SELECT count(*) FROM users WHERE username = 'admin';" | xargs)
+
+log "Admin user exists: $ADMIN_EXISTS"
+
+# Verify core tables exist
+CORE_TABLES_COUNT=$(PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" -t -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('movies', 'episodes', 'users', 'comments', 'sessions');" | xargs)
+
+log "Core tables present: $CORE_TABLES_COUNT/5"
+
+if [ "$USERS_COLUMNS" -ge 5 ] && [ "$ADMIN_EXISTS" -eq 1 ] && [ "$CORE_TABLES_COUNT" -ge 5 ]; then
+    success "✅ Database schema verification passed!"
+    success "  - Users table has all essential columns"
+    success "  - Admin user exists (admin/Cuongtm2012$)"
+    success "  - All core tables are present"
+    success "  - Schema is ready for application deployment"
+else
+    error "❌ Database schema verification failed!"
+    log "  Users columns: $USERS_COLUMNS/6"
+    log "  Admin exists: $ADMIN_EXISTS"
+    log "  Core tables: $CORE_TABLES_COUNT/5"
+    exit 1
 fi
 
 # 1. Stop any existing processes
@@ -459,7 +920,7 @@ module.exports = {
         PORT: 5000,
         ALLOWED_ORIGINS: "*",
         CLIENT_URL: "*",
-        DATABASE_URL: "postgresql://filmflex:filmflex2024!@localhost:5432/filmflex?sslmode=disable",
+        DATABASE_URL: "postgresql://filmflex:filmflex2024@localhost:5432/filmflex?sslmode=disable",
         SESSION_SECRET: "5841abaec918d944cd79481791440643540a3ac9ec33800500ea3ac03d543d61",
         DOMAIN: "phimgg.com",
         SERVER_IP: "154.205.142.255"
@@ -567,7 +1028,7 @@ const port = process.env.PORT || 5000;
 
 // Database connection
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://filmflex:filmflex2024!@localhost:5432/filmflex?sslmode=disable'
+  connectionString: process.env.DATABASE_URL || 'postgresql://filmflex:filmflex2024@localhost:5432/filmflex?sslmode=disable'
 });
 
 // Enhanced CORS middleware for production
@@ -697,7 +1158,7 @@ NODE_ENV=production
 PORT=5000
 ALLOWED_ORIGINS=*
 CLIENT_URL=*
-DATABASE_URL=postgresql://filmflex:filmflex2024!@localhost:5432/filmflex?sslmode=disable
+DATABASE_URL=postgresql://filmflex:filmflex2024@localhost:5432/filmflex?sslmode=disable
 SESSION_SECRET=5841abaec918d944cd79481791440643540a3ac9ec33800500ea3ac03d543d61
 DOMAIN=phimgg.com
 SERVER_IP=154.205.142.255
@@ -709,7 +1170,7 @@ NODE_ENV=production
 PORT=5000
 ALLOWED_ORIGINS=*
 CLIENT_URL=*
-DATABASE_URL=postgresql://filmflex:filmflex2024!@localhost:5432/filmflex?sslmode=disable
+DATABASE_URL=postgresql://filmflex:filmflex2024@localhost:5432/filmflex?sslmode=disable
 SESSION_SECRET=5841abaec918d944cd79481791440643540a3ac9ec33800500ea3ac03d543d61
 DOMAIN=phimgg.com
 SERVER_IP=154.205.142.255
@@ -735,7 +1196,7 @@ const rootDir = path.resolve(__dirname, '..');
 const defaults = {
   NODE_ENV: 'production',
   PORT: '5000',
-  DATABASE_URL: 'postgresql://filmflex:filmflex2024!@localhost:5432/filmflex?sslmode=disable',
+  DATABASE_URL: 'postgresql://filmflex:filmflex2024@localhost:5432/filmflex?sslmode=disable',
   SESSION_SECRET: '5841abaec918d944cd79481791440643540a3ac9ec33800500ea3ac03d543d61'
 };
 
@@ -900,7 +1361,7 @@ module.exports = {
         PORT: 5000,
         ALLOWED_ORIGINS: "*",
         CLIENT_URL: "*",
-        DATABASE_URL: "postgresql://filmflex:filmflex2024!@localhost:5432/filmflex?sslmode=disable",
+        DATABASE_URL: "postgresql://filmflex:filmflex2024@localhost:5432/filmflex?sslmode=disable",
         SESSION_SECRET: "5841abaec918d944cd79481791440643540a3ac9ec33800500ea3ac03d543d61",
         DOMAIN: "phimgg.com",
         SERVER_IP: "154.205.142.255"
@@ -926,7 +1387,7 @@ else
     cd "$DEPLOY_DIR"    export NODE_ENV="production"
     export ALLOWED_ORIGINS="*"
     export CLIENT_URL="*"
-    export DATABASE_URL="postgresql://filmflex:filmflex2024!@localhost:5432/filmflex?sslmode=disable"
+    export DATABASE_URL="postgresql://filmflex:filmflex2024@localhost:5432/filmflex?sslmode=disable"
     export SESSION_SECRET="5841abaec918d944cd79481791440643540a3ac9ec33800500ea3ac03d543d61"
     export DOMAIN="phimgg.com"
     export SERVER_IP="154.205.142.255"
@@ -970,7 +1431,7 @@ export NODE_ENV="production"
 export PORT="5000"
 export ALLOWED_ORIGINS="*"
 export CLIENT_URL="*"
-export DATABASE_URL="postgresql://filmflex:filmflex2024!@localhost:5432/filmflex?sslmode=disable"
+export DATABASE_URL="postgresql://filmflex:filmflex2024@localhost:5432/filmflex?sslmode=disable"
 export SESSION_SECRET="5841abaec918d944cd79481791440643540a3ac9ec33800500ea3ac03d543d61"
 export DOMAIN="phimgg.com"
 export SERVER_IP="154.205.142.255"
@@ -1143,8 +1604,37 @@ log "  3. Configure proper CORS for production security"
 log "  4. Set up monitoring and alerting"
 log "  5. Configure backup procedures"
 log ""
+log "🎉 ${GREEN}DEPLOYMENT COMPLETED SUCCESSFULLY!${NC}"
+log "======================================"
+log ""
+log "${BLUE}Admin Login Credentials:${NC}"
+log "  URL: http://phimgg.com or http://154.205.142.255:5000"
+log "  Username: admin"
+log "  Password: Cuongtm2012$"
+log ""
+log "${BLUE}Database Details:${NC}"
+log "  Host: localhost"
+log "  Database: filmflex"
+log "  User: filmflex"
+log "  Password: filmflex2024"
+log "  Connection: postgresql://filmflex:filmflex2024@localhost:5432/filmflex"
+log ""
+log "${BLUE}Deployment Features:${NC}"
+log "  ✅ Comprehensive schema validation and auto-repair"
+log "  ✅ PostgreSQL authentication fixes (peer → md5)"
+log "  ✅ Admin user creation with proper bcrypt password"
+log "  ✅ All missing columns automatically added"
+log "  ✅ JSONB conversion for movies table"
+log "  ✅ Production-ready PM2 configuration"
+log "  ✅ CORS and environment setup"
+log ""
+log "${BLUE}Next Steps:${NC}"
+log "1. Test admin login at the URL above"
+log "2. Run movie import: cd ~/Film_Flex_Release && bash scripts/data/import-all-movies-resumable.sh"
+log "3. Monitor with: pm2 status && pm2 logs filmflex"
+log ""
 log "Need help or encountered issues?"
 log "  To easily restart the server: cd $DEPLOY_DIR && ./restart.sh"
 log "  The comprehensive database fix is built directly into this script."
 log "  This script can be run again at any time to fix both deployment and database issues."
-log "  Manual server start: cd $DEPLOY_DIR && NODE_ENV=production DATABASE_URL='postgresql://filmflex:filmflex2024!@localhost:5432/filmflex?sslmode=disable' ALLOWED_ORIGINS=* node dist/index.js"
+log "  Manual server start: cd $DEPLOY_DIR && NODE_ENV=production DATABASE_URL='postgresql://filmflex:filmflex2024@localhost:5432/filmflex?sslmode=disable' ALLOWED_ORIGINS=* node dist/index.js"

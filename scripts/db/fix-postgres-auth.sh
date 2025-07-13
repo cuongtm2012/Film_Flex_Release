@@ -183,7 +183,7 @@ test_connection() {
     # Test connection with new user
     if PGPASSWORD='filmflex2024!' psql -h localhost -U filmflex -d filmflex -c '\dt' > /dev/null 2>&1; then
         echo "✅ Database connection test PASSED"
-        echo "Connection string: postgresql://filmflex:filmflex2024!@localhost:5432/filmflex"
+        echo "Connection string: postgresql://filmflex:filmflex2024@localhost:5432/filmflex"
     else
         echo "❌ Database connection test FAILED"
         echo "Please check the configuration manually"
@@ -195,7 +195,7 @@ test_connection() {
 show_next_steps() {
     echo "=== NEXT STEPS ==="
     echo "1. Update your .env file with the new database connection:"
-    echo "   DATABASE_URL=postgresql://filmflex:filmflex2024!@localhost:5432/filmflex"
+    echo "   DATABASE_URL=postgresql://filmflex:filmflex2024@localhost:5432/filmflex"
     echo ""
     echo "2. Run the database schema fix:"
     echo "   cd /var/www/filmflex"
