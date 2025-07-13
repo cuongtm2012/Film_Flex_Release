@@ -73,7 +73,7 @@ PGPASSWORD='filmflex2024!' psql -h localhost -U filmflex -d filmflex -c '\dt'
 ### Step 7: Update Environment Variables
 Update your .env file:
 ```env
-DATABASE_URL=postgresql://filmflex:filmflex2024!@localhost:5432/filmflex
+DATABASE_URL=postgresql://filmflex:filmflex2024@localhost:5432/filmflex
 ```
 
 ## Alternative Solutions

@@ -17,11 +17,19 @@ app.use(express.urlencoded({ extended: false }));
 // Fix CORS configuration to ensure cookies work properly
 app.use(cors({
   origin: function (origin, callback) {
+    console.log('🌐 CORS Check - Origin:', origin);
+    console.log('🔧 ALLOWED_ORIGINS env:', process.env.ALLOWED_ORIGINS);
+    console.log('🔧 NODE_ENV:', process.env.NODE_ENV);
+    
     // Allow requests with no origin (like mobile apps or Postman)
-    if (!origin) return callback(null, true);
+    if (!origin) {
+      console.log('✅ CORS: Allowing request with no origin');
+      return callback(null, true);
+    }
     
     // Check for wildcard CORS setting - ALLOW ALL ORIGINS
     if (process.env.ALLOWED_ORIGINS === '*' || process.env.CLIENT_URL === '*') {
+      console.log('✅ CORS: Wildcard access enabled - allowing all origins');
       return callback(null, true);
     }
     
@@ -59,10 +67,10 @@ app.use(cors({
     if (origin.includes('phimgg.com')) {
       return callback(null, true);
     }
-    
-    // Allow IP address access for testing
+      // Allow IP address access for testing
     if (origin.includes('154.205.142.255')) {
-      return callback(null, true);    }
+      return callback(null, true);
+    }
     
     // Allow localhost and 127.0.0.1 for testing
     if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
@@ -78,13 +86,14 @@ app.use(cors({
     if (process.env.NODE_ENV === 'development') {
       return callback(null, true);
     }
-    
-    // TEMPORARY: Allow all origins in production for initial deployment
+      // TEMPORARY: Allow all origins in production for initial deployment
     if (process.env.ALLOWED_ORIGINS === '*') {
+      console.log('✅ CORS: Final wildcard check - allowing all origins');
       return callback(null, true);
     }
     
-    console.log('CORS blocked origin:', origin);
+    console.log('❌ CORS blocked origin:', origin);
+    console.log('📋 Allowed origins were:', allowedOrigins);
     callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
