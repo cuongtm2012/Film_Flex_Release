@@ -1,84 +1,202 @@
-# FilmFlex Domain Configuration Scripts
+# FilmFlex Domain Management
 
-These scripts will help you set up and configure new domains for your FilmFlex installation.
+This directory contains the unified domain management solution for FilmFlex.
 
-## Scripts Included
+## 🚀 **Unified Script: domain-manager.sh**
 
-1. **setup-domain.sh** - Main script to configure a new domain on your server
-2. **check-dns-setup-ssl.sh** - Script to check DNS propagation and set up SSL
-3. **configure-godaddy-dns.js** - Node.js script to automatically configure GoDaddy DNS settings
+All domain-related functionality has been consolidated into a single, comprehensive script that handles:
 
-## Usage Instructions
+- **DNS diagnostics and troubleshooting**
+- **Complete domain setup with SSL**
+- **Nginx configuration**
+- **Automated SSL certificate installation**
+- **Remote deployment**
+- **Monitoring and status checks**
 
-### Basic Server Setup
+## 📋 **Usage**
 
-To set up a new domain on your server:
-
+### **1. Run DNS Diagnostics**
 ```bash
-# Copy these scripts to your production server
-scp -r scripts/domain root@38.54.115.156:/var/www/filmflex/scripts/
-
-# SSH to your server
-ssh root@38.54.115.156
-
-# Run the setup script (replace with your domain)
-cd /var/www/filmflex
-bash scripts/domain/setup-domain.sh phimgg.com
+sudo bash domain-manager.sh diagnose [domain]
+```
+Example:
+```bash
+sudo bash domain-manager.sh diagnose phimgg.com
 ```
 
-### Configure DNS with GoDaddy API
-
-If you have GoDaddy API credentials, you can automate the DNS configuration:
-
+### **2. Complete Domain Setup**
 ```bash
-# Install necessary dependencies
-npm install axios
-
-# Run the GoDaddy DNS configuration script
-node scripts/domain/configure-godaddy-dns.js phimgg.com 38.54.115.156
+sudo bash domain-manager.sh setup [domain] [server-ip] [email]
+```
+Example:
+```bash
+sudo bash domain-manager.sh setup phimgg.com 154.205.142.255 admin@phimgg.com
 ```
 
-### Manual DNS Configuration in GoDaddy Dashboard
-
-1. Log in to your GoDaddy account
-2. Go to the DNS management page for your domain
-3. Add these records:
-   - **A Record**: 
-     - Type: A
-     - Name: @ (represents the root domain)
-     - Value: 38.54.115.156 (your server IP)
-     - TTL: 1 Hour
-
-   - **CNAME Record**:
-     - Type: CNAME
-     - Name: www
-     - Value: phimgg.com
-     - TTL: 1 Hour
-
-### Checking DNS Propagation and Setting Up SSL
-
-After DNS changes have been made, check propagation and set up SSL:
-
+### **3. Install SSL Certificate Only**
 ```bash
-# Run this on your server to check DNS and set up SSL
-bash scripts/domain/check-dns-setup-ssl.sh phimgg.com
+sudo bash domain-manager.sh ssl [domain]
+```
+Example:
+```bash
+sudo bash domain-manager.sh ssl phimgg.com
 ```
 
-## Common Issues
+### **4. Fix Nginx Configuration Errors**
+```bash
+sudo bash domain-manager.sh fix [domain]
+```
+Example:
+```bash
+sudo bash domain-manager.sh fix phimgg.com
+```
 
-1. **DNS Propagation Takes Time**: Wait 24-48 hours for full propagation
-2. **Let's Encrypt Rate Limits**: You can only request 5 certificates per domain per week
-3. **Nginx Configuration**: Make sure port 80 is open on your server
+### **5. Deploy to Remote Server**
+```bash
+bash domain-manager.sh deploy [user@server]
+```
+Example:
+```bash
+bash domain-manager.sh deploy root@154.205.142.255
+```
 
-## Manual SSL Configuration
+### **6. Monitor Domain Status**
+```bash
+bash domain-manager.sh monitor [domain]
+```
+Example:
+```bash
+bash domain-manager.sh monitor phimgg.com
+```
 
-If automatic SSL setup fails, you can manually configure SSL:
+## 🔧 **What It Does**
+
+### **DNS Diagnostics Mode**
+- Checks A records for domain and www subdomain
+- Tests DNS propagation across multiple DNS servers
+- Verifies server connectivity and port accessibility
+- Tests HTTP response from both IP and domain
+- Provides specific recommendations for fixing issues
+
+### **Setup Mode**
+- Installs all prerequisites (nginx, certbot, DNS tools)
+- Creates optimized nginx configuration with security headers
+- Sets up SSL certificate (if DNS is ready) or automated SSL installation
+- Updates application configuration
+- Configures firewall rules
+
+### **SSL Mode**
+- Verifies DNS configuration
+- Installs Let's Encrypt SSL certificate
+- Updates nginx configuration automatically
+
+### **Deploy Mode**
+- Copies the script to remote server
+- Runs full setup on the remote server
+- Handles all configuration automatically
+
+### **Monitor Mode**
+- Checks current DNS status
+- Verifies SSL certificate status and expiration
+- Tests website availability
+
+## 🌐 **DNS Configuration Required**
+
+Before running setup, ensure your DNS provider (GoDaddy) has these records:
+
+```
+Type: A
+Name: @
+Value: 154.205.142.255
+TTL: 1 Hour
+
+Type: A
+Name: www
+Value: 154.205.142.255
+TTL: 1 Hour
+```
+
+## ⚡ **Quick Start**
+
+1. **Fix your current domain issue:**
+   ```bash
+   # On your local machine
+   cd scripts/domain
+   bash domain-manager.sh deploy root@154.205.142.255
+   ```
+
+2. **For DNS diagnostics:**
+   ```bash
+   # On the server
+   sudo bash domain-manager.sh diagnose
+   ```
+
+3. **For complete setup:**
+   ```bash
+   # On the server (after DNS is configured)
+   sudo bash domain-manager.sh setup
+   ```
+
+## 📝 **Default Configuration**
+
+- **Domain:** phimgg.com
+- **Server IP:** 154.205.142.255
+- **Email:** admin@phimgg.com
+- **App Port:** 5000
+
+All defaults can be overridden with command-line parameters.
+
+## 📊 **Automated Features**
+
+- **SSL Auto-Installation:** If DNS isn't ready during setup, the script sets up a cron job to automatically install SSL once DNS propagates
+- **Security Headers:** Adds comprehensive security headers to nginx configuration
+- **CORS Configuration:** Properly configured for FilmFlex application
+- **Log Management:** All operations are logged to `/var/log/filmflex/`
+
+## 🔍 **Troubleshooting**
+
+If you encounter issues:
+
+1. **Run diagnostics first:**
+   ```bash
+   sudo bash domain-manager.sh diagnose
+   ```
+
+2. **Check logs:**
+   ```bash
+   tail -f /var/log/filmflex/domain-setup.log
+   ```
+
+3. **Test direct IP access:**
+   ```bash
+   curl http://154.205.142.255:5000
+   ```
+
+4. **Verify DNS manually:**
+   ```bash
+   dig phimgg.com A
+   ```
+
+5. **For nginx config errors:**
+   ```bash
+   sudo bash fix-nginx-config.sh
+   ```
+
+## 📁 **Files Created**
+
+The script creates/manages these files:
+- `/etc/nginx/sites-available/phimgg.com` - Nginx configuration
+- `/var/log/filmflex/domain-setup.log` - Setup logs
+- `/var/log/filmflex/ssl-automation.log` - SSL automation logs
+- Auto-SSL cron job (temporary, removes itself after SSL installation)
+
+## 🚨 **Emergency Fix**
+
+If you're experiencing nginx configuration errors (like the current issue), run:
 
 ```bash
-# Install Certbot
-apt-get update
-apt-get install certbot python3-certbot-nginx
-
-# Request certificate
-certbot --nginx -d phimgg.com -d www.phimgg.com
+# On your server
+sudo bash fix-nginx-config.sh
 ```
+
+This unified approach ensures consistent, reliable domain management for your FilmFlex deployment.
