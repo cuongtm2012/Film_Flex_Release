@@ -131,11 +131,10 @@ process_page() {
     echo "[$DATE] Page $page already processed (verified from detailed progress), skipping" >> "$IMPORT_LOG"
     return 0
   fi
+    echo -e "${BLUE}Processing page $page${NC}"
   
-  echo -e "${BLUE}Processing page $page${NC}"
-  
-  # Build the command - add force-import flag if requested
-  local cmd="NODE_ENV=production DATABASE_URL=\"postgresql://filmflex:filmflex2024@localhost:5432/filmflex\" node \"$APP_DIR/scripts/data/${SCRIPT_NAME}\" --single-page --page-num=$page --page-size=10"
+  # Build the command using environment variables
+  local cmd="node \"$APP_DIR/scripts/data/${SCRIPT_NAME}\" --single-page --page-num=$page --page-size=10"
   
   # Add force import flag if needed
   if [ "$force_import" = "true" ]; then
