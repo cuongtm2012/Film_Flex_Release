@@ -15,8 +15,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
 // Fix CORS configuration to ensure cookies work properly
-app.use(cors({
-  origin: function (origin, callback) {
+app.use(cors({  origin: function (origin, callback) {
     console.log('🌐 CORS Check - Origin:', origin);
     console.log('🔧 ALLOWED_ORIGINS env:', process.env.ALLOWED_ORIGINS);
     console.log('🔧 NODE_ENV:', process.env.NODE_ENV);
@@ -27,7 +26,7 @@ app.use(cors({
       return callback(null, true);
     }
     
-    // Check for wildcard CORS setting - ALLOW ALL ORIGINS
+    // PRIORITY: Check for wildcard CORS setting first - ALLOW ALL ORIGINS
     if (process.env.ALLOWED_ORIGINS === '*' || process.env.CLIENT_URL === '*') {
       console.log('✅ CORS: Wildcard access enabled - allowing all origins');
       return callback(null, true);
@@ -81,14 +80,8 @@ app.use(cors({
     if (process.env.NODE_ENV === 'development' && origin === config.clientUrl) {
       return callback(null, true);
     }
-    
-    // In development, be more permissive
+      // In development, be more permissive
     if (process.env.NODE_ENV === 'development') {
-      return callback(null, true);
-    }
-      // TEMPORARY: Allow all origins in production for initial deployment
-    if (process.env.ALLOWED_ORIGINS === '*') {
-      console.log('✅ CORS: Final wildcard check - allowing all origins');
       return callback(null, true);
     }
     
