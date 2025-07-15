@@ -144,7 +144,6 @@ show_usage() {
     echo "  sudo $0 diagnose phimgg.com         # Full diagnostic report"
     echo ""
 }
-}
 
 # =============================================================================
 # DNS FUNCTIONS
