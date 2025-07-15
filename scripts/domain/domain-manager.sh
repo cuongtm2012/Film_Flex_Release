@@ -252,7 +252,6 @@ check_dns_propagation() {
         fi
     done
 }
-}
 
 provide_dns_fix_instructions() {
     print_section "DNS Configuration Instructions"
@@ -1080,7 +1079,6 @@ run_complete_setup() {
     fi
     
     log_message "Complete setup finished for $DOMAIN - SSL: $SSL_ENABLED"
-}
 }
 
 run_diagnostics() {
