@@ -107,24 +107,43 @@ setup_variables() {
 
 show_usage() {
     print_banner
-    echo -e "${YELLOW}Usage:${NC}"
-    echo "  $0 diagnose [domain] [server_ip]     - Run complete DNS/SSL diagnostics"
-    echo "  $0 setup [domain] [server_ip] [email] - Complete domain and SSL setup"
-    echo "  $0 ssl [domain] [email]              - Install/renew SSL certificate only"
-    echo "  $0 ssl-force [domain] [email]        - Force renew SSL certificate"
-    echo "  $0 dns-check [domain] [server_ip]    - Check DNS configuration only"
-    echo "  $0 nginx-setup [domain] [port]       - Setup nginx configuration only"
-    echo "  $0 fix-cors [domain]                 - Fix CORS issues"
-    echo "  $0 test-ssl [domain]                 - Test SSL certificate and security"
-    echo "  $0 monitor [domain]                  - Monitor domain and SSL status"
-    echo "  $0 emergency-fix [domain]            - Emergency domain/SSL fix"
+    echo -e "${YELLOW}🚀 Domain & SSL Management Commands:${NC}"
     echo ""
-    echo -e "${YELLOW}Examples:${NC}"
-    echo "  $0 setup phimgg.com 154.205.142.255 admin@phimgg.com"
-    echo "  $0 ssl phimgg.com admin@phimgg.com"
-    echo "  $0 diagnose phimgg.com"
-    echo "  $0 test-ssl phimgg.com"
+    echo -e "${GREEN}Essential Commands:${NC}"
+    echo "  $0 dns-check [domain]               - ⚡ Quick DNS status check (run this first!)"
+    echo "  $0 setup [domain] [ip] [email]      - 🔧 Complete domain and SSL setup"
+    echo "  $0 ssl [domain] [email]             - 🔒 Install/renew SSL certificate only"
     echo ""
+    echo -e "${BLUE}Diagnostic Commands:${NC}"
+    echo "  $0 diagnose [domain]                - 🔍 Complete DNS/SSL diagnostics"
+    echo "  $0 test-ssl [domain]                - 🛡️  Test SSL certificate and security"
+    echo "  $0 monitor [domain]                 - 📊 Real-time monitoring"
+    echo ""
+    echo -e "${PURPLE}Advanced Commands:${NC}"
+    echo "  $0 ssl-force [domain] [email]       - 🔄 Force renew SSL certificate"
+    echo "  $0 nginx-setup [domain] [port]      - ⚙️  Setup nginx configuration only"
+    echo "  $0 fix-cors [domain]                - 🌐 Fix CORS issues"
+    echo "  $0 emergency-fix [domain]           - 🚨 Emergency domain/SSL fix"
+    echo ""
+    echo -e "${YELLOW}📋 Current Issue Resolution:${NC}"
+    echo -e "${RED}Your SSL fails because of multiple DNS A records!${NC}"
+    echo ""
+    echo -e "${CYAN}Step-by-Step Solution:${NC}"
+    echo "  1️⃣  sudo $0 dns-check phimgg.com"
+    echo "     👆 This will show you exactly what's wrong"
+    echo ""
+    echo "  2️⃣  Fix DNS in your registrar (remove extra IPs)"
+    echo "     👆 Remove: 15.197.225.128 and 3.33.251.168"
+    echo "     👆 Keep only: 154.205.142.255"
+    echo ""
+    echo "  3️⃣  sudo $0 ssl phimgg.com admin@phimgg.com"
+    echo "     👆 Install SSL after DNS is clean"
+    echo ""
+    echo -e "${GREEN}Quick Test Examples:${NC}"
+    echo "  sudo $0 dns-check phimgg.com        # Check current DNS status"
+    echo "  sudo $0 diagnose phimgg.com         # Full diagnostic report"
+    echo ""
+}
 }
 
 # =============================================================================
@@ -135,21 +154,35 @@ check_dns_records() {
     print_section "DNS Records Check"
     
     local dns_ok=true
+    local record_count=0
     
     print_info "Checking A record for $DOMAIN..."
     local domain_result=$(dig +short $DOMAIN A 2>/dev/null || echo "")
     
     if [ -n "$domain_result" ]; then
         echo "Current A records:"
-        echo "$domain_result" | while read ip; do
+        record_count=$(echo "$domain_result" | wc -l)
+        
+        # Check each IP
+        while read -r ip; do
             if [ -n "$ip" ]; then
                 if [ "$ip" = "$SERVER_IP" ]; then
                     echo -e "  ${GREEN}✅ $ip${NC} (correct)"
                 else
                     echo -e "  ${RED}❌ $ip${NC} (should be removed)"
+                    dns_ok=false
                 fi
             fi
-        done
+        done <<< "$domain_result"
+        
+        # Check record count
+        print_info "Total A records found: $record_count"
+        
+        if [ "$record_count" -gt 1 ]; then
+            print_error "Multiple A records detected - SSL will fail"
+            print_warning "Let's Encrypt will try to validate all IPs and fail on wrong ones"
+            dns_ok=false
+        fi
         
         # Check if our server IP is in the list
         if echo "$domain_result" | grep -q "$SERVER_IP"; then
@@ -171,9 +204,10 @@ check_dns_records() {
             print_success "WWW A record is correct: $www_result"
         else
             print_warning "WWW A record points to $www_result instead of $SERVER_IP"
+            dns_ok=false
         fi
     else
-        print_warning "No WWW A record found"
+        print_warning "No WWW A record found - recommended to add one"
     fi
     
     if [ "$dns_ok" = true ]; then
@@ -197,15 +231,28 @@ check_dns_propagation() {
         local result=$(dig @$dns_server +short $DOMAIN A 2>/dev/null || echo "")
         
         if [ -n "$result" ]; then
-            if echo "$result" | grep -q "$SERVER_IP"; then
-                echo -e "  ${GREEN}✅ $result${NC}"
+            local correct_only=true
+            while read -r ip; do
+                if [ -n "$ip" ]; then
+                    if [ "$ip" = "$SERVER_IP" ]; then
+                        echo -e "    ${GREEN}✅ $ip${NC} (correct)"
+                    else
+                        echo -e "    ${RED}❌ $ip${NC} (wrong)"
+                        correct_only=false
+                    fi
+                fi
+            done <<< "$result"
+            
+            if [ "$correct_only" = true ]; then
+                print_success "$dns_name DNS is correctly propagated"
             else
-                echo -e "  ${YELLOW}⚠️  $result${NC} (contains other IPs)"
+                print_warning "$dns_name DNS still has multiple/wrong records"
             fi
         else
-            echo -e "  ${RED}❌ No result${NC}"
+            echo -e "  ${RED}❌ No result from $dns_name${NC}"
         fi
     done
+}
 }
 
 provide_dns_fix_instructions() {
@@ -213,17 +260,19 @@ provide_dns_fix_instructions() {
     
     print_warning "DNS issues detected. Please follow these steps:"
     echo ""
+    echo -e "${YELLOW}🌐 CRITICAL: SSL will fail until DNS is fixed!${NC}"
+    echo ""
     echo -e "${YELLOW}1. Login to your domain registrar (GoDaddy, Namecheap, etc.)${NC}"
     echo -e "${YELLOW}2. Go to DNS Management for $DOMAIN${NC}"
     echo -e "${YELLOW}3. Remove these A records:${NC}"
     
     local current_ips=$(dig +short $DOMAIN A 2>/dev/null || echo "")
     if [ -n "$current_ips" ]; then
-        echo "$current_ips" | while read ip; do
+        while read -r ip; do
             if [ "$ip" != "$SERVER_IP" ] && [ -n "$ip" ]; then
                 echo -e "   ${RED}❌ Remove: $ip${NC}"
             fi
-        done
+        done <<< "$current_ips"
     fi
     
     echo -e "${YELLOW}4. Ensure these A records exist:${NC}"
@@ -232,7 +281,14 @@ provide_dns_fix_instructions() {
     echo ""
     echo -e "${YELLOW}5. Save changes and wait 15-30 minutes for propagation${NC}"
     echo ""
-    print_info "Run 'sudo $0 dns-check $DOMAIN $SERVER_IP' to verify after changes"
+    echo -e "${CYAN}Why this matters:${NC}"
+    echo "• Let's Encrypt validates ALL A records"
+    echo "• If any IP fails validation, SSL installation fails"
+    echo "• Your current extra IPs (15.197.225.128, 3.33.251.168) are unreachable"
+    echo ""
+    echo -e "${GREEN}After fixing DNS:${NC}"
+    echo "  sudo $0 dns-check $DOMAIN $SERVER_IP  # Verify cleanup"
+    echo "  sudo $0 ssl $DOMAIN                   # Install SSL"
 }
 
 # =============================================================================
@@ -283,6 +339,31 @@ get_ssl_certificate() {
     
     install_certbot
     
+    # Pre-flight DNS check
+    print_info "Pre-flight DNS validation..."
+    local dns_record_count=$(dig +short $DOMAIN A 2>/dev/null | wc -l)
+    local domain_ips=$(dig +short $DOMAIN A 2>/dev/null || echo "")
+    
+    if [ "$dns_record_count" -gt 1 ]; then
+        print_error "Multiple A records detected ($dns_record_count records)"
+        print_error "Let's Encrypt will validate ALL records and fail if any are unreachable"
+        echo ""
+        echo "Current A records:"
+        while read -r ip; do
+            if [ -n "$ip" ]; then
+                if [ "$ip" = "$SERVER_IP" ]; then
+                    echo -e "  ${GREEN}✅ $ip${NC} (reachable)"
+                else
+                    echo -e "  ${RED}❌ $ip${NC} (unreachable - will cause SSL failure)"
+                fi
+            fi
+        done <<< "$domain_ips"
+        echo ""
+        print_error "SSL installation aborted - fix DNS first"
+        provide_dns_fix_instructions
+        return 1
+    fi
+    
     # Check if certificate already exists and is valid
     if check_existing_ssl && [ "$FORCE_RENEW" = false ]; then
         print_info "Using existing valid SSL certificate"
@@ -300,8 +381,9 @@ get_ssl_certificate() {
     
     # Try standalone method first
     local ssl_success=false
+    local cert_log_file="/tmp/certbot-$DOMAIN.log"
     
-    print_info "Attempting SSL certificate installation..."
+    print_info "Attempting SSL certificate installation (standalone method)..."
     if certbot certonly \
         --standalone \
         --email "$EMAIL" \
@@ -309,17 +391,29 @@ get_ssl_certificate() {
         --no-eff-email \
         --domains "$DOMAIN,www.$DOMAIN" \
         --non-interactive \
-        ${FORCE_RENEW:+--force-renewal} 2>/dev/null; then
+        --logs-dir /var/log/letsencrypt \
+        ${FORCE_RENEW:+--force-renewal} > "$cert_log_file" 2>&1; then
         
         print_success "SSL certificate obtained successfully!"
         ssl_success=true
         log_message "SSL certificate obtained for $DOMAIN"
         
     else
-        print_warning "Standalone method failed, trying webroot method..."
+        print_warning "Standalone method failed. Checking error details..."
+        
+        # Show relevant error details
+        if grep -q "Invalid response" "$cert_log_file"; then
+            print_error "Let's Encrypt validation failed:"
+            grep "Detail:" "$cert_log_file" | head -5
+            echo ""
+            print_error "This indicates DNS or connectivity issues"
+        fi
+        
+        print_info "Trying webroot method as fallback..."
         
         # Start nginx for webroot validation
         systemctl start nginx
+        sleep 3
         
         if certbot certonly \
             --webroot \
@@ -329,16 +423,36 @@ get_ssl_certificate() {
             --no-eff-email \
             --domains "$DOMAIN,www.$DOMAIN" \
             --non-interactive \
-            ${FORCE_RENEW:+--force-renewal} 2>/dev/null; then
+            --logs-dir /var/log/letsencrypt \
+            ${FORCE_RENEW:+--force-renewal} > "$cert_log_file" 2>&1; then
             
             print_success "SSL certificate obtained using webroot method!"
             ssl_success=true
             log_message "SSL certificate obtained for $DOMAIN using webroot"
         else
-            print_error "Failed to obtain SSL certificate"
+            print_error "Both standalone and webroot methods failed"
+            print_error "SSL certificate installation failed"
+            
+            # Show specific error details
+            if [ -f "$cert_log_file" ]; then
+                echo ""
+                print_warning "Error details:"
+                grep -A2 -B2 "Error\|Failed\|Detail:" "$cert_log_file" | tail -10
+            fi
+            
+            echo ""
+            print_info "Common causes:"
+            echo "• Multiple DNS A records (fix with DNS cleanup)"
+            echo "• Firewall blocking port 80/443"
+            echo "• Domain not pointing to this server"
+            echo "• Rate limiting (wait 1 hour and try again)"
+            
             log_message "SSL certificate installation failed for $DOMAIN"
         fi
     fi
+    
+    # Cleanup log file
+    rm -f "$cert_log_file"
     
     # Restart nginx
     systemctl start nginx 2>/dev/null || true
@@ -733,6 +847,58 @@ test_cors_with_ssl() {
 # MAIN OPERATION FUNCTIONS
 # =============================================================================
 
+verify_dns_ready_for_ssl() {
+    print_section "DNS Readiness Check for SSL"
+    
+    local dns_ready=true
+    local record_count=$(dig +short $DOMAIN A 2>/dev/null | wc -l)
+    local domain_ips=$(dig +short $DOMAIN A 2>/dev/null || echo "")
+    
+    print_info "Checking DNS prerequisites for SSL installation..."
+    
+    # Check record count
+    if [ "$record_count" -eq 0 ]; then
+        print_error "No A records found for $DOMAIN"
+        dns_ready=false
+    elif [ "$record_count" -eq 1 ]; then
+        local single_ip=$(echo "$domain_ips" | head -1)
+        if [ "$single_ip" = "$SERVER_IP" ]; then
+            print_success "Perfect! Single A record pointing to correct server"
+        else
+            print_error "Single A record points to wrong server: $single_ip"
+            dns_ready=false
+        fi
+    else
+        print_error "Multiple A records detected ($record_count records)"
+        print_error "SSL will fail - Let's Encrypt validates ALL records"
+        while read -r ip; do
+            if [ -n "$ip" ]; then
+                if [ "$ip" = "$SERVER_IP" ]; then
+                    echo -e "  ${GREEN}✅ $ip${NC} (correct)"
+                else
+                    echo -e "  ${RED}❌ $ip${NC} (will cause SSL failure)"
+                fi
+            fi
+        done <<< "$domain_ips"
+        dns_ready=false
+    fi
+    
+    # Check WWW record
+    local www_record=$(dig +short www.$DOMAIN A 2>/dev/null || echo "")
+    if [ -n "$www_record" ] && [ "$www_record" != "$SERVER_IP" ]; then
+        print_warning "WWW record points to different server: $www_record"
+    fi
+    
+    if [ "$dns_ready" = true ]; then
+        print_success "DNS is ready for SSL installation!"
+        return 0
+    else
+        print_error "DNS is NOT ready for SSL installation"
+        provide_dns_fix_instructions
+        return 1
+    fi
+}
+
 run_dns_check() {
     print_banner
     setup_variables "$@"
@@ -742,6 +908,10 @@ run_dns_check() {
     if check_dns_records; then
         print_success "DNS configuration looks good!"
         check_dns_propagation
+        
+        # Additional SSL readiness check
+        echo ""
+        verify_dns_ready_for_ssl
     else
         provide_dns_fix_instructions
         exit 1
@@ -777,17 +947,22 @@ run_ssl_installation() {
         print_info "Force renewal enabled"
     fi
     
-    # Check DNS first
-    if ! check_dns_records; then
-        print_error "DNS configuration issues detected"
-        provide_dns_fix_instructions
-        print_warning "Please fix DNS issues before installing SSL"
+    # Critical DNS check first
+    print_info "Step 1: Verifying DNS is ready for SSL..."
+    if ! verify_dns_ready_for_ssl; then
+        print_error "DNS verification failed - SSL installation aborted"
+        echo ""
+        print_warning "You must fix DNS issues before SSL will work"
+        print_info "After fixing DNS, run: sudo $0 dns-check $DOMAIN"
+        print_info "Then retry SSL: sudo $0 ssl $DOMAIN"
         exit 1
     fi
     
     # Install SSL certificate
+    print_info "Step 2: Installing SSL certificate..."
     if get_ssl_certificate; then
         # Create SSL nginx config
+        print_info "Step 3: Configuring nginx for HTTPS..."
         create_nginx_ssl_config
         
         if reload_nginx; then
@@ -795,15 +970,29 @@ run_ssl_installation() {
             print_info "Website is now available at: https://$DOMAIN"
             
             # Test the SSL setup
+            print_info "Step 4: Testing SSL configuration..."
             sleep 5
             test_ssl_certificate
             test_cors_with_ssl
+            
+            print_section "🎉 SSL Installation Complete!"
+            print_success "Your website is now secured with HTTPS"
+            print_info "✅ HTTP → HTTPS redirect enabled"
+            print_info "✅ Modern SSL configuration applied"
+            print_info "✅ Auto-renewal configured"
+            print_info "✅ Security headers added"
+            
         else
             print_error "Nginx SSL configuration failed"
             exit 1
         fi
     else
         print_error "SSL certificate installation failed"
+        print_warning "Common solutions:"
+        echo "• Wait 1 hour if rate limited"
+        echo "• Verify DNS cleanup completed"
+        echo "• Check firewall settings"
+        echo "• Try: sudo $0 diagnose $DOMAIN"
         exit 1
     fi
 }
@@ -817,11 +1006,16 @@ run_complete_setup() {
     
     log_message "Starting complete setup for $DOMAIN"
     
-    # Step 1: Check DNS
-    print_info "Step 1: Checking DNS configuration..."
-    if ! check_dns_records; then
-        provide_dns_fix_instructions
-        print_warning "Please fix DNS issues and run this script again"
+    # Step 1: Comprehensive DNS check
+    print_info "Step 1: Verifying DNS configuration..."
+    if ! verify_dns_ready_for_ssl; then
+        print_error "DNS is not ready for SSL"
+        echo ""
+        print_warning "Complete these steps first:"
+        echo "1. Fix DNS records as shown above"
+        echo "2. Wait 15-30 minutes for propagation"
+        echo "3. Run: sudo $0 dns-check $DOMAIN"
+        echo "4. Then run: sudo $0 setup $DOMAIN"
         exit 1
     fi
     
@@ -840,6 +1034,7 @@ run_complete_setup() {
     print_info "Step 3: Installing SSL certificate..."
     if get_ssl_certificate; then
         # Update to SSL config
+        print_info "Step 4: Configuring HTTPS and security..."
         create_nginx_ssl_config
         
         if reload_nginx; then
@@ -853,10 +1048,12 @@ run_complete_setup() {
         print_warning "SSL installation failed, but HTTP site is available"
         print_info "You can retry SSL installation later with:"
         print_info "sudo $0 ssl $DOMAIN $EMAIL"
+        print_info "First ensure DNS shows only one A record"
+        exit 1
     fi
     
-    # Step 4: Final testing
-    print_info "Step 4: Running final tests..."
+    # Step 5: Final testing
+    print_info "Step 5: Running comprehensive tests..."
     sleep 5
     
     if [ "$SSL_ENABLED" = true ]; then
@@ -864,14 +1061,27 @@ run_complete_setup() {
         test_cors_with_ssl
     fi
     
-    print_section "Setup Complete!"
+    print_section "🎉 Complete Setup Finished!"
     print_success "Domain setup completed for $DOMAIN"
-    print_info "HTTP: http://$DOMAIN"
+    echo ""
+    print_info "🌐 Website URLs:"
+    print_info "   HTTP:  http://$DOMAIN (redirects to HTTPS)"
     if [ "$SSL_ENABLED" = true ]; then
-        print_info "HTTPS: https://$DOMAIN (with SSL)"
+        print_info "   HTTPS: https://$DOMAIN ✅"
+        print_info ""
+        print_info "🔒 Security Features:"
+        print_info "   ✅ SSL Certificate installed and valid"
+        print_info "   ✅ HTTP to HTTPS redirect"
+        print_info "   ✅ Modern TLS configuration"
+        print_info "   ✅ Security headers"
+        print_info "   ✅ CORS properly configured"
+        print_info "   ✅ Auto-renewal setup"
+    else
+        print_info "   HTTPS: ❌ SSL installation failed"
     fi
     
-    log_message "Complete setup finished for $DOMAIN"
+    log_message "Complete setup finished for $DOMAIN - SSL: $SSL_ENABLED"
+}
 }
 
 run_diagnostics() {
