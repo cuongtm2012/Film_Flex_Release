@@ -218,9 +218,11 @@ install_ssl_certificate() {
         
         # Start nginx again
         systemctl start nginx
-        
-        # Update nginx configuration to use the new certificate
+          # Update nginx configuration to use the new certificate
         update_nginx_ssl_config
+        
+        # Update nginx static file paths for correct deployment
+        update_nginx_static_paths
         
         # Test nginx configuration
         if nginx -t; then
@@ -260,6 +262,56 @@ update_nginx_ssl_config() {
         success "Nginx SSL configuration updated"
     else
         warning "Nginx configuration file not found: $nginx_conf"
+    fi
+}
+
+# Function to update nginx configuration with correct static file paths
+update_nginx_static_paths() {
+    log "Updating nginx configuration with correct static file paths..."
+    
+    local nginx_conf="/etc/nginx/sites-available/$PRODUCTION_DOMAIN"
+    local source_nginx_conf="$SOURCE_DIR/nginx/$PRODUCTION_DOMAIN.conf"
+    
+    # Copy the corrected nginx configuration from source
+    if [ -f "$source_nginx_conf" ]; then
+        log "Copying updated nginx configuration from source..."
+        cp "$source_nginx_conf" "$nginx_conf"
+        
+        # Test nginx configuration
+        if nginx -t 2>/dev/null; then
+            success "Nginx configuration updated successfully"
+            systemctl reload nginx
+            success "Nginx reloaded with updated configuration"
+        else
+            warning "Nginx configuration test failed, keeping existing config"
+            return 1
+        fi
+    else
+        # Manual path updates if source config not available
+        log "Manually updating nginx static file paths..."
+        
+        if [ -f "$nginx_conf" ]; then
+            # Create backup
+            cp "$nginx_conf" "$nginx_conf.backup.$(date +%s)"
+            
+            # Update root paths for static files
+            sed -i 's|root /var/www/filmflex/dist;|root /var/www/filmflex/dist/public;|g' "$nginx_conf"
+            sed -i 's|alias /var/www/filmflex/client/dist/;|alias /var/www/filmflex/dist/public/;|g' "$nginx_conf"
+            
+            # Test configuration
+            if nginx -t 2>/dev/null; then
+                success "Nginx static paths updated successfully"
+                systemctl reload nginx
+                success "Nginx reloaded"
+            else
+                warning "Nginx configuration test failed, restoring backup"
+                cp "$nginx_conf.backup.$(date +%s)" "$nginx_conf"
+                return 1
+            fi
+        else
+            warning "Nginx configuration file not found: $nginx_conf"
+            return 1
+        fi
     fi
 }
 
@@ -1707,11 +1759,11 @@ app.get('/api/db-test', async (req, res) => {
 });
 
 // Static files - serve the client build
-app.use(express.static(path.join(__dirname, '../client/dist')));
+app.use(express.static(path.join(__dirname, '../dist/public')));
 
 // All other GET requests not handled before will return our React app
 app.get('*', (req, res) => {
-  res.sendFile(path.resolve(__dirname, '../client/dist/index.html'));
+  res.sendFile(path.resolve(__dirname, '../dist/public/index.html'));
 });
 
 // Start server
@@ -1756,15 +1808,47 @@ fi
 # 8. Copy client
 if [ -d "$SOURCE_DIR/client/dist" ]; then
   log "${BLUE}8. Copying client dist files...${NC}"
-  cp -r "$SOURCE_DIR/client/dist"/* "$DEPLOY_DIR/client/dist/" || warning "Failed to copy client files"
+  mkdir -p "$DEPLOY_DIR/dist/public"
+  cp -r "$SOURCE_DIR/client/dist"/* "$DEPLOY_DIR/dist/public/" || warning "Failed to copy client files"
 else
   warning "Client dist directory not found at $SOURCE_DIR/client/dist"
   # Try to find it elsewhere
   if [ -d "$SOURCE_DIR/dist" ]; then
     log "Found client files at $SOURCE_DIR/dist, copying..."
-    cp -r "$SOURCE_DIR/dist"/* "$DEPLOY_DIR/client/dist/" || warning "Failed to copy client files from alternate location"
+    mkdir -p "$DEPLOY_DIR/dist/public"
+    cp -r "$SOURCE_DIR/dist"/* "$DEPLOY_DIR/dist/public/" || warning "Failed to copy client files from alternate location"
   fi
 fi
+
+# 8.1. Validate client deployment
+log "${BLUE}8.1. Validating client file deployment...${NC}"
+if [ -f "$DEPLOY_DIR/dist/public/index.html" ]; then
+  success "✅ index.html found in correct location"
+else
+  error "❌ index.html not found at $DEPLOY_DIR/dist/public/index.html"
+fi
+
+if [ -d "$DEPLOY_DIR/dist/public/assets" ]; then
+  ASSET_COUNT=$(ls -1 "$DEPLOY_DIR/dist/public/assets" | wc -l)
+  if [ "$ASSET_COUNT" -gt 0 ]; then
+    success "✅ Assets directory found with $ASSET_COUNT files"
+    log "   Asset files: $(ls -1 "$DEPLOY_DIR/dist/public/assets" | head -3 | tr '\n' ' ')..."
+  else
+    warning "⚠️  Assets directory is empty"
+  fi
+else
+  error "❌ Assets directory not found at $DEPLOY_DIR/dist/public/assets"
+fi
+
+# Check for critical static files
+STATIC_FILES=("favicon.ico" "manifest.json" "sw.js")
+for file in "${STATIC_FILES[@]}"; do
+  if [ -f "$DEPLOY_DIR/dist/public/$file" ]; then
+    success "✅ $file deployed correctly"
+  else
+    warning "⚠️  $file missing from deployment"
+  fi
+done
 
 # 9. Set up production environment variables with correct password
 log "${BLUE}9. Setting up production environment variables...${NC}"
@@ -2502,6 +2586,40 @@ log "  Manual server start: cd $DEPLOY_DIR && NODE_ENV=production DATABASE_URL='
 # ⚠️  DNS cleanup required for SSL (see DNS section above)
 # ✅ Automatic SSL monitoring installed
 # =====================================================
+
+# Final validation: Test static file serving
+log ""
+log "${BLUE}🔍 FINAL VALIDATION: Testing static file serving...${NC}"
+log "=================================================="
+
+# Test if nginx is serving static files correctly
+if [ -f "/var/www/filmflex/dist/public/index.html" ]; then
+    success "✅ Static files are deployed to correct location"
+    
+    # Test nginx configuration
+    if nginx -t 2>/dev/null; then
+        success "✅ Nginx configuration is valid"
+        
+        # Test if nginx is running
+        if systemctl is-active --quiet nginx; then
+            success "✅ Nginx is running"
+            
+            # Quick test of static file serving
+            local test_response=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost/favicon.ico" 2>/dev/null || echo "000")
+            if [ "$test_response" = "200" ]; then
+                success "✅ Static files are being served correctly"
+            else
+                warning "⚠️  Static file serving test returned HTTP $test_response"
+            fi
+        else
+            warning "⚠️  Nginx is not running"
+        fi
+    else
+        warning "⚠️  Nginx configuration has errors"
+    fi
+else
+    error "❌ Static files not found at expected location"
+fi
 
 log ""
 log "${BLUE}🎉 FILMFLEX DEPLOYMENT COMPLETED SUCCESSFULLY! 🎉${NC}"
