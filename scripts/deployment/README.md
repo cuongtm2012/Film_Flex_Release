@@ -1,28 +1,27 @@
-# FilmFlex Deployment Scripts v3.1
+# FilmFlex Deployment Scripts - Cleaned & Optimized
 
-This folder contains deployment and maintenance scripts for the FilmFlex application on the phimgg.com production environment (154.205.142.255).
+This folder contains the essential deployment and maintenance scripts for the FilmFlex application on the phimgg.com production environment (154.205.142.255).
 
-## 🚀 **Production-Ready Scripts (Updated for phimgg.com)**
+## 🚀 **Essential Scripts (Production-Ready)**
 
-| Script | Version | Status | Description |
-|--------|---------|--------|-------------|
-| `quick-redeploy.sh` | v3.0 ✅ | **PRIMARY** | Fast deployment with ES module support and production config |
-| `final-deploy.sh` | v3.0 ✅ | **COMPLETE** | Full deployment with database setup and comprehensive fixes |
-| `deploy-branch.sh` | v1.0 ✅ | **BRANCH** | Branch-specific deployment with validation |
-| `production-deploy.sh` | v3.1 ✅ | **ROBUST** | Enhanced production deployment with rollback capability |
-| `simple-deploy.sh` | v3.0 ✅ | **LIGHTWEIGHT** | Simple, fast deployment for quick updates |
-| `quick-update.sh` | v2.0 ✅ | **QUICK** | Fast code updates with ES module support |
-| `health-check.sh` | v2.0 ✅ | **MONITOR** | Production health monitoring for phimgg.com |
-| `rollback.sh` | v1.0 ✅ | **RECOVERY** | Emergency rollback capability |
-| `setup.sh` | v1.0 ✅ | **SETUP** | Initial environment setup |
-| `diagnose.sh` | v1.0 ⚠️ | **DEBUG** | Troubleshooting (needs phimgg.com update) |
+| Script | Status | Description |
+|--------|--------|-------------|
+| `final-deploy.sh` | ✅ **PRIMARY** | Complete deployment with database setup, SSL, and comprehensive fixes |
+| `health-check.sh` | ✅ **MONITOR** | Production health monitoring for phimgg.com |
+| `rollback.sh` | ✅ **RECOVERY** | Emergency rollback capability |
+| `setup.sh` | ✅ **SETUP** | Initial environment setup |
+| `filmflex-server.cjs` | ✅ **FALLBACK** | Fallback server configuration |
 
-## 🚨 **Legacy Scripts (Consider Deprecation)**
+## 🗑️ **Removed Scripts (Redundant)**
 
-| Script | Status | Reason | Recommendation |
-|--------|--------|--------|----------------|
-| `deploy.sh` | 🔴 LEGACY | Overly complex, not phimgg.com configured | Use `production-deploy.sh` instead |
-| `fix-production.sh` | 🔴 OBSOLETE | TypeScript-focused, ES modules handle this | May be removed |
+The following scripts have been removed as their functionality is fully covered by `final-deploy.sh`:
+- ❌ `deploy.sh` - Overly complex legacy script
+- ❌ `production-deploy.sh` - Redundant with final-deploy.sh
+- ❌ `simple-deploy.sh` - Basic functionality covered
+- ❌ `quick-redeploy.sh` - Quick deployment covered
+- ❌ `quick-update.sh` - Update functionality covered
+- ❌ `fix-production.sh` - Fix functionality integrated
+- ❌ `quick-cors-fix.sh` - CORS fixes integrated
 
 ## 🌐 **Production Environment - phimgg.com**
 
@@ -36,19 +35,83 @@ This folder contains deployment and maintenance scripts for the FilmFlex applica
 - **Process Manager:** PM2 with cluster mode
 - **Environment:** Production-optimized CORS and variables
 
-## Usage on Production Server
+## 🎯 **Usage Guide**
 
-### Quick Code Updates (Recommended for Code Changes)
+### Full Production Deployment (Recommended)
 
 ```bash
-# Deploy main branch (production)
+# Complete deployment with all features
 cd ~/Film_Flex_Release
-sudo ./scripts/deployment/quick-redeploy.sh main
+sudo ./scripts/deployment/final-deploy.sh
 
-# Deploy specific feature branch
-sudo ./scripts/deployment/quick-redeploy.sh feature/new-ui
+# Features included:
+# ✅ Database schema setup and migrations
+# ✅ SSL certificate management
+# ✅ Static file deployment fixes
+# ✅ CORS configuration
+# ✅ PM2 process management
+# ✅ Health checks and monitoring
+# ✅ Nginx configuration updates
+```
 
-# Deploy current branch without switching
+### Health Monitoring
+
+```bash
+# Check application health
+./scripts/deployment/health-check.sh
+
+# Monitor with detailed output
+./scripts/deployment/health-check.sh --verbose
+```
+
+### Emergency Recovery
+
+```bash
+# Rollback to previous deployment
+./scripts/deployment/rollback.sh
+
+# Rollback with specific backup
+./scripts/deployment/rollback.sh --backup=backup_20250716_143000
+```
+
+## 🔧 **Key Improvements in final-deploy.sh**
+
+1. **Static File Fix**: Correctly deploys client files to `/var/www/filmflex/dist/public/`
+2. **Nginx Configuration**: Automatic nginx config updates with proper static paths
+3. **SSL Management**: Automated SSL certificate handling
+4. **Database Setup**: Complete PostgreSQL schema and RBAC setup
+5. **Health Validation**: Comprehensive health checks and file validation
+6. **Error Recovery**: Built-in rollback and error handling
+7. **CORS Optimization**: Production-ready CORS configuration
+
+## 📊 **Post-Deployment Verification**
+
+After running `final-deploy.sh`, verify:
+
+- ✅ **HTTPS Access**: https://phimgg.com loads correctly
+- ✅ **Static Assets**: CSS, JS, images load without 404 errors
+- ✅ **API Endpoints**: /api/health returns 200 OK
+- ✅ **Database**: Admin login works (admin/Cuongtm2012$)
+- ✅ **PM2 Status**: `pm2 status` shows running processes
+- ✅ **Nginx Logs**: No errors in `/var/log/nginx/phimgg.com.error.log`
+
+## 🚨 **Troubleshooting**
+
+If deployment fails:
+
+1. **Check Logs**: `/var/log/filmflex/`
+2. **PM2 Status**: `pm2 logs filmflex`
+3. **Nginx Status**: `nginx -t && systemctl status nginx`
+4. **Database**: Test connection with provided credentials
+5. **Rollback**: Use `./rollback.sh` if needed
+
+## 💡 **Best Practices**
+
+- Always run `final-deploy.sh` for production deployments
+- Use `health-check.sh` for monitoring
+- Keep `rollback.sh` ready for emergencies
+- Monitor logs after deployment
+- Test SSL certificates before deployment
 sudo ./scripts/deployment/quick-redeploy.sh --no-branch
 ```
 
