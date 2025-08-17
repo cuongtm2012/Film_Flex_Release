@@ -1,22 +1,82 @@
 version: '3.8'
 
 services:
+  # PostgreSQL Database
+  postgres:
+    image: cuongtm2012/filmflex-postgres:latest
+    container_name: filmflex-postgres
+    environment:
+      POSTGRES_DB: filmflex
+      POSTGRES_USER: filmflex
+      POSTGRES_PASSWORD: filmflex2024
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - filmflex-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U filmflex -d filmflex"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # FilmFlex Application
   app:
+    image: cuongtm2012/filmflex-app:latest
+    container_name: filmflex-app
     environment:
       NODE_ENV: production
-      DOMAIN: phimgg.com
-      SERVER_IP: 154.205.142.255
-      ALLOWED_ORIGINS: "https://phimgg.com,https://www.phimgg.com"
-      CLIENT_URL: "https://phimgg.com"
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.filmflex.rule=Host(`phimgg.com`)"
-      - "traefik.http.routers.filmflex.tls=true"
-      - "traefik.http.routers.filmflex.tls.certresolver=letsencrypt"
-
-  nginx:
-    profiles:
-      - production
+      PORT: 5000
+      DATABASE_URL: postgresql://filmflex:filmflex2024@postgres:5432/filmflex
+      SESSION_SECRET: ${SESSION_SECRET:-filmflex_production_secret_2024}
+      ALLOWED_ORIGINS: "*"
+      CLIENT_URL: "*"
+      DOMAIN: ${DOMAIN:-phimgg.com}
+      SERVER_IP: ${SERVER_IP:-localhost}
+    ports:
+      - "5000:5000"
+    networks:
+      - filmflex-network
+    depends_on:
+      postgres:
+        condition: service_healthy
     volumes:
-      - /etc/letsencrypt:/etc/letsencrypt:ro
-      - ./nginx/ssl.conf:/etc/nginx/conf.d/ssl.conf:ro
+      - app_logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:5000/api/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: filmflex-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/phimgg.com.conf:/etc/nginx/conf.d/default.conf:ro
+      - nginx_logs:/var/log/nginx
+    networks:
+      - filmflex-network
+    depends_on:
+      - app
+    restart: unless-stopped
+
+networks:
+  filmflex-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+  app_logs:
+    driver: local
+  nginx_logs:
+    driver: local
