@@ -24,7 +24,7 @@ services:
 
   # FilmFlex Application
   app:
-    image: cuongtm2012/filmflex-app:latest
+    image: cuongtm2012/filmflex:latest
     platform: linux/amd64
     container_name: filmflex-app
     environment:
