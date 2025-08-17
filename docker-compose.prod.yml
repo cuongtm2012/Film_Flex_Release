@@ -59,8 +59,8 @@ services:
     platform: linux/amd64
     container_name: filmflex-nginx
     ports:
-      - "80:80"
-      - "443:443"
+      - "8080:80"
+      - "8443:443"
     volumes:
       - ./nginx/phimgg.com.conf:/etc/nginx/conf.d/default.conf:ro
       - nginx_logs:/var/log/nginx
