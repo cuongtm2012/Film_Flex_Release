@@ -1,9 +1,7 @@
-version: '3.8'
-
 services:
-  # PostgreSQL Database
+  # PostgreSQL Database - Use standard image for compatibility
   postgres:
-    image: cuongtm2012/filmflex-postgres:latest
+    image: postgres:15-alpine
     platform: linux/amd64
     container_name: filmflex-postgres
     environment:
