@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  app:
+    environment:
+      NODE_ENV: production
+      DOMAIN: phimgg.com
+      SERVER_IP: 154.205.142.255
+      ALLOWED_ORIGINS: "https://phimgg.com,https://www.phimgg.com"
+      CLIENT_URL: "https://phimgg.com"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.filmflex.rule=Host(`phimgg.com`)"
+      - "traefik.http.routers.filmflex.tls=true"
+      - "traefik.http.routers.filmflex.tls.certresolver=letsencrypt"
+
+  nginx:
+    profiles:
+      - production
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - ./nginx/ssl.conf:/etc/nginx/conf.d/ssl.conf:ro

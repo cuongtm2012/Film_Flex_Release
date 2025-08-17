@@ -1,0 +1,71 @@
+# Dependencies
+node_modules
+npm-debug.log*
+
+# Build outputs (will be built inside container) - but allow dist/public for pre-built React
+dist
+!dist/public
+
+# Development files
+.env
+.env.local
+.env.development
+.env.production
+
+# Logs
+logs
+*.log
+log
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage
+*.lcov
+
+# nyc test coverage
+.nyc_output
+
+# Dependency directories
+.npm
+.yarn-cache
+
+# Optional npm cache directory
+.npm
+
+# Git
+.git
+.gitignore
+
+# IDE files
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Testing
+cypress/videos
+cypress/screenshots
+tests/coverage
+
+# Archive and temp files
+archive
+temp-files
+
+# Docker files (don't need these in the container)
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Documentation
+docs
+*.md
+!README.md

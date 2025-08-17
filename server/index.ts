@@ -2,6 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import http from 'http';
 import cors from 'cors';
 import path from 'path';
+import fs from 'fs';
 import { registerRoutes } from "./routes.js";
 import { log } from "./utils.js";
 import { config } from './config.js';
@@ -174,44 +175,22 @@ app.use((req, res, next) => {
       const message = err.message || "Internal Server Error";
       console.error(err);
       res.status(status).json({ message });
-    });    // Setup Vite or static serving based on environment
+    });
+
+    // Setup Vite or static serving based on environment
     if (process.env.NODE_ENV === 'development') {
       // Only import Vite functions in development
-      const { setupVite } = await import("./vite.js");
-      await setupVite(app, server);
+      try {
+        const { setupVite } = await import("./vite.js");
+        await setupVite(app, server);
+      } catch (error) {
+        console.warn('Could not load Vite in development mode:', error);
+        // Fallback to static serving even in development
+        setupStaticServing();
+      }
     } else {
       // Production: serve static files
-      const clientDistPath = path.join(process.cwd(), 'client', 'dist');
-      const indexPath = path.join(clientDistPath, 'index.html');
-      
-      // Check if built client files exist
-      if (require('fs').existsSync(clientDistPath)) {
-        log('Serving static files from client/dist');
-        app.use(express.static(clientDistPath));
-        
-        // Catch-all handler for SPA routing
-        app.get('*', (req, res) => {
-          // Skip API routes
-          if (req.path.startsWith('/api/')) {
-            return res.status(404).json({ error: 'API endpoint not found' });
-          }
-          
-          // Serve index.html for all other routes
-          if (require('fs').existsSync(indexPath)) {
-            res.sendFile(indexPath);
-          } else {
-            res.status(404).send('Client application not built. Run npm run build first.');
-          }
-        });
-      } else {
-        log('Warning: Client dist directory not found. Run npm run build to build the client.');
-        app.get('*', (req, res) => {
-          if (req.path.startsWith('/api/')) {
-            return res.status(404).json({ error: 'API endpoint not found' });
-          }
-          res.status(503).send('Client application not available. Please build the application first.');
-        });
-      }
+      setupStaticServing();
     }
 
     // Start server
@@ -223,6 +202,41 @@ app.use((req, res, next) => {
     process.exit(1);
   }
 })();
+
+// Function to setup static file serving (production mode)
+function setupStaticServing() {
+  const clientDistPath = path.join(process.cwd(), 'client', 'dist');
+  const indexPath = path.join(clientDistPath, 'index.html');
+  
+  // Check if built client files exist
+  if (fs.existsSync(clientDistPath)) {
+    log('Serving static files from client/dist');
+    app.use(express.static(clientDistPath));
+    
+    // Catch-all handler for SPA routing
+    app.get('*', (req, res) => {
+      // Skip API routes
+      if (req.path.startsWith('/api/')) {
+        return res.status(404).json({ error: 'API endpoint not found' });
+      }
+      
+      // Serve index.html for all other routes
+      if (fs.existsSync(indexPath)) {
+        res.sendFile(indexPath);
+      } else {
+        res.status(404).send('Client application not built. Run npm run build first.');
+      }
+    });
+  } else {
+    log('Warning: Client dist directory not found. Run npm run build to build the client.');
+    app.get('*', (req, res) => {
+      if (req.path.startsWith('/api/')) {
+        return res.status(404).json({ error: 'API endpoint not found' });
+      }
+      res.status(503).send('Client application not available. Please build the application first.');
+    });
+  }
+}
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
