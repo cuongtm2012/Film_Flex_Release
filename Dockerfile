@@ -1,5 +1,5 @@
 # FilmFlex Dockerfile with React Frontend Build
-FROM --platform=linux/amd64 node:20-alpine AS builder
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
@@ -8,7 +8,11 @@ RUN apk add --no-cache python3 make g++ libc6-compat
 
 # Copy package files and install all dependencies (including devDependencies for build)
 COPY package*.json ./
-RUN npm ci --no-audit --no-fund && npm cache clean --force
+
+# Clean install to avoid rollup issues
+RUN rm -rf node_modules package-lock.json && \
+    npm install --no-audit --no-fund && \
+    npm cache clean --force
 
 # Copy source code
 COPY . .
@@ -24,7 +28,7 @@ RUN ls -la dist/public/ || echo "dist/public directory not found"
 RUN npm run build:server
 
 # Production stage
-FROM --platform=linux/amd64 node:20-alpine AS runtime
+FROM node:20-alpine AS runtime
 
 RUN apk add --no-cache dumb-init
 RUN addgroup -g 1001 -S nodejs && adduser -S filmflex -u 1001

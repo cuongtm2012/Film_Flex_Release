@@ -22,9 +22,9 @@ services:
       retries: 5
     restart: unless-stopped
 
-  # FilmFlex Application
+  # FilmFlex Application - Updated to use Ubuntu 22.04 optimized image
   app:
-    image: cuongtm2012/filmflex:latest
+    image: cuongtm2012/filmflex:ubuntu-22.04
     platform: linux/amd64
     container_name: filmflex-app
     environment:
