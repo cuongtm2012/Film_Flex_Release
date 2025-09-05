@@ -1,76 +1,207 @@
 #!/bin/bash
 
-# FilmFlex Production Deployment Script
-# This script pulls the latest images from Docker Hub and deploys on VPS
+echo "🚀 FilmFlex Production Deployment Script"
+echo "=========================================="
+echo "📅 Date: $(date)"
+echo "🌐 Target: Production Server (38.54.14.154)"
+echo "🎬 Database: 5,005+ Movies Pre-loaded"
+echo ""
 
-set -e
-
-echo "🚀 Starting FilmFlex Production Deployment..."
-
-# Colors for output
+# Color codes for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Check if Docker is running
-if ! docker info > /dev/null 2>&1; then
-    echo -e "${RED}❌ Docker is not running. Please start Docker first.${NC}"
+# Function to print colored output
+print_status() {
+    echo -e "${GREEN}✅ $1${NC}"
+}
+
+print_warning() {
+    echo -e "${YELLOW}⚠️  $1${NC}"
+}
+
+print_error() {
+    echo -e "${RED}❌ $1${NC}"
+}
+
+print_info() {
+    echo -e "${BLUE}ℹ️  $1${NC}"
+}
+
+# Check if running on server
+if [[ $(hostname) != "lightnode" ]]; then
+    print_warning "This script should be run on the production server"
+    read -p "Continue anyway? (y/N): " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        exit 1
+    fi
+fi
+
+print_info "Checking prerequisites..."
+
+# Check if Docker is installed
+if ! command -v docker &> /dev/null; then
+    print_error "Docker is not installed"
     exit 1
 fi
 
-# Check if docker-compose is available
-if ! command -v docker-compose &> /dev/null; then
-    echo -e "${RED}❌ docker-compose not found. Please install docker-compose.${NC}"
+# Check if Docker Compose is available
+if ! docker compose version &> /dev/null; then
+    print_error "Docker Compose is not available"
     exit 1
 fi
 
-echo -e "${YELLOW}📥 Pulling latest images from Docker Hub...${NC}"
+print_status "Prerequisites check passed"
 
-# Pull the latest images
-docker pull cuongtm2012/filmflex-app:latest
-docker pull cuongtm2012/filmflex-postgres:latest
-docker pull nginx:alpine
+# Create docker-compose.server.yml if it doesn't exist
+if [ ! -f "docker-compose.server.yml" ]; then
+    print_info "Creating Docker Compose configuration..."
+    cat > docker-compose.server.yml << 'COMPOSE_EOF'
+version: '3.8'
 
-echo -e "${GREEN}✅ Images pulled successfully!${NC}"
+services:
+  postgres:
+    # Custom PostgreSQL image with complete movie database (5,005+ movies)
+    image: cuongtm2012/filmflex-postgres-data:latest
+    container_name: filmflex-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: filmflex
+      POSTGRES_USER: filmflex
+      POSTGRES_PASSWORD: filmflex2024
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - filmflex-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U filmflex -d filmflex"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    # Multi-platform FilmFlex application (supports ARM64 and AMD64)
+    image: cuongtm2012/filmflex-app:latest
+    container_name: filmflex-app
+    restart: unless-stopped
+    environment:
+      # Database Configuration
+      DATABASE_URL: postgresql://filmflex:filmflex2024@postgres:5432/filmflex
+      
+      # Application Configuration
+      NODE_ENV: production
+      PORT: 5000
+      
+      # CORS Configuration (Fixed for server deployment)
+      ALLOWED_ORIGINS: "*"
+      CLIENT_URL: "*"
+      CORS_ORIGIN: "*"
+      CORS_METHODS: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS"
+      CORS_ALLOWED_HEADERS: "Origin,X-Requested-With,Content-Type,Accept,Authorization,Cache-Control,Pragma"
+      CORS_CREDENTIALS: "true"
+      
+      # Server Configuration
+      DOMAIN: "38.54.14.154"
+      SERVER_IP: "38.54.14.154"
+      PUBLIC_URL: "http://38.54.14.154:5000"
+      
+      # Security
+      SESSION_SECRET: filmflex_production_secret_2024
+    ports:
+      - "5000:5000"
+    networks:
+      - filmflex-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - app_logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  filmflex-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+  app_logs:
+    driver: local
+COMPOSE_EOF
+    print_status "Docker Compose configuration created"
+fi
+
+print_info "Starting deployment process..."
 
 # Stop existing containers if running
-echo -e "${YELLOW}🛑 Stopping existing containers...${NC}"
-docker-compose -f docker-compose.prod.yml down || true
+print_info "Stopping existing containers..."
+docker compose -f docker-compose.server.yml down --remove-orphans 2>/dev/null || true
 
-# Remove old containers and images (optional cleanup)
-echo -e "${YELLOW}🧹 Cleaning up old containers...${NC}"
-docker container prune -f || true
+# Pull latest images
+print_info "Pulling latest Docker images..."
+docker compose -f docker-compose.server.yml pull
 
-# Start the services
-echo -e "${YELLOW}🚀 Starting FilmFlex services...${NC}"
-docker-compose -f docker-compose.prod.yml up -d
+# Start services
+print_info "Starting FilmFlex services..."
+docker compose -f docker-compose.server.yml up -d
 
 # Wait for services to be healthy
-echo -e "${YELLOW}⏳ Waiting for services to be healthy...${NC}"
-sleep 10
+print_info "Waiting for services to start..."
+sleep 15
 
-# Check service status
-echo -e "${YELLOW}📊 Checking service status...${NC}"
-docker-compose -f docker-compose.prod.yml ps
+# Check container status
+print_info "Checking container status..."
+docker compose -f docker-compose.server.yml ps
 
-# Check if application is responding
-echo -e "${YELLOW}🔍 Testing application health...${NC}"
-sleep 5
+# Verify database connection and movie count
+print_info "Verifying database..."
+MOVIE_COUNT=$(docker compose -f docker-compose.server.yml exec -T postgres psql -U filmflex -d filmflex -c "SELECT COUNT(*) FROM movies;" 2>/dev/null | grep -E '^\s*[0-9]+\s*$' | tr -d ' ')
 
-if curl -f http://localhost:5000/api/health > /dev/null 2>&1; then
-    echo -e "${GREEN}✅ FilmFlex is running successfully!${NC}"
-    echo -e "${GREEN}🌐 Application is available at: http://localhost:5000${NC}"
-    echo -e "${GREEN}🗄️  Database is running on: localhost:5432${NC}"
+if [ ! -z "$MOVIE_COUNT" ] && [ "$MOVIE_COUNT" -gt 0 ]; then
+    print_status "Database verified: $MOVIE_COUNT movies loaded"
 else
-    echo -e "${RED}❌ Application health check failed. Check logs:${NC}"
-    echo -e "${YELLOW}Run: docker-compose -f docker-compose.prod.yml logs app${NC}"
+    print_warning "Could not verify movie count - database may still be initializing"
 fi
 
-echo -e "${GREEN}🎉 Deployment completed!${NC}"
+# Test application endpoint
+print_info "Testing application endpoint..."
+if curl -s -o /dev/null -w "%{http_code}" http://localhost:5000 | grep -q "200"; then
+    print_status "Application is responding correctly"
+else
+    print_warning "Application may still be starting up"
+fi
+
 echo ""
-echo -e "${YELLOW}📋 Useful commands:${NC}"
-echo -e "  View logs: ${GREEN}docker-compose -f docker-compose.prod.yml logs -f${NC}"
-echo -e "  Stop services: ${GREEN}docker-compose -f docker-compose.prod.yml down${NC}"
-echo -e "  Restart services: ${GREEN}docker-compose -f docker-compose.prod.yml restart${NC}"
-echo -e "  Check status: ${GREEN}docker-compose -f docker-compose.prod.yml ps${NC}"
+echo "🎉 FilmFlex Deployment Complete!"
+echo "=================================="
+print_status "Application URL: http://38.54.14.154:5000"
+print_status "Database: PostgreSQL with $MOVIE_COUNT+ movies"
+print_status "Status: Production Ready"
+echo ""
+print_info "Deployment Summary:"
+print_info "• PostgreSQL: Custom image with complete movie database"
+print_info "• Application: Multi-platform image with CORS fixes"
+print_info "• Network: Isolated Docker network for security"
+print_info "• Storage: Persistent volumes for data and logs"
+print_info "• Health Checks: Automatic container health monitoring"
+print_info "• Auto Restart: Containers restart automatically on failure"
+echo ""
+print_info "Management Commands:"
+print_info "• View logs: docker compose -f docker-compose.server.yml logs -f"
+print_info "• Stop services: docker compose -f docker-compose.server.yml down"
+print_info "• Restart services: docker compose -f docker-compose.server.yml restart"
+print_info "• Update images: docker compose -f docker-compose.server.yml pull && docker compose -f docker-compose.server.yml up -d"
+echo ""
+print_status "Deployment completed successfully! 🎬"

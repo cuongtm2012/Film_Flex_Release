@@ -1,0 +1,15 @@
+FROM postgres:15-alpine
+
+# Set environment variables
+ENV POSTGRES_DB=filmflex
+ENV POSTGRES_USER=filmflex
+ENV POSTGRES_PASSWORD=filmflex2024
+ENV PGDATA=/var/lib/postgresql/data/pgdata
+
+# Copy the database backup to the container
+COPY filmflex_database_backup.sql /docker-entrypoint-initdb.d/
+
+# The postgres image will automatically run any .sql files in /docker-entrypoint-initdb.d/
+# during container initialization, which will restore our database
+
+EXPOSE 5432
