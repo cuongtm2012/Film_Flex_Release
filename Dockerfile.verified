@@ -1,0 +1,34 @@
+# Updated simple Dockerfile with explicit file verification
+FROM node:20-alpine AS runtime
+
+RUN apk add --no-cache dumb-init
+
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S filmflex -u 1001
+
+WORKDIR /app
+
+# Copy package files and install production dependencies only
+COPY package*.json ./
+RUN npm ci --only=production --ignore-scripts && npm cache clean --force
+
+# Copy all necessary files explicitly
+COPY dist/ ./dist/
+COPY public/ ./public/
+COPY shared/ ./shared/
+COPY ecosystem.config.cjs ./
+
+# Verify the key file exists
+RUN ls -la ./dist/ && test -f ./dist/index.js || (echo "ERROR: dist/index.js not found!" && exit 1)
+
+# Create logs directory
+RUN mkdir -p logs && chown -R filmflex:nodejs logs
+
+USER filmflex
+EXPOSE 5000
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:5000/api/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
+
+ENTRYPOINT ["dumb-init", "--"]
+CMD ["npm", "start"]

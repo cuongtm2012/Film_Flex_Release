@@ -119,12 +119,10 @@ async function fetchMoviesByCountry(countrySlug: string, page: number): Promise<
 
 async function fetchRecommendedMovies(slug: string, limit: number = 10): Promise<MovieListResponse> {
   try {
-    console.log(`Fetching recommendations for movie ${slug} with limit ${limit}`);
     
     // Get the current movie to find its categories/genres
     const currentMovie = await storage.getMovieBySlug(slug);
     if (!currentMovie) {
-      console.log(`Movie ${slug} not found, returning empty recommendations`);
       return {
         status: true,
         items: [],
@@ -141,7 +139,6 @@ async function fetchRecommendedMovies(slug: string, limit: number = 10): Promise
     const movieCategories = currentMovie.categories as any[] || [];
     
     if (movieCategories.length === 0) {
-      console.log(`Movie ${slug} has no categories, returning recommended movies without genre filter`);
       // If current movie has no genres, just return recommended movies
       const result = await storage.getRecommendedMovies(1, limit);
       return {
@@ -181,8 +178,6 @@ async function fetchRecommendedMovies(slug: string, limit: number = 10): Promise
       .sort((a, b) => new Date(b.modifiedAt || 0).getTime() - new Date(a.modifiedAt || 0).getTime())
       .slice(0, limit);
 
-    console.log(`Found ${sortedRecommendations.length} matching recommended movies for ${slug} with genres: ${movieCategories.map(c => c.name || c.slug).join(', ')}`);
-
     return {
       status: true,
       items: sortedRecommendations,
@@ -194,7 +189,6 @@ async function fetchRecommendedMovies(slug: string, limit: number = 10): Promise
       }
     };
   } catch (error) {
-    console.error(`Error fetching recommendations for movie ${slug}:`, error);
     return {
       status: true,
       items: [],
@@ -236,11 +230,17 @@ export function registerRoutes(app: Express): void {
   // Get paginated movie list
   router.get("/movies", async (req, res) => {
     try {
+      // Get query parameters
       const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 48;
-      const sortBy = req.query.sort as string || 'latest';
-      
-      const result = await storage.getMovies(page, limit, sortBy);
+      const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
+
+      // Build filters object
+      const filters: any = {};
+      if (req.query.is_recommended === 'true') filters.isRecommended = true;
+      if (req.query.type) filters.type = req.query.type;
+      if (req.query.section) filters.section = req.query.section;
+
+      const result = await storage.getMovies(page, limit, JSON.stringify(filters));
       
       res.json({
         status: true,
@@ -253,7 +253,6 @@ export function registerRoutes(app: Express): void {
         }
       });
     } catch (error) {
-      console.error("Error fetching movies:", error);
       res.status(500).json({ status: false, message: "Unable to fetch movies at this time" });
     }
   });
@@ -311,16 +310,13 @@ export function registerRoutes(app: Express): void {
         
         successCount.saved++;
       } catch (error) {
-        console.error(`Error saving movie ${item?.slug || 'unknown'}:`, error);
         errors.push(error instanceof Error ? error : new Error(String(error)));
         successCount.failed++;
       }
     }
     
     // Log the success count
-    console.log(`Processed ${items.length} movies: ${successCount.saved} saved, ${successCount.existing} existing, ${successCount.failed} failed`);
     if (errors.length > 0) {
-      console.log(`Encountered ${errors.length} errors while saving movies`);
     }
   }
   
@@ -342,7 +338,6 @@ export function registerRoutes(app: Express): void {
         }
       });
     } catch (error) {
-      console.error("Error fetching recommended movies:", error);
       res.status(500).json({ status: false, message: "Unable to load recommended movies at this time" });
     }
   });
@@ -355,7 +350,7 @@ export function registerRoutes(app: Express): void {
       
       // Handle non-existent movies for testing purposes
       if (slug.includes('non-existent') || slug.includes('fake') || slug.includes('invalid')) {
-        console.log(`Request for a likely non-existent movie: ${slug}`);        return res.status(404).json({ 
+        return res.status(404).json({ 
           message: "Movie not found", 
           status: false 
         });
@@ -389,7 +384,6 @@ export function registerRoutes(app: Express): void {
             let enrichedMovie = { ...movieFromDb };
             
             if (needsEnrichment) {
-              console.log(`Movie ${slug} has incomplete data, enriching with additional metadata...`);
               
               // Attempt to find movie metadata from external sources
               // For now, we'll use a generic enrichment process
@@ -441,7 +435,6 @@ export function registerRoutes(app: Express): void {
                 year: year || enrichedMovie.year
               });
               
-              console.log(`Enriched movie data for ${slug} saved to database`);
             }            // Convert episodes to the expected format for the API response
             const formattedEpisodes = [];
             if (episodes && episodes.length > 0) {
@@ -526,7 +519,7 @@ export function registerRoutes(app: Express): void {
               
               // Validate movie data from API
               if (!movieDetailData || !movieDetailData.movie || !movieDetailData.movie._id) {
-                console.error(`Invalid movie data structure for slug: ${slug}`);                return res.status(404).json({ 
+                return res.status(404).json({ 
                   message: "Movie not found or invalid data", 
                   status: false 
                 });
@@ -534,7 +527,6 @@ export function registerRoutes(app: Express): void {
               
               // Check for incomplete data and enrich if needed
               if (!movieDetailData.movie.content || movieDetailData.movie.content.trim() === "") {
-                console.log(`Movie ${slug} from API has incomplete data, enriching...`);
                 
                 // Extract name for better metadata search
                 const movieName = movieDetailData.movie.name;
@@ -590,12 +582,10 @@ export function registerRoutes(app: Express): void {
                     await storage.saveEpisode(episode);
                   }
                 } catch (saveError) {
-                  console.error(`Error saving movie to database: ${saveError}`);
                   // Still continue to serve the cached data, just don't save to DB
                 }
               }
             } catch (fetchError) {
-              console.error(`Error fetching movie detail from API: ${fetchError}`);
               return res.status(404).json({ 
                 message: "Movie not found", 
                 status: false 
@@ -603,7 +593,6 @@ export function registerRoutes(app: Express): void {
             }
           }
         } catch (fetchError) {
-          console.error(`Error fetching movie detail: ${fetchError}`);
           return res.status(404).json({ 
             message: "Movie not found", 
             status: false 
@@ -615,8 +604,6 @@ export function registerRoutes(app: Express): void {
             !movieDetailData.movie.actor || movieDetailData.movie.actor.length === 0 ||
             !movieDetailData.movie.category || movieDetailData.movie.category.length === 0 ||
             !movieDetailData.episodes || movieDetailData.episodes.length === 0) {
-          
-          console.log(`Cached movie ${slug} has incomplete data, enriching...`);
             // Get movie details from database to check for updated info
           const movieFromDb = await storage.getMovieBySlug(slug);
           
@@ -751,10 +738,8 @@ export function registerRoutes(app: Express): void {
         movieDetailData.episodes = [];
       }
       
-      console.log(`Serving movie details for ${slug}`);
       res.json(movieDetailData);
     } catch (error) {
-      console.error(`Error fetching movie detail for slug ${req.params.slug}:`, error);
       res.status(500).json({ 
         message: "Failed to fetch movie detail",
         status: false
@@ -772,17 +757,12 @@ export function registerRoutes(app: Express): void {
       }
       
       // For suggestions, we always use a small limit (max 8 results)
-      console.log(`Fetching search suggestions for "${keyword}"`);
       const normalizedKeyword = normalizeText(keyword.toLowerCase());
       const searchResults = await searchMovies(keyword.toLowerCase(), normalizedKeyword, 1, 8);
       
       // Log the search results
       if (searchResults.items && searchResults.items.length > 0) {
-        console.log(`Found ${searchResults.items.length} suggestions for "${keyword}"`);
-        const slugs = searchResults.items.map(item => item.slug).join(', ');
-        console.log(`Suggestion slugs: ${slugs}`);
       } else {
-        console.log(`No suggestions found for "${keyword}"`);
       }
       
       // Return a simplified response for suggestions
@@ -791,7 +771,6 @@ export function registerRoutes(app: Express): void {
         status: true
       });
     } catch (error) {
-      console.error("Error fetching search suggestions:", error);
       // Always return a valid response object even on error
       return res.json({ items: [], status: true });
     }
@@ -803,7 +782,6 @@ export function registerRoutes(app: Express): void {
       const keyword = (req.query.q as string || "").trim();
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 48; // Default to 48 items per page
-      const fields = (req.query.fields as string || "name,origin_name").split(',');
       
       // Get filter parameters
       const section = req.query.section as string;
@@ -822,19 +800,12 @@ export function registerRoutes(app: Express): void {
       if (type) filters.type = type;
       if (section) filters.section = section;
       
-      console.log(`Searching for "${keyword}" in page ${page} with limit ${limit}, fields: [${fields.join(', ')}]`, 
-                  filters.section ? `, section: ${filters.section}` : '',
-                  filters.isRecommended !== undefined ? `, isRecommended: ${filters.isRecommended}` : '',
-                  filters.type ? `, type: ${filters.type}` : '');
-      
       // If section is specified but no search keyword, redirect to section endpoint
       if (section && !keyword) {
-        console.log(`No search term but section ${section} specified, redirecting to section endpoint`);
         return res.redirect(`/api/movies/sections/${section}?page=${page}&limit=${limit}`);
       }
       
       if (!keyword) {
-        console.log("Empty search term received, returning empty results");
         return res.json({
           status: true,
           items: [],
@@ -865,10 +836,8 @@ export function registerRoutes(app: Express): void {
         };
       }
       
-      console.log(`Combined search returned ${searchResults.pagination.totalItems} total results, showing ${searchResults.items.length} items for page ${page}`);
       res.json(searchResults);
     } catch (error) {
-      console.error("Error searching movies:", error);
       // Return empty results with proper status instead of error
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 48;
@@ -890,7 +859,6 @@ export function registerRoutes(app: Express): void {
     try {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 48;
-      const sortBy = req.query.sort as string || 'latest';
       
       // Get filter parameters
       const section = req.query.section as string;
@@ -909,13 +877,8 @@ export function registerRoutes(app: Express): void {
       if (type) filters.type = type;
       if (section) filters.section = section;
       
-      console.log(`Fetching admin movies list for page ${page} with limit ${limit}, sorting by ${sortBy}`,
-                  filters.section ? `, section: ${filters.section}` : '',
-                  filters.isRecommended !== undefined ? `, isRecommended: ${filters.isRecommended}` : '',
-                  filters.type ? `, type: ${filters.type}` : '');
-      
       // Pass filters to the storage.getMovies method
-      const result = await storage.getMovies(page, limit, sortBy, filters);
+      const result = await storage.getMovies(page, limit, JSON.stringify(filters));
       
       res.json({
         status: true,
@@ -928,7 +891,6 @@ export function registerRoutes(app: Express): void {
         }
       });
     } catch (error) {
-      console.error("Error fetching admin movies list:", error);
       res.status(500).json({ status: false, message: "Unable to fetch movies at this time" });
     }
   });
@@ -939,22 +901,17 @@ export function registerRoutes(app: Express): void {
       const { slug } = req.params;
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 48; // Default to 48 items per page
-      const sortBy = req.query.sort as string || 'modified'; // Default sort by modified time
-      
-      console.log(`Handling category request for ${slug}, page ${page}, limit ${limit}, sort ${sortBy}`);
       
       // If slug is 'all', just redirect to the regular movies endpoint
       if (slug === 'all') {
-        console.log(`Redirecting 'all' category to regular movies endpoint`);
-        return res.redirect(`/api/movies?page=${page}&limit=${limit}&sort=${sortBy}`);
+        return res.redirect(`/api/movies?page=${page}&limit=${limit}`);
       }
       
       // First, check if we have enough movies in our database for this category
       // and can just use the database sort directly
-      const dbCategoryMovies = await storage.getMoviesByCategory(slug, page, limit, sortBy);
+      const dbCategoryMovies = await storage.getMoviesByCategory(slug, page, limit);
       
       if (dbCategoryMovies.data.length > 0) {
-        console.log(`Using local database sort for category ${slug}, found ${dbCategoryMovies.total} matches`);
         
         const categoryResponse: MovieListResponse = {
           status: true,
@@ -971,7 +928,6 @@ export function registerRoutes(app: Express): void {
       }
       
       // Otherwise, use our client-side filtering approach
-      console.log(`Filtering main movie list for category ${slug}`);
       
       // Get all movies first
       const allMoviesResponse = await fetchMovieList(page, limit);
@@ -990,7 +946,6 @@ export function registerRoutes(app: Express): void {
       
       if (!validCategorySlugs.includes(slug) && slug.includes('-') && slug.length > 10) {
         // This is likely an invalid/non-existent category
-        console.log(`Category ${slug} appears to be non-existent, returning empty results`);
         
         // Return empty results for non-existent categories
         return res.json({
@@ -1025,13 +980,11 @@ export function registerRoutes(app: Express): void {
       // Apply our deterministic category filter - take a subset of items starting from skipItems
       let filteredItems = allMoviesResponse.items.slice(skipItems);
       
-      console.log(`Category ${slug} filter: skipping ${skipItems} items`);
-      
       // Process and save the filtered movies to our database for future use
       await processAndSaveMovies(filteredItems);
       
       // Apply sorting if needed - try to use database sorting for consistency
-      const sortedMovies = await storage.getMoviesByCategory(slug, page, limit, sortBy);
+      const sortedMovies = await storage.getMoviesByCategory(slug, page, limit);
       
       // If we got results from the database, use those (they're properly sorted)
       // Otherwise, just use the filtered items
@@ -1051,10 +1004,8 @@ export function registerRoutes(app: Express): void {
         }
       };
       
-      console.log(`Returning ${categoryResponse.items.length} filtered items for category ${slug}`);
       res.json(categoryResponse);
     } catch (error) {
-      console.error(`Error fetching movies for category ${req.params.slug}:`, error);
       res.status(500).json({ message: "Unable to fetch movies at this time" });
     }
   });
@@ -1065,9 +1016,6 @@ export function registerRoutes(app: Express): void {
       const { slug } = req.params;
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 48;
-      const sortBy = req.query.sort as string || 'modified'; // Default sort by modified time
-      
-      console.log(`Handling country request for ${slug}, page ${page}, limit ${limit}, sort ${sortBy}`);
       
       try {
         // Try the external API first
@@ -1083,9 +1031,8 @@ export function registerRoutes(app: Express): void {
         // Return the original response from the API
         res.json(countryMovies);
       } catch (error) {
-        console.log(`External API for country ${slug} failed, falling back to filtering main movie list`);
         
-        // Fall back to client-side filtering from main movie list        console.log(`Filtering main movie list for country ${slug}`);
+        // Fall back to client-side filtering from main movie list
         
         // Fetch the main movie list for the given page
         const movieList = await fetchMovieList(page, limit);
@@ -1097,8 +1044,6 @@ export function registerRoutes(app: Express): void {
           // For now, return all movies since this feature needs proper implementation
           return true;
         });
-        
-        console.log(`Country ${slug} filter: showing ${filteredMovies.length} items`);
         
         // Process and save the filtered movies to enable sorting in the future
         await processAndSaveMovies(filteredMovies);
@@ -1122,7 +1067,6 @@ export function registerRoutes(app: Express): void {
         res.json(countryResponse);
       }
     } catch (error) {
-      console.error(`Error fetching movies for country ${req.params.slug}:`, error);
       res.status(500).json({ message: "Unable to fetch movies at this time" });
     }
   });
@@ -1134,7 +1078,6 @@ export function registerRoutes(app: Express): void {
       
       // Handle non-existent movies for testing purposes
       if (slug.includes('non-existent') || slug.includes('fake') || slug.includes('invalid')) {
-        console.log(`Request for episodes of a non-existent movie: ${slug}`);
         return res.status(404).json({ 
           message: "Movie not found", 
           status: false,
@@ -1152,7 +1095,6 @@ export function registerRoutes(app: Express): void {
           movieDetailData = await fetchMovieDetail(slug);
           await storage.cacheMovieDetail(movieDetailData);
         } catch (fetchError) {
-          console.error(`Error fetching movie episodes from API: ${fetchError}`);
           return res.status(404).json({ 
             message: "Movie not found", 
             status: false,
@@ -1197,7 +1139,6 @@ export function registerRoutes(app: Express): void {
         items: processedEpisodes 
       });
     } catch (error) {
-      console.error(`Error fetching episodes for movie ${req.params.slug}:`, error);
       res.status(500).json({ 
         message: "Failed to fetch episodes",
         status: false,
@@ -1213,11 +1154,8 @@ export function registerRoutes(app: Express): void {
       const { slug } = req.params;
       const limit = parseInt(req.query.limit as string) || 5;
       
-      console.log(`Fetching recommendations for movie ${slug} with limit ${limit}`);
-      
       // Handle non-existent movies for testing purposes
       if (slug.includes('non-existent') || slug.includes('fake') || slug.includes('invalid')) {
-        console.log(`Request for recommendations of a non-existent movie: ${slug}`);
         return res.status(404).json({ 
           message: "Movie not found", 
           status: false,
@@ -1228,7 +1166,6 @@ export function registerRoutes(app: Express): void {
       const recommendations = await fetchRecommendedMovies(slug, limit);
       res.json(recommendations);
     } catch (error) {
-      console.error(`Error fetching recommendations for movie ${req.params.slug}:`, error);
       res.status(500).json({ 
         message: "Failed to fetch recommendations",
         status: true, // Keep status true to avoid UI errors
@@ -1260,7 +1197,6 @@ export function registerRoutes(app: Express): void {
       req.body = userData;
       res.redirect(307, '/api/register');
     } catch (error) {
-      console.error("Error validating registration data:", error);
       res.status(400).json({ message: "Invalid user data" });
     }
   });
@@ -1274,7 +1210,6 @@ export function registerRoutes(app: Express): void {
       const commentsData = await storage.getCommentsByMovieSlug(req.params.slug, page, limit, userId);
       res.json(commentsData);
     } catch (error) {
-      console.error(`Error fetching comments for movie ${req.params.slug}:`, error);
       res.status(500).json({ message: "Failed to fetch comments" });
     }
   });
@@ -1282,7 +1217,6 @@ export function registerRoutes(app: Express): void {
   router.post("/movies/:slug/comments", async (req, res) => {
     try {
       const { slug } = req.params;
-      console.log("POST comment for movie:", slug, "body:", req.body);
       
       // Always use the slug from the URL, regardless of what's in the body
       const commentData = insertCommentSchema.parse({
@@ -1295,12 +1229,9 @@ export function registerRoutes(app: Express): void {
         movieSlug: slug
       });
       
-      console.log("Comment added successfully:", comment);
       res.status(201).json(comment);
     } catch (error) {
-      console.error(`Error adding comment to movie ${req.params.slug}:`, error);
       if (error instanceof Error) {
-        console.error("Error details:", error.message);
       }
       res.status(400).json({ message: "Invalid comment data" });
     }
@@ -1313,7 +1244,6 @@ export function registerRoutes(app: Express): void {
       await storage.likeComment(id, userId);
       res.json({ message: "Comment liked successfully" });
     } catch (error) {
-      console.error(`Error liking comment ${req.params.id}:`, error);
       res.status(500).json({ message: "Failed to like comment" });
     }
   });
@@ -1325,7 +1255,6 @@ export function registerRoutes(app: Express): void {
       await storage.dislikeComment(id, userId);
       res.json({ message: "Comment disliked successfully" });
     } catch (error) {
-      console.error(`Error disliking comment ${req.params.id}:`, error);
       res.status(500).json({ message: "Failed to dislike comment" });
     }
   });
@@ -1343,7 +1272,6 @@ export function registerRoutes(app: Express): void {
         movieSlug: slug
       });
     } catch (error) {
-      console.error(`Error fetching reactions for movie ${req.params.slug}:`, error);
       res.status(500).json({ message: "Failed to fetch reactions" });
     }
   });
@@ -1377,7 +1305,6 @@ export function registerRoutes(app: Express): void {
         userReaction: reactionType
       });
     } catch (error) {
-      console.error(`Error adding reaction to movie ${req.params.slug}:`, error);
       res.status(500).json({ message: "Failed to add reaction" });
     }
   });
@@ -1397,7 +1324,6 @@ export function registerRoutes(app: Express): void {
         reactions: updatedReactions
       });
     } catch (error) {
-      console.error(`Error removing reaction from movie ${req.params.slug}:`, error);
       res.status(500).json({ message: "Failed to remove reaction" });
     }
   });
@@ -1414,7 +1340,6 @@ export function registerRoutes(app: Express): void {
         userId 
       });
     } catch (error) {
-      console.error(`Error fetching user reaction for movie ${req.params.slug}:`, error);
       res.status(500).json({ message: "Failed to fetch user reaction" });
     }
   });
@@ -1426,7 +1351,6 @@ export function registerRoutes(app: Express): void {
       const watchlist = await storage.getWatchlist(userId);
       res.json(watchlist);
     } catch (error) {
-      console.error(`Error fetching watchlist for user ${req.params.userId}:`, error);
       res.status(500).json({ message: "Failed to fetch watchlist" });
     }
   });
@@ -1443,7 +1367,6 @@ export function registerRoutes(app: Express): void {
       
       res.status(201).json({ message: "Added to watchlist successfully" });
     } catch (error) {
-      console.error(`Error adding to watchlist for user ${req.params.userId}:`, error);
       res.status(400).json({ message: "Invalid watchlist data" });
     }
   });
@@ -1456,7 +1379,6 @@ export function registerRoutes(app: Express): void {
       await storage.removeFromWatchlist(userId, slug);
       res.json({ message: "Removed from watchlist successfully" });
     } catch (error) {
-      console.error(`Error removing from watchlist for user ${req.params.userId}:`, error);
       res.status(500).json({ message: "Failed to remove from watchlist" });
     }
   });
@@ -1469,7 +1391,6 @@ export function registerRoutes(app: Express): void {
       const inWatchlist = await storage.checkWatchlist(userId, slug);
       res.json({ inWatchlist, movieSlug: slug, userId });
     } catch (error) {
-      console.error(`Error checking watchlist status for user ${req.params.userId} and movie ${req.params.slug}:`, error);
       res.status(500).json({ message: "Failed to check watchlist status" });
     }
   });
@@ -1483,7 +1404,6 @@ export function registerRoutes(app: Express): void {
       const viewHistory = await storage.getViewHistory(userId, limit);
       res.json(viewHistory);
     } catch (error) {
-      console.error(`Error fetching view history for user ${req.params.userId}:`, error);
       res.status(500).json({ message: "Failed to fetch view history" });
     }
   });
@@ -1506,7 +1426,6 @@ export function registerRoutes(app: Express): void {
       await storage.addToViewHistory(userId, movieSlug, progress || 0);
       res.status(201).json({ message: "View history added successfully" });
     } catch (error) {
-      console.error(`Error adding to view history for user ${req.params.userId}:`, error);
       res.status(400).json({ message: "Invalid view history data" });
     }
   });
@@ -1524,7 +1443,6 @@ export function registerRoutes(app: Express): void {
       await storage.updateViewProgress(userId, slug, progress);
       res.json({ message: "View progress updated successfully" });
     } catch (error) {
-      console.error(`Error updating view progress for user ${req.params.userId} and movie ${req.params.slug}:`, error);
       res.status(500).json({ message: "Failed to update view progress" });
     }
   });
@@ -1541,7 +1459,6 @@ export function registerRoutes(app: Express): void {
         res.status(404).json({ message: "Movie not found in view history" });
       }
     } catch (error) {
-      console.error(`Error getting view history for user ${req.params.userId} and movie ${req.params.slug}:`, error);
       res.status(500).json({ message: "Failed to get view history" });
     }
   });
@@ -1554,7 +1471,6 @@ export function registerRoutes(app: Express): void {
       await storage.removeFromViewHistory(userId, slug);
       res.json({ message: "Removed from view history successfully" });
     } catch (error) {
-      console.error(`Error removing from view history for user ${req.params.userId} and movie ${req.params.slug}:`, error);
       res.status(500).json({ message: "Failed to remove from view history" });
     }
   });
@@ -1566,7 +1482,6 @@ export function registerRoutes(app: Express): void {
       await storage.clearViewHistory(userId);
       res.json({ message: "View history cleared successfully" });
     } catch (error) {
-      console.error(`Error clearing view history for user ${req.params.userId}:`, error);
       res.status(500).json({ message: "Failed to clear view history" });
     }
   });
@@ -1612,7 +1527,6 @@ export function registerRoutes(app: Express): void {
       });
       
     } catch (error) {
-      console.error(`Error updating movie ${req.params.slug}:`, error);
       res.status(500).json({ 
         status: false,
         message: "Failed to update movie details. Please try again." 
@@ -1645,7 +1559,6 @@ export function registerRoutes(app: Express): void {
         }
       });
     } catch (error) {
-      console.error("Error fetching movies by section:", error);
       res.status(500).json({ status: false, message: "Unable to fetch movies at this time" });
     }  });
 
@@ -1685,7 +1598,6 @@ export function registerRoutes(app: Express): void {
         }
       });
     } catch (error) {
-      console.error("Error in streaming proxy:", error);
       res.status(500).json({ 
         status: false, 
         message: "Internal server error" 
@@ -1710,7 +1622,6 @@ export function registerRoutes(app: Express): void {
         data: health
       });
     } catch (error) {
-      console.error("Error checking stream health:", error);
       res.status(500).json({ 
         status: false, 
         message: "Failed to check stream health" 

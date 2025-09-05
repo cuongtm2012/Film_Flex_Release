@@ -51,8 +51,6 @@ async function logUserActivity(
       targetId,
       details,
       ipAddress,
-      // Remove the invalid createdAt property
-      // The storage.addAuditLog function will handle timestamp automatically
     });
   } catch (error) {
     console.error("Failed to log user activity:", error);
@@ -61,20 +59,10 @@ async function logUserActivity(
 
 // Middleware for checking if user is authenticated
 export const isAuthenticated: RequestHandler = (req, res, next) => {
-  console.log('[Auth Middleware] Session check:', {
-    sessionID: req.sessionID,
-    isAuthenticated: req.isAuthenticated(),
-    userId: req.user?.id,
-    cookies: req.headers.cookie,
-    sessionData: JSON.stringify(req.session, null, 2)
-  });
-
   if (req.isAuthenticated()) {
-    console.log('[Auth Middleware] User authenticated:', req.user?.id);
     return next();
   }
   
-  console.log('[Auth Middleware] User not authenticated, returning 401');
   res.status(401).json({ message: "Authentication required" });
 };
 
@@ -131,9 +119,12 @@ export function setupAuth(app: Express): void {
     proxy: process.env.NODE_ENV === "production", // Trust proxy in production
   };
 
-  console.log('[Auth] Environment:', process.env.NODE_ENV);
-  console.log('[Auth] Session cookie config:', cookieConfig);
-  console.log('[Auth] Client URL:', config.clientUrl);
+  // Only log important auth setup in production
+  if (process.env.NODE_ENV !== "production") {
+    console.log('[Auth] Environment:', process.env.NODE_ENV);
+    console.log('[Auth] Session cookie config:', cookieConfig);
+    console.log('[Auth] Client URL:', config.clientUrl);
+  }
 
   // Trust first proxy in production
   if (process.env.NODE_ENV === 'production') {
@@ -173,7 +164,10 @@ export function setupAuth(app: Express): void {
   );
   // Google OAuth Strategy
   if (config.googleClientId && config.googleClientSecret) {
-    console.log('Setting up Google OAuth strategy');
+    // Only log Google OAuth setup in development
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('Setting up Google OAuth strategy');
+    }
     
     // Determine the correct callback URL based on environment
     const callbackURL = process.env.NODE_ENV === 'production' 
@@ -234,8 +228,10 @@ export function setupAuth(app: Express): void {
       )
     );
   } else {
-    console.warn('Google OAuth credentials not found. Google authentication will not be available.');
-    console.warn('Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in your .env file to enable Google OAuth.');
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn('Google OAuth credentials not found. Google authentication will not be available.');
+      console.warn('Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in your .env file to enable Google OAuth.');
+    }
   }
 
   passport.serializeUser((user, done) => {
@@ -327,18 +323,10 @@ export function setupAuth(app: Express): void {
   });
 
   app.get("/api/user", (req: Request, res: Response) => {
-    console.log('[API] /api/user called');
-    console.log('[API] Session ID:', req.sessionID);
-    console.log('[API] Is authenticated:', req.isAuthenticated());
-    console.log('[API] User in session:', req.user?.id);
-    console.log('[API] Session data:', req.session);
-    
     if (!req.isAuthenticated()) {
-      console.log('[API] User not authenticated, returning 401');
       return res.status(401).json({ message: "Not authenticated" });
     }
     
-    console.log('[API] User authenticated, returning user data');
     res.json(req.user);
   });
 
@@ -756,21 +744,14 @@ export function setupAuth(app: Express): void {
         session: true // Ensure session is maintained
       }),
       (req: Request, res: Response) => {
-        console.log('[Google OAuth] Callback successful, user:', req.user?.id);
-        console.log('[Google OAuth] Session ID:', req.sessionID);
-        console.log('[Google OAuth] Is authenticated:', req.isAuthenticated());
-        console.log('[Google OAuth] Session before save:', req.session);
-        
-        // Save the session explicitly
+        // Remove excessive session logging from Google OAuth callback
         req.session.save((saveErr) => {
           if (saveErr) {
+            // Only log errors, not successful saves
             console.error('[Google OAuth] Session save error:', saveErr);
             return res.redirect("/auth?error=session_save_failed");
           }
           
-          console.log('[Google OAuth] Session saved successfully');
-          console.log('[Google OAuth] Session after save:', req.session);
-          console.log('[Google OAuth] Redirecting to home');
           res.redirect("/");
         });
       }

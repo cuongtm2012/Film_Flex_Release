@@ -88,16 +88,23 @@ function handle404Middleware(req: express.Request, res: express.Response, next: 
 }
 
 export async function setupVite(app: Express, server: Server) {
-  // Load vite config only in development
-  let viteConfig: any = {};
-  if (process.env.NODE_ENV !== 'production') {
-    try {
-      const viteConfigModule = await import("../vite.config.js");
-      viteConfig = viteConfigModule.default || {};
-    } catch (error) {
-      console.warn("Could not load vite config:", error);
-    }
+  // Only use Vite in development mode
+  if (process.env.NODE_ENV === 'production') {
+    console.warn("setupVite called in production mode - this should use serveStatic instead");
+    return;
   }
+
+  // Use minimal vite config for development to avoid plugin import issues
+  const viteConfig = {
+    resolve: {
+      alias: {
+        "@": path.resolve(import.meta.dirname, "..", "client", "src"),
+        "@shared": path.resolve(import.meta.dirname, "..", "shared"),
+        "@assets": path.resolve(import.meta.dirname, "..", "attached_assets"),
+      },
+    },
+    root: path.resolve(import.meta.dirname, "..", "client"),
+  };
   
   const serverOptions = {
     middlewareMode: true,

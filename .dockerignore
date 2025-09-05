@@ -1,71 +1,89 @@
-# Dependencies
+# Node.js dependencies
 node_modules
 npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-# Build outputs (will be built inside container) - but allow dist/public for pre-built React
-dist
-!dist/public
+# Build artifacts (will be built inside Docker)
+# Note: We need dist for production builds, so don't ignore it completely
 
 # Development files
-.env
 .env.local
 .env.development
-.env.production
+.env.test
+*.local
 
 # Logs
 logs
 *.log
 log
-
-# Runtime data
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 pids
 *.pid
 *.seed
 *.pid.lock
 
-# Coverage directory used by tools like istanbul
+# Coverage and testing
 coverage
-*.lcov
-
-# nyc test coverage
 .nyc_output
-
-# Dependency directories
-.npm
-.yarn-cache
-
-# Optional npm cache directory
-.npm
-
-# Git
-.git
-.gitignore
-
-# IDE files
-.vscode
-.idea
-*.swp
-*.swo
-
-# OS files
-.DS_Store
-Thumbs.db
-
-# Testing
 cypress/videos
 cypress/screenshots
 tests/coverage
 
-# Archive and temp files
-archive
-temp-files
+# Cache directories
+.npm
+.eslintcache
+.yarn-cache
+.cache
 
-# Docker files (don't need these in the container)
-Dockerfile
-docker-compose.yml
+# IDE and editor files
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Docker files (don't need inside container)
+Dockerfile*
+docker-compose*.yml
 .dockerignore
 
 # Documentation
-docs
+README.md
+docs/
 *.md
-!README.md
+!DEPLOYMENT*.md
+
+# Archive and temporary files
+archive/
+temp-files/
+*.tmp
+*.temp
+
+# Development scripts and configs that aren't needed in production
+.github/
+scripts/deployment/
+scripts/maintenance/
+deploy-*.sh
+*.ps1
+
+# Database files (use mounted volumes instead)
+*.db
+*.sqlite
+*.sqlite3

@@ -1,0 +1,31 @@
+# Simple Dockerfile that builds locally and copies dist
+FROM node:20-alpine AS runtime
+
+RUN apk add --no-cache dumb-init
+
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S filmflex -u 1001
+
+WORKDIR /app
+
+# Copy package files and install production dependencies only
+COPY package*.json ./
+RUN npm ci --only=production --ignore-scripts && npm cache clean --force
+
+# Copy pre-built application files
+COPY dist ./dist
+COPY public ./public
+COPY shared ./shared
+COPY ecosystem.config.cjs ./
+
+# Create logs directory
+RUN mkdir -p logs && chown filmflex:nodejs logs
+
+USER filmflex
+EXPOSE 5000
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:5000/api/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
+
+ENTRYPOINT ["dumb-init", "--"]
+CMD ["npm", "start"]

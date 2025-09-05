@@ -5,7 +5,7 @@
   "license": "MIT",  "scripts": {
     "dev": "tsx server/index.ts",
     "build": "vite build && npm run build:server",
-    "build:server": "npx esbuild server/index.ts --bundle --platform=node --target=es2022 --format=esm --outdir=dist --packages=external --sourcemap --external:vite.config.ts",
+    "build:server": "npx esbuild server/index.ts --bundle --platform=node --target=es2022 --format=esm --outdir=dist --packages=external --sourcemap --external:vite.config.ts --external:vite --external:@vitejs/plugin-react --external:./vite.js",
     "build:client": "vite build",
     "start": "node dist/index.js",
     "test": "jest",
@@ -133,6 +133,17 @@
     "vite": "^5.4.14"
   },
   "optionalDependencies": {
-    "bufferutil": "^4.0.8"
+    "bufferutil": "^4.0.8",
+    "@rollup/rollup-darwin-arm64": "^4.50.0",
+    "@rollup/rollup-darwin-x64": "^4.50.0", 
+    "@rollup/rollup-linux-arm64-gnu": "^4.50.0",
+    "@rollup/rollup-linux-arm64-musl": "^4.50.0",
+    "@rollup/rollup-linux-x64-gnu": "^4.50.0",
+    "@rollup/rollup-linux-x64-musl": "^4.50.0"
+  },
+  "overrides": {
+    "vite": {
+      "rollup": "npm:@rollup/wasm-node"
+    }
   }
 }

@@ -16,20 +16,15 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
 // Fix CORS configuration to ensure cookies work properly
-app.use(cors({  origin: function (origin, callback) {
-    console.log('🌐 CORS Check - Origin:', origin);
-    console.log('🔧 ALLOWED_ORIGINS env:', process.env.ALLOWED_ORIGINS);
-    console.log('🔧 NODE_ENV:', process.env.NODE_ENV);
-    
+app.use(cors({
+  origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or Postman)
     if (!origin) {
-      console.log('✅ CORS: Allowing request with no origin');
       return callback(null, true);
     }
     
     // PRIORITY: Check for wildcard CORS setting first - ALLOW ALL ORIGINS
     if (process.env.ALLOWED_ORIGINS === '*' || process.env.CLIENT_URL === '*') {
-      console.log('✅ CORS: Wildcard access enabled - allowing all origins');
       return callback(null, true);
     }
     
@@ -67,7 +62,8 @@ app.use(cors({  origin: function (origin, callback) {
     if (origin.includes('phimgg.com')) {
       return callback(null, true);
     }
-      // Allow IP address access for testing
+    
+    // Allow IP address access for testing
     if (origin.includes('154.205.142.255')) {
       return callback(null, true);
     }
@@ -81,13 +77,16 @@ app.use(cors({  origin: function (origin, callback) {
     if (process.env.NODE_ENV === 'development' && origin === config.clientUrl) {
       return callback(null, true);
     }
-      // In development, be more permissive
+    
+    // In development, be more permissive
     if (process.env.NODE_ENV === 'development') {
       return callback(null, true);
     }
     
-    console.log('❌ CORS blocked origin:', origin);
-    console.log('📋 Allowed origins were:', allowedOrigins);
+    // Only log actual CORS blocks in development, nothing in production
+    if (process.env.NODE_ENV === 'development') {
+      console.log('❌ CORS blocked origin:', origin);
+    }
     callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
@@ -128,31 +127,16 @@ app.use((req, res, next) => {
 // Serve files from public directory first for direct player access
 app.use(express.static(path.join(process.cwd(), 'public')));
 
-// Request logging middleware
+// Simplified request logging middleware - only log errors and important requests
 app.use((req, res, next) => {
   const start = Date.now();
-  const path = req.path;
-  let capturedJsonResponse: Record<string, any> | undefined = undefined;
-
-  const originalResJson = res.json;
-  res.json = function (bodyJson, ...args) {
-    capturedJsonResponse = bodyJson;
-    return originalResJson.apply(res, [bodyJson, ...args]);
-  };
-
+  
   res.on("finish", () => {
     const duration = Date.now() - start;
-    if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-      }
-
-      if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + "…";
-      }
-
-      log(logLine);
+    
+    // Only log API requests that take longer than 100ms or have errors
+    if (req.path.startsWith("/api") && (duration > 100 || res.statusCode >= 400)) {
+      log(`${req.method} ${req.path} ${res.statusCode} in ${duration}ms`);
     }
   });
 
@@ -163,7 +147,11 @@ app.use((req, res, next) => {
   try {
     // Verify database connection before starting server
     await pool.connect();
-    console.log('Successfully connected to database');
+    
+    // Only log important startup info
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('✅ Database connected successfully');
+    }
     
     // Setup auth and routes after DB connection is confirmed
     setupAuth(app);
@@ -175,7 +163,6 @@ app.use((req, res, next) => {
       const message = err.message || "Internal Server Error";
       console.error(err);
       res.status(status).json({ message });
-<<<<<<< HEAD
     });
 
     // Setup Vite or static serving based on environment
@@ -192,46 +179,6 @@ app.use((req, res, next) => {
     } else {
       // Production: serve static files
       setupStaticServing();
-=======
-    });    // Setup Vite or static serving based on environment
-    if (process.env.NODE_ENV === 'development') {
-      // Only import Vite functions in development
-      const { setupVite } = await import("./vite.js");
-      await setupVite(app, server);
-    } else {
-      // Production: serve static files
-      const clientDistPath = path.join(process.cwd(), 'client', 'dist');
-      const indexPath = path.join(clientDistPath, 'index.html');
-      
-      // Check if built client files exist
-      if (require('fs').existsSync(clientDistPath)) {
-        log('Serving static files from client/dist');
-        app.use(express.static(clientDistPath));
-        
-        // Catch-all handler for SPA routing
-        app.get('*', (req, res) => {
-          // Skip API routes
-          if (req.path.startsWith('/api/')) {
-            return res.status(404).json({ error: 'API endpoint not found' });
-          }
-          
-          // Serve index.html for all other routes
-          if (require('fs').existsSync(indexPath)) {
-            res.sendFile(indexPath);
-          } else {
-            res.status(404).send('Client application not built. Run npm run build first.');
-          }
-        });
-      } else {
-        log('Warning: Client dist directory not found. Run npm run build to build the client.');
-        app.get('*', (req, res) => {
-          if (req.path.startsWith('/api/')) {
-            return res.status(404).json({ error: 'API endpoint not found' });
-          }
-          res.status(503).send('Client application not available. Please build the application first.');
-        });
-      }
->>>>>>> 9570b2977177e6160440ea5746bfc05d3b1351f9
     }
 
     // Start server
@@ -244,15 +191,14 @@ app.use((req, res, next) => {
   }
 })();
 
-<<<<<<< HEAD
 // Function to setup static file serving (production mode)
 function setupStaticServing() {
-  const clientDistPath = path.join(process.cwd(), 'client', 'dist');
+  const clientDistPath = path.join(process.cwd(), 'dist', 'public');
   const indexPath = path.join(clientDistPath, 'index.html');
   
   // Check if built client files exist
   if (fs.existsSync(clientDistPath)) {
-    log('Serving static files from client/dist');
+    log('Serving static files from dist/public');
     app.use(express.static(clientDistPath));
     
     // Catch-all handler for SPA routing
@@ -280,8 +226,6 @@ function setupStaticServing() {
   }
 }
 
-=======
->>>>>>> 9570b2977177e6160440ea5746bfc05d3b1351f9
 // Graceful shutdown
 process.on('SIGTERM', () => {
   console.log('SIGTERM received. Shutting down gracefully...');

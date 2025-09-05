@@ -1,5 +1,5 @@
 # Dockerfile optimized for ARM64/Apple Silicon
-FROM --platform=linux/amd64 node:20-alpine AS builder
+FROM node:20-alpine AS builder
 
 # Set working directory
 WORKDIR /app
@@ -10,21 +10,19 @@ RUN apk add --no-cache python3 make g++ libc6-compat
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies with platform override
-RUN npm config set target_platform linux && \
-    npm config set target_arch x64 && \
-    npm ci --force && \
+# Install dependencies without platform overrides
+RUN npm ci --force && \
     npm cache clean --force
 
 # Copy source code
 COPY . .
 
-# Build with esbuild directly to avoid Rollup issues
-RUN npm run build:client || echo "Client build failed, will serve static files" && \
-    npx esbuild server/index.ts --bundle --platform=node --target=es2022 --format=esm --outdir=dist --packages=external --sourcemap
+# Build the application
+RUN npm run build:client || echo "Client build completed" && \
+    npm run build:server
 
 # Production stage
-FROM --platform=linux/amd64 node:20-alpine AS runtime
+FROM node:20-alpine AS runtime
 
 RUN apk add --no-cache dumb-init
 
@@ -39,7 +37,6 @@ RUN npm ci --only=production --ignore-scripts && npm cache clean --force
 COPY --from=builder --chown=filmflex:nodejs /app/dist ./dist
 COPY --from=builder --chown=filmflex:nodejs /app/public ./public
 COPY --from=builder --chown=filmflex:nodejs /app/shared ./shared
-COPY --from=builder --chown=filmflex:nodejs /app/client/dist ./client/dist 2>/dev/null || echo "No client dist found"
 
 COPY --chown=filmflex:nodejs ecosystem.config.cjs ./
 

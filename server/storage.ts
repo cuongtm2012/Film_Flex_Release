@@ -1238,8 +1238,6 @@ export class DatabaseStorage implements IStorage {
     
     // If anime section is requested but no movies found, fall back to type-based search
     if (section === 'anime' && data.length === 0) {
-      console.log('[DEBUG] No movies found with section=anime, falling back to type-based search for hoathinh');
-      
       // Search for movies with type exactly 'hoathinh' (Vietnamese for animation/anime)
       const animeConditions = sql`(
         ${movies.type} = 'hoathinh'
@@ -1251,7 +1249,8 @@ export class DatabaseStorage implements IStorage {
         .orderBy(desc(movies.modifiedAt))
         .limit(limit)
         .offset(offset);
-        const [{ animeCount }] = await db.select({ animeCount: sql<number>`count(*)` })
+        
+      const [{ animeCount }] = await db.select({ animeCount: sql<number>`count(*)` })
         .from(movies)
         .where(animeConditions);
       
