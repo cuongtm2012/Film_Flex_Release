@@ -1,139 +1,335 @@
 #!/bin/bash
 
-# FilmFlex Docker Movie Import Script
+# FilmFlex Docker Movie Import Script - Fixed Version
 # This script imports movie data into the Docker PostgreSQL container
+
+set -e
 
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+PURPLE='\033[0;35m'
+NC='\033[0m'
 
 # Configuration
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 APP_DIR="$( cd "$SCRIPT_DIR/../.." && pwd )"
 DOCKER_SCRIPT="import-movies-docker.cjs"
+APP_CONTAINER="filmflex-app"
+DB_CONTAINER="filmflex-postgres"
 
-echo -e "${BLUE}"
-echo "======================================================"
-echo "  FilmFlex Docker Movie Import Script"
-echo "======================================================"
-echo -e "${NC}"
+log() { echo -e "${BLUE}[$(date +'%H:%M:%S')] $1${NC}"; }
+success() { echo -e "${GREEN}✅ $1${NC}"; }
+warning() { echo -e "${YELLOW}⚠️ $1${NC}"; }
+error() { echo -e "${RED}❌ $1${NC}"; }
+info() { echo -e "${PURPLE}ℹ️ $1${NC}"; }
 
-# Check if Docker containers are running
-echo -e "${BLUE}📋 Checking Docker container status...${NC}"
-if ! docker ps | grep -q "filmflex-postgres"; then
-    echo -e "${RED}❌ Docker PostgreSQL container is not running!${NC}"
-    echo "Please start it with: docker-compose up -d"
-    exit 1
-fi
+print_banner() {
+    echo -e "${BLUE}"
+    echo "======================================================"
+    echo "  FilmFlex Docker Movie Import Script (Fixed)"
+    echo "======================================================"
+    echo -e "${NC}"
+    echo "App Container: $APP_CONTAINER"
+    echo "DB Container: $DB_CONTAINER"
+    echo ""
+}
 
-if ! docker ps | grep -q "filmflex-app"; then
-    echo -e "${RED}❌ Docker FilmFlex app container is not running!${NC}"
-    echo "Please start it with: docker-compose up -d"
-    exit 1
-fi
+# Check if Docker containers are running and healthy
+check_containers() {
+    log "Checking Docker container status..."
+    
+    # Check PostgreSQL container
+    if ! docker ps | grep -q "$DB_CONTAINER"; then
+        error "PostgreSQL container '$DB_CONTAINER' is not running!"
+        echo "Start it with: docker compose up -d postgres"
+        return 1
+    fi
+    
+    # Check app container
+    if ! docker ps | grep -q "$APP_CONTAINER"; then
+        error "App container '$APP_CONTAINER' is not running!"
+        echo "Start it with: docker compose up -d app"
+        return 1
+    fi
+    
+    # Test database connection
+    if ! docker exec "$DB_CONTAINER" pg_isready -U filmflex -d filmflex >/dev/null 2>&1; then
+        error "Database is not ready in container '$DB_CONTAINER'"
+        return 1
+    fi
+    
+    success "Docker containers are running and healthy"
+    return 0
+}
 
-echo -e "${GREEN}✅ Docker containers are running${NC}"
+# Get current movie count from database
+get_movie_count() {
+    docker exec "$DB_CONTAINER" psql -U filmflex -d filmflex -t -c "SELECT COUNT(*) FROM movies;" 2>/dev/null | tr -d ' ' || echo "0"
+}
 
-# Check current movie count
-echo -e "${BLUE}📊 Checking current movie count in Docker database...${NC}"
-CURRENT_COUNT=$(docker exec filmflex-postgres psql -U filmflex -d filmflex -t -c "SELECT COUNT(*) FROM movies;" | tr -d ' ')
-echo -e "${GREEN}Current movies in Docker database: ${CURRENT_COUNT}${NC}"
+# Show database statistics
+show_db_stats() {
+    log "Current database statistics:"
+    
+    docker exec "$DB_CONTAINER" psql -U filmflex -d filmflex -c "
+    SELECT 
+        'movies' as table_name, COUNT(*) as count FROM movies
+    UNION ALL
+    SELECT 'episodes', COUNT(*) FROM episodes
+    UNION ALL
+    SELECT 'users', COUNT(*) FROM users
+    ORDER BY table_name;
+    " 2>/dev/null || warning "Could not retrieve database statistics"
+}
 
-# Ask user what they want to do
-echo ""
-echo -e "${YELLOW}What would you like to import?${NC}"
-echo "1) Import a few test movies (page 1, 5 movies)"
-echo "2) Import latest movies (page 1, 20 movies)"  
-echo "3) Import specific page (you choose page and count)"
-echo "4) Import multiple pages (you choose how many)"
-echo "5) Import specific movie by slug"
-echo "6) Test mode (no database changes)"
-echo "7) Import ALL movies (comprehensive import - this will take a long time!)"
+# Check if the import script exists in container
+check_import_script() {
+    if ! docker exec "$APP_CONTAINER" test -f "scripts/data/$DOCKER_SCRIPT"; then
+        error "Import script not found in container: scripts/data/$DOCKER_SCRIPT"
+        info "Available files in scripts/data/:"
+        docker exec "$APP_CONTAINER" ls -la scripts/data/ 2>/dev/null || error "scripts/data directory not found"
+        return 1
+    fi
+    success "Import script found: scripts/data/$DOCKER_SCRIPT"
+    return 0
+}
 
-read -p "Select an option (1-7): " IMPORT_OPTION
+# Execute import command with proper shell
+execute_import() {
+    local import_cmd="$1"
+    local description="$2"
+    
+    log "$description"
+    
+    # Use sh instead of bash, and ensure logs directory exists
+    if docker exec "$APP_CONTAINER" sh -c "mkdir -p /app/logs && $import_cmd"; then
+        success "Import completed successfully"
+        return 0
+    else
+        error "Import failed"
+        return 1
+    fi
+}
 
-case $IMPORT_OPTION in
-    1)
-        echo -e "${BLUE}🎬 Importing 5 test movies from page 1...${NC}"
-        docker exec filmflex-app node "scripts/data/$DOCKER_SCRIPT" --single-page --page-num=1 --page-size=5
-        ;;
-    2)
-        echo -e "${BLUE}🎬 Importing 20 latest movies from page 1...${NC}"
-        docker exec filmflex-app node "scripts/data/$DOCKER_SCRIPT" --single-page --page-num=1 --page-size=20
-        ;;
-    3)
-        read -p "Enter page number: " PAGE_NUM
-        read -p "Enter number of movies to import: " MOVIE_COUNT
-        echo -e "${BLUE}🎬 Importing ${MOVIE_COUNT} movies from page ${PAGE_NUM}...${NC}"
-        docker exec filmflex-app node "scripts/data/$DOCKER_SCRIPT" --single-page --page-num="$PAGE_NUM" --page-size="$MOVIE_COUNT"
-        ;;
-    4)
-        read -p "Enter number of pages to import: " MAX_PAGES
-        echo -e "${BLUE}🎬 Importing movies from ${MAX_PAGES} pages...${NC}"
-        docker exec filmflex-app node "scripts/data/$DOCKER_SCRIPT" --max-pages="$MAX_PAGES"
-        ;;
-    5)
-        read -p "Enter movie slug: " MOVIE_SLUG
-        echo -e "${BLUE}🎬 Importing specific movie: ${MOVIE_SLUG}...${NC}"
-        docker exec filmflex-app node "scripts/data/$DOCKER_SCRIPT" --movie-slug="$MOVIE_SLUG"
-        ;;
-    6)
-        echo -e "${BLUE}🧪 Running in test mode (no database changes)...${NC}"
-        docker exec filmflex-app node "scripts/data/$DOCKER_SCRIPT" --single-page --page-num=1 --page-size=5 --test-mode
-        ;;
-    7)
-        echo -e "${RED}⚠️  WARNING: This will import ALL movies from the API!${NC}"
-        echo -e "${YELLOW}This process will:${NC}"
-        echo "  • Take several hours to complete"
-        echo "  • Import thousands of movies and episodes"
-        echo "  • Use significant bandwidth and storage"
-        echo "  • May slow down your system during import"
+# Test mode import
+test_import() {
+    info "Running test mode (no database changes)..."
+    execute_import "node scripts/data/$DOCKER_SCRIPT --single-page --page-num=1 --page-size=3 --test-mode" "Testing import functionality"
+}
+
+# Import specific number of movies from page 1
+import_test_movies() {
+    local count="${1:-5}"
+    execute_import "node scripts/data/$DOCKER_SCRIPT --single-page --page-num=1 --page-size=$count" "Importing $count test movies from page 1"
+}
+
+# Import latest movies
+import_latest_movies() {
+    local count="${1:-20}"
+    execute_import "node scripts/data/$DOCKER_SCRIPT --single-page --page-num=1 --page-size=$count" "Importing $count latest movies"
+}
+
+# Import specific page
+import_specific_page() {
+    local page_num="$1"
+    local page_size="$2"
+    execute_import "node scripts/data/$DOCKER_SCRIPT --single-page --page-num=$page_num --page-size=$page_size" "Importing $page_size movies from page $page_num"
+}
+
+# Import multiple pages
+import_multiple_pages() {
+    local max_pages="$1"
+    execute_import "node scripts/data/$DOCKER_SCRIPT --max-pages=$max_pages" "Importing movies from $max_pages pages"
+}
+
+# Import specific movie by slug
+import_specific_movie() {
+    local movie_slug="$1"
+    execute_import "node scripts/data/$DOCKER_SCRIPT --movie-slug=\"$movie_slug\"" "Importing specific movie: $movie_slug"
+}
+
+# Comprehensive import (all movies)
+import_all_movies() {
+    warning "WARNING: This will import ALL movies from the API!"
+    echo -e "${YELLOW}This process will:${NC}"
+    echo "  • Take several hours to complete"
+    echo "  • Import thousands of movies and episodes"
+    echo "  • Use significant bandwidth and storage"
+    echo "  • May slow down your system during import"
+    echo ""
+    
+    read -p "Are you sure you want to continue? (yes/no): " CONFIRM
+    
+    if [[ "$CONFIRM" =~ ^[Yy](es)?$ ]]; then
+        log "Starting comprehensive movie import..."
+        warning "This will run continuously until all movies are imported."
+        warning "You can press Ctrl+C to stop at any time and resume later."
         echo ""
-        read -p "Are you sure you want to continue? (yes/no): " CONFIRM
         
-        if [ "$CONFIRM" = "yes" ] || [ "$CONFIRM" = "YES" ] || [ "$CONFIRM" = "y" ] || [ "$CONFIRM" = "Y" ]; then
-            echo -e "${BLUE}🚀 Starting comprehensive movie import...${NC}"
-            echo -e "${YELLOW}This will run continuously until all movies are imported.${NC}"
-            echo -e "${YELLOW}You can press Ctrl+C to stop at any time and resume later.${NC}"
-            echo ""
-            
-            # Create a log file for the comprehensive import
-            LOG_FILE="/app/logs/comprehensive-import-$(date +%Y%m%d_%H%M%S).log"
-            
-            echo -e "${BLUE}📝 Import log will be saved inside container at: $LOG_FILE${NC}"
-            echo ""
-            
-            # Start with a deep scan of 50 pages (should cover most content)
-            # The script will handle resuming if interrupted
-            docker exec filmflex-app bash -c "mkdir -p /app/logs && node 'scripts/data/$DOCKER_SCRIPT' --deep-scan --max-pages=50 --force-import 2>&1 | tee '$LOG_FILE'"
-            
-            echo ""
-            echo -e "${GREEN}🎉 Comprehensive import completed!${NC}"
-            echo -e "${BLUE}📊 Check the final count below for total imported movies.${NC}"
+        # Create a timestamped log file
+        local timestamp=$(date +%Y%m%d_%H%M%S)
+        local log_file="/app/logs/comprehensive-import-$timestamp.log"
+        
+        info "Import log will be saved inside container at: $log_file"
+        echo ""
+        
+        # Use sh instead of bash and include proper error handling
+        local import_cmd="node scripts/data/$DOCKER_SCRIPT --deep-scan --max-pages=50 --force-import 2>&1 | tee $log_file"
+        
+        if docker exec "$APP_CONTAINER" sh -c "mkdir -p /app/logs && $import_cmd"; then
+            success "Comprehensive import completed!"
+            info "Check the final count below for total imported movies."
         else
-            echo -e "${YELLOW}Import cancelled.${NC}"
-            exit 0
+            error "Comprehensive import encountered errors"
+            info "Check the log file: $log_file"
         fi
-        ;;
-    *)
-        echo -e "${RED}❌ Invalid option. Exiting.${NC}"
+    else
+        warning "Import cancelled."
+        return 1
+    fi
+}
+
+# Main import menu
+show_import_menu() {
+    echo ""
+    echo -e "${YELLOW}What would you like to import?${NC}"
+    echo "1) Test mode (3 movies, no database changes)"
+    echo "2) Import a few test movies (page 1, 5 movies)"
+    echo "3) Import latest movies (page 1, 20 movies)"
+    echo "4) Import specific page (you choose page and count)"
+    echo "5) Import multiple pages (you choose how many)"
+    echo "6) Import specific movie by slug"
+    echo "7) Import ALL movies (comprehensive import - WARNING: takes hours!)"
+    echo "8) Show current database statistics"
+    echo "q) Quit"
+    echo ""
+    read -p "Select an option (1-8, q): " IMPORT_OPTION
+    
+    case $IMPORT_OPTION in
+        1)
+            test_import
+            ;;
+        2)
+            import_test_movies 5
+            ;;
+        3)
+            import_latest_movies 20
+            ;;
+        4)
+            read -p "Enter page number: " PAGE_NUM
+            read -p "Enter number of movies to import: " MOVIE_COUNT
+            if [[ "$PAGE_NUM" =~ ^[0-9]+$ ]] && [[ "$MOVIE_COUNT" =~ ^[0-9]+$ ]]; then
+                import_specific_page "$PAGE_NUM" "$MOVIE_COUNT"
+            else
+                error "Invalid input. Please enter numbers only."
+                return 1
+            fi
+            ;;
+        5)
+            read -p "Enter number of pages to import: " MAX_PAGES
+            if [[ "$MAX_PAGES" =~ ^[0-9]+$ ]]; then
+                import_multiple_pages "$MAX_PAGES"
+            else
+                error "Invalid input. Please enter a number."
+                return 1
+            fi
+            ;;
+        6)
+            read -p "Enter movie slug: " MOVIE_SLUG
+            if [ -n "$MOVIE_SLUG" ]; then
+                import_specific_movie "$MOVIE_SLUG"
+            else
+                error "Movie slug cannot be empty."
+                return 1
+            fi
+            ;;
+        7)
+            import_all_movies
+            ;;
+        8)
+            show_db_stats
+            return 0
+            ;;
+        q|Q)
+            info "Exiting..."
+            exit 0
+            ;;
+        *)
+            error "Invalid option. Please try again."
+            return 1
+            ;;
+    esac
+}
+
+# Main execution
+main() {
+    print_banner
+    
+    # Check prerequisites
+    if ! check_containers; then
         exit 1
-        ;;
-esac
+    fi
+    
+    if ! check_import_script; then
+        exit 1
+    fi
+    
+    # Show current stats
+    log "Current database status:"
+    local current_count=$(get_movie_count)
+    info "Current movies in database: $current_count"
+    
+    # Show import menu
+    show_import_menu
+    
+    # Show final stats
+    echo ""
+    log "Checking final movie count..."
+    local final_count=$(get_movie_count)
+    local added_count=$((final_count - current_count))
+    
+    success "Import session completed!"
+    success "Movies before: $current_count"
+    success "Movies after: $final_count"
+    success "Movies added: $added_count"
+    
+    echo ""
+    info "Your FilmFlex app is available at: https://phimgg.com"
+}
 
-# Check final movie count
-echo ""
-echo -e "${BLUE}📊 Checking final movie count...${NC}"
-FINAL_COUNT=$(docker exec filmflex-postgres psql -U filmflex -d filmflex -t -c "SELECT COUNT(*) FROM movies;" | tr -d ' ')
-ADDED_COUNT=$((FINAL_COUNT - CURRENT_COUNT))
-
-echo -e "${GREEN}✅ Import completed!${NC}"
-echo -e "${GREEN}Movies before: ${CURRENT_COUNT}${NC}"
-echo -e "${GREEN}Movies after: ${FINAL_COUNT}${NC}"
-echo -e "${GREEN}Movies added: ${ADDED_COUNT}${NC}"
-
-echo ""
-echo -e "${BLUE}🌐 Your FilmFlex app is available at: https://phimgg.com${NC}"
+# Handle command line arguments
+if [ $# -gt 0 ]; then
+    case "$1" in
+        "test")
+            print_banner
+            check_containers && check_import_script && test_import
+            ;;
+        "quick")
+            print_banner
+            check_containers && check_import_script && import_test_movies 5
+            ;;
+        "latest")
+            print_banner
+            check_containers && check_import_script && import_latest_movies 20
+            ;;
+        "stats")
+            print_banner
+            check_containers && show_db_stats
+            ;;
+        *)
+            echo "Usage: $0 [test|quick|latest|stats]"
+            echo ""
+            echo "Commands:"
+            echo "  test    - Run test mode (no database changes)"
+            echo "  quick   - Import 5 test movies"
+            echo "  latest  - Import 20 latest movies"
+            echo "  stats   - Show database statistics"
+            echo "  (no args) - Interactive menu"
+            ;;
+    esac
+else
+    main
+fi
