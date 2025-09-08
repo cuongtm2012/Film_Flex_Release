@@ -93,8 +93,8 @@ services:
       - filmflex-network
     environment:
       - TZ=${TZ:-UTC}
-    # Auto-renewal every 12 hours
-    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew --webroot --webroot-path=/var/www/certbot --quiet --deploy-hook=\"nginx -s reload\" || true; sleep 12h & wait $${!}; done;'"
+    # Auto-renewal every 12 hours without deploy hook (nginx reload handled separately)
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew --webroot --webroot-path=/var/www/certbot --quiet || true; sleep 12h & wait $${!}; done;'"
     restart: unless-stopped
     depends_on:
       - nginx-proxy

@@ -187,7 +187,7 @@ generate_ssl_certificates() {
         fi
     fi
     
-    # Generate certificates using webroot method
+    # Generate certificates using webroot method (without deploy hook)
     log "Requesting SSL certificate for $DOMAIN and www.$DOMAIN..."
     
     $DOCKER_COMPOSE -f $COMPOSE_FILE run --rm certbot \
