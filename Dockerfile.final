@@ -23,12 +23,16 @@ COPY --chown=filmflex:nodejs dist ./dist
 COPY --chown=filmflex:nodejs public ./public
 COPY --chown=filmflex:nodejs shared ./shared
 
+# Copy scripts directory for data import functionality
+COPY --chown=filmflex:nodejs scripts ./scripts
+
 # Create necessary directories
 RUN mkdir -p logs tmp && \
     chown -R filmflex:nodejs logs tmp
 
 # Verify critical files exist
 RUN test -f dist/index.js || (echo "Critical file missing: dist/index.js" && exit 1)
+RUN test -f scripts/data/import-movies-docker.cjs || (echo "Warning: import script missing" && ls -la scripts/data/ || echo "scripts/data directory missing")
 
 # Switch to non-root user
 USER filmflex
