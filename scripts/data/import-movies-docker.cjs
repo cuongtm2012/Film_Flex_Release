@@ -43,7 +43,7 @@ let MAX_PAGES = 1;
 
 // Docker PostgreSQL connection settings
 const DOCKER_DB_CONFIG = {
-  host: 'localhost',
+  host: 'postgres',
   port: 5432,
   database: 'filmflex',
   user: 'filmflex',
