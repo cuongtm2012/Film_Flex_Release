@@ -51,6 +51,9 @@ COPY --from=builder --chown=filmflex:nodejs /app/dist ./dist
 COPY --from=builder --chown=filmflex:nodejs /app/server ./server
 COPY --from=builder --chown=filmflex:nodejs /app/shared ./shared
 
+# Copy scripts directory for data import functionality
+COPY --from=builder --chown=filmflex:nodejs /app/scripts ./scripts
+
 # Copy static assets
 COPY --from=builder --chown=filmflex:nodejs /app/public ./public
 
@@ -62,6 +65,7 @@ RUN mkdir -p logs && chown filmflex:nodejs logs
 
 # Verify critical files exist
 RUN test -f dist/index.js || (echo "Critical file missing: dist/index.js" && exit 1)
+RUN test -f scripts/data/import-movies-docker.cjs || (echo "Warning: import script missing" && ls -la scripts/data/ || echo "scripts/data directory missing")
 
 USER filmflex
 EXPOSE 5000
