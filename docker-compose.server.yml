@@ -59,6 +59,8 @@ services:
         condition: service_healthy
     volumes:
       - app_logs:/app/logs
+      # Mount the scripts directory so Docker can access import scripts
+      - /root/Film_Flex_Release/scripts:/app/scripts:ro
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000"]
