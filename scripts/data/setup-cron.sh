@@ -344,14 +344,73 @@ chmod 644 $CRON_FILE
 
 # Restart cron service
 echo -e "${BLUE}Restarting cron service...${NC}"
+CRON_RESTARTED=false
+
+# Try different cron service names and methods
 if command -v systemctl &> /dev/null; then
-  systemctl restart cron
-  systemctl status cron --no-pager -l | head -10
+  # SystemD systems - try different service names
+  for service_name in cron crond crontab; do
+    if systemctl list-units --type=service | grep -q "$service_name"; then
+      echo "Found systemd service: $service_name"
+      systemctl restart "$service_name" 2>/dev/null && {
+        systemctl status "$service_name" --no-pager -l | head -10
+        CRON_RESTARTED=true
+        break
+      }
+    fi
+  done
+  
+  # If no service found, try enabling and starting cron
+  if [ "$CRON_RESTARTED" = false ]; then
+    echo "Attempting to install and enable cron service..."
+    systemctl enable cron 2>/dev/null || systemctl enable crond 2>/dev/null || true
+    systemctl start cron 2>/dev/null || systemctl start crond 2>/dev/null || {
+      echo -e "${YELLOW}Could not start cron service via systemd${NC}"
+    }
+  fi
 elif command -v service &> /dev/null; then
-  service cron restart
-  service cron status | head -10
+  # SysV init systems
+  for service_name in cron crond crontab; do
+    service "$service_name" restart 2>/dev/null && {
+      service "$service_name" status | head -10
+      CRON_RESTARTED=true
+      break
+    }
+  done
 else
-  echo -e "${YELLOW}Couldn't restart cron service automatically. Please restart it manually.${NC}"
+  echo -e "${YELLOW}No systemctl or service command found${NC}"
+fi
+
+# If we still couldn't restart, check if cron is installed
+if [ "$CRON_RESTARTED" = false ]; then
+  echo -e "${YELLOW}Checking if cron is installed...${NC}"
+  
+  if command -v crontab &> /dev/null; then
+    echo -e "${GREEN}✓ Cron appears to be installed (crontab command available)${NC}"
+    echo -e "${BLUE}Cron jobs have been configured but service restart failed${NC}"
+    echo -e "${BLUE}This may be normal on some systems${NC}"
+    
+    # Try to reload crontab directly
+    echo -e "${BLUE}Attempting to reload cron configuration...${NC}"
+    if [ -f /var/run/crond.pid ]; then
+      kill -HUP $(cat /var/run/crond.pid) 2>/dev/null && echo "✓ Sent reload signal to cron daemon"
+    fi
+    
+    CRON_RESTARTED=true
+  else
+    echo -e "${RED}✗ Cron does not appear to be installed${NC}"
+    echo -e "${YELLOW}Please install cron:${NC}"
+    echo -e "  Ubuntu/Debian: apt-get install cron"
+    echo -e "  CentOS/RHEL: yum install cronie"
+    echo -e "  Then run this script again${NC}"
+  fi
+fi
+
+if [ "$CRON_RESTARTED" = true ]; then
+  echo -e "${GREEN}✓ Cron service configuration completed${NC}"
+else
+  echo -e "${YELLOW}⚠ Could not restart cron service automatically${NC}"
+  echo -e "${YELLOW}Please restart cron manually or reboot the server${NC}"
 fi
 
 # Print completion message
