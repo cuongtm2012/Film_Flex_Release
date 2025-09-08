@@ -1,0 +1,123 @@
+version: '3.8'
+
+services:
+  # Enhanced PostgreSQL Database with proper initialization
+  postgres:
+    image: postgres:15-alpine
+    container_name: filmflex-postgres-enhanced
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: filmflex
+      POSTGRES_USER: filmflex
+      POSTGRES_PASSWORD: filmflex2024
+      PGDATA: /var/lib/postgresql/data/pgdata
+      # Enable logging for debugging
+      POSTGRES_INITDB_ARGS: "--auth-host=md5"
+    volumes:
+      # Persistent data storage
+      - postgres_data:/var/lib/postgresql/data
+      # Mount initialization scripts
+      - ./scripts/db/init-postgres-docker.sh:/docker-entrypoint-initdb.d/00-init-postgres.sh:ro
+      - ./shared/filmflex_schema.sql:/docker-entrypoint-initdb.d/01-filmflex-schema.sql:ro
+      # Mount any data files if they exist
+      - ./shared:/docker-entrypoint-initdb.d/shared:ro
+    ports:
+      - "5432:5432"
+    networks:
+      - filmflex-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U filmflex -d filmflex"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # FilmFlex Application
+  app:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: filmflex-app-enhanced
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      
+      # Database Configuration
+      DATABASE_URL: postgresql://filmflex:filmflex2024@postgres:5432/filmflex
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: filmflex
+      DB_USER: filmflex
+      DB_PASSWORD: filmflex2024
+      
+      # Application Configuration
+      ALLOWED_ORIGINS: "*"
+      CLIENT_URL: "*"
+      CORS_ORIGIN: "*"
+      CORS_METHODS: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS"
+      CORS_ALLOWED_HEADERS: "Origin,X-Requested-With,Content-Type,Accept,Authorization,Cache-Control,Pragma"
+      CORS_CREDENTIALS: "true"
+      
+      # Session Configuration
+      SESSION_SECRET: filmflex_enhanced_secret_2024
+      
+      # Server Configuration
+      TRUST_PROXY: "true"
+    ports:
+      - "5000:5000"
+    networks:
+      - filmflex-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./logs:/app/logs
+      - ./public:/app/public
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Optional: Database administration tool
+  adminer:
+    image: adminer:4.8.1
+    container_name: filmflex-adminer
+    restart: unless-stopped
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+      ADMINER_DESIGN: "pepa-linha"
+    ports:
+      - "8080:8080"
+    networks:
+      - filmflex-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - admin
+
+networks:
+  filmflex-network:
+    driver: bridge
+    name: filmflex-enhanced-network
+
+volumes:
+  postgres_data:
+    name: filmflex_postgres_enhanced_data
+    driver: local
+  app_logs:
+    name: filmflex_app_enhanced_logs
+    driver: local

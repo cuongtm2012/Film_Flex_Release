@@ -58,37 +58,31 @@ read -p "Select an option (1-7): " IMPORT_OPTION
 case $IMPORT_OPTION in
     1)
         echo -e "${BLUE}🎬 Importing 5 test movies from page 1...${NC}"
-        cd "$APP_DIR"
-        node "scripts/data/$DOCKER_SCRIPT" --single-page --page-num=1 --page-size=5
+        docker exec filmflex-app node "scripts/data/$DOCKER_SCRIPT" --single-page --page-num=1 --page-size=5
         ;;
     2)
         echo -e "${BLUE}🎬 Importing 20 latest movies from page 1...${NC}"
-        cd "$APP_DIR"
-        node "scripts/data/$DOCKER_SCRIPT" --single-page --page-num=1 --page-size=20
+        docker exec filmflex-app node "scripts/data/$DOCKER_SCRIPT" --single-page --page-num=1 --page-size=20
         ;;
     3)
         read -p "Enter page number: " PAGE_NUM
         read -p "Enter number of movies to import: " MOVIE_COUNT
         echo -e "${BLUE}🎬 Importing ${MOVIE_COUNT} movies from page ${PAGE_NUM}...${NC}"
-        cd "$APP_DIR"
-        node "scripts/data/$DOCKER_SCRIPT" --single-page --page-num="$PAGE_NUM" --page-size="$MOVIE_COUNT"
+        docker exec filmflex-app node "scripts/data/$DOCKER_SCRIPT" --single-page --page-num="$PAGE_NUM" --page-size="$MOVIE_COUNT"
         ;;
     4)
         read -p "Enter number of pages to import: " MAX_PAGES
         echo -e "${BLUE}🎬 Importing movies from ${MAX_PAGES} pages...${NC}"
-        cd "$APP_DIR"
-        node "scripts/data/$DOCKER_SCRIPT" --max-pages="$MAX_PAGES"
+        docker exec filmflex-app node "scripts/data/$DOCKER_SCRIPT" --max-pages="$MAX_PAGES"
         ;;
     5)
         read -p "Enter movie slug: " MOVIE_SLUG
         echo -e "${BLUE}🎬 Importing specific movie: ${MOVIE_SLUG}...${NC}"
-        cd "$APP_DIR"
-        node "scripts/data/$DOCKER_SCRIPT" --movie-slug="$MOVIE_SLUG"
+        docker exec filmflex-app node "scripts/data/$DOCKER_SCRIPT" --movie-slug="$MOVIE_SLUG"
         ;;
     6)
         echo -e "${BLUE}🧪 Running in test mode (no database changes)...${NC}"
-        cd "$APP_DIR"
-        node "scripts/data/$DOCKER_SCRIPT" --single-page --page-num=1 --page-size=5 --test-mode
+        docker exec filmflex-app node "scripts/data/$DOCKER_SCRIPT" --single-page --page-num=1 --page-size=5 --test-mode
         ;;
     7)
         echo -e "${RED}⚠️  WARNING: This will import ALL movies from the API!${NC}"
@@ -107,16 +101,14 @@ case $IMPORT_OPTION in
             echo ""
             
             # Create a log file for the comprehensive import
-            LOG_FILE="$APP_DIR/logs/comprehensive-import-$(date +%Y%m%d_%H%M%S).log"
-            mkdir -p "$APP_DIR/logs"
+            LOG_FILE="/app/logs/comprehensive-import-$(date +%Y%m%d_%H%M%S).log"
             
-            echo -e "${BLUE}📝 Import log will be saved to: $LOG_FILE${NC}"
+            echo -e "${BLUE}📝 Import log will be saved inside container at: $LOG_FILE${NC}"
             echo ""
             
-            cd "$APP_DIR"
             # Start with a deep scan of 50 pages (should cover most content)
             # The script will handle resuming if interrupted
-            node "scripts/data/$DOCKER_SCRIPT" --deep-scan --max-pages=50 --force-import 2>&1 | tee "$LOG_FILE"
+            docker exec filmflex-app bash -c "mkdir -p /app/logs && node 'scripts/data/$DOCKER_SCRIPT' --deep-scan --max-pages=50 --force-import 2>&1 | tee '$LOG_FILE'"
             
             echo ""
             echo -e "${GREEN}🎉 Comprehensive import completed!${NC}"
@@ -144,4 +136,4 @@ echo -e "${GREEN}Movies after: ${FINAL_COUNT}${NC}"
 echo -e "${GREEN}Movies added: ${ADDED_COUNT}${NC}"
 
 echo ""
-echo -e "${BLUE}🌐 Your FilmFlex app is available at: http://localhost:5000${NC}"
+echo -e "${BLUE}🌐 Your FilmFlex app is available at: https://phimgg.com${NC}"
