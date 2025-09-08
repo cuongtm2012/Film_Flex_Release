@@ -61,9 +61,10 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      # Nginx configuration
+      # Main nginx configuration (correct mount point)
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx:/etc/nginx/conf.d:ro
+      # Site-specific configurations (correct mount point for includes)
+      - ./nginx/phimgg.com.conf:/etc/nginx/conf.d/default.conf:ro
       # SSL certificates
       - certbot_conf:/etc/letsencrypt:ro
       - certbot_www:/var/www/certbot:ro
