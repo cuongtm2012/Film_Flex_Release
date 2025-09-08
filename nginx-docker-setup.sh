@@ -17,6 +17,16 @@ NC='\033[0m'
 COMPOSE_FILE="docker-compose.nginx-ssl.yml"
 ENV_FILE=".env.nginx-ssl"
 
+# Detect Docker Compose command
+if command -v docker-compose &> /dev/null; then
+    DOCKER_COMPOSE="docker-compose"
+elif docker compose version &> /dev/null; then
+    DOCKER_COMPOSE="docker compose"
+else
+    echo -e "${RED}❌ Docker Compose not found. Please install Docker Compose.${NC}"
+    exit 1
+fi
+
 log() {
     echo -e "${BLUE}[$(date +'%Y-%m-%d %H:%M:%S')] $1${NC}"
 }
@@ -52,10 +62,7 @@ check_prerequisites() {
         exit 1
     fi
     
-    if ! command -v docker-compose &> /dev/null && ! docker compose version &> /dev/null; then
-        error "Docker Compose is not installed. Please install Docker Compose first."
-        exit 1
-    fi
+    log "Using Docker Compose command: $DOCKER_COMPOSE"
     
     success "Prerequisites check passed"
 }
@@ -99,13 +106,13 @@ start_initial_services() {
     log "Starting initial services (app and database)..."
     
     # Start only postgres and app first
-    docker-compose -f $COMPOSE_FILE up -d postgres app
+    $DOCKER_COMPOSE -f $COMPOSE_FILE up -d postgres app
     
     log "Waiting for services to be healthy..."
     sleep 30
     
     # Check if app is responding
-    if docker-compose -f $COMPOSE_FILE exec -T app curl -f http://localhost:5000/api/health > /dev/null 2>&1; then
+    if $DOCKER_COMPOSE -f $COMPOSE_FILE exec -T app curl -f http://localhost:5000/api/health > /dev/null 2>&1; then
         success "FilmFlex app is running and healthy"
     else
         warning "App health check failed, but continuing..."
@@ -153,7 +160,7 @@ EOF
 start_nginx_for_certs() {
     log "Starting Nginx for certificate generation..."
     
-    docker-compose -f $COMPOSE_FILE up -d nginx-proxy
+    $DOCKER_COMPOSE -f $COMPOSE_FILE up -d nginx-proxy
     
     sleep 15
     
@@ -170,7 +177,7 @@ generate_ssl_certificates() {
     log "Generating SSL certificates with Let's Encrypt..."
     
     # Check if certificates already exist
-    if docker-compose -f $COMPOSE_FILE exec -T nginx-proxy test -f "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" 2>/dev/null; then
+    if $DOCKER_COMPOSE -f $COMPOSE_FILE exec -T nginx-proxy test -f "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" 2>/dev/null; then
         warning "Certificates already exist for $DOMAIN"
         read -p "Do you want to renew them? (y/N): " -n 1 -r
         echo
@@ -183,7 +190,7 @@ generate_ssl_certificates() {
     # Generate certificates using webroot method
     log "Requesting SSL certificate for $DOMAIN and www.$DOMAIN..."
     
-    docker-compose -f $COMPOSE_FILE run --rm certbot \
+    $DOCKER_COMPOSE -f $COMPOSE_FILE run --rm certbot \
         certbot certonly \
         --webroot \
         --webroot-path=/var/www/certbot \
@@ -219,13 +226,13 @@ restart_nginx_with_ssl() {
     log "Restarting Nginx with SSL configuration..."
     
     # Test nginx config first
-    if docker-compose -f $COMPOSE_FILE exec -T nginx-proxy nginx -t; then
-        docker-compose -f $COMPOSE_FILE restart nginx-proxy
+    if $DOCKER_COMPOSE -f $COMPOSE_FILE exec -T nginx-proxy nginx -t; then
+        $DOCKER_COMPOSE -f $COMPOSE_FILE restart nginx-proxy
         sleep 10
         success "Nginx restarted with SSL"
     else
         error "Nginx configuration test failed"
-        docker-compose -f $COMPOSE_FILE exec -T nginx-proxy nginx -T
+        $DOCKER_COMPOSE -f $COMPOSE_FILE exec -T nginx-proxy nginx -T
         exit 1
     fi
 }
@@ -234,7 +241,7 @@ restart_nginx_with_ssl() {
 start_auto_renewal() {
     log "Starting SSL auto-renewal service..."
     
-    docker-compose -f $COMPOSE_FILE up -d certbot
+    $DOCKER_COMPOSE -f $COMPOSE_FILE up -d certbot
     
     success "SSL auto-renewal service started"
 }
@@ -282,25 +289,25 @@ show_management_commands() {
     log "📋 Management commands:"
     echo ""
     log "View all logs:"
-    echo "  docker-compose -f $COMPOSE_FILE logs -f"
+    echo "  $DOCKER_COMPOSE -f $COMPOSE_FILE logs -f"
     echo ""
     log "View nginx logs:"
-    echo "  docker-compose -f $COMPOSE_FILE logs -f nginx-proxy"
+    echo "  $DOCKER_COMPOSE -f $COMPOSE_FILE logs -f nginx-proxy"
     echo ""
     log "Test nginx configuration:"
-    echo "  docker-compose -f $COMPOSE_FILE exec nginx-proxy nginx -t"
+    echo "  $DOCKER_COMPOSE -f $COMPOSE_FILE exec nginx-proxy nginx -t"
     echo ""
     log "Reload nginx (without restart):"
-    echo "  docker-compose -f $COMPOSE_FILE exec nginx-proxy nginx -s reload"
+    echo "  $DOCKER_COMPOSE -f $COMPOSE_FILE exec nginx-proxy nginx -s reload"
     echo ""
     log "Check SSL certificates:"
-    echo "  docker-compose -f $COMPOSE_FILE exec nginx-proxy ls -la /etc/letsencrypt/live/"
+    echo "  $DOCKER_COMPOSE -f $COMPOSE_FILE exec nginx-proxy ls -la /etc/letsencrypt/live/"
     echo ""
     log "Manual certificate renewal:"
-    echo "  docker-compose -f $COMPOSE_FILE run --rm certbot certbot renew --dry-run"
+    echo "  $DOCKER_COMPOSE -f $COMPOSE_FILE run --rm certbot certbot renew --dry-run"
     echo ""
     log "Stop all services:"
-    echo "  docker-compose -f $COMPOSE_FILE down"
+    echo "  $DOCKER_COMPOSE -f $COMPOSE_FILE down"
     echo ""
 }
 
@@ -368,28 +375,28 @@ main() {
 case "${1:-}" in
     "start")
         log "Starting services..."
-        docker-compose -f $COMPOSE_FILE up -d
+        $DOCKER_COMPOSE -f $COMPOSE_FILE up -d
         ;;
     "stop")
         log "Stopping services..."
-        docker-compose -f $COMPOSE_FILE down
+        $DOCKER_COMPOSE -f $COMPOSE_FILE down
         ;;
     "restart")
         log "Restarting services..."
-        docker-compose -f $COMPOSE_FILE restart
+        $DOCKER_COMPOSE -f $COMPOSE_FILE restart
         ;;
     "logs")
         log "Showing logs..."
-        docker-compose -f $COMPOSE_FILE logs -f
+        $DOCKER_COMPOSE -f $COMPOSE_FILE logs -f
         ;;
     "status")
         log "Service status..."
-        docker-compose -f $COMPOSE_FILE ps
+        $DOCKER_COMPOSE -f $COMPOSE_FILE ps
         ;;
     "ssl-renew")
         log "Renewing SSL certificates..."
-        docker-compose -f $COMPOSE_FILE run --rm certbot certbot renew
-        docker-compose -f $COMPOSE_FILE exec nginx-proxy nginx -s reload
+        $DOCKER_COMPOSE -f $COMPOSE_FILE run --rm certbot certbot renew
+        $DOCKER_COMPOSE -f $COMPOSE_FILE exec nginx-proxy nginx -s reload
         ;;
     *)
         main
