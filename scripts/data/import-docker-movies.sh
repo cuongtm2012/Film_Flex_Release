@@ -3,7 +3,8 @@
 # FilmFlex Docker Movie Import Script - Fixed Version
 # This script imports movie data into the Docker PostgreSQL container
 
-set -e
+# Remove set -e to prevent premature exit during page range imports
+# set -e
 
 # Colors for output
 RED='\033[0;31m'
