@@ -1,7 +1,7 @@
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import * as schema from '@shared/schema';
-import { config } from './config';
+import { config } from './config.js';
 
 if (!config.databaseUrl) {
   throw new Error(
@@ -15,17 +15,16 @@ export const pool = new Pool({
   max: 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 10000,
-  ssl: false, // Disable SSL for local connections
+  ssl: false,
 });
 
 pool.on('connect', () => {
-  console.log('Successfully connected to PostgreSQL database');
+  console.log('✅ Successfully connected to PostgreSQL database');
 });
 
-pool.on('error', (err) => {
-  console.error('Unexpected error on database client:', err);
-  // Let's try to reconnect on connection errors
-  if ((err as any).code === 'PROTOCOL_CONNECTION_LOST') {
+pool.on('error', (err: any) => {
+  console.error('❌ Unexpected error on database client:', err);
+  if (err.code === 'PROTOCOL_CONNECTION_LOST') {
     console.log('Lost connection to the database. Attempting to reconnect...');
   }
 });
@@ -37,8 +36,8 @@ export const db = drizzle(pool, { schema });
 export const prepareQuery = db.query;
 
 // Handle uncaught exceptions
-process.on('uncaughtException', (err) => {
-  if ((err as any).code === 'PROTOCOL_CONNECTION_LOST') {
+process.on('uncaughtException', (err: any) => {
+  if (err.code === 'PROTOCOL_CONNECTION_LOST') {
     console.error('Database connection was closed.');
   } else {
     console.error('Unhandled exception:', err);

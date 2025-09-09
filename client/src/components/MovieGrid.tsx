@@ -66,8 +66,7 @@ export default function MovieGrid({
   const sortOptions = [
     { value: "latest", label: "Latest Added", icon: <ArrowDownAZ className="h-5 w-5" /> },
     { value: "popular", label: "Most Popular", icon: <Flame className="h-5 w-5" /> },
-    { value: "rating", label: "Highest Rated", icon: <ThumbsUp className="h-5 w-5" /> },
-    { value: "year", label: "Release Year", icon: <CalendarDays className="h-5 w-5" /> }
+    { value: "rating", label: "Highest Rated", icon: <ThumbsUp className="h-5 w-5" /> }
   ];
 
   if (isLoading) {

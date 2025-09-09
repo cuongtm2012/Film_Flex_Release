@@ -18,12 +18,12 @@ export default function MoviesPage() {
   } = useQuery<MovieListResponse>({
     queryKey: [
       "/api/movies",
-      { page: currentPage, sort: sortBy, limit },
+      { page: currentPage, sortBy: sortBy, limit },
     ],
     queryFn: async () => {
       const params = new URLSearchParams({
         page: currentPage.toString(),
-        sort: sortBy,
+        sortBy: sortBy,
         limit: limit.toString(),
       });
       

@@ -1,6 +1,7 @@
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
+import { Strategy as FacebookStrategy } from "passport-facebook";
 import { Express, Request, Response, NextFunction, RequestHandler } from "express";
 import session from "express-session";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
@@ -172,7 +173,7 @@ export function setupAuth(app: Express): void {
     // Determine the correct callback URL based on environment
     const callbackURL = process.env.NODE_ENV === 'production' 
       ? "https://phimgg.com/api/auth/google/callback"
-      : "/api/auth/google/callback";
+      : "http://localhost:5000/api/auth/google/callback";
     
     passport.use(
       new GoogleStrategy(
@@ -231,6 +232,79 @@ export function setupAuth(app: Express): void {
     if (process.env.NODE_ENV !== 'production') {
       console.warn('Google OAuth credentials not found. Google authentication will not be available.');
       console.warn('Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in your .env file to enable Google OAuth.');
+    }
+  }
+
+  // Facebook OAuth Strategy
+  if (config.facebookAppId && config.facebookAppSecret) {
+    // Only log Facebook OAuth setup in development
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('Setting up Facebook OAuth strategy');
+    }
+    
+    // Determine the correct callback URL based on environment
+    const callbackURL = process.env.NODE_ENV === 'production' 
+      ? "https://phimgg.com/api/auth/facebook/callback"
+      : "http://localhost:5000/api/auth/facebook/callback";
+    
+    passport.use(
+      new FacebookStrategy(
+        {
+          clientID: config.facebookAppId,
+          clientSecret: config.facebookAppSecret,
+          callbackURL: callbackURL,
+          profileFields: ['id', 'displayName', 'photos', 'email']
+        },
+        async (_accessToken, _refreshToken, profile, done) => {
+          try {
+            // Check if user already exists with this Facebook ID
+            let user = await storage.getUserByFacebookId(profile.id);
+            
+            if (user) {
+              // User exists, log them in
+              await logUserActivity(user.id, "facebook_login", null, null, null);
+              const { password: _, ...userWithoutPassword } = user;
+              return done(null, userWithoutPassword);
+            }
+
+            // Check if user exists with same email
+            const emailUser = await storage.getUserByEmail(profile.emails?.[0]?.value || '');
+            if (emailUser) {
+              // Link Facebook account to existing user
+              await storage.updateUser(emailUser.id, { 
+                facebookId: profile.id,
+                avatar: profile.photos?.[0]?.value || emailUser.avatar 
+              });
+              await logUserActivity(emailUser.id, "facebook_account_linked", null, null, null);
+              const { password: _, ...userWithoutPassword } = emailUser;
+              return done(null, userWithoutPassword);
+            }
+
+            // Create new user
+            const newUser = await storage.createUser({
+              username: profile.displayName || profile.emails?.[0]?.value?.split('@')[0] || `user_${profile.id}`,
+              email: profile.emails?.[0]?.value || '',
+              password: '', // Empty password for OAuth users
+              role: 'normal',
+              status: 'active',
+              facebookId: profile.id,
+              avatar: profile.photos?.[0]?.value || null,
+              displayName: profile.displayName || null
+            });
+
+            await logUserActivity(newUser.id, "facebook_register", null, null, null);
+            const { password: _, ...userWithoutPassword } = newUser;
+            return done(null, userWithoutPassword);
+          } catch (error) {
+            return done(error as Error);
+          }
+        }
+      )
+    );
+  } else {
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn('Facebook OAuth credentials not found. Facebook authentication will not be available.');
+      console.warn('Please set FACEBOOK_APP_ID and FACEBOOK_APP_SECRET in your .env file to enable Facebook OAuth.');
     }
   }
 
@@ -749,6 +823,30 @@ export function setupAuth(app: Express): void {
           if (saveErr) {
             // Only log errors, not successful saves
             console.error('[Google OAuth] Session save error:', saveErr);
+            return res.redirect("/auth?error=session_save_failed");
+          }
+          
+          res.redirect("/");
+        });
+      }
+    );
+  }
+
+  // Facebook OAuth routes
+  if (config.facebookAppId && config.facebookAppSecret) {
+    app.get("/api/auth/facebook",
+      passport.authenticate("facebook", { scope: ["email"] })
+    );
+    
+    app.get("/api/auth/facebook/callback",
+      passport.authenticate("facebook", { 
+        failureRedirect: "/auth?error=facebook_auth_failed",
+        session: true // Ensure session is maintained
+      }),
+      (req: Request, res: Response) => {
+        req.session.save((saveErr) => {
+          if (saveErr) {
+            console.error('[Facebook OAuth] Session save error:', saveErr);
             return res.redirect("/auth?error=session_save_failed");
           }
           

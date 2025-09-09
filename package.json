@@ -2,7 +2,8 @@
   "name": "rest-express",
   "version": "1.0.0",
   "type": "module",
-  "license": "MIT",  "scripts": {
+  "license": "MIT",
+  "scripts": {
     "dev": "tsx server/index.ts",
     "build": "vite build && npm run build:server",
     "build:server": "npx esbuild server/index.ts --bundle --platform=node --target=es2022 --format=esm --outdir=dist --packages=external --sourcemap --external:vite.config.ts --external:vite --external:@vitejs/plugin-react --external:./vite.js",
@@ -54,6 +55,7 @@
     "@testing-library/user-event": "^14.6.1",
     "@types/hls.js": "^0.13.3",
     "@types/jest": "^29.5.14",
+    "@types/passport-facebook": "^3.0.3",
     "@types/passport-google-oauth20": "^2.0.16",
     "@types/pg": "^8.12.0",
     "@types/supertest": "^6.0.3",
@@ -81,6 +83,7 @@
     "next-themes": "^0.4.6",
     "node-fetch": "^3.3.2",
     "passport": "^0.7.0",
+    "passport-facebook": "^3.0.0",
     "passport-google-oauth20": "^2.0.0",
     "passport-local": "^1.0.0",
     "pg": "^8.16.0",
@@ -133,13 +136,13 @@
     "vite": "^5.4.14"
   },
   "optionalDependencies": {
-    "bufferutil": "^4.0.8",
     "@rollup/rollup-darwin-arm64": "^4.50.0",
-    "@rollup/rollup-darwin-x64": "^4.50.0", 
+    "@rollup/rollup-darwin-x64": "^4.50.0",
     "@rollup/rollup-linux-arm64-gnu": "^4.50.0",
     "@rollup/rollup-linux-arm64-musl": "^4.50.0",
     "@rollup/rollup-linux-x64-gnu": "^4.50.0",
-    "@rollup/rollup-linux-x64-musl": "^4.50.0"
+    "@rollup/rollup-linux-x64-musl": "^4.50.0",
+    "bufferutil": "^4.0.8"
   },
   "overrides": {
     "vite": {

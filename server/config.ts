@@ -16,6 +16,8 @@ interface Config {
   clientUrl: string;
   googleClientId: string | undefined;
   googleClientSecret: string | undefined;
+  facebookAppId: string | undefined;
+  facebookAppSecret: string | undefined;
 }
 
 export const config: Config = {
@@ -25,5 +27,7 @@ export const config: Config = {
   sessionSecret: process.env.SESSION_SECRET,
   clientUrl: process.env.CLIENT_URL || 'http://localhost:3000',
   googleClientId: process.env.GOOGLE_CLIENT_ID,
-  googleClientSecret: process.env.GOOGLE_CLIENT_SECRET
+  googleClientSecret: process.env.GOOGLE_CLIENT_SECRET,
+  facebookAppId: process.env.FACEBOOK_APP_ID,
+  facebookAppSecret: process.env.FACEBOOK_APP_SECRET
 };

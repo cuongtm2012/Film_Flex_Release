@@ -28,6 +28,7 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   getUserByGoogleId(googleId: string): Promise<User | undefined>;
+  getUserByFacebookId(facebookId: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: number, userData: Partial<InsertUser>): Promise<User | undefined>;
   deleteUser(id: number): Promise<User | undefined>;
@@ -123,6 +124,12 @@ export interface IStorage {
 
 export class DatabaseStorage implements IStorage {
   sessionStore: session.Store;
+  // Add connection pool size limit
+  private readonly MAX_CONNECTIONS = 20;
+  // Reduce cache TTL to prevent memory bloat
+  private readonly CACHE_TTL = 2 * 60 * 1000; // 2 minutes instead of 5
+  // Add cache size limit
+  private readonly MAX_CACHE_SIZE = 1000;
 
   constructor() {
     const PgSession = connectPg(session);
@@ -131,10 +138,16 @@ export class DatabaseStorage implements IStorage {
       tableName: 'sessions',
       createTableIfMissing: true,
       pruneSessionInterval: 60 * 15, // Prune expired sessions every 15 minutes
+      maxPool: this.MAX_CONNECTIONS, // Use the constant
       errorLog: (error: Error) => {
         console.error('Session store error:', error);
       }
     });
+    
+    // Add periodic cache cleanup
+    setInterval(() => {
+      this.cleanupExpiredCache();
+    }, 60 * 1000); // Cleanup every minute
   }
 
   // User methods
@@ -160,6 +173,13 @@ export class DatabaseStorage implements IStorage {
     const [user] = await db.select()
       .from(users)
       .where(eq(users.googleId, googleId));
+    return user;
+  }
+
+  async getUserByFacebookId(facebookId: string): Promise<User | undefined> {
+    const [user] = await db.select()
+      .from(users)
+      .where(eq(users.facebookId, facebookId));
     return user;
   }
 
@@ -392,12 +412,14 @@ export class DatabaseStorage implements IStorage {
     const sortedQuery = (() => {
       switch (sortBy) {
         case 'latest':
-          return baseQuery.orderBy(desc(movies.modifiedAt));
+          // Sort by modifiedAt first, then by year (descending) as secondary sort
+          return baseQuery.orderBy(desc(movies.year));
         case 'popular':
         case 'rating': // Fall back to popularity for now
           return baseQuery.orderBy(desc(movies.view));
         default:
-          return baseQuery.orderBy(desc(movies.modifiedAt));
+          // Default to latest with year as secondary sort
+          return baseQuery.orderBy(desc(movies.year), desc(movies.modifiedAt));
       }
     })();
 
@@ -441,12 +463,16 @@ export class DatabaseStorage implements IStorage {
       view: movie.view || 0,
       description: movie.description || null,
       status: movie.status || null,
-      trailerUrl: movie.trailerUrl || null,      section: movie.section || null,
+      trailerUrl: movie.trailerUrl || null,      
+      section: movie.section || null,
       isRecommended: movie.isRecommended || false,
       categories: movie.categories || [],
       countries: movie.countries || [],
       actors: movie.actors || null,
-      directors: movie.directors || null
+      directors: movie.directors || null,
+      episodeCurrent: movie.episodeCurrent || null,
+      episodeTotal: movie.episodeTotal || null,
+      modifiedAt: new Date() // Explicitly set the current timestamp
     }).returning();
 
     return newMovie;
@@ -1127,7 +1153,7 @@ export class DatabaseStorage implements IStorage {
     return { data, total: count || 0 };
   }
   // Add search and category methods
-  async searchMovies(query: string, _normalizedQuery: string, page: number, limit: number, filters?: {section?: string, isRecommended?: boolean, type?: string}): Promise<{ data: Movie[], total: number }> {
+  async searchMovies(query: string, _normalizedQuery: string, page: number, limit: number, sortBy: string = 'latest', filters?: {section?: string, isRecommended?: boolean, type?: string}): Promise<{ data: Movie[], total: number }> {
     const offset = (page - 1) * limit;
 
     // Convert query to lowercase for case-insensitive search
@@ -1160,8 +1186,20 @@ export class DatabaseStorage implements IStorage {
       .from(movies)
       .where(conditions);
 
-    const data = await baseQuery
-      .orderBy(desc(movies.modifiedAt))
+    // Apply sorting
+    const sortedQuery = (() => {
+      switch (sortBy) {
+        case 'latest':
+          return baseQuery.orderBy(desc(movies.year));
+        case 'popular':
+        case 'rating':
+          return baseQuery.orderBy(desc(movies.view));
+        default:
+          return baseQuery.orderBy(desc(movies.year));
+      }
+    })();
+
+    const data = await sortedQuery
       .limit(limit)
       .offset(offset);
 
@@ -1179,7 +1217,7 @@ export class DatabaseStorage implements IStorage {
 
     const sortedQuery = sortBy === 'popular'
       ? baseQuery.orderBy(desc(movies.view))
-      : baseQuery.orderBy(desc(movies.modifiedAt));
+      : baseQuery.orderBy(desc(movies.year), desc(movies.modifiedAt));
 
     const data = await sortedQuery
       .limit(limit)
@@ -1204,7 +1242,7 @@ export class DatabaseStorage implements IStorage {
 
     const sortedQuery = sortBy === 'popular'
       ? baseQuery.orderBy(desc(movies.view))
-      : baseQuery.orderBy(desc(movies.modifiedAt));
+      : baseQuery.orderBy(desc(movies.year), desc(movies.modifiedAt));
 
     const data = await sortedQuery
       .limit(limit)
@@ -1280,7 +1318,6 @@ export class DatabaseStorage implements IStorage {
 
   // Cache implementation - using Redis-like API
   private cache = new Map<string, any>();
-  private readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutes in milliseconds
 
   private getCacheKey(type: string, ...params: any[]): string {
     return `${type}:${params.join(':')}`;
@@ -1308,6 +1345,31 @@ export class DatabaseStorage implements IStorage {
 
     return cached.data;
   }
+
+  private cleanupExpiredCache(): void {
+    const now = Date.now();
+    const keysToDelete: string[] = [];
+    
+    for (const [key, value] of this.cache.entries()) {
+      if (now > value.expiry) {
+        keysToDelete.push(key);
+      }
+    }
+    
+    keysToDelete.forEach(key => this.cache.delete(key));
+    
+    // If cache is too large, remove oldest entries
+    if (this.cache.size > this.MAX_CACHE_SIZE) {
+      const entries = Array.from(this.cache.entries());
+      const toDelete = entries
+        .sort(([,a], [,b]) => a.expiry - b.expiry)
+        .slice(0, entries.length - this.MAX_CACHE_SIZE)
+        .map(([key]) => key);
+      
+      toDelete.forEach(key => this.cache.delete(key));
+    }
+  }
+
   async clearMovieDetailCache(slug: string): Promise<void> {
     const key = this.getCacheKey('movieDetail', slug);
     await this.clearCache(key);

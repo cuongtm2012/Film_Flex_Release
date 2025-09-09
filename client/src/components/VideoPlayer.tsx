@@ -242,33 +242,6 @@ export default function VideoPlayer({
           />
         )}
       </div>
-      
-      {/* Connection quality indicator */}
-      {connectionQuality !== "unknown" && (
-        <div className="mt-1 text-xs text-gray-500 flex items-center gap-1">
-          <div className={`w-2 h-2 rounded-full ${
-            connectionQuality === "fast" ? "bg-green-500" : "bg-yellow-500"
-          }`} />
-          <span>
-            {connectionQuality === "fast" ? "Fast connection" : "Optimized for slow connection"}
-          </span>
-        </div>
-      )}
-      
-      {/* Direct play button */}
-      {directStreamUrl && (
-        <div className="mt-2 flex justify-end">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={handleDirectPlay}
-            className="flex items-center gap-1.5"
-          >
-            <ExternalLink className="h-4 w-4" />
-            <span>Direct Play (.m3u8)</span>
-          </Button>
-        </div>
-      )}
     </div>
   );
 }

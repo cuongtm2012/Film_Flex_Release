@@ -134,6 +134,7 @@ export const users = pgTable("users", {
   
   // OAuth fields
   googleId: text("google_id").unique(),
+  facebookId: text("facebook_id").unique(),
   avatar: text("avatar"),
   displayName: text("display_name"),
   

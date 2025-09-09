@@ -88,8 +88,8 @@ async function fetchMovieDetail(slug: string): Promise<MovieDetailResponse> {
   };
 }
 
-async function searchMovies(query: string, normalizedQuery: string, page: number, limit: number, filters?: { isRecommended?: boolean, type?: string, section?: string }): Promise<MovieListResponse> {
-  const movies = await storage.searchMovies(query, normalizedQuery, page, limit, filters);
+async function searchMovies(query: string, normalizedQuery: string, page: number, limit: number, sortBy?: string, filters?: { isRecommended?: boolean, type?: string, section?: string }): Promise<MovieListResponse> {
+  const movies = await storage.searchMovies(query, normalizedQuery, page, limit, sortBy, filters);
   return {
     status: true,
     items: movies.data,
@@ -233,6 +233,7 @@ export function registerRoutes(app: Express): void {
       // Get query parameters
       const page = parseInt(req.query.page as string) || 1;
       const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
+      const sortBy = req.query.sortBy as string; // Add sortBy parameter
 
       // Build filters object
       const filters: any = {};
@@ -240,7 +241,8 @@ export function registerRoutes(app: Express): void {
       if (req.query.type) filters.type = req.query.type;
       if (req.query.section) filters.section = req.query.section;
 
-      const result = await storage.getMovies(page, limit, JSON.stringify(filters));
+      // Pass sortBy parameter to storage.getMovies
+      const result = await storage.getMovies(page, limit, sortBy, filters);
       
       res.json({
         status: true,
@@ -787,7 +789,6 @@ export function registerRoutes(app: Express): void {
       const section = req.query.section as string;
       const isRecommendedParam = req.query.isRecommended as string;
       const type = req.query.type as string;
-      
       // Convert isRecommended string to boolean if provided
       let isRecommended: boolean | undefined;
       if (isRecommendedParam !== undefined && isRecommendedParam !== '') {
