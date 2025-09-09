@@ -160,7 +160,7 @@ import_page_range() {
     # Use the batch import script for page ranges, but with sh instead of bash
     if docker exec "$APP_CONTAINER" test -f "scripts/data/batch-import.sh"; then
         info "Found batch-import.sh, using it for page range import..."
-        execute_import "sh scripts/data/batch-import.sh --start-page=$start_page --end-page=$end_page" "Importing movies from page $start_page to $end_page"
+        execute_import "sh scripts/data/batch-import.sh --start-page $start_page --end-page $end_page" "Importing movies from page $start_page to $end_page"
     else
         # Fallback: use a loop with the docker script
         warning "Batch import script not found, using fallback method..."
