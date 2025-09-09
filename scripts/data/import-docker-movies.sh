@@ -170,12 +170,19 @@ import_page_range() {
         else
             ((failed_count++))
             warning "Failed to import page $page"
+            # Continue with next page even if this one fails
         fi
         
         # Add small delay between pages to avoid rate limiting
         if [ $page -lt $end_page ]; then
             info "Waiting 3 seconds before next page..."
             sleep 3
+        fi
+        
+        # Show progress every 5 pages
+        if (( page % 5 == 0 )) || [ $page -eq $end_page ]; then
+            local progress=$(( (page - start_page + 1) * 100 / total_pages ))
+            info "Progress: $progress% ($((page - start_page + 1))/$total_pages pages completed)"
         fi
     done
     
@@ -187,6 +194,9 @@ import_page_range() {
     else
         success "All pages imported successfully!"
     fi
+    
+    # Don't exit here - let the function return normally
+    return 0
 }
 
 # Import specific movie by slug
