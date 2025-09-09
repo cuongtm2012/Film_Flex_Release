@@ -20,6 +20,7 @@ APP_DIR="$( cd "$SCRIPT_DIR/../.." && pwd )"
 DOCKER_SCRIPT="import-movies-docker.cjs"
 APP_CONTAINER="filmflex-app"
 DB_CONTAINER="filmflex-postgres"
+SYNC_SCRIPT="$APP_DIR/scripts/deployment/sync-docker-scripts.sh"
 
 log() { echo -e "${BLUE}[$(date +'%H:%M:%S')] $1${NC}"; }
 success() { echo -e "${GREEN}✅ $1${NC}"; }
@@ -96,6 +97,20 @@ check_import_script() {
     fi
     success "Import script found: scripts/data/$DOCKER_SCRIPT"
     return 0
+}
+
+# Sync latest scripts to container (optional but recommended)
+sync_scripts_to_container() {
+    if [ -f "$SYNC_SCRIPT" ] && [ "$1" != "--skip-sync" ]; then
+        log "Syncing latest scripts to container..."
+        if bash "$SYNC_SCRIPT" >/dev/null 2>&1; then
+            success "Scripts synced successfully"
+        else
+            warning "Script sync failed, but continuing with existing scripts..."
+        fi
+    else
+        log "Skipping script sync (use --skip-sync to disable)"
+    fi
 }
 
 # Execute import command with proper shell
@@ -417,6 +432,9 @@ main() {
     if ! check_import_script; then
         exit 1
     fi
+    
+    # Sync latest scripts to container
+    sync_scripts_to_container "$1"
     
     # Show current stats
     log "Current database status:"

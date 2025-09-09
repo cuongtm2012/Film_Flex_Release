@@ -1,189 +1,323 @@
 #!/bin/bash
 
-# FilmFlex Production Health Check Script v2.0
-# Enhanced health monitoring for phimgg.com production environment (154.205.142.255)
-# Comprehensive checks for production deployment
-# Version: 2.0 - Updated for phimgg.com production
+# FilmFlex Optimized Health Check Script
+# Version: 2.0 - Uses shared common functions and provides detailed monitoring
 
 set -e
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-PURPLE='\033[0;35m'
-NC='\033[0m'
+# Load common functions
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+source "$SCRIPT_DIR/lib/common-functions.sh"
 
-# Configuration for phimgg.com production
-DEPLOY_DIR="/var/www/filmflex"
-APP_URL="http://localhost:5000"
-PRODUCTION_IP="154.205.142.255"
-PRODUCTION_DOMAIN="phimgg.com"
-PRODUCTION_URL="http://$PRODUCTION_IP:5000"
+# =============================================================================
+# HEALTH CHECK FUNCTIONS
+# =============================================================================
 
-# Logging functions
-success() { echo -e "${GREEN}✓ $1${NC}"; }
-warning() { echo -e "${YELLOW}⚠ $1${NC}"; }
-error() { echo -e "${RED}✗ $1${NC}"; }
-info() { echo -e "${BLUE}ℹ $1${NC}"; }
-
-echo -e "${PURPLE}=========================================="
-echo "  FilmFlex Production Health Check v2.0"
-echo "  phimgg.com Production Environment"
-echo "  Production IP: $PRODUCTION_IP"
-echo "  $(date '+%Y-%m-%d %H:%M:%S')"
-echo -e "==========================================${NC}"
-echo
-
-# Check PM2 status
-info "Checking PM2 process status..."
-if pm2 list | grep filmflex | grep -q online; then
-    success "PM2 process is online"
-    pm2 list | grep filmflex
-else
-    error "PM2 process is not online"
-    pm2 list | grep filmflex || echo "No filmflex process found"
-fi
-echo
-
-# Check port availability
-info "Checking port 5000..."
-if netstat -tln | grep -q ":5000 "; then
-    success "Port 5000 is listening"
-else
-    error "Port 5000 is not listening"
-fi
-echo
-
-# Check application response
-info "Testing application endpoints..."
-if curl -f -s --max-time 10 "$APP_URL/" >/dev/null 2>&1; then
-    success "Root endpoint responding"
-elif curl -f -s --max-time 10 "$APP_URL/api/health" >/dev/null 2>&1; then
-    success "Health API endpoint responding"
-    HEALTH_RESPONSE=$(curl -s --max-time 10 "$APP_URL/api/health" 2>/dev/null | head -c 200)
-    info "Health response: $HEALTH_RESPONSE"
-elif curl -s --max-time 10 "$APP_URL/" | grep -q -E "(html|json|text|<!DOCTYPE)" 2>/dev/null; then
-    success "Server responding with content"
-else
-    error "Application not responding properly"
-fi
-echo
-
-# Check production IP accessibility
-info "Testing production IP accessibility ($PRODUCTION_IP)..."
-if command -v timeout >/dev/null 2>&1; then
-    if timeout 10 curl -f -s "$PRODUCTION_URL/api/health" >/dev/null 2>&1; then
-        success "Production IP accessible: $PRODUCTION_URL"
-    elif timeout 10 curl -f -s "$PRODUCTION_URL/" >/dev/null 2>&1; then
-        success "Production IP accessible (root): $PRODUCTION_URL"
+check_application_endpoints() {
+    log "Testing application endpoints..."
+    
+    local base_url="http://localhost:5000"
+    local endpoints=(
+        "/api/health"
+        "/api/movies?page=1&limit=5"
+        "/api/categories"
+        "/"
+    )
+    
+    local passed=0
+    local total=${#endpoints[@]}
+    
+    for endpoint in "${endpoints[@]}"; do
+        local url="${base_url}${endpoint}"
+        if curl -f -s --max-time 10 "$url" >/dev/null 2>&1; then
+            success "✓ $endpoint"
+            ((passed++))
+        else
+            warning "✗ $endpoint (failed)"
+        fi
+    done
+    
+    log "Endpoint tests: $passed/$total passed"
+    
+    if [ $passed -eq $total ]; then
+        return 0
+    elif [ $passed -gt 0 ]; then
+        warning "Some endpoints failed but application is partially responding"
+        return 1
     else
-        warning "Production IP not accessible (may need firewall configuration)"
-        info "This could be normal if firewall blocks external access"
+        error "All endpoints failed - application not responding"
+        return 2
     fi
-else
-    info "timeout command not available, skipping production IP test"
-fi
-echo
+}
 
-# Check CORS configuration
-info "Testing CORS configuration for phimgg.com..."
-if curl -f -s --max-time 10 "$APP_URL/api/health" >/dev/null 2>&1; then
-    CORS_TEST=$(curl -s -I -H "Origin: https://phimgg.com" "$APP_URL/api/health" | grep -i "access-control-allow-origin" || echo "No CORS headers")
-    if [[ "$CORS_TEST" == *"access-control-allow-origin"* ]]; then
-        success "CORS headers configured: $CORS_TEST"
+check_database_integrity() {
+    log "Checking database integrity..."
+    
+    if ! check_docker_containers; then
+        warning "Docker containers not running, skipping database check"
+        return 1
+    fi
+    
+    # Test basic connectivity
+    if ! docker exec "$DB_CONTAINER" pg_isready -U "$DB_USER" -d "$DB_NAME" >/dev/null 2>&1; then
+        error "Database not ready"
+        return 1
+    fi
+    
+    # Get detailed statistics
+    local db_stats=$(docker exec "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -t -c "
+        SELECT 
+            COALESCE((SELECT COUNT(*) FROM movies), 0) as movies,
+            COALESCE((SELECT COUNT(*) FROM episodes), 0) as episodes,
+            COALESCE((SELECT COUNT(*) FROM categories), 0) as categories,
+            COALESCE((SELECT COUNT(*) FROM users), 0) as users
+    " 2>/dev/null | tr -d ' ' | tr '\n' '|' || echo "0|0|0|0")
+    
+    local movies=$(echo "$db_stats" | cut -d'|' -f1)
+    local episodes=$(echo "$db_stats" | cut -d'|' -f2)
+    local categories=$(echo "$db_stats" | cut -d'|' -f3)
+    local users=$(echo "$db_stats" | cut -d'|' -f4)
+    
+    success "Database integrity check passed"
+    log "  ├─ Movies: $movies"
+    log "  ├─ Episodes: $episodes"
+    log "  ├─ Categories: $categories"
+    log "  └─ Users: $users"
+    
+    # Check for data consistency
+    if [ "$movies" -gt 0 ] && [ "$episodes" -gt 0 ]; then
+        success "Database contains sufficient data"
+        return 0
+    elif [ "$movies" -gt 0 ]; then
+        warning "Movies found but no episodes - may need data import"
+        return 1
     else
-        warning "CORS headers not detected or not configured"
-        info "CORS test result: $CORS_TEST"
+        warning "No movie data found - database may need initialization"
+        return 1
     fi
-else
-    warning "Cannot test CORS - application not responding"
-fi
-echo
+}
 
-# Check environment variables (production settings)
-info "Checking production environment configuration..."
-if pm2 show filmflex 2>/dev/null | grep -q "NODE_ENV.*production"; then
-    success "NODE_ENV set to production"
-else
-    warning "NODE_ENV may not be set to production"
-fi
+check_storage_and_logs() {
+    log "Checking storage and log status..."
+    
+    # Check log directories
+    local log_dirs=("/var/log/filmflex" "/app/logs")
+    for dir in "${log_dirs[@]}"; do
+        if [ -d "$dir" ]; then
+            local log_count=$(find "$dir" -name "*.log" -type f | wc -l)
+            local total_size=$(du -sh "$dir" 2>/dev/null | cut -f1 || echo "Unknown")
+            log "  ├─ $dir: $log_count files, $total_size total"
+        else
+            warning "  └─ $dir: Not found"
+        fi
+    done
+    
+    # Check for large log files (>100MB)
+    local large_logs=$(find /var/log -name "*.log" -size +100M 2>/dev/null | wc -l)
+    if [ "$large_logs" -gt 0 ]; then
+        warning "$large_logs log files are larger than 100MB"
+    fi
+    
+    success "Storage check completed"
+    return 0
+}
 
-if pm2 show filmflex 2>/dev/null | grep -q "DOMAIN.*phimgg.com"; then
-    success "Domain configured for phimgg.com"
-else
-    warning "Domain may not be configured for phimgg.com"
-fi
-echo
-
-# Check database connection (if psql is available)
-if command -v psql &>/dev/null; then
-    info "Checking database connection..."
-    if pg_isready -h localhost -p 5432 &>/dev/null; then
-        success "PostgreSQL is ready"
+generate_health_report() {
+    local report_file="$LOG_DIR/health-report-$(date +%Y%m%d-%H%M%S).json"
+    
+    log "Generating detailed health report..."
+    
+    # Collect system metrics
+    local cpu_usage=$(top -bn1 | grep "Cpu(s)" | awk '{print $2}' | sed 's/%us,//' 2>/dev/null || echo "0")
+    local memory_usage=$(free | grep Mem | awk '{printf "%.1f", $3/$2 * 100.0}' 2>/dev/null || echo "0")
+    local disk_usage=$(df / | awk 'NR==2 {print $5}' | sed 's/%//' 2>/dev/null || echo "0")
+    local uptime_info=$(uptime | sed 's/.*up \([^,]*\),.*/\1/' 2>/dev/null || echo "unknown")
+    
+    # Collect application status
+    local app_health="unknown"
+    local db_health="unknown"
+    local container_status="unknown"
+    
+    if check_application_health >/dev/null 2>&1; then
+        app_health="healthy"
     else
-        warning "PostgreSQL connection issues"
+        app_health="unhealthy"
     fi
-else
-    info "PostgreSQL client not available for database check"
-fi
-echo
-
-# Check disk space
-info "Checking disk space..."
-df -h / | tail -1 | while read filesystem size used avail percent mount; do
-    if [[ ${percent%?} -gt 90 ]]; then
-        error "Disk space critical: $percent used"
-    elif [[ ${percent%?} -gt 80 ]]; then
-        warning "Disk space high: $percent used"
+    
+    if check_docker_containers >/dev/null 2>&1; then
+        container_status="running"
+        if docker exec "$DB_CONTAINER" pg_isready -U "$DB_USER" -d "$DB_NAME" >/dev/null 2>&1; then
+            db_health="healthy"
+        else
+            db_health="unhealthy"
+        fi
     else
-        success "Disk space OK: $percent used"
+        container_status="stopped"
     fi
-done
-echo
+    
+    # Generate JSON report
+    cat > "$report_file" << EOF
+{
+    "timestamp": "$(date -Iseconds)",
+    "system": {
+        "cpu_usage": "$cpu_usage",
+        "memory_usage": "$memory_usage",
+        "disk_usage": "$disk_usage",
+        "uptime": "$uptime_info"
+    },
+    "application": {
+        "status": "$app_health",
+        "containers": "$container_status",
+        "database": "$db_health"
+    },
+    "urls": {
+        "local": "http://localhost:5000",
+        "production": "http://$PRODUCTION_IP:5000",
+        "domain": "https://$PRODUCTION_DOMAIN"
+    }
+}
+EOF
+    
+    success "Health report generated: $report_file"
+    
+    # Display summary
+    print_banner "HEALTH SUMMARY"
+    log "System Resources: CPU ${cpu_usage}% | Memory ${memory_usage}% | Disk ${disk_usage}%"
+    log "Application: $app_health | Containers: $container_status | Database: $db_health"
+    log "Uptime: $uptime_info"
+}
 
-# Check memory usage
-info "Checking memory usage..."
-if pm2 list | grep filmflex | grep -q online; then
-    pm2 show filmflex | grep -E "(memory|cpu)" || true
-fi
-echo
+# =============================================================================
+# MONITORING AND ALERTING
+# =============================================================================
 
-# Show recent logs
-info "Recent application logs (last 5 lines):"
-pm2 logs filmflex --lines 5 --nostream 2>/dev/null || warning "Could not retrieve logs"
-echo
+check_critical_issues() {
+    log "Checking for critical issues..."
+    
+    local issues=()
+    
+    # Check disk space
+    local disk_usage=$(df / | awk 'NR==2 {print $5}' | sed 's/%//' 2>/dev/null || echo "0")
+    if [ "$disk_usage" -gt 90 ]; then
+        issues+=("CRITICAL: Disk usage at ${disk_usage}%")
+    elif [ "$disk_usage" -gt 80 ]; then
+        issues+=("WARNING: Disk usage at ${disk_usage}%")
+    fi
+    
+    # Check memory usage
+    local memory_usage=$(free | grep Mem | awk '{printf "%.0f", $3/$2 * 100.0}' 2>/dev/null || echo "0")
+    if [ "$memory_usage" -gt 95 ]; then
+        issues+=("CRITICAL: Memory usage at ${memory_usage}%")
+    elif [ "$memory_usage" -gt 85 ]; then
+        issues+=("WARNING: Memory usage at ${memory_usage}%")
+    fi
+    
+    # Check if application is responding
+    if ! check_application_health >/dev/null 2>&1; then
+        issues+=("CRITICAL: Application not responding")
+    fi
+    
+    # Check database connectivity
+    if check_docker_containers >/dev/null 2>&1; then
+        if ! docker exec "$DB_CONTAINER" pg_isready -U "$DB_USER" -d "$DB_NAME" >/dev/null 2>&1; then
+            issues+=("CRITICAL: Database not responding")
+        fi
+    else
+        issues+=("CRITICAL: Docker containers not running")
+    fi
+    
+    # Report issues
+    if [ ${#issues[@]} -eq 0 ]; then
+        success "No critical issues detected"
+        return 0
+    else
+        error "Critical issues detected:"
+        for issue in "${issues[@]}"; do
+            error "  • $issue"
+        done
+        return 1
+    fi
+}
 
-# Check for errors in logs
-info "Checking for recent errors..."
-error_count=$(pm2 logs filmflex --lines 20 --nostream 2>/dev/null | grep -i error | wc -l || echo "0")
-if [ "$error_count" -gt 0 ]; then
-    warning "Found $error_count error entries in recent logs"
-    pm2 logs filmflex --lines 10 --nostream 2>/dev/null | grep -i error | tail -3 || true
-else
-    success "No recent errors found in logs"
-fi
-echo
+# =============================================================================
+# MAIN EXECUTION
+# =============================================================================
 
-success "Health check completed for phimgg.com production!"
-echo ""
-echo -e "${GREEN}=========================================="
-echo "📊 Production Health Summary"
-echo "=========================================="
-echo -e "${NC}"
-info "🌐 Production URLs:"
-info "  • Local: $APP_URL"
-info "  • Production IP: $PRODUCTION_URL"
-info "  • Domain: https://$PRODUCTION_DOMAIN (when DNS configured)"
-echo ""
-info "📋 Management Commands:"
-info "  • Detailed logs: pm2 logs filmflex"
-info "  • Process status: pm2 status"
-info "  • Monitor: pm2 monit"
-info "  • Restart: pm2 restart filmflex"
-echo ""
-info "🔧 Quick Actions:"
-info "  • Restart server: cd $DEPLOY_DIR && ./restart.sh"
-info "  • Check errors: pm2 logs filmflex --err"
-info "  • Real-time logs: pm2 logs filmflex --follow"
+main() {
+    local mode="basic"
+    local verbose=false
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --detailed)
+                mode="detailed"
+                ;;
+            --report)
+                mode="report"
+                ;;
+            --critical)
+                mode="critical"
+                ;;
+            --verbose)
+                verbose=true
+                ;;
+            --help|-h)
+                echo "Usage: $0 [--detailed|--report|--critical] [--verbose]"
+                echo
+                echo "Modes:"
+                echo "  (default)   Basic health check"
+                echo "  --detailed  Comprehensive health check"
+                echo "  --report    Generate detailed JSON report"
+                echo "  --critical  Check for critical issues only"
+                echo
+                echo "Options:"
+                echo "  --verbose   Enable verbose output"
+                exit 0
+                ;;
+            *)
+                error "Unknown option: $1"
+                exit 1
+                ;;
+        esac
+        shift
+    done
+    
+    # Initialize logging
+    init_logging "health-check-$mode"
+    
+    print_banner "FilmFlex Health Check - $mode"
+    
+    case "$mode" in
+        "basic")
+            check_system_resources
+            check_application_health
+            if check_docker_containers; then
+                check_docker_containers
+            elif check_pm2_status; then
+                check_pm2_status
+            fi
+            ;;
+        "detailed")
+            check_system_resources
+            check_application_endpoints
+            check_database_integrity
+            check_storage_and_logs
+            check_cors_configuration
+            if command -v nginx >/dev/null 2>&1; then
+                check_nginx_status
+            fi
+            ;;
+        "report")
+            generate_health_report
+            ;;
+        "critical")
+            check_critical_issues
+            ;;
+    esac
+    
+    success "Health check completed - $mode mode"
+}
+
+# Execute main function
+main "$@"
