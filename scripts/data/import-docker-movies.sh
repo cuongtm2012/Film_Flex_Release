@@ -153,49 +153,39 @@ import_page_range() {
     
     info "Importing movies from page $start_page to page $end_page ($total_pages pages total)"
     
-    # Check what shells are available in the container
-    log "Checking available shells in container..."
-    docker exec "$APP_CONTAINER" sh -c "ls -la /bin/*sh* 2>/dev/null || echo 'No shell info available'"
+    # Skip the batch-import.sh script due to compatibility issues and use direct method
+    warning "Using direct page-by-page import method for maximum compatibility..."
+    local success_count=0
+    local failed_count=0
     
-    # Use the batch import script for page ranges, but with sh instead of bash
-    if docker exec "$APP_CONTAINER" test -f "scripts/data/batch-import.sh"; then
-        info "Found batch-import.sh, using it for page range import..."
-        execute_import "sh scripts/data/batch-import.sh --start-page $start_page --end-page $end_page" "Importing movies from page $start_page to $end_page"
-    else
-        # Fallback: use a loop with the docker script
-        warning "Batch import script not found, using fallback method..."
-        local success_count=0
-        local failed_count=0
+    log "Starting page-by-page import from $start_page to $end_page..."
+    
+    for ((page=start_page; page<=end_page; page++)); do
+        info "Processing page $page of $end_page..."
         
-        log "Starting page-by-page import from $start_page to $end_page..."
-        
-        for ((page=start_page; page<=end_page; page++)); do
-            info "Processing page $page of $end_page..."
-            
-            # Use execute_import which already handles the container execution properly
-            if execute_import "node scripts/data/$DOCKER_SCRIPT --single-page --page-num=$page --page-size=20" "Importing page $page"; then
-                ((success_count++))
-                success "Page $page imported successfully"
-            else
-                ((failed_count++))
-                warning "Failed to import page $page"
-            fi
-            
-            # Add small delay between pages to avoid rate limiting
-            if [ $page -lt $end_page ]; then
-                info "Waiting 3 seconds before next page..."
-                sleep 3
-            fi
-        done
-        
-        echo ""
-        success "Page range import completed!"
-        success "Successfully imported: $success_count pages"
-        if [ $failed_count -gt 0 ]; then
-            warning "Failed to import: $failed_count pages"
+        # Use execute_import which already handles the container execution properly
+        if execute_import "node scripts/data/$DOCKER_SCRIPT --single-page --page-num=$page --page-size=20" "Importing page $page"; then
+            ((success_count++))
+            success "Page $page imported successfully"
         else
-            success "All pages imported successfully!"
+            ((failed_count++))
+            warning "Failed to import page $page"
         fi
+        
+        # Add small delay between pages to avoid rate limiting
+        if [ $page -lt $end_page ]; then
+            info "Waiting 3 seconds before next page..."
+            sleep 3
+        fi
+    done
+    
+    echo ""
+    success "Page range import completed!"
+    success "Successfully imported: $success_count pages"
+    if [ $failed_count -gt 0 ]; then
+        warning "Failed to import: $failed_count pages"
+    else
+        success "All pages imported successfully!"
     fi
 }
 
