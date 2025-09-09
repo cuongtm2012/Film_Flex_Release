@@ -145,13 +145,53 @@ import_multiple_pages() {
     execute_import "node scripts/data/$DOCKER_SCRIPT --max-pages=$max_pages" "Importing movies from $max_pages pages"
 }
 
+# NEW: Import from page to page (range import)
+import_page_range() {
+    local start_page="$1"
+    local end_page="$2"
+    local total_pages=$((end_page - start_page + 1))
+    
+    info "Importing movies from page $start_page to page $end_page ($total_pages pages total)"
+    
+    # Use the batch import script for page ranges
+    if docker exec "$APP_CONTAINER" test -f "scripts/data/batch-import.sh"; then
+        execute_import "bash scripts/data/batch-import.sh --start-page=$start_page --end-page=$end_page" "Importing movies from page $start_page to $end_page"
+    else
+        # Fallback: use a loop with the docker script
+        warning "Batch import script not found, using fallback method..."
+        local success_count=0
+        local failed_count=0
+        
+        for ((page=start_page; page<=end_page; page++)); do
+            info "Processing page $page of $end_page..."
+            if execute_import "node scripts/data/$DOCKER_SCRIPT --single-page --page-num=$page --page-size=20" "Importing page $page"; then
+                ((success_count++))
+            else
+                ((failed_count++))
+                warning "Failed to import page $page"
+            fi
+            
+            # Add small delay between pages to avoid rate limiting
+            if [ $page -lt $end_page ]; then
+                sleep 2
+            fi
+        done
+        
+        success "Page range import completed!"
+        success "Successfully imported: $success_count pages"
+        if [ $failed_count -gt 0 ]; then
+            warning "Failed to import: $failed_count pages"
+        fi
+    fi
+}
+
 # Import specific movie by slug
 import_specific_movie() {
     local movie_slug="$1"
     execute_import "node scripts/data/$DOCKER_SCRIPT --movie-slug=\"$movie_slug\"" "Importing specific movie: $movie_slug"
 }
 
-# Comprehensive import (all movies)
+# Comprehensive import (all movies) - Enhanced version
 import_all_movies() {
     warning "WARNING: This will import ALL movies from the API!"
     echo -e "${YELLOW}This process will:${NC}"
@@ -192,6 +232,83 @@ import_all_movies() {
     fi
 }
 
+# NEW: Fetch ALL from API (comprehensive import with auto-detection)
+import_fetch_all_from_api() {
+    warning "FETCH ALL FROM API: This will automatically detect and import ALL available movies!"
+    echo -e "${YELLOW}This comprehensive import will:${NC}"
+    echo "  • Auto-detect total pages available on the API"
+    echo "  • Import ALL movies from all available pages"
+    echo "  • Take many hours or days to complete"
+    echo "  • Can be resumed if interrupted"
+    echo "  • Import thousands of movies with episodes"
+    echo ""
+    
+    read -p "Are you sure you want to fetch ALL movies from API? (yes/no): " CONFIRM
+    
+    if [[ "$CONFIRM" =~ ^[Yy](es)?$ ]]; then
+        log "Starting FETCH ALL FROM API import..."
+        warning "This will use the resumable import script for maximum reliability."
+        echo ""
+        
+        # Use the resumable import script which can handle interruptions
+        info "Switching to resumable import script..."
+        if docker exec "$APP_CONTAINER" bash scripts/data/import-all-movies-resumable.sh; then
+            success "FETCH ALL FROM API completed!"
+            info "All available movies have been imported from the API."
+        else
+            warning "Import was interrupted or encountered errors."
+            info "You can resume this import using option 10 (Resume from current stage)."
+        fi
+    else
+        warning "FETCH ALL FROM API cancelled."
+        return 1
+    fi
+}
+
+# NEW: Resume from current stage (resumable import)
+import_resume_from_current_stage() {
+    info "RESUME FROM CURRENT STAGE: Continue from where previous import left off"
+    echo -e "${YELLOW}This will:${NC}"
+    echo "  • Check for existing import progress"
+    echo "  • Resume from the last completed page"
+    echo "  • Skip already imported movies"
+    echo "  • Continue until all movies are imported"
+    echo ""
+    
+    # Check if there's existing progress
+    if docker exec "$APP_CONTAINER" test -f "scripts/data/complete_import_progress.json"; then
+        success "Found existing import progress!"
+        info "Resuming import from current stage..."
+        
+        if docker exec "$APP_CONTAINER" bash scripts/data/import-all-movies-resumable.sh; then
+            success "Resume import completed!"
+        else
+            warning "Resume import was interrupted."
+            info "You can run this option again to continue from where it left off."
+        fi
+    else
+        warning "No existing import progress found."
+        echo -e "${BLUE}Options:${NC}"
+        echo "1) Start a new comprehensive import"
+        echo "2) Go back to main menu"
+        read -p "Choose an option (1-2): " RESUME_OPTION
+        
+        case $RESUME_OPTION in
+            1)
+                info "Starting new comprehensive import..."
+                import_fetch_all_from_api
+                ;;
+            2)
+                return 0
+                ;;
+            *)
+                error "Invalid option."
+                return 1
+                ;;
+        esac
+    fi
+}
+
 # Main import menu
 show_import_menu() {
     echo ""
@@ -204,9 +321,12 @@ show_import_menu() {
     echo "6) Import specific movie by slug"
     echo "7) Import ALL movies (comprehensive import - WARNING: takes hours!)"
     echo "8) Show current database statistics"
+    echo "9) Fetch ALL from API (comprehensive import with auto-detection)"
+    echo "10) Resume from current stage (resumable import)"
+    echo "11) Import from page to page (range import)"
     echo "q) Quit"
     echo ""
-    read -p "Select an option (1-8, q): " IMPORT_OPTION
+    read -p "Select an option (1-11, q): " IMPORT_OPTION
     
     case $IMPORT_OPTION in
         1)
@@ -252,6 +372,22 @@ show_import_menu() {
         8)
             show_db_stats
             return 0
+            ;;
+        9)
+            import_fetch_all_from_api
+            ;;
+        10)
+            import_resume_from_current_stage
+            ;;
+        11)
+            read -p "Enter start page: " START_PAGE
+            read -p "Enter end page: " END_PAGE
+            if [[ "$START_PAGE" =~ ^[0-9]+$ ]] && [[ "$END_PAGE" =~ ^[0-9]+$ ]] && [ "$END_PAGE" -ge "$START_PAGE" ]; then
+                import_page_range "$START_PAGE" "$END_PAGE"
+            else
+                error "Invalid input. Please enter valid page numbers."
+                return 1
+            fi
             ;;
         q|Q)
             info "Exiting..."
