@@ -271,7 +271,7 @@ async function processAndSaveMovies(items, pool) {
   const errors = [];
   
   // Create resume state file if it doesn't exist
-  const resumeFile = path.join(__dirname, '.docker-import-resume-state.json');
+  const resumeFile = path.join('/app/logs', '.docker-import-resume-state.json'); // Use logs directory instead
   let processedSlugs;
   try {
     processedSlugs = new Set(JSON.parse(fs.readFileSync(resumeFile, 'utf8')));
@@ -436,8 +436,13 @@ async function processAndSaveMovies(items, pool) {
           processedCount++;
           processedSlugs.add(item.slug);
           
-          // Save progress
-          fs.writeFileSync(resumeFile, JSON.stringify(Array.from(processedSlugs)));
+          // Save progress (with error handling for read-only filesystem)
+          try {
+            fs.writeFileSync(resumeFile, JSON.stringify(Array.from(processedSlugs)));
+          } catch (writeError) {
+            // Silently continue if we can't write resume file - the import can still proceed
+            console.log(`${logPrefix} Note: Could not save resume state (${writeError.code}), continuing import...`);
+          }
           
         } catch (dbError) {
           console.error(`${logPrefix} Database error when saving movie ${item.slug}:`, dbError.message);

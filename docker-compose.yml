@@ -47,6 +47,7 @@ services:
         condition: service_healthy
     volumes:
       - app_logs:/app/logs
+      - app_scripts:/app/scripts/data
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
@@ -84,4 +85,6 @@ volumes:
   app_logs:
     driver: local
   nginx_logs:
+    driver: local
+  app_scripts:
     driver: local
