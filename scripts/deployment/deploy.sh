@@ -89,11 +89,18 @@ deploy_docker() {
     acquire_lock "docker-deployment"
     check_docker_prerequisites || { error "Docker prerequisites failed"; return 1; }
     
+    # Build latest source code
+    log "Building latest source code..."
+    cd "$SOURCE_DIR"
+    git pull origin main || { warning "Git pull failed, using current code"; }
+    npm install || { error "npm install failed"; return 1; }
+    npm run build || { error "Build failed"; return 1; }
+    
     log "Stopping existing containers..."
     docker compose -f "$SOURCE_DIR/$COMPOSE_FILE" down --remove-orphans 2>/dev/null || true
     
-    log "Pulling latest images..."
-    docker compose -f "$SOURCE_DIR/$COMPOSE_FILE" pull
+    log "Building Docker images with latest code..."
+    docker compose -f "$SOURCE_DIR/$COMPOSE_FILE" build --no-cache
     
     log "Starting containers..."
     docker compose -f "$SOURCE_DIR/$COMPOSE_FILE" up -d
