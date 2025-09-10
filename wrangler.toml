@@ -1,0 +1,21 @@
+name = "filmflex-auth"
+main = "worker/index.ts"
+compatibility_date = "2024-01-01"
+
+# Environment variables (non-sensitive)
+[vars]
+NODE_ENV = "production"
+CLIENT_URL = "https://phimgg.com"
+
+# Secrets will be bound to the Worker environment
+# These are defined separately using wrangler secret commands
+# FACEBOOK_APP_ID - bound via wrangler secret
+# FACEBOOK_APP_SECRET - bound via wrangler secret  
+# GOOGLE_CLIENT_ID - bound via wrangler secret
+# GOOGLE_CLIENT_SECRET - bound via wrangler secret
+# SESSION_SECRET - bound via wrangler secret
+
+# Routes configuration (moved outside of kv_namespaces)
+routes = [
+  { pattern = "phimgg.com/api/auth/*", zone_name = "phimgg.com" }
+]

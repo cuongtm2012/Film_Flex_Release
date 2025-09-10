@@ -253,7 +253,7 @@ export function setupAuth(app: Express): void {
           clientID: config.facebookAppId,
           clientSecret: config.facebookAppSecret,
           callbackURL: callbackURL,
-          profileFields: ['id', 'displayName', 'photos', 'email']
+          profileFields: ['id', 'displayName', 'photos'] // Removed 'email' as it's no longer available
         },
         async (_accessToken, _refreshToken, profile, done) => {
           try {
@@ -267,8 +267,12 @@ export function setupAuth(app: Express): void {
               return done(null, userWithoutPassword);
             }
 
-            // Check if user exists with same email
-            const emailUser = await storage.getUserByEmail(profile.emails?.[0]?.value || '');
+            // For new users, since we can't get email from Facebook anymore,
+            // we'll create a placeholder email or ask user to provide it later
+            const placeholderEmail = `facebook_${profile.id}@facebook.local`;
+
+            // Check if a user exists with the placeholder email (shouldn't happen, but just in case)
+            const emailUser = await storage.getUserByEmail(placeholderEmail);
             if (emailUser) {
               // Link Facebook account to existing user
               await storage.updateUser(emailUser.id, { 
@@ -280,10 +284,10 @@ export function setupAuth(app: Express): void {
               return done(null, userWithoutPassword);
             }
 
-            // Create new user
+            // Create new user with placeholder email
             const newUser = await storage.createUser({
-              username: profile.displayName || profile.emails?.[0]?.value?.split('@')[0] || `user_${profile.id}`,
-              email: profile.emails?.[0]?.value || '',
+              username: profile.displayName || `facebook_user_${profile.id}`,
+              email: placeholderEmail, // Placeholder email since Facebook doesn't provide it anymore
               password: '', // Empty password for OAuth users
               role: 'normal',
               status: 'active',
@@ -835,7 +839,7 @@ export function setupAuth(app: Express): void {
   // Facebook OAuth routes
   if (config.facebookAppId && config.facebookAppSecret) {
     app.get("/api/auth/facebook",
-      passport.authenticate("facebook", { scope: ["email"] })
+      passport.authenticate("facebook") // Removed scope: ["email"] as it's no longer supported
     );
     
     app.get("/api/auth/facebook/callback",
