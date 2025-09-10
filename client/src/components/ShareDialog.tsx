@@ -28,16 +28,6 @@ export default function ShareDialog({ isOpen, onClose, title, url }: ShareDialog
   const [copied, setCopied] = useState(false);
   const { toast } = useToast();
 
-  // Test function to verify toast is working
-  const testToast = () => {
-    console.log("Test toast button clicked");
-    toast({
-      title: "Test Toast",
-      description: "This is a test to verify toast notifications are working",
-      variant: "success",
-    });
-  };
-
   const copyToClipboard = async () => {
     console.log("Copy to clipboard clicked"); // Debug log
     try {
@@ -166,17 +156,6 @@ export default function ShareDialog({ isOpen, onClose, title, url }: ShareDialog
               </Button>
             </div>
           )}
-
-          {/* Test Toast Button */}
-          <div className="space-y-2">
-            <Button
-              onClick={testToast}
-              className="w-full"
-              variant="outline"
-            >
-              Test Toast
-            </Button>
-          </div>
         </div>
       </DialogContent>
     </Dialog>
