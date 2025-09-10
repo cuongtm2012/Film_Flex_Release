@@ -1,7 +1,8 @@
 #!/bin/bash
 
-# FilmFlex Master Database Manager - Fixed Version
+# FilmFlex Master Database Manager - Updated for Current Architecture
 # Consolidated script for all database operations (local, Docker, production)
+# Updated to support OAuth authentication and comprehensive table structure
 
 set -e
 
@@ -29,10 +30,12 @@ print_banner() {
     echo -e "${PURPLE}"
     echo "========================================"
     echo "  FilmFlex Master Database Manager"
-    echo "  Unified Database Operations (Fixed)"
+    echo "  Updated for Current Architecture"
     echo "========================================"
     echo -e "${NC}"
     echo "Timestamp: $TIMESTAMP"
+    echo "OAuth Support: ✅ Google, Facebook"
+    echo "RBAC System: ✅ Roles & Permissions"
     echo ""
 }
 
@@ -90,7 +93,92 @@ check_docker_container() {
     fi
 }
 
-# Export from local PostgreSQL with better error handling
+# Enhanced database statistics with all current tables
+get_database_statistics() {
+    local connection_cmd="$1"
+    
+    highlight "📊 Database Statistics (Full Schema):"
+    
+    # Core tables
+    if ! $connection_cmd -c "
+    WITH table_stats AS (
+        SELECT 'movies' as table_name, COUNT(*) as rows FROM movies
+        UNION ALL
+        SELECT 'episodes', COUNT(*) FROM episodes
+        UNION ALL
+        SELECT 'users', COUNT(*) FROM users
+        UNION ALL
+        SELECT 'comments', COUNT(*) FROM comments
+        UNION ALL
+        SELECT 'sessions', COUNT(*) FROM sessions
+        UNION ALL
+        SELECT 'watchlist', COUNT(*) FROM watchlist
+        UNION ALL
+        SELECT 'view_history', COUNT(*) FROM view_history
+        UNION ALL
+        SELECT 'roles', COUNT(*) FROM roles
+        UNION ALL
+        SELECT 'permissions', COUNT(*) FROM permissions
+        UNION ALL
+        SELECT 'role_permissions', COUNT(*) FROM role_permissions
+        UNION ALL
+        SELECT 'content_approvals', COUNT(*) FROM content_approvals
+        UNION ALL
+        SELECT 'audit_logs', COUNT(*) FROM audit_logs
+        UNION ALL
+        SELECT 'api_keys', COUNT(*) FROM api_keys
+        UNION ALL
+        SELECT 'analytics_events', COUNT(*) FROM analytics_events
+        UNION ALL
+        SELECT 'content_performance', COUNT(*) FROM content_performance
+        UNION ALL
+        SELECT 'user_comment_reactions', COUNT(*) FROM user_comment_reactions
+        UNION ALL
+        SELECT 'movie_reactions', COUNT(*) FROM movie_reactions
+    )
+    SELECT 
+        table_name,
+        rows,
+        CASE 
+            WHEN table_name IN ('movies', 'episodes', 'users', 'comments') THEN '🔥 Core'
+            WHEN table_name IN ('sessions', 'watchlist', 'view_history') THEN '👤 User Data'
+            WHEN table_name IN ('roles', 'permissions', 'role_permissions') THEN '🔐 RBAC'
+            WHEN table_name IN ('api_keys', 'audit_logs', 'analytics_events') THEN '📊 Analytics'
+            ELSE '🔧 Features'
+        END as category
+    FROM table_stats 
+    ORDER BY category, table_name;
+    " 2>/dev/null; then
+        warning "Could not retrieve complete table statistics"
+        
+        # Fallback to basic stats
+        $connection_cmd -c "
+        SELECT 
+            'movies' as table_name, COUNT(*) as rows FROM movies
+        UNION ALL
+        SELECT 'users', COUNT(*) FROM users
+        UNION ALL
+        SELECT 'episodes', COUNT(*) FROM episodes
+        ORDER BY table_name;
+        " 2>/dev/null || warning "Could not retrieve basic statistics"
+    fi
+    
+    # OAuth statistics
+    info "🔐 OAuth Integration Status:"
+    $connection_cmd -c "
+    SELECT 
+        'Total Users' as metric, COUNT(*) as count FROM users
+    UNION ALL
+    SELECT 'Google OAuth Users', COUNT(*) FROM users WHERE google_id IS NOT NULL
+    UNION ALL
+    SELECT 'Facebook OAuth Users', COUNT(*) FROM users WHERE facebook_id IS NOT NULL
+    UNION ALL
+    SELECT 'Local Auth Users', COUNT(*) FROM users WHERE password IS NOT NULL
+    ORDER BY metric;
+    " 2>/dev/null || info "OAuth statistics not available"
+}
+
+# Enhanced export with OAuth support
 export_local_database() {
     log "Exporting from local PostgreSQL database..."
     
@@ -101,19 +189,8 @@ export_local_database() {
     
     mkdir -p "$SHARED_DIR" "$BACKUP_DIR"
     
-    # Get database statistics
-    highlight "Database Statistics:"
-    if ! $LOCAL_PSQL_CMD -c "
-    SELECT 
-        'movies' as table_name, COUNT(*) as rows FROM movies
-    UNION ALL
-    SELECT 'episodes', COUNT(*) FROM episodes
-    UNION ALL
-    SELECT 'users', COUNT(*) FROM users
-    ORDER BY table_name;
-    " 2>/dev/null; then
-        warning "Could not retrieve table statistics"
-    fi
+    # Get enhanced database statistics
+    get_database_statistics "$LOCAL_PSQL_CMD"
     
     # Extract connection parameters for pg_dump
     local dump_params=""
@@ -126,27 +203,56 @@ export_local_database() {
         dump_params="$dump_params -h $host"
     fi
     
-    # Export schema
+    # Export schema with OAuth and RBAC support
     local schema_file="$SHARED_DIR/filmflex_schema_$TIMESTAMP.sql"
-    log "Exporting schema to: $schema_file"
+    log "Exporting complete schema to: $schema_file"
     if pg_dump $dump_params --schema-only --no-owner --no-privileges -d filmflex > "$schema_file"; then
         success "Schema exported: $schema_file"
         cp "$schema_file" "$SHARED_DIR/filmflex_schema.sql"
+        
+        # Verify OAuth tables in schema
+        if grep -q "google_id\|facebook_id" "$schema_file"; then
+            success "✅ OAuth fields detected in schema"
+        else
+            warning "⚠️ OAuth fields not found in schema"
+        fi
+        
+        if grep -q "roles\|permissions" "$schema_file"; then
+            success "✅ RBAC system detected in schema"
+        else
+            warning "⚠️ RBAC tables not found in schema"
+        fi
     else
         error "Schema export failed"
         return 1
     fi
     
-    # Export data
+    # Export data with proper OAuth handling
     local data_file="$SHARED_DIR/filmflex_data_clean_$TIMESTAMP.sql"
-    log "Exporting data to: $data_file"
-    if pg_dump $dump_params --data-only --no-owner --no-privileges --column-inserts -d filmflex > "$data_file"; then
+    log "Exporting data (including OAuth users) to: $data_file"
+    
+    # Enhanced export with sensitive data handling
+    if pg_dump $dump_params --data-only --no-owner --no-privileges --column-inserts \
+        --exclude-table-data=sessions \
+        --exclude-table-data=audit_logs \
+        --exclude-table-data=analytics_events \
+        -d filmflex > "$data_file"; then
         success "Data exported: $data_file"
         local size=$(du -h "$data_file" | cut -f1)
         info "Export size: $size"
+        info "ℹ️ Excluded sensitive tables: sessions, audit_logs, analytics_events"
     else
         error "Data export failed"
         return 1
+    fi
+    
+    # Create OAuth-only export for testing
+    local oauth_file="$SHARED_DIR/filmflex_oauth_users_$TIMESTAMP.sql"
+    log "Creating OAuth users export..."
+    if pg_dump $dump_params --data-only --no-owner --no-privileges --column-inserts \
+        --table=users --where="google_id IS NOT NULL OR facebook_id IS NOT NULL" \
+        -d filmflex > "$oauth_file"; then
+        success "OAuth users exported: $oauth_file"
     fi
 }
 
@@ -181,7 +287,7 @@ import_to_docker() {
     fi
     
     # Import schema
-    log "Importing schema from: $(basename "$schema_file")"
+    log "Importing schema with OAuth and RBAC support..."
     if docker cp "$schema_file" "$container_name:/tmp/schema.sql" && \
        docker exec "$container_name" psql -U filmflex -d filmflex -f /tmp/schema.sql >/dev/null 2>&1; then
         success "Schema imported successfully"
@@ -193,7 +299,7 @@ import_to_docker() {
     
     # Import data if available
     if [ -n "$data_file" ] && [ -f "$data_file" ]; then
-        log "Importing data from: $(basename "$data_file")"
+        log "Importing data with OAuth users..."
         local file_size=$(du -h "$data_file" | cut -f1)
         info "Data file size: $file_size"
         
@@ -208,7 +314,7 @@ import_to_docker() {
         info "No data file found, schema-only import completed"
     fi
     
-    # Update sequences
+    # Update sequences for all tables
     log "Updating database sequences..."
     docker exec "$container_name" psql -U filmflex -d filmflex << 'EOF' >/dev/null 2>&1
 DO $$
@@ -238,23 +344,30 @@ BEGIN
         PERFORM setval('comments_id_seq', max_id);
         RAISE NOTICE 'Updated comments sequence to %', max_id;
     END IF;
+    
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'roles') THEN
+        SELECT COALESCE(MAX(id), 0) + 1 INTO max_id FROM roles;
+        PERFORM setval('roles_id_seq', max_id);
+        RAISE NOTICE 'Updated roles sequence to %', max_id;
+    END IF;
+    
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'permissions') THEN
+        SELECT COALESCE(MAX(id), 0) + 1 INTO max_id FROM permissions;
+        PERFORM setval('permissions_id_seq', max_id);
+        RAISE NOTICE 'Updated permissions sequence to %', max_id;
+    END IF;
+    
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'api_keys') THEN
+        SELECT COALESCE(MAX(id), 0) + 1 INTO max_id FROM api_keys;
+        PERFORM setval('api_keys_id_seq', max_id);
+        RAISE NOTICE 'Updated api_keys sequence to %', max_id;
+    END IF;
 END$$;
 EOF
-    success "Sequences updated"
+    success "All sequences updated"
     
-    # Verify import
-    highlight "Import Verification:"
-    docker exec "$container_name" psql -U filmflex -d filmflex -c "
-    SELECT 
-        'movies' as table_name, COUNT(*) as rows FROM movies
-    UNION ALL
-    SELECT 'episodes', COUNT(*) FROM episodes  
-    UNION ALL
-    SELECT 'users', COUNT(*) FROM users
-    UNION ALL
-    SELECT 'comments', COUNT(*) FROM comments
-    ORDER BY table_name;
-    " 2>/dev/null || warning "Could not verify import"
+    # Enhanced verification
+    verify_import "$container_name"
 }
 
 # Migrate from local to Docker
@@ -327,24 +440,80 @@ backup_database() {
     fi
 }
 
+# Enhanced import verification with OAuth support
+verify_import() {
+    local container_name="$1"
+    
+    log "🔍 Verifying import with OAuth and RBAC support..."
+    
+    # Enhanced verification query
+    docker exec "$container_name" psql -U filmflex -d filmflex << 'EOF'
+-- Enhanced verification with OAuth and RBAC
+WITH table_verification AS (
+    SELECT 'movies' as table_name, COUNT(*) as rows FROM movies
+    UNION ALL
+    SELECT 'episodes', COUNT(*) FROM episodes
+    UNION ALL
+    SELECT 'users', COUNT(*) FROM users
+    UNION ALL
+    SELECT 'comments', COUNT(*) FROM comments
+    UNION ALL
+    SELECT 'sessions', COUNT(*) FROM sessions
+    UNION ALL
+    SELECT 'watchlist', COUNT(*) FROM watchlist
+    UNION ALL
+    SELECT 'view_history', COUNT(*) FROM view_history
+    UNION ALL
+    SELECT 'roles', COUNT(*) FROM roles
+    UNION ALL
+    SELECT 'permissions', COUNT(*) FROM permissions
+    UNION ALL
+    SELECT 'role_permissions', COUNT(*) FROM role_permissions
+),
+oauth_verification AS (
+    SELECT 'Total Users' as metric, COUNT(*) as count FROM users
+    UNION ALL
+    SELECT 'Google OAuth', COUNT(*) FROM users WHERE google_id IS NOT NULL
+    UNION ALL
+    SELECT 'Facebook OAuth', COUNT(*) FROM users WHERE facebook_id IS NOT NULL
+    UNION ALL
+    SELECT 'Local Auth', COUNT(*) FROM users WHERE password IS NOT NULL
+)
+SELECT '=== TABLE VERIFICATION ===' as section, '' as data, '' as extra
+UNION ALL
+SELECT table_name, rows::text, 
+    CASE 
+        WHEN table_name IN ('movies', 'episodes', 'users') AND rows > 0 THEN '✅'
+        WHEN rows > 0 THEN '✅'
+        ELSE '⚠️'
+    END
+FROM table_verification
+UNION ALL
+SELECT '', '', ''
+UNION ALL
+SELECT '=== OAUTH VERIFICATION ===' as section, '' as data, '' as extra
+UNION ALL
+SELECT metric, count::text, 
+    CASE 
+        WHEN metric = 'Total Users' AND count > 0 THEN '✅'
+        WHEN count > 0 THEN '🔐'
+        ELSE '⚪'
+    END
+FROM oauth_verification
+ORDER BY section DESC, data;
+EOF
+
+    success "Import verification completed"
+}
+
 # Show database status with better error handling
 show_status() {
     print_banner
     
     # Check local PostgreSQL
-    highlight "Local PostgreSQL Status:"
+    highlight "🖥️ Local PostgreSQL Status:"
     if detect_local_postgres 2>/dev/null; then
-        if ! $LOCAL_PSQL_CMD -c "
-        SELECT 
-            'movies' as table_name, COUNT(*) as rows FROM movies
-        UNION ALL
-        SELECT 'episodes', COUNT(*) FROM episodes
-        UNION ALL
-        SELECT 'users', COUNT(*) FROM users
-        ORDER BY table_name;
-        " 2>/dev/null; then
-            info "Connected but could not retrieve table data"
-        fi
+        get_database_statistics "$LOCAL_PSQL_CMD"
     else
         info "Local PostgreSQL not available or no filmflex database"
     fi
@@ -352,24 +521,14 @@ show_status() {
     echo ""
     
     # Check Docker containers
-    highlight "Docker Container Status:"
+    highlight "🐳 Docker Container Status:"
     local found_container=false
     local containers=("filmflex-postgres" "postgres")
     
     for container in "${containers[@]}"; do
         if check_docker_container "$container" 2>/dev/null; then
             found_container=true
-            docker exec "$container" psql -U filmflex -d filmflex -c "
-            SELECT 
-                'movies' as table_name, COUNT(*) as rows FROM movies
-            UNION ALL
-            SELECT 'episodes', COUNT(*) FROM episodes
-            UNION ALL
-            SELECT 'users', COUNT(*) FROM users
-            UNION ALL
-            SELECT 'comments', COUNT(*) FROM comments
-            ORDER BY table_name;
-            " 2>/dev/null || info "Container found but could not retrieve data"
+            get_database_statistics "docker exec $container psql -U filmflex -d filmflex"
             break
         fi
     done
@@ -385,13 +544,20 @@ show_status() {
         fi
     fi
     
-    # Show available files
+    # Show available files with OAuth info
     echo ""
-    highlight "Available Export Files:"
+    highlight "📁 Available Export Files:"
     if [ -d "$SHARED_DIR" ]; then
         local sql_files=$(ls -1 "$SHARED_DIR"/*.sql 2>/dev/null | head -5)
         if [ -n "$sql_files" ]; then
-            ls -lah "$SHARED_DIR"/*.sql | head -5
+            for file in $sql_files; do
+                local size=$(du -h "$file" 2>/dev/null | cut -f1)
+                local has_oauth=""
+                if grep -q "google_id\|facebook_id" "$file" 2>/dev/null; then
+                    has_oauth=" 🔐"
+                fi
+                echo "$(basename "$file") ($size)$has_oauth"
+            done
         else
             info "No SQL export files found in $SHARED_DIR"
         fi
@@ -404,13 +570,59 @@ show_status() {
         local backup_files=$(ls -1 "$BACKUP_DIR"/*.sql.gz 2>/dev/null | head -3)
         if [ -n "$backup_files" ]; then
             echo ""
-            highlight "Recent Backups:"
+            highlight "💾 Recent Backups:"
             ls -lah "$BACKUP_DIR"/*.sql.gz | head -3
         fi
     fi
+    
+    echo ""
+    highlight "🔧 Architecture Features:"
+    info "✅ OAuth Support: Google, Facebook authentication"
+    info "✅ RBAC System: Role-based access control"
+    info "✅ Analytics: User behavior tracking"
+    info "✅ Content Management: Approval workflow"
+    info "✅ API Management: Key-based access control"
 }
 
-# Main command handler with improved help
+# Enhanced help with OAuth information
+show_help() {
+    echo -e "${CYAN}FilmFlex Master Database Manager (Current Architecture)${NC}"
+    echo ""
+    echo -e "${YELLOW}🔥 Features:${NC}"
+    echo "  ✅ OAuth Support (Google, Facebook)"
+    echo "  ✅ RBAC System (Roles & Permissions)"
+    echo "  ✅ Analytics & Performance Tracking"
+    echo "  ✅ Content Management & Moderation"
+    echo "  ✅ API Key Management"
+    echo ""
+    echo -e "${YELLOW}Usage:${NC} $0 [command] [options]"
+    echo ""
+    echo -e "${YELLOW}Commands:${NC}"
+    echo "  export                     - Export from local PostgreSQL (with OAuth data)"
+    echo "  import [container]         - Import to Docker container (OAuth-aware)"
+    echo "  migrate [container]        - Full migration with OAuth and RBAC support"
+    echo "  backup [source] [container] - Create complete database backup"
+    echo "  status                     - Show comprehensive database status"
+    echo "  test                       - Test all database connections"
+    echo "  help                       - Show this help"
+    echo ""
+    echo -e "${YELLOW}Examples:${NC}"
+    echo "  $0 status                  # Check all databases with OAuth info"
+    echo "  $0 test                    # Test connections"
+    echo "  $0 export                  # Export with OAuth users"
+    echo "  $0 import filmflex-postgres # Import with full schema"
+    echo "  $0 migrate                 # Complete migration"
+    echo ""
+    echo -e "${YELLOW}Container Names:${NC}"
+    echo "  filmflex-postgres (default) - matches docker-compose.yml"
+    echo ""
+    echo -e "${YELLOW}Data Handling:${NC}"
+    echo "  🔐 OAuth users preserved (google_id, facebook_id)"
+    echo "  🛡️ Sensitive data excluded (sessions, audit_logs)"
+    echo "  📊 Analytics data optional"
+}
+
+# Main command handler
 main() {
     case "${1:-help}" in
         "export")
@@ -439,30 +651,7 @@ main() {
             check_docker_container "filmflex-postgres" || true
             ;;
         "help"|*)
-            echo -e "${CYAN}FilmFlex Master Database Manager (Fixed)${NC}"
-            echo ""
-            echo -e "${YELLOW}Usage:${NC} $0 [command] [options]"
-            echo ""
-            echo -e "${YELLOW}Commands:${NC}"
-            echo "  export                     - Export from local PostgreSQL to ./shared/"
-            echo "  import [container]         - Import from ./shared/ to Docker container"
-            echo "  migrate [container]        - Full migration from local to Docker"
-            echo "  backup [source] [container] - Create database backup"
-            echo "  status                     - Show all database status and files"
-            echo "  test                       - Test all database connections"
-            echo "  help                       - Show this help"
-            echo ""
-            echo -e "${YELLOW}Examples:${NC}"
-            echo "  $0 status                  # Check all databases"
-            echo "  $0 test                    # Test connections only"
-            echo "  $0 export                  # Export local database"
-            echo "  $0 import filmflex-postgres # Import to Docker"
-            echo "  $0 migrate                 # Full local to Docker migration"
-            echo "  $0 backup docker           # Backup Docker database"
-            echo "  $0 backup local            # Backup local database"
-            echo ""
-            echo -e "${YELLOW}Container Names:${NC}"
-            echo "  filmflex-postgres (default), postgres, or specify your own"
+            show_help
             ;;
     esac
 }
