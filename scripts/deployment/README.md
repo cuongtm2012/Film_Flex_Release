@@ -146,7 +146,7 @@ All scripts use consistent configuration from `lib/common-functions.sh`:
 
 ```bash
 # Production environment
-PRODUCTION_IP="154.205.142.255"
+PRODUCTION_IP="38.54.14.154"
 PRODUCTION_DOMAIN="phimgg.com"
 DEPLOY_DIR="/var/www/filmflex"
 SOURCE_DIR="$HOME/Film_Flex_Release"

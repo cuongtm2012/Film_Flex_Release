@@ -2,7 +2,7 @@
 
 # FilmFlex Fresh Instance Deployment Manager
 # Version: 2.0 - Fresh Instance Setup + Deployment
-# Updated for new VPS: 154.205.142.255
+# Updated for new VPS: 38.54.14.154
 # Date: July 5, 2025
 #
 # Usage:
@@ -24,7 +24,7 @@ PURPLE='\033[0;35m'
 NC='\033[0m'
 
 # Configuration for new instance
-SERVER_IP="154.205.142.255"
+SERVER_IP="38.54.14.154"
 SOURCE_DIR="/root/Film_Flex_Release"
 DEPLOY_DIR="/var/www/filmflex"
 BACKUP_DIR="/var/backups/filmflex"
@@ -144,7 +144,7 @@ setup_server() {
     cat > /etc/nginx/sites-available/filmflex << 'EOF'
 server {
     listen 80;
-    server_name 154.205.142.255;
+    server_name 38.54.14.154;
     
     # Security headers
     add_header X-Frame-Options "SAMEORIGIN" always;

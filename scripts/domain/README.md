@@ -30,7 +30,7 @@ sudo bash domain-manager.sh setup [domain] [server-ip] [email]
 ```
 Example:
 ```bash
-sudo bash domain-manager.sh setup phimgg.com 154.205.142.255 admin@phimgg.com
+sudo bash domain-manager.sh setup phimgg.com 38.54.14.154 admin@phimgg.com
 ```
 
 ### **3. Install SSL Certificate Only**
@@ -57,7 +57,7 @@ bash domain-manager.sh deploy [user@server]
 ```
 Example:
 ```bash
-bash domain-manager.sh deploy root@154.205.142.255
+bash domain-manager.sh deploy root@38.54.14.154
 ```
 
 ### **6. Monitor Domain Status**
@@ -107,12 +107,12 @@ Before running setup, ensure your DNS provider (GoDaddy) has these records:
 ```
 Type: A
 Name: @
-Value: 154.205.142.255
+Value: 38.54.14.154
 TTL: 1 Hour
 
 Type: A
 Name: www
-Value: 154.205.142.255
+Value: 38.54.14.154
 TTL: 1 Hour
 ```
 
@@ -122,7 +122,7 @@ TTL: 1 Hour
    ```bash
    # On your local machine
    cd scripts/domain
-   bash domain-manager.sh deploy root@154.205.142.255
+   bash domain-manager.sh deploy root@38.54.14.154
    ```
 
 2. **For DNS diagnostics:**
@@ -140,7 +140,7 @@ TTL: 1 Hour
 ## 📝 **Default Configuration**
 
 - **Domain:** phimgg.com
-- **Server IP:** 154.205.142.255
+- **Server IP:** 38.54.14.154
 - **Email:** admin@phimgg.com
 - **App Port:** 5000
 
@@ -169,7 +169,7 @@ If you encounter issues:
 
 3. **Test direct IP access:**
    ```bash
-   curl http://154.205.142.255:5000
+   curl http://38.54.14.154:5000
    ```
 
 4. **Verify DNS manually:**

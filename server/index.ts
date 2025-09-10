@@ -45,10 +45,10 @@ app.use(cors({
       'https://www.phimgg.com',
       'http://phimgg.com',
       'http://www.phimgg.com',
-      'http://154.205.142.255:5000',
-      'https://154.205.142.255:5000',
-      'http://154.205.142.255',
-      'https://154.205.142.255',
+      'http://38.54.14.154:5000',
+      'https://38.54.14.154:5000',
+      'http://38.54.14.154',
+      'https://38.54.14.154',
       config.clientUrl,
       ...envAllowedOrigins
     ];
@@ -64,7 +64,7 @@ app.use(cors({
     }
     
     // Allow IP address access for testing
-    if (origin.includes('154.205.142.255')) {
+    if (origin.includes('38.54.14.154')) {
       return callback(null, true);
     }
     

@@ -27,7 +27,7 @@ NC='\033[0m' # No Color
 
 # Default configuration
 DEFAULT_DOMAIN="phimgg.com"
-DEFAULT_SERVER_IP="154.205.142.255"
+DEFAULT_SERVER_IP="38.54.14.154"
 DEFAULT_EMAIL="admin@phimgg.com"
 DEFAULT_APP_PORT="5000"
 
@@ -134,7 +134,7 @@ show_usage() {
     echo ""
     echo "  2️⃣  Fix DNS in your registrar (remove extra IPs)"
     echo "     👆 Remove: 15.197.225.128 and 3.33.251.168"
-    echo "     👆 Keep only: 154.205.142.255"
+    echo "     👆 Keep only: 38.54.14.154"
     echo ""
     echo "  3️⃣  sudo $0 ssl phimgg.com admin@phimgg.com"
     echo "     👆 Install SSL after DNS is clean"

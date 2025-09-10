@@ -291,7 +291,7 @@ if [ "$HTTP_STATUS" = "RESPONDING" ]; then
     success "🎉 FilmFlex is now running successfully!"
     echo ""
     echo "🌍 Application accessible at:"
-    echo "   http://154.205.142.255:5000"
+    echo "   http://38.54.14.154:5000"
     echo ""
     echo "📝 Monitoring commands:"
     echo "   pm2 status"

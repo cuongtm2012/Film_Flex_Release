@@ -9,7 +9,7 @@ echo "========================"
 echo ""
 
 # Configuration - Updated for new VPS instance
-SERVER="154.205.142.255"
+SERVER="38.54.14.154"
 USERNAME="root"
 REMOTE_PATH="/root/Film_Flex_Release"
 

@@ -4,8 +4,8 @@
 echo "🔧 Fixing CORS configuration and restarting Film Flex application..."
 
 # Check if we're on the server
-if [[ $(hostname -I | grep -c "154.205.142.255") -eq 0 ]]; then
-    echo "❌ This script should be run on the server 154.205.142.255"
+if [[ $(hostname -I | grep -c "38.54.14.154") -eq 0 ]]; then
+    echo "❌ This script should be run on the server 38.54.14.154"
     echo "Please copy the updated files to the server first."
     exit 1
 fi
@@ -64,16 +64,16 @@ echo ""
 echo "✅ CORS fix deployment completed!"
 echo ""
 echo "🌍 Your application should now be accessible at:"
-echo "   http://154.205.142.255:5000"
+echo "   http://38.54.14.154:5000"
 echo ""
 echo "🔍 To check if CORS is working:"
-echo "   1. Open http://154.205.142.255:5000 in your browser"
+echo "   1. Open http://38.54.14.154:5000 in your browser"
 echo "   2. Check browser console for CORS errors"
 echo "   3. If issues persist, check PM2 logs: pm2 logs"
 echo ""
 echo "📝 Configuration changes made:"
-echo "   ✓ Updated CORS to allow server IP (154.205.142.255)"
+echo "   ✓ Updated CORS to allow server IP (38.54.14.154)"
 echo "   ✓ Set NODE_ENV to production"
-echo "   ✓ Set CLIENT_URL to http://154.205.142.255:5000"
+echo "   ✓ Set CLIENT_URL to http://38.54.14.154:5000"
 echo "   ✓ Made CORS more permissive for production deployment"
 echo ""

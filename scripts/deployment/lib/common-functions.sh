@@ -18,7 +18,7 @@ export CYAN='\033[0;36m'
 export NC='\033[0m'
 
 # Production environment configuration
-export PRODUCTION_IP="154.205.142.255"
+export PRODUCTION_IP="38.54.14.154"
 export PRODUCTION_DOMAIN="phimgg.com"
 export DEPLOY_DIR="/var/www/filmflex"
 export SOURCE_DIR="$HOME/Film_Flex_Release"

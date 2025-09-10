@@ -77,7 +77,7 @@ if curl -f -s --max-time 5 http://localhost:5000/ >/dev/null 2>&1; then
     echo "✅ HTTP: Responding"
     echo ""
     echo "🎉 Emergency fix applied successfully!"
-    echo "Application should be accessible at: http://154.205.142.255:5000"
+    echo "Application should be accessible at: http://38.54.14.154:5000"
 else
     echo "❌ HTTP: Not responding"
     echo "Check logs: pm2 logs filmflex"

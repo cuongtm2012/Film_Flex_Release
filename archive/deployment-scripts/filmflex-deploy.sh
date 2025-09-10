@@ -179,7 +179,7 @@ NODE_ENV=production
 PORT=5000
 DATABASE_URL=postgresql://filmflex:filmflex2024@localhost:5432/filmflex
 SESSION_SECRET=filmflex_dev_secret_2024
-CLIENT_URL=http://154.205.142.255:5000
+CLIENT_URL=http://38.54.14.154:5000
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 ENVEOF
@@ -346,7 +346,7 @@ NODE_ENV=production
 PORT=5000
 DATABASE_URL=postgresql://filmflex:filmflex2024@localhost:5432/filmflex
 SESSION_SECRET=filmflex_dev_secret_2024
-CLIENT_URL=http://154.205.142.255:5000
+CLIENT_URL=http://38.54.14.154:5000
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 ENVEOF
@@ -473,7 +473,7 @@ health_check() {
     # Check if client URL is correctly configured
     if grep -q "CLIENT_URL.*localhost" .env 2>/dev/null; then
         warning "Client URL still pointing to localhost"
-        info "💡 Should be: CLIENT_URL=http://154.205.142.255:5000"
+        info "💡 Should be: CLIENT_URL=http://38.54.14.154:5000"
     fi
     
     # Check disk space
@@ -552,7 +552,7 @@ upload_files() {
         info "Windows/WSL environment detected"
         
         # Server configuration
-        local SERVER="154.205.142.255"
+        local SERVER="38.54.14.154"
         local USERNAME="root"
         local REMOTE_PATH="/root/Film_Flex_Release"
         local LOCAL_PATH="."
