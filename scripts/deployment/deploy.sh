@@ -202,6 +202,68 @@ deploy_development() {
     success "Development deployment completed!"
 }
 
+deploy_quick() {
+    print_banner "Quick Deployment - Fast Redeploy"
+    
+    acquire_lock "quick-deployment" || { error "Another deployment is running"; return 1; }
+    
+    log "Starting quick deployment (no database changes)..."
+    cd "$SOURCE_DIR"
+    
+    # Quick update source code if git repository
+    if git rev-parse --git-dir > /dev/null 2>&1; then
+        log "Pulling latest changes..."
+        git pull origin main || warning "Git pull failed, using current code"
+    fi
+    
+    # Check if Docker containers are running
+    if check_docker_containers; then
+        log "Quick Docker deployment detected..."
+        
+        # Pull latest images
+        log "Pulling latest Docker images..."
+        docker compose -f "$COMPOSE_FILE" pull app || true
+        
+        # Restart only the app container (keep database running)
+        log "Restarting application container..."
+        docker compose -f "$COMPOSE_FILE" up -d --no-deps app
+        
+        # Wait for container to be ready
+        log "Waiting for application to start..."
+        sleep 20
+        
+    else
+        log "Quick PM2 deployment detected..."
+        
+        # Install dependencies and build quickly
+        log "Installing dependencies (quick)..."
+        npm install --production || { error "npm install failed"; return 1; }
+        
+        log "Building application..."
+        npm run build || { error "Build failed"; return 1; }
+        
+        # Restart PM2 services
+        log "Restarting PM2 services..."
+        if [ -f "ecosystem.config.cjs" ]; then
+            pm2 restart ecosystem.config.cjs
+        else
+            pm2 restart filmflex-dev 2>/dev/null || pm2 start dist/index.js --name filmflex-dev
+        fi
+        
+        # Wait for PM2 to stabilize
+        sleep 10
+    fi
+    
+    # Quick health check
+    if [ "$SKIP_TESTS" != "true" ]; then
+        log "Running quick health check..."
+        check_application_health || { error "Quick health check failed"; return 1; }
+    fi
+    
+    success "Quick deployment completed successfully!"
+    log "Application redeployed without database changes"
+}
+
 deploy_ssl() {
     print_banner "SSL Certificate Setup"
     
