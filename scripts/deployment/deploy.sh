@@ -479,7 +479,7 @@ setup_ssl_certificates_enhanced() {
         configure_nginx_ssl
         
         # Set up auto-renewal
-        local renewal_cron="0 12 * * * /usr/bin/certbot renew --quiet --post-hook 'systemctl reload nginx'"
+        local renewal_cron="0 12 * * * certbot renew --quiet --post-hook 'systemctl reload nginx'"
         (crontab -l 2>/dev/null | grep -v "certbot renew" ; echo "$renewal_cron") | crontab -
         success "SSL auto-renewal configured"
         
@@ -491,100 +491,29 @@ setup_ssl_certificates_enhanced() {
     fi
 }
 
-configure_nginx_enhanced() {
-    log "Configuring Nginx with enhanced settings..."
+configure_nginx_ssl() {
+    log "Configuring Nginx SSL settings..."
     
     local nginx_conf="/etc/nginx/sites-available/$PRODUCTION_DOMAIN"
     local ssl_cert="/etc/letsencrypt/live/$PRODUCTION_DOMAIN/fullchain.pem"
     local ssl_key="/etc/letsencrypt/live/$PRODUCTION_DOMAIN/privkey.pem"
     
-    # Create Nginx configuration
-    cat > "$nginx_conf" << 'NGINX_EOF'
-# FilmFlex Nginx Configuration - Enhanced
-server {
-    listen 80;
-    server_name phimgg.com www.phimgg.com;
-    
-    # Redirect HTTP to HTTPS
-    return 301 https://$server_name$request_uri;
-}
-
-server {
-    listen 443 ssl http2;
-    server_name phimgg.com www.phimgg.com;
-    
-    # SSL Configuration
-    ssl_certificate /etc/letsencrypt/live/phimgg.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/phimgg.com/privkey.pem;
-    ssl_session_timeout 1d;
-    ssl_session_cache shared:MozTLS:10m;
-    ssl_session_tickets off;
-    
-    # Modern SSL configuration
-    ssl_protocols TLSv1.2 TLSv1.3;
-    ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384;
-    ssl_prefer_server_ciphers off;
-    
-    # Security headers
-    add_header Strict-Transport-Security "max-age=63072000" always;
-    add_header X-Frame-Options DENY;
-    add_header X-Content-Type-Options nosniff;
-    add_header X-XSS-Protection "1; mode=block";
-    
-    # Gzip compression
-    gzip on;
-    gzip_vary on;
-    gzip_min_length 10240;
-    gzip_proxied expired no-cache no-store private must-revalidate auth;
-    gzip_types text/plain text/css text/xml text/javascript application/javascript application/xml+rss application/json;
-    
-    # Static file serving
-    location /static/ {
-        alias /var/www/filmflex/dist/public/;
-        expires 1y;
-        add_header Cache-Control "public, immutable";
-    }
-    
-    # API proxy
-    location /api/ {
-        proxy_pass http://localhost:5000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_cache_bypass $http_upgrade;
-        proxy_read_timeout 86400;
-    }
-    
-    # Main application
-    location / {
-        proxy_pass http://localhost:5000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_cache_bypass $http_upgrade;
-        proxy_read_timeout 86400;
-    }
-}
-NGINX_EOF
-    
-    # Enable the site
-    ln -sf "$nginx_conf" "/etc/nginx/sites-enabled/$PRODUCTION_DOMAIN"
-    rm -f /etc/nginx/sites-enabled/default
-    
-    # Test and reload nginx
-    if nginx -t; then
-        systemctl reload nginx
-        success "Nginx configured and reloaded"
+    # Update SSL certificate paths in nginx config
+    if [ -f "$nginx_conf" ]; then
+        # Replace certificate paths with Let's Encrypt paths
+        sed -i "s|ssl_certificate .*|ssl_certificate $ssl_cert;|" "$nginx_conf"
+        sed -i "s|ssl_certificate_key .*|ssl_certificate_key $ssl_key;|" "$nginx_conf"
+        
+        # Test nginx configuration
+        if nginx -t; then
+            systemctl reload nginx
+            success "Nginx SSL configuration updated and reloaded"
+        else
+            error "Nginx configuration test failed after SSL setup"
+            return 1
+        fi
     else
-        error "Nginx configuration test failed"
+        warning "Nginx configuration file not found: $nginx_conf"
         return 1
     fi
 }
