@@ -18,8 +18,15 @@ export const pool = new Pool({
   ssl: false,
 });
 
+// Use a module-level flag to prevent repeated logging
+let isDbConnected = false;
+
 pool.on('connect', () => {
-  console.log('✅ Successfully connected to PostgreSQL database');
+  // Only log once during initial connection, not for every query
+  if (process.env.NODE_ENV !== 'production' && !isDbConnected) {
+    console.log('✅ Successfully connected to PostgreSQL database');
+    isDbConnected = true;
+  }
 });
 
 pool.on('error', (err: any) => {

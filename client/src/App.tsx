@@ -10,6 +10,8 @@ import Home from "@/pages/Home";
 import MovieDetail from "@/pages/MovieDetail";
 import SearchPage from "@/pages/SearchPage";
 import AuthPage from "@/pages/auth-page";
+import ForgotPasswordPage from "@/pages/ForgotPasswordPage";
+import ResetPasswordPage from "@/pages/ResetPasswordPage";
 import ProfilePageComponent from "@/pages/ProfilePage";
 import WatchlistPageComponent from "@/pages/WatchlistPage";
 import WatchHistoryPage from "@/pages/WatchHistoryPage";
@@ -72,6 +74,18 @@ function Router() {
         <Route path="/auth">
           <ErrorBoundary>
             <AuthPage />
+          </ErrorBoundary>
+        </Route>
+        
+        <Route path="/forgot-password">
+          <ErrorBoundary>
+            <ForgotPasswordPage />
+          </ErrorBoundary>
+        </Route>
+        
+        <Route path="/reset-password">
+          <ErrorBoundary>
+            <ResetPasswordPage />
           </ErrorBoundary>
         </Route>
         

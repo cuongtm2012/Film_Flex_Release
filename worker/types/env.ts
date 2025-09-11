@@ -7,6 +7,9 @@ export interface Env {
   GOOGLE_CLIENT_SECRET: string;
   SESSION_SECRET: string;
   
+  // Email Service Secrets
+  SENDGRID_API_KEY: string;
+  
   // Regular environment variables
   NODE_ENV: string;
   CLIENT_URL: string;

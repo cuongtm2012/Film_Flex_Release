@@ -201,14 +201,15 @@ function setupStaticServing() {
     log('Serving static files from dist/public');
     app.use(express.static(clientDistPath));
     
-    // Catch-all handler for SPA routing
+    // Catch-all handler for SPA routing - IMPORTANT: This must come AFTER API routes
     app.get('*', (req, res) => {
       // Skip API routes
       if (req.path.startsWith('/api/')) {
         return res.status(404).json({ error: 'API endpoint not found' });
       }
       
-      // Serve index.html for all other routes
+      // For all frontend routes (including /forgot-password, /reset-password, etc.)
+      // serve the index.html so React Router can handle client-side routing
       if (fs.existsSync(indexPath)) {
         res.sendFile(indexPath);
       } else {
@@ -217,11 +218,25 @@ function setupStaticServing() {
     });
   } else {
     log('Warning: Client dist directory not found. Run npm run build to build the client.');
+    
+    // Even in development, we need to handle client-side routes
     app.get('*', (req, res) => {
       if (req.path.startsWith('/api/')) {
         return res.status(404).json({ error: 'API endpoint not found' });
       }
-      res.status(503).send('Client application not available. Please build the application first.');
+      
+      // In development, if no build exists, serve a helpful message
+      res.status(503).send(`
+        <html>
+          <head><title>Development Server</title></head>
+          <body>
+            <h1>Development Mode</h1>
+            <p>Client application not built yet.</p>
+            <p>The route <code>${req.path}</code> would be handled by React Router.</p>
+            <p>Please run <code>npm run build</code> or start the Vite dev server.</p>
+          </body>
+        </html>
+      `);
     });
   }
 }

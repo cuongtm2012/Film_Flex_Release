@@ -53,6 +53,10 @@ echo "📘 Facebook OAuth Configuration:"
 set_secret "FACEBOOK_APP_ID" "Facebook App ID"
 set_secret "FACEBOOK_APP_SECRET" "Facebook App Secret"
 
+# Email Service secrets
+echo "📧 Email Service Configuration:"
+set_secret "SENDGRID_API_KEY" "SendGrid API Key"
+
 # Session secret
 echo "🔐 Session Configuration:"
 set_secret "SESSION_SECRET" "Session Secret (use a long random string)"

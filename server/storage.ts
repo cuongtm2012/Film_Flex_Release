@@ -117,7 +117,12 @@ export interface IStorage {
   getMovieListCache(page: number): Promise<MovieListResponse | null>;
   getMovieDetailCache(slug: string): Promise<MovieDetailResponse | null>;
   getMovieCategoryCache(categorySlug: string, page: number): Promise<MovieListResponse | null>;
-  
+
+  // Password reset token methods
+  createPasswordResetToken(userId: number, token: string, expiresAt: Date): Promise<void>;
+  getPasswordResetToken(token: string): Promise<{ userId: number; expiresAt: Date } | null>;
+  deletePasswordResetToken(token: string): Promise<void>;
+
   // Session store for authentication
   sessionStore: session.Store;
 }
@@ -130,6 +135,9 @@ export class DatabaseStorage implements IStorage {
   private readonly CACHE_TTL = 2 * 60 * 1000; // 2 minutes instead of 5
   // Add cache size limit
   private readonly MAX_CACHE_SIZE = 1000;
+
+  // In-memory storage for password reset tokens
+  private passwordResetTokens: Map<string, { userId: number; expiresAt: Date }> = new Map();
 
   constructor() {
     const PgSession = connectPg(session);
@@ -1132,26 +1140,62 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAuditLogs(page: number, limit: number, filters?: {activityType?: string, userId?: number}): Promise<{ data: AuditLog[], total: number }> {
-    const conditions = [];
+    const offset = (page - 1) * limit;
+    
+    let query = db.select({
+      auditLog: auditLogs,
+      user: {
+        id: users.id,
+        username: users.username,
+        email: users.email
+      }
+    })
+    .from(auditLogs)
+    .leftJoin(users, eq(auditLogs.userId, users.id));
+
+    // Apply filters
     if (filters?.activityType) {
-      conditions.push(eq(auditLogs.activityType, filters.activityType));
+      query = query.where(eq(auditLogs.activityType, filters.activityType));
     }
     if (filters?.userId) {
-      conditions.push(eq(auditLogs.userId, filters.userId));
+      query = query.where(eq(auditLogs.userId, filters.userId));
     }
 
-    const baseQuery = db.select()
-      .from(auditLogs)
-      .where(conditions.length > 0 ? and(...conditions) : undefined)
-      .orderBy(desc(auditLogs.timestamp));
+    const [data, countResult] = await Promise.all([
+      query.orderBy(desc(auditLogs.timestamp)).limit(limit).offset(offset),
+      db.select({ count: sql<number>`count(*)` }).from(auditLogs)
+        .where(
+          and(
+            filters?.activityType ? eq(auditLogs.activityType, filters.activityType) : undefined,
+            filters?.userId ? eq(auditLogs.userId, filters.userId) : undefined
+          )
+        )
+    ]);
 
-    const data = await baseQuery
-      .limit(limit)
-      .offset((page - 1) * limit);
+    const total = countResult[0]?.count || 0;
 
-    const [{ count }] = await db.select({ count: sql<number>`count(*)` }).from(auditLogs);
-    return { data, total: count || 0 };
+    return {
+      data: data.map(row => ({
+        ...row.auditLog,
+        user: row.user
+      })),
+      total
+    };
   }
+
+  // Password reset token methods
+  async createPasswordResetToken(userId: number, token: string, expiresAt: Date): Promise<void> {
+    this.passwordResetTokens.set(token, { userId, expiresAt });
+  }
+
+  async getPasswordResetToken(token: string): Promise<{ userId: number; expiresAt: Date } | null> {
+    return this.passwordResetTokens.get(token) || null;
+  }
+
+  async deletePasswordResetToken(token: string): Promise<void> {
+    this.passwordResetTokens.delete(token);
+  }
+
   // Add search and category methods
   async searchMovies(query: string, _normalizedQuery: string, page: number, limit: number, sortBy: string = 'latest', filters?: {section?: string, isRecommended?: boolean, type?: string}): Promise<{ data: Movie[], total: number }> {
     const offset = (page - 1) * limit;

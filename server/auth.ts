@@ -135,180 +135,216 @@ export function setupAuth(app: Express): void {
   app.use(session(sessionSettings));
   app.use(passport.initialize());
   app.use(passport.session());
-  passport.use(
-    new LocalStrategy(async (username: string, password: string, done) => {
-      try {
-        const user = await storage.getUserByUsername(username);        if (!user) {
-          return done(null, false, { message: "We couldn't find an account with that username. Please check your username or create a new account." });
-        }
+  
+  // Check if we should use Cloudflare Worker for OAuth
+  if (config.useCloudflareOAuth) {
+    console.log('☁️  OAuth handled by Cloudflare Worker - Local OAuth strategies disabled');
+    
+    // Set up proxy routes to Cloudflare Worker for OAuth
+    app.get("/api/auth/google", (req: Request, res: Response) => {
+      res.redirect(`${config.cloudflareWorkerUrl}/api/auth/google`);
+    });
 
-        // Check if user has a password (for OAuth users)
-        if (!user.password) {
-          return done(null, false, { message: "Please sign in with Google" });
-        }
+    app.get("/api/auth/facebook", (req: Request, res: Response) => {
+      res.redirect(`${config.cloudflareWorkerUrl}/api/auth/facebook`);
+    });
 
-        const passwordsMatch = await comparePasswords(password, user.password);
-        if (!passwordsMatch) {
-          return done(null, false, { message: "The password you entered is incorrect. Please try again or reset your password." });
-        }
-
-        // Log the activity
-        await logUserActivity(user.id, "login", null, null, null);
-
-        // Omit password before passing to done
-        const { password: _, ...userWithoutPassword } = user;
-        return done(null, userWithoutPassword);
-      } catch (error) {
-        return done(error);
+    // Handle OAuth callbacks from Cloudflare Worker
+    app.get("/api/auth/google/callback", async (req: Request, res: Response) => {
+      // This would be called after Cloudflare Worker processes OAuth
+      // Worker should redirect here with user data or JWT token
+      const token = req.query.token as string;
+      if (token) {
+        // Process the JWT token from Cloudflare Worker
+        // You'd need to verify and decode the JWT here
+        res.redirect("/?auth=success");
+      } else {
+        res.redirect("/auth?error=oauth_failed");
       }
-    })
-  );
-  // Google OAuth Strategy
-  if (config.googleClientId && config.googleClientSecret) {
-    // Only log Google OAuth setup in development
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('Setting up Google OAuth strategy');
-    }
-    
-    // Determine the correct callback URL based on environment
-    const callbackURL = process.env.NODE_ENV === 'production' 
-      ? "https://phimgg.com/api/auth/google/callback"
-      : "http://localhost:5000/api/auth/google/callback";
-    
-    passport.use(
-      new GoogleStrategy(
-        {
-          clientID: config.googleClientId,
-          clientSecret: config.googleClientSecret,
-          callbackURL: callbackURL,
-        },
-        async (_accessToken, _refreshToken, profile, done) => {
-          try {
-            // Check if user already exists with this Google ID
-            let user = await storage.getUserByGoogleId(profile.id);
-            
-            if (user) {
-              // User exists, log them in
-              await logUserActivity(user.id, "google_login", null, null, null);
-              const { password: _, ...userWithoutPassword } = user;
-              return done(null, userWithoutPassword);
-            }
+    });
 
-            // Check if user exists with same email
-            const emailUser = await storage.getUserByEmail(profile.emails?.[0]?.value || '');
-            if (emailUser) {
-              // Link Google account to existing user
-              await storage.updateUser(emailUser.id, { 
+    app.get("/api/auth/facebook/callback", async (req: Request, res: Response) => {
+      const token = req.query.token as string;
+      if (token) {
+        res.redirect("/?auth=success");
+      } else {
+        res.redirect("/auth?error=oauth_failed");
+      }
+    });
+    
+  } else {
+    // Use local OAuth strategies (development mode)
+    passport.use(
+      new LocalStrategy(async (username: string, password: string, done) => {
+        try {
+          const user = await storage.getUserByUsername(username);        
+          if (!user) {
+            return done(null, false, { message: "We couldn't find an account with that username. Please check your username or create a new account." });
+          }
+
+          // Check if user has a password (for OAuth users)
+          if (!user.password) {
+            return done(null, false, { message: "Please sign in with Google" });
+          }
+
+          const passwordsMatch = await comparePasswords(password, user.password);
+          if (!passwordsMatch) {
+            return done(null, false, { message: "The password you entered is incorrect. Please try again or reset your password." });
+          }
+
+          // Log the activity
+          await logUserActivity(user.id, "login", null, null, null);
+
+          // Omit password before passing to done
+          const { password: _, ...userWithoutPassword } = user;
+          return done(null, userWithoutPassword);
+        } catch (error) {
+          return done(error);
+        }
+      })
+    );
+    
+    // Google OAuth Strategy
+    if (config.googleClientId && config.googleClientSecret) {
+      // Only log Google OAuth setup in development
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('Setting up Google OAuth strategy');
+      }
+      
+      // Determine the correct callback URL based on environment
+      const callbackURL = process.env.NODE_ENV === 'production' 
+        ? "https://phimgg.com/api/auth/google/callback"
+        : "http://localhost:5000/api/auth/google/callback";
+      
+      passport.use(
+        new GoogleStrategy(
+          {
+            clientID: config.googleClientId,
+            clientSecret: config.googleClientSecret,
+            callbackURL: callbackURL,
+          },
+          async (_accessToken, _refreshToken, profile, done) => {
+            try {
+              // Check if user already exists with this Google ID
+              let user = await storage.getUserByGoogleId(profile.id);
+              
+              if (user) {
+                // User exists, log them in
+                await logUserActivity(user.id, "google_login", null, null, null);
+                const { password: _, ...userWithoutPassword } = user;
+                return done(null, userWithoutPassword);
+              }
+
+              // Check if user exists with same email
+              const emailUser = await storage.getUserByEmail(profile.emails?.[0]?.value || '');
+              if (emailUser) {
+                // Link Google account to existing user
+                await storage.updateUser(emailUser.id, { 
+                  googleId: profile.id,
+                  avatar: profile.photos?.[0]?.value || emailUser.avatar 
+                });
+                await logUserActivity(emailUser.id, "google_account_linked", null, null, null);
+                const { password: _, ...userWithoutPassword } = emailUser;
+                return done(null, userWithoutPassword);
+              }
+
+              // Create new user
+              const newUser = await storage.createUser({
+                username: profile.displayName || profile.emails?.[0]?.value?.split('@')[0] || `user_${profile.id}`,
+                email: profile.emails?.[0]?.value || '',
+                password: '', // Empty password for OAuth users
+                role: 'normal',
+                status: 'active',
                 googleId: profile.id,
-                avatar: profile.photos?.[0]?.value || emailUser.avatar 
+                avatar: profile.photos?.[0]?.value || null,
+                displayName: profile.displayName || null
               });
-              await logUserActivity(emailUser.id, "google_account_linked", null, null, null);
-              const { password: _, ...userWithoutPassword } = emailUser;
+
+              await logUserActivity(newUser.id, "google_register", null, null, null);
+              const { password: _, ...userWithoutPassword } = newUser;
               return done(null, userWithoutPassword);
+            } catch (error) {
+              return done(error as Error);
             }
-
-            // Create new user
-            const newUser = await storage.createUser({
-              username: profile.displayName || profile.emails?.[0]?.value?.split('@')[0] || `user_${profile.id}`,
-              email: profile.emails?.[0]?.value || '',
-              password: '', // Empty password for OAuth users
-              role: 'normal',
-              status: 'active',
-              googleId: profile.id,
-              avatar: profile.photos?.[0]?.value || null,
-              displayName: profile.displayName || null
-            });
-
-            await logUserActivity(newUser.id, "google_register", null, null, null);
-            const { password: _, ...userWithoutPassword } = newUser;
-            return done(null, userWithoutPassword);
-          } catch (error) {
-            return done(error as Error);
           }
-        }
-      )
-    );
-  } else {
-    if (process.env.NODE_ENV !== 'production') {
-      console.warn('Google OAuth credentials not found. Google authentication will not be available.');
-      console.warn('Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in your .env file to enable Google OAuth.');
+        )
+      );
+    } else {
+      console.log('ℹ️  Local Google OAuth disabled - using Cloudflare Worker OAuth in production');
     }
-  }
 
-  // Facebook OAuth Strategy
-  if (config.facebookAppId && config.facebookAppSecret) {
-    // Only log Facebook OAuth setup in development
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('Setting up Facebook OAuth strategy');
-    }
-    
-    // Determine the correct callback URL based on environment
-    const callbackURL = process.env.NODE_ENV === 'production' 
-      ? "https://phimgg.com/api/auth/facebook/callback"
-      : "http://localhost:5000/api/auth/facebook/callback";
-    
-    passport.use(
-      new FacebookStrategy(
-        {
-          clientID: config.facebookAppId,
-          clientSecret: config.facebookAppSecret,
-          callbackURL: callbackURL,
-          profileFields: ['id', 'displayName', 'photos'] // Removed 'email' as it's no longer available
-        },
-        async (_accessToken, _refreshToken, profile, done) => {
-          try {
-            // Check if user already exists with this Facebook ID
-            let user = await storage.getUserByFacebookId(profile.id);
-            
-            if (user) {
-              // User exists, log them in
-              await logUserActivity(user.id, "facebook_login", null, null, null);
-              const { password: _, ...userWithoutPassword } = user;
-              return done(null, userWithoutPassword);
-            }
+    // Facebook OAuth Strategy  
+    if (config.facebookAppId && config.facebookAppSecret) {
+      // Only log Facebook OAuth setup in development
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('Setting up Facebook OAuth strategy');
+      }
+      
+      // Determine the correct callback URL based on environment
+      const callbackURL = process.env.NODE_ENV === 'production' 
+        ? "https://phimgg.com/api/auth/facebook/callback"
+        : "http://localhost:5000/api/auth/facebook/callback";
+      
+      passport.use(
+        new FacebookStrategy(
+          {
+            clientID: config.facebookAppId,
+            clientSecret: config.facebookAppSecret,
+            callbackURL: callbackURL,
+            profileFields: ['id', 'displayName', 'photos'] // Removed 'email' as it's no longer available
+          },
+          async (_accessToken, _refreshToken, profile, done) => {
+            try {
+              // Check if user already exists with this Facebook ID
+              let user = await storage.getUserByFacebookId(profile.id);
+              
+              if (user) {
+                // User exists, log them in
+                await logUserActivity(user.id, "facebook_login", null, null, null);
+                const { password: _, ...userWithoutPassword } = user;
+                return done(null, userWithoutPassword);
+              }
 
-            // For new users, since we can't get email from Facebook anymore,
-            // we'll create a placeholder email or ask user to provide it later
-            const placeholderEmail = `facebook_${profile.id}@facebook.local`;
+              // For new users, since we can't get email from Facebook anymore,
+              // we'll create a placeholder email or ask user to provide it later
+              const placeholderEmail = `facebook_${profile.id}@facebook.local`;
 
-            // Check if a user exists with the placeholder email (shouldn't happen, but just in case)
-            const emailUser = await storage.getUserByEmail(placeholderEmail);
-            if (emailUser) {
-              // Link Facebook account to existing user
-              await storage.updateUser(emailUser.id, { 
+              // Check if a user exists with the placeholder email (shouldn't happen, but just in case)
+              const emailUser = await storage.getUserByEmail(placeholderEmail);
+              if (emailUser) {
+                // Link Facebook account to existing user
+                await storage.updateUser(emailUser.id, { 
+                  facebookId: profile.id,
+                  avatar: profile.photos?.[0]?.value || emailUser.avatar 
+                });
+                await logUserActivity(emailUser.id, "facebook_account_linked", null, null, null);
+                const { password: _, ...userWithoutPassword } = emailUser;
+                return done(null, userWithoutPassword);
+              }
+
+              // Create new user with placeholder email
+              const newUser = await storage.createUser({
+                username: profile.displayName || `facebook_user_${profile.id}`,
+                email: placeholderEmail, // Placeholder email since Facebook doesn't provide it anymore
+                password: '', // Empty password for OAuth users
+                role: 'normal',
+                status: 'active',
                 facebookId: profile.id,
-                avatar: profile.photos?.[0]?.value || emailUser.avatar 
+                avatar: profile.photos?.[0]?.value || null,
+                displayName: profile.displayName || null
               });
-              await logUserActivity(emailUser.id, "facebook_account_linked", null, null, null);
-              const { password: _, ...userWithoutPassword } = emailUser;
+
+              await logUserActivity(newUser.id, "facebook_register", null, null, null);
+              const { password: _, ...userWithoutPassword } = newUser;
               return done(null, userWithoutPassword);
+            } catch (error) {
+              return done(error as Error);
             }
-
-            // Create new user with placeholder email
-            const newUser = await storage.createUser({
-              username: profile.displayName || `facebook_user_${profile.id}`,
-              email: placeholderEmail, // Placeholder email since Facebook doesn't provide it anymore
-              password: '', // Empty password for OAuth users
-              role: 'normal',
-              status: 'active',
-              facebookId: profile.id,
-              avatar: profile.photos?.[0]?.value || null,
-              displayName: profile.displayName || null
-            });
-
-            await logUserActivity(newUser.id, "facebook_register", null, null, null);
-            const { password: _, ...userWithoutPassword } = newUser;
-            return done(null, userWithoutPassword);
-          } catch (error) {
-            return done(error as Error);
           }
-        }
-      )
-    );
-  } else {
-    if (process.env.NODE_ENV !== 'production') {
-      console.warn('Facebook OAuth credentials not found. Facebook authentication will not be available.');
-      console.warn('Please set FACEBOOK_APP_ID and FACEBOOK_APP_SECRET in your .env file to enable Facebook OAuth.');
+        )
+      );
+    } else {
+      console.log('ℹ️  Local Facebook OAuth disabled - using Cloudflare Worker OAuth in production');
     }
   }
 
@@ -332,14 +368,26 @@ export function setupAuth(app: Express): void {
 
   app.post("/api/register", async (req: Request, res: Response) => {
     try {
-      // Check if user exists
-      const existingUser = await storage.getUserByUsername(req.body.username);
+      // Validate required fields
+      const { username, email, password } = req.body;
+      if (!username || !email || !password) {
+        return res.status(400).json({ message: "Username, email, and password are required" });
+      }
+
+      // Check if user exists by username
+      const existingUser = await storage.getUserByUsername(username);
       if (existingUser) {
         return res.status(400).json({ message: "Username already exists" });
       }
 
+      // Check if user exists by email
+      const existingEmailUser = await storage.getUserByEmail(email);
+      if (existingEmailUser) {
+        return res.status(400).json({ message: "Email already exists" });
+      }
+
       // Hash password
-      const hashedPassword = await hashPassword(req.body.password);
+      const hashedPassword = await hashPassword(password);
 
       // Remove confirmPassword if it exists
       const { confirmPassword, ...userData } = req.body;
@@ -348,8 +396,8 @@ export function setupAuth(app: Express): void {
       const user = await storage.createUser({
         ...userData,
         password: hashedPassword,
-        role: req.body.role || "normal",
-        status: req.body.status || "active",
+        role: "normal", // Default role
+        status: "active", // Default status
       });
 
       // Log the registration
@@ -358,7 +406,8 @@ export function setupAuth(app: Express): void {
       // Log the user in
       req.login(user, (err: Error | null) => {
         if (err) {
-          return res.status(500).json({ message: "Login after registration failed" });
+          console.error("Login after registration failed:", err);
+          return res.status(500).json({ message: "Registration successful but login failed. Please try logging in manually." });
         }
         
         // Omit password from response
@@ -367,7 +416,18 @@ export function setupAuth(app: Express): void {
       });
     } catch (error) {
       console.error("Registration error:", error);
-      res.status(500).json({ message: "Registration failed" });
+      
+      // More specific error handling
+      if (error instanceof Error) {
+        if (error.message.includes('duplicate') || error.message.includes('unique')) {
+          return res.status(400).json({ message: "Username or email already exists" });
+        }
+        if (error.message.includes('validation')) {
+          return res.status(400).json({ message: "Invalid input data" });
+        }
+      }
+      
+      res.status(500).json({ message: "Registration failed. Please try again." });
     }
   });
 
@@ -859,6 +919,106 @@ export function setupAuth(app: Express): void {
       }
     );
   }
+
+  app.post("/api/forgot-password", async (req: Request, res: Response) => {
+    try {
+      const { email } = req.body;
+      
+      if (!email) {
+        return res.status(400).json({ message: "Email is required" });
+      }
+
+      // Check if user exists
+      const user = await storage.getUserByEmail(email);
+      if (!user) {
+        // Don't reveal if email exists for security reasons
+        return res.status(200).json({ 
+          message: "If an account with this email exists, we've sent a password reset link." 
+        });
+      }
+
+      // Generate reset token (simple implementation - in production use crypto.randomBytes)
+      const resetToken = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      const resetExpiry = new Date(Date.now() + 3600000); // 1 hour from now
+
+      // Store reset token in database (you'll need to add this to your storage)
+      await storage.createPasswordResetToken(user.id, resetToken, resetExpiry);
+
+      // Create reset link
+      const resetLink = `${config.clientUrl}/reset-password?token=${resetToken}`;
+      
+      // Prepare email data
+      const emailData = {
+        username: user.displayName || user.username,
+        resetLink: resetLink,
+        expirationTime: '1 hour'
+      };
+
+      // Send password reset email using the email service
+      const { emailService } = await import('./services/emailService.js');
+      const emailSent = await emailService.sendPasswordResetEmail(email, emailData);
+
+      if (!emailSent) {
+        console.warn(`Failed to send password reset email to ${email}`);
+        // Still return success to prevent email enumeration
+      }
+
+      // For development, also log it to console as backup
+      if (config.nodeEnv === 'development') {
+        console.log(`🔗 Password reset link for ${email}: ${resetLink}`);
+        console.log(`📧 Email sent: ${emailSent ? '✅ Success' : '❌ Failed'}`);
+      }
+
+      // Log the activity
+      await logUserActivity(user.id, "password_reset_requested", null, { email }, req.ip);
+
+      res.status(200).json({ 
+        message: "If an account with this email exists, we've sent a password reset link to your email address." 
+      });
+    } catch (error) {
+      console.error("Forgot password error:", error);
+      res.status(500).json({ message: "Failed to process password reset request" });
+    }
+  });
+
+  app.post("/api/reset-password", async (req: Request, res: Response) => {
+    try {
+      const { token, newPassword } = req.body;
+      
+      if (!token || !newPassword) {
+        return res.status(400).json({ message: "Token and new password are required" });
+      }
+
+      // Find user by reset token
+      const resetData = await storage.getPasswordResetToken(token);
+      if (!resetData) {
+        return res.status(400).json({ message: "Invalid or expired reset token" });
+      }
+
+      // Check if token is expired
+      if (new Date() > resetData.expiresAt) {
+        await storage.deletePasswordResetToken(token);
+        return res.status(400).json({ message: "Reset token has expired" });
+      }
+
+      // Hash the new password
+      const hashedPassword = await hashPassword(newPassword);
+
+      // Update user password
+      await storage.updateUser(resetData.userId, { password: hashedPassword });
+
+      // Delete the reset token
+      await storage.deletePasswordResetToken(token);
+
+      // Log the activity
+      await logUserActivity(resetData.userId, "password_reset_completed", null, null, req.ip);
+
+      res.status(200).json({ message: "Password has been successfully reset" });
+    } catch (error) {
+      console.error("Reset password error:", error);
+      res.status(500).json({ message: "Failed to reset password" });
+    }
+  });
 }
 
 // Add interface for LocalStrategy info

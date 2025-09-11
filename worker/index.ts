@@ -1,6 +1,7 @@
 import { Env } from './types/env';
 import { OAuthConfig } from './utils/oauth-config';
 import { OAuthService } from './auth/oauth-service';
+import { EmailService } from './utils/email-service';
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
@@ -22,6 +23,7 @@ export default {
 
     const oauthConfig = new OAuthConfig(env);
     const oauthService = new OAuthService(env);
+    const emailService = new EmailService(env);
 
     try {
       // Route handling
@@ -41,6 +43,12 @@ export default {
         case '/api/auth/logout':
           return handleLogout(corsHeaders);
 
+        case '/api/email/send':
+          if (request.method === 'POST') {
+            return handleEmailSend(request, emailService, corsHeaders);
+          }
+          return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
+
         default:
           return new Response('Not Found', { 
             status: 404, 
@@ -48,7 +56,7 @@ export default {
           });
       }
     } catch (error) {
-      console.error('OAuth Error:', error);
+      console.error('Worker Error:', error);
       return new Response('Internal Server Error', { 
         status: 500, 
         headers: corsHeaders 
@@ -175,4 +183,69 @@ async function handleLogout(corsHeaders: HeadersInit): Promise<Response> {
   });
   
   return response;
+}
+
+// Email send handler
+async function handleEmailSend(request: Request, emailService: EmailService, corsHeaders: HeadersInit): Promise<Response> {
+  try {
+    const requestBody = await request.json() as {
+      to?: string;
+      from?: { email: string; name: string };
+      subject?: string;
+      text?: string;
+      html?: string;
+      templateId?: string;
+      dynamicTemplateData?: Record<string, any>;
+    };
+    
+    const { to, from, subject, text, html, templateId, dynamicTemplateData } = requestBody;
+
+    if (!to || !subject) {
+      return new Response(JSON.stringify({ 
+        success: false, 
+        message: 'Missing required fields: to, subject' 
+      }), {
+        status: 400,
+        headers: {
+          'Content-Type': 'application/json',
+          ...corsHeaders
+        }
+      });
+    }
+
+    const emailOptions = {
+      to,
+      from: from || { email: 'noreply@filmflex.com', name: 'FilmFlex' },
+      subject,
+      text,
+      html,
+      templateId,
+      dynamicTemplateData
+    };
+
+    const success = await emailService.sendEmail(emailOptions);
+
+    return new Response(JSON.stringify({ 
+      success,
+      message: success ? 'Email sent successfully' : 'Failed to send email'
+    }), {
+      status: success ? 200 : 500,
+      headers: {
+        'Content-Type': 'application/json',
+        ...corsHeaders
+      }
+    });
+  } catch (error) {
+    console.error('Email send error:', error);
+    return new Response(JSON.stringify({ 
+      success: false,
+      message: 'Failed to send email' 
+    }), {
+      status: 500,
+      headers: {
+        'Content-Type': 'application/json',
+        ...corsHeaders
+      }
+    });
+  }
 }

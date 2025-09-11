@@ -1,6 +1,6 @@
 import type { Express } from 'express';
 import { storage } from "./storage.js";
-import { setupAuth, isAuthenticated } from "./auth.js";
+import { isAuthenticated } from "./auth.js";
 import { z } from "zod";
 import { 
   MovieListResponse,
@@ -224,8 +224,8 @@ export function registerRoutes(app: Express): void {
     });
   });
 
-  // Set up authentication
-  setupAuth(app);
+  // Note: setupAuth(app) is already called in server/index.ts
+  // Removed duplicate call to prevent duplicate middleware registration
   
   // Get paginated movie list
   router.get("/movies", async (req, res) => {
@@ -824,7 +824,7 @@ export function registerRoutes(app: Express): void {
       const normalizedKeyword = normalizeText(lowercaseKeyword);
       
       // Pass the filters to the searchMovies function
-      const searchResults = await searchMovies(lowercaseKeyword, normalizedKeyword, page, limit, filters);
+      const searchResults = await searchMovies(lowercaseKeyword, normalizedKeyword, page, limit, undefined, filters);
       
       // Ensure pagination info is present
       if (!searchResults.pagination) {

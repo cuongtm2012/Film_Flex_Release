@@ -22,6 +22,8 @@ export function log(message: string, source = "express") {
 const VALID_ROUTES = [
   '/',
   '/auth',
+  '/forgot-password',
+  '/reset-password',
   '/movies',
   '/news',
   '/my-list',

@@ -4,7 +4,8 @@
     "shared/**/*.ts",
     "client/**/*.ts",
     "client/**/*.tsx",
-    "scripts/**/*.ts"
+    "scripts/**/*.ts",
+    "worker/**/*.ts"
   ],
   "exclude": [
     "node_modules",
@@ -32,8 +33,10 @@
     "noImplicitAny": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
-    "jsx": "react-jsx",    "types": [
-      "node"
+    "jsx": "react-jsx",
+    "types": [
+      "node",
+      "@cloudflare/workers-types"
     ],
     "baseUrl": ".",
     "paths": {
