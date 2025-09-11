@@ -57,6 +57,36 @@ fi
 
 print_status "Prerequisites check passed"
 
+# Update source code from Git if repository exists
+print_info "Checking for Git repository..."
+if git rev-parse --git-dir > /dev/null 2>&1; then
+    print_info "Updating source code from Git..."
+    
+    # Fetch latest changes
+    git fetch origin || print_warning "Git fetch failed, using current code"
+    
+    # Show current branch and latest commits
+    current_branch=$(git branch --show-current)
+    print_info "Current branch: $current_branch"
+    
+    # Get latest commits for reference
+    print_info "Latest commits:"
+    git log --oneline -5 || true
+    
+    # Pull latest changes
+    if git pull origin main 2>/dev/null || git pull origin master 2>/dev/null || git pull origin $current_branch 2>/dev/null; then
+        print_status "Source code updated successfully"
+        
+        # Show what changed
+        print_info "Recent changes:"
+        git log --oneline -3 HEAD@{1}..HEAD || true
+    else
+        print_warning "Git pull failed, using current code"
+    fi
+else
+    print_warning "Not a Git repository - using existing source code"
+fi
+
 # Create docker-compose.server.yml if it doesn't exist
 if [ ! -f "docker-compose.server.yml" ]; then
     print_info "Creating Docker Compose configuration..."
@@ -149,9 +179,40 @@ print_info "Starting deployment process..."
 print_info "Stopping existing containers..."
 docker compose -f docker-compose.server.yml down --remove-orphans 2>/dev/null || true
 
-# Pull latest images
-print_info "Pulling latest Docker images..."
-docker compose -f docker-compose.server.yml pull
+# Clean up any orphaned containers or networks
+print_info "Cleaning up Docker resources..."
+docker system prune -f 2>/dev/null || true
+
+# Pull latest images with force update
+print_info "Pulling latest Docker images (this may take a few minutes)..."
+docker compose -f docker-compose.server.yml pull --no-parallel
+
+# Rebuild the application image if we have updated source code
+if git rev-parse --git-dir > /dev/null 2>&1; then
+    print_info "Checking if application image needs rebuilding..."
+    
+    # If we have a Dockerfile, we can rebuild the app image locally
+    if [ -f "Dockerfile" ] || [ -f "Dockerfile.final" ]; then
+        print_info "Found Dockerfile - rebuilding application with latest source..."
+        
+        # Use the appropriate Dockerfile
+        dockerfile="Dockerfile"
+        if [ -f "Dockerfile.final" ]; then
+            dockerfile="Dockerfile.final"
+        fi
+        
+        # Build new image with latest source code
+        docker build -t cuongtm2012/filmflex-app:local -f "$dockerfile" . || {
+            print_warning "Local build failed, using pulled image"
+        }
+        
+        # Update docker-compose to use local image if build succeeded
+        if docker image inspect cuongtm2012/filmflex-app:local &>/dev/null; then
+            print_status "Using locally built image with latest source code"
+            sed -i 's|image: cuongtm2012/filmflex-app:latest|image: cuongtm2012/filmflex-app:local|' docker-compose.server.yml
+        fi
+    fi
+fi
 
 # Start services
 print_info "Starting FilmFlex services..."
@@ -161,13 +222,35 @@ docker compose -f docker-compose.server.yml up -d
 print_info "Waiting for services to start..."
 sleep 15
 
+# Monitor container startup
+print_info "Monitoring container startup..."
+for i in {1..12}; do
+    sleep 5
+    if docker compose -f docker-compose.server.yml ps | grep -q "Up.*healthy"; then
+        print_status "Containers are starting up successfully"
+        break
+    fi
+    print_info "Still waiting for containers... ($((i*5)) seconds)"
+done
+
 # Check container status
 print_info "Checking container status..."
 docker compose -f docker-compose.server.yml ps
 
 # Verify database connection and movie count
 print_info "Verifying database..."
-MOVIE_COUNT=$(docker compose -f docker-compose.server.yml exec -T postgres psql -U filmflex -d filmflex -c "SELECT COUNT(*) FROM movies;" 2>/dev/null | grep -E '^\s*[0-9]+\s*$' | tr -d ' ')
+sleep 10  # Give database more time to fully initialize
+
+MOVIE_COUNT=""
+for i in {1..6}; do
+    MOVIE_COUNT=$(docker compose -f docker-compose.server.yml exec -T postgres psql -U filmflex -d filmflex -c "SELECT COUNT(*) FROM movies;" 2>/dev/null | grep -E '^\s*[0-9]+\s*$' | tr -d ' ' || echo "")
+    
+    if [ ! -z "$MOVIE_COUNT" ] && [ "$MOVIE_COUNT" -gt 0 ]; then
+        break
+    fi
+    print_info "Database still initializing... (attempt $i/6)"
+    sleep 10
+done
 
 if [ ! -z "$MOVIE_COUNT" ] && [ "$MOVIE_COUNT" -gt 0 ]; then
     print_status "Database verified: $MOVIE_COUNT movies loaded"
@@ -177,11 +260,31 @@ fi
 
 # Test application endpoint
 print_info "Testing application endpoint..."
-if curl -s -o /dev/null -w "%{http_code}" http://localhost:5000 | grep -q "200"; then
-    print_status "Application is responding correctly"
-else
-    print_warning "Application may still be starting up"
+sleep 5  # Give app more time to start
+
+for i in {1..6}; do
+    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000 2>/dev/null || echo "000")
+    
+    if [ "$HTTP_CODE" = "200" ]; then
+        print_status "Application is responding correctly (HTTP $HTTP_CODE)"
+        break
+    else
+        print_info "Application starting up... (HTTP $HTTP_CODE, attempt $i/6)"
+        sleep 10
+    fi
+done
+
+if [ "$HTTP_CODE" != "200" ]; then
+    print_warning "Application may still be starting up or there might be an issue"
+    print_info "Check logs with: docker compose -f docker-compose.server.yml logs -f app"
 fi
+
+# Show container logs for debugging
+print_info "Recent container logs:"
+echo "--- PostgreSQL logs ---"
+docker compose -f docker-compose.server.yml logs --tail=10 postgres 2>/dev/null || echo "Could not retrieve postgres logs"
+echo "--- Application logs ---"
+docker compose -f docker-compose.server.yml logs --tail=10 app 2>/dev/null || echo "Could not retrieve app logs"
 
 echo ""
 echo "🎉 FilmFlex Deployment Complete!"
@@ -191,6 +294,7 @@ print_status "Database: PostgreSQL with $MOVIE_COUNT+ movies"
 print_status "Status: Production Ready"
 echo ""
 print_info "Deployment Summary:"
+print_info "• Source Code: Updated from Git repository"
 print_info "• PostgreSQL: Custom image with complete movie database"
 print_info "• Application: Multi-platform image with CORS fixes"
 print_info "• Network: Isolated Docker network for security"
@@ -203,5 +307,12 @@ print_info "• View logs: docker compose -f docker-compose.server.yml logs -f"
 print_info "• Stop services: docker compose -f docker-compose.server.yml down"
 print_info "• Restart services: docker compose -f docker-compose.server.yml restart"
 print_info "• Update images: docker compose -f docker-compose.server.yml pull && docker compose -f docker-compose.server.yml up -d"
+print_info "• Update source + deploy: git pull && ./scripts/deployment/deploy-production.sh"
+echo ""
+print_info "Troubleshooting:"
+print_info "• Check app logs: docker compose -f docker-compose.server.yml logs -f app"
+print_info "• Check database logs: docker compose -f docker-compose.server.yml logs -f postgres"
+print_info "• Restart specific service: docker compose -f docker-compose.server.yml restart [app|postgres]"
+print_info "• Container status: docker compose -f docker-compose.server.yml ps"
 echo ""
 print_status "Deployment completed successfully! 🎬"
