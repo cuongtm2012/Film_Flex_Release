@@ -566,10 +566,10 @@ server {
     ssl_session_timeout 10m;
     
     # Security headers
-    add_header X-Frame-Options DENY;
-    add_header X-Content-Type-Options nosniff;
-    add_header X-XSS-Protection "1; mode=block";
-    add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload";
+    add_header X-Frame-Options DENY always;
+    add_header X-Content-Type-Options nosniff always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload" always;
     
 SSL_REDIRECT_EOF
 else
@@ -589,20 +589,20 @@ fi)
     gzip_proxied expired no-cache no-store private auth;
     gzip_types text/plain text/css text/xml text/javascript application/javascript application/xml+rss application/json;
     
-    # CORS headers for API requests
+    # Global CORS headers
     add_header Access-Control-Allow-Origin "*" always;
     add_header Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS" always;
     add_header Access-Control-Allow-Headers "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization" always;
     add_header Access-Control-Expose-Headers "Content-Length,Content-Range" always;
+    add_header Access-Control-Max-Age 1728000 always;
     
     # Handle preflight OPTIONS requests
+    location @options {
+        return 204;
+    }
+    
+    # Check for OPTIONS requests and redirect to @options
     if (\$request_method = 'OPTIONS') {
-        add_header Access-Control-Allow-Origin "*";
-        add_header Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS";
-        add_header Access-Control-Allow-Headers "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization";
-        add_header Access-Control-Max-Age 1728000;
-        add_header Content-Type "text/plain; charset=utf-8";
-        add_header Content-Length 0;
         return 204;
     }
     
@@ -618,10 +618,6 @@ fi)
         proxy_set_header X-Forwarded-Proto \$scheme;
         proxy_cache_bypass \$http_upgrade;
         proxy_read_timeout 86400;
-        
-        # Additional CORS headers for proxied requests
-        proxy_hide_header Access-Control-Allow-Origin;
-        add_header Access-Control-Allow-Origin "*" always;
     }
     
     # API specific configuration
@@ -635,18 +631,12 @@ fi)
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
         proxy_cache_bypass \$http_upgrade;
-        
-        # API specific CORS
-        proxy_hide_header Access-Control-Allow-Origin;
-        add_header Access-Control-Allow-Origin "*" always;
-        add_header Access-Control-Allow-Credentials "true" always;
     }
     
     # Static files caching
     location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)\$ {
         expires 1y;
-        add_header Cache-Control "public, immutable";
-        add_header Access-Control-Allow-Origin "*";
+        add_header Cache-Control "public, immutable" always;
     }
     
     # Security - deny access to sensitive files
@@ -669,28 +659,15 @@ fi)
 NGINX_EOF
     
     # Enable the site
-    if [ ! -L "$nginx_enabled" ]; then
-        ln -sf "$nginx_conf" "$nginx_enabled"
-    fi
+    ln -sf "$nginx_conf" "$nginx_enabled"
     
     # Remove default nginx site if it exists
-    if [ -f "/etc/nginx/sites-enabled/default" ]; then
-        rm -f "/etc/nginx/sites-enabled/default"
-    fi
+    rm -f /etc/nginx/sites-enabled/default
     
     # Test nginx configuration
     if nginx -t; then
         systemctl reload nginx
-        success "Nginx enhanced configuration applied and reloaded"
-        
-        # Show configuration summary
-        log "Nginx configuration summary:"
-        log "  • Domain: $PRODUCTION_DOMAIN"
-        log "  • SSL: $([ "$has_ssl" = "true" ] && echo "Enabled (HTTPS)" || echo "Disabled (HTTP only)")"
-        log "  • Proxy target: http://127.0.0.1:5000"
-        log "  • CORS: Enabled for all origins"
-        log "  • Compression: Enabled"
-        
+        success "Nginx configuration updated and reloaded"
         return 0
     else
         error "Nginx configuration test failed"
