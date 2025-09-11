@@ -89,12 +89,18 @@ deploy_docker() {
     acquire_lock "docker-deployment"
     check_docker_prerequisites || { error "Docker prerequisites failed"; return 1; }
     
-    # Build latest source code
-    log "Building latest source code..."
+    log "Pulling latest source code..."
     cd "$SOURCE_DIR"
     git pull origin main || { warning "Git pull failed, using current code"; }
-    npm install || { error "npm install failed"; return 1; }
-    npm run build || { error "Build failed"; return 1; }
+    
+    # Check if Node.js is available for local build
+    if command -v npm &> /dev/null; then
+        log "Building latest source code on host..."
+        npm install || { error "npm install failed"; return 1; }
+        npm run build || { error "Build failed"; return 1; }
+    else
+        log "Node.js not available on host - building inside Docker containers..."
+    fi
     
     log "Stopping existing containers..."
     docker compose -f "$SOURCE_DIR/$COMPOSE_FILE" down --remove-orphans 2>/dev/null || true
@@ -148,22 +154,84 @@ deploy_quick() {
     
     acquire_lock "quick-deployment"
     
+    # Resolve SOURCE_DIR correctly
+    local current_source_dir="${SOURCE_DIR:-$PWD}"
+    if [ ! -d "$current_source_dir" ]; then
+        # Try alternative paths
+        if [ -d "/root/Film_Flex_Release" ]; then
+            current_source_dir="/root/Film_Flex_Release"
+        elif [ -d "$HOME/Film_Flex_Release" ]; then
+            current_source_dir="$HOME/Film_Flex_Release"
+        elif [ -d "$PWD" ] && [ -f "$PWD/package.json" ]; then
+            current_source_dir="$PWD"
+        else
+            error "Cannot locate source directory. Tried: $SOURCE_DIR, /root/Film_Flex_Release, $HOME/Film_Flex_Release, $PWD"
+            return 1
+        fi
+    fi
+    
+    log "Using source directory: $current_source_dir"
     log "Quick application update..."
-    cd "$SOURCE_DIR"
+    cd "$current_source_dir"
+    
+    # Update source code
     git pull origin main
-    npm run build
     
-    log "Updating deployment files..."
-    rsync -av --exclude=node_modules --exclude=.git "$SOURCE_DIR/dist/" "$DEPLOY_DIR/dist/"
-    rsync -av "$SOURCE_DIR/package.json" "$DEPLOY_DIR/"
+    # Determine Docker Compose file
+    local compose_file="$COMPOSE_FILE"
+    if [ ! -f "$current_source_dir/$compose_file" ]; then
+        # Try common Docker Compose file names
+        for file in "docker-compose.server.yml" "docker-compose.yml" "docker-compose.production.yml"; do
+            if [ -f "$current_source_dir/$file" ]; then
+                compose_file="$file"
+                break
+            fi
+        done
+    fi
     
-    log "Restarting services..."
-    if check_pm2_status; then
-        pm2 restart filmflex
-    elif check_docker_containers; then
-        docker compose -f "$SOURCE_DIR/$COMPOSE_FILE" restart app
+    log "Using Docker Compose file: $compose_file"
+    
+    # Check if we're in a Docker-only environment
+    if ! command -v npm &> /dev/null; then
+        warning "Node.js not found on host system - using Docker-only deployment"
+        
+        log "Building and restarting Docker containers..."
+        if check_docker_containers; then
+            # Docker deployment path
+            log "Rebuilding Docker images with latest code..."
+            docker compose -f "$current_source_dir/$compose_file" build --no-cache app
+            
+            log "Restarting containers..."
+            docker compose -f "$current_source_dir/$compose_file" up -d
+            
+            log "Waiting for containers to be ready..."
+            sleep 15
+        else
+            # No running containers, start them fresh
+            log "Starting fresh Docker containers..."
+            docker compose -f "$current_source_dir/$compose_file" down --remove-orphans 2>/dev/null || true
+            docker compose -f "$current_source_dir/$compose_file" up -d
+            
+            log "Waiting for containers to be ready..."
+            sleep 30
+        fi
     else
-        warning "No running services found to restart"
+        # Traditional deployment with Node.js on host
+        log "Building application on host..."
+        npm run build
+        
+        log "Updating deployment files..."
+        rsync -av --exclude=node_modules --exclude=.git "$current_source_dir/dist/" "$DEPLOY_DIR/dist/"
+        rsync -av "$current_source_dir/package.json" "$DEPLOY_DIR/"
+        
+        log "Restarting services..."
+        if check_pm2_status; then
+            pm2 restart filmflex
+        elif check_docker_containers; then
+            docker compose -f "$current_source_dir/$compose_file" restart app
+        else
+            warning "No running services found to restart"
+        fi
     fi
     
     success "Quick deployment completed!"
@@ -197,14 +265,21 @@ build_application() {
     log "Building application..."
     cd "$SOURCE_DIR"
     
-    # Clean install
-    rm -rf node_modules package-lock.json 2>/dev/null || true
-    npm install
+    # Check if Node.js is available on host
+    if command -v npm &> /dev/null; then
+        log "Building on host system..."
+        # Clean install
+        rm -rf node_modules package-lock.json 2>/dev/null || true
+        npm install
+        
+        # Build
+        npm run build || { error "Build failed"; return 1; }
+    else
+        log "Node.js not available on host - assuming Docker-based build..."
+        warning "Skipping host build - will build inside Docker containers"
+    fi
     
-    # Build
-    npm run build || { error "Build failed"; return 1; }
-    
-    success "Application built successfully"
+    success "Application build process completed"
 }
 
 setup_database() {
