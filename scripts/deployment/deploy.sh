@@ -518,6 +518,186 @@ configure_nginx_ssl() {
     fi
 }
 
+configure_nginx_enhanced() {
+    log "Configuring Nginx with enhanced settings..."
+    
+    local nginx_conf="/etc/nginx/sites-available/$PRODUCTION_DOMAIN"
+    local nginx_enabled="/etc/nginx/sites-enabled/$PRODUCTION_DOMAIN"
+    
+    # Create nginx configuration directory
+    mkdir -p "/etc/nginx/sites-available"
+    mkdir -p "/etc/nginx/sites-enabled"
+    
+    # Check if SSL certificates exist
+    local ssl_cert="/etc/letsencrypt/live/$PRODUCTION_DOMAIN/fullchain.pem"
+    local ssl_key="/etc/letsencrypt/live/$PRODUCTION_DOMAIN/privkey.pem"
+    local has_ssl=false
+    
+    if [ -f "$ssl_cert" ] && [ -f "$ssl_key" ]; then
+        has_ssl=true
+        log "SSL certificates found - configuring HTTPS"
+    else
+        log "No SSL certificates found - configuring HTTP only"
+    fi
+    
+    # Create enhanced nginx configuration
+    cat > "$nginx_conf" << NGINX_EOF
+server {
+    listen 80;
+    server_name $PRODUCTION_DOMAIN www.$PRODUCTION_DOMAIN;
+    
+$(if [ "$has_ssl" = "true" ]; then
+cat << SSL_REDIRECT_EOF
+    # Redirect HTTP to HTTPS
+    return 301 https://\$server_name\$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name $PRODUCTION_DOMAIN www.$PRODUCTION_DOMAIN;
+    
+    # SSL Configuration
+    ssl_certificate $ssl_cert;
+    ssl_certificate_key $ssl_key;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-SHA256:ECDHE-RSA-AES256-SHA384;
+    ssl_prefer_server_ciphers off;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 10m;
+    
+    # Security headers
+    add_header X-Frame-Options DENY;
+    add_header X-Content-Type-Options nosniff;
+    add_header X-XSS-Protection "1; mode=block";
+    add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload";
+    
+SSL_REDIRECT_EOF
+else
+cat << HTTP_ONLY_EOF
+    # HTTP only configuration
+HTTP_ONLY_EOF
+fi)
+    
+    # Common configuration for both HTTP and HTTPS
+    root /var/www/html;
+    index index.html index.htm;
+    
+    # Gzip compression
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 1024;
+    gzip_proxied expired no-cache no-store private auth;
+    gzip_types text/plain text/css text/xml text/javascript application/javascript application/xml+rss application/json;
+    
+    # CORS headers for API requests
+    add_header Access-Control-Allow-Origin "*" always;
+    add_header Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS" always;
+    add_header Access-Control-Allow-Headers "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization" always;
+    add_header Access-Control-Expose-Headers "Content-Length,Content-Range" always;
+    
+    # Handle preflight OPTIONS requests
+    if (\$request_method = 'OPTIONS') {
+        add_header Access-Control-Allow-Origin "*";
+        add_header Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS";
+        add_header Access-Control-Allow-Headers "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization";
+        add_header Access-Control-Max-Age 1728000;
+        add_header Content-Type "text/plain; charset=utf-8";
+        add_header Content-Length 0;
+        return 204;
+    }
+    
+    # Proxy to FilmFlex application
+    location / {
+        proxy_pass http://127.0.0.1:5000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_cache_bypass \$http_upgrade;
+        proxy_read_timeout 86400;
+        
+        # Additional CORS headers for proxied requests
+        proxy_hide_header Access-Control-Allow-Origin;
+        add_header Access-Control-Allow-Origin "*" always;
+    }
+    
+    # API specific configuration
+    location /api/ {
+        proxy_pass http://127.0.0.1:5000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_cache_bypass \$http_upgrade;
+        
+        # API specific CORS
+        proxy_hide_header Access-Control-Allow-Origin;
+        add_header Access-Control-Allow-Origin "*" always;
+        add_header Access-Control-Allow-Credentials "true" always;
+    }
+    
+    # Static files caching
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)\$ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        add_header Access-Control-Allow-Origin "*";
+    }
+    
+    # Security - deny access to sensitive files
+    location ~ /\. {
+        deny all;
+        access_log off;
+        log_not_found off;
+    }
+    
+    location ~ /(package\.json|tsconfig\.json|\.env.*)\$ {
+        deny all;
+        access_log off;
+        log_not_found off;
+    }
+    
+    # Logs
+    access_log /var/log/nginx/$PRODUCTION_DOMAIN.access.log;
+    error_log /var/log/nginx/$PRODUCTION_DOMAIN.error.log;
+}
+NGINX_EOF
+    
+    # Enable the site
+    if [ ! -L "$nginx_enabled" ]; then
+        ln -sf "$nginx_conf" "$nginx_enabled"
+    fi
+    
+    # Remove default nginx site if it exists
+    if [ -f "/etc/nginx/sites-enabled/default" ]; then
+        rm -f "/etc/nginx/sites-enabled/default"
+    fi
+    
+    # Test nginx configuration
+    if nginx -t; then
+        systemctl reload nginx
+        success "Nginx enhanced configuration applied and reloaded"
+        
+        # Show configuration summary
+        log "Nginx configuration summary:"
+        log "  • Domain: $PRODUCTION_DOMAIN"
+        log "  • SSL: $([ "$has_ssl" = "true" ] && echo "Enabled (HTTPS)" || echo "Disabled (HTTP only)")"
+        log "  • Proxy target: http://127.0.0.1:5000"
+        log "  • CORS: Enabled for all origins"
+        log "  • Compression: Enabled"
+        
+        return 0
+    else
+        error "Nginx configuration test failed"
+        return 1
+    fi
+}
+
 setup_database_comprehensive() {
     log "Setting up comprehensive database with authentication fixes..."
     
