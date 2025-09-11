@@ -13,9 +13,11 @@ CLIENT_URL = "https://phimgg.com"
 # FACEBOOK_APP_SECRET - bound via wrangler secret  
 # GOOGLE_CLIENT_ID - bound via wrangler secret
 # GOOGLE_CLIENT_SECRET - bound via wrangler secret
+# SENDGRID_API_KEY - bound via wrangler secret
 # SESSION_SECRET - bound via wrangler secret
 
-# Routes configuration (moved outside of kv_namespaces)
+# Routes configuration
 routes = [
-  { pattern = "phimgg.com/api/auth/*", zone_name = "phimgg.com" }
+  { pattern = "phimgg.com/api/auth/*", zone_name = "phimgg.com" },
+  { pattern = "phimgg.com/api/email/*", zone_name = "phimgg.com" }
 ]

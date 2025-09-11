@@ -1,418 +1,777 @@
 #!/bin/bash
 
-# FilmFlex Master Deployment Orchestrator
-# Version: 2.0
-# This script coordinates all deployment tasks and eliminates redundancy
+# FilmFlex Master Deployment Orchestrator - Enhanced Edition
+# Version: 3.0
+# This script combines all deployment functionality into one comprehensive tool
 
 set -e
 
 # Load common functions
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-source "$SCRIPT_DIR/lib/common-functions.sh"
+if [ -f "$SCRIPT_DIR/lib/common-functions.sh" ]; then
+    source "$SCRIPT_DIR/lib/common-functions.sh"
+else
+    # Basic functions if common-functions.sh is not available
+    log() { echo -e "$(date '+%Y-%m-%d %H:%M:%S') $@"; }
+    success() { echo -e "\033[0;32m✓ $@\033[0m"; }
+    warning() { echo -e "\033[1;33m! $@\033[0m"; }
+    error() { echo -e "\033[0;31m✗ $@\033[0m"; }
+    info() { echo -e "\033[0;34mℹ $@\033[0m"; }
+    print_banner() { echo -e "\n\033[1;36m=== $@ ===\033[0m\n"; }
+fi
+
+# Enhanced Configuration
+PRODUCTION_IP="${PRODUCTION_IP:-38.54.14.154}"
+PRODUCTION_DOMAIN="${PRODUCTION_DOMAIN:-phimgg.com}"
+SOURCE_DIR="${SOURCE_DIR:-$(pwd)}"
+DEPLOY_DIR="${DEPLOY_DIR:-/var/www/filmflex}"
+COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.server.yml}"
+DB_CONTAINER="${DB_CONTAINER:-filmflex-postgres}"
+DB_USER="${DB_USER:-filmflex}"
+DB_NAME="${DB_NAME:-filmflex}"
+DB_PASSWORD="${DB_PASSWORD:-filmflex2024}"
+LOG_DIR="/var/log/filmflex"
+TIMESTAMP=$(date +"%Y%m%d%H%M%S")
+LOG_FILE="$LOG_DIR/deploy-$TIMESTAMP.log"
+
+# Ensure log directory exists
+mkdir -p "$LOG_DIR" 2>/dev/null || true
 
 # =============================================================================
 # DEPLOYMENT MODES
 # =============================================================================
 
 show_usage() {
-    print_banner "FilmFlex Deployment Orchestrator v2.0"
+    print_banner "FilmFlex Deployment Orchestrator v3.0"
     echo
     echo "Usage: $0 [MODE] [OPTIONS]"
     echo
     echo "DEPLOYMENT MODES:"
-    echo "  full          Complete production deployment (default)"
+    echo "  full          Complete production deployment with SSL and database"
+    echo "  production    Production deployment using Docker images"
+    echo "  development   Development deployment with local build"
     echo "  docker        Docker-only deployment"
     echo "  pm2           PM2-only deployment"
     echo "  quick         Quick redeploy without database changes"
-    echo "  health        Health check only"
+    echo "  ssl           SSL certificate setup only"
+    echo "  database      Database setup and migration only"
+    echo "  health        Comprehensive health check"
     echo "  rollback      Rollback to previous version"
+    echo "  setup         Initial server setup and prerequisites"
     echo
     echo "OPTIONS:"
     echo "  --force       Skip confirmations"
     echo "  --dry-run     Show what would be done without executing"
     echo "  --verbose     Enable detailed logging"
     echo "  --skip-tests  Skip health checks"
+    echo "  --no-ssl      Skip SSL certificate setup"
+    echo "  --backup      Create backup before deployment"
     echo
     echo "EXAMPLES:"
-    echo "  $0 full                    # Full production deployment"
-    echo "  $0 docker --force          # Force Docker deployment"
-    echo "  $0 health --verbose        # Detailed health check"
-    echo "  $0 quick --skip-tests      # Quick deployment without tests"
+    echo "  $0 full                         # Complete production deployment"
+    echo "  $0 production --force           # Force production Docker deployment"
+    echo "  $0 development --verbose        # Development deployment with detailed logs"
+    echo "  $0 ssl --force                  # Force SSL certificate renewal"
+    echo "  $0 health --verbose             # Detailed health check"
+    echo "  $0 setup                        # Initial server setup"
 }
 
 # =============================================================================
-# DEPLOYMENT FUNCTIONS
+# ENHANCED DEPLOYMENT FUNCTIONS
 # =============================================================================
 
 deploy_full() {
-    print_banner "Full Production Deployment"
+    print_banner "Full Production Deployment - Enhanced"
     
-    # Phase 1: Prerequisites
-    log "Phase 1: Checking prerequisites..."
-    acquire_lock "full-deployment"
+    # Phase 1: Prerequisites and Setup
+    log "Phase 1: Checking prerequisites and server setup..."
+    acquire_lock "full-deployment" || { error "Another deployment is running"; return 1; }
     check_system_resources || { error "System resources insufficient"; return 1; }
-    check_docker_prerequisites || { error "Docker prerequisites failed"; return 1; }
+    setup_server_prerequisites
     
     # Phase 2: Backup current deployment
-    log "Phase 2: Creating backup..."
-    create_backup
+    if [ "$CREATE_BACKUP" = "true" ]; then
+        log "Phase 2: Creating backup..."
+        create_comprehensive_backup
+    fi
     
-    # Phase 3: Build and prepare
-    log "Phase 3: Building application..."
-    build_application
+    # Phase 3: DNS and SSL Setup
+    log "Phase 3: DNS and SSL configuration..."
+    if [ "$SKIP_SSL" != "true" ]; then
+        check_dns_configuration
+        setup_ssl_certificates_enhanced
+    fi
     
     # Phase 4: Database setup
-    log "Phase 4: Setting up database..."
-    setup_database
+    log "Phase 4: Setting up database with comprehensive schema..."
+    setup_database_comprehensive
     
-    # Phase 5: Deploy application
-    log "Phase 5: Deploying application..."
-    deploy_application
+    # Phase 5: Build and deploy application
+    log "Phase 5: Building and deploying application..."
+    build_application_enhanced
+    deploy_application_enhanced
     
     # Phase 6: Configure services
     log "Phase 6: Configuring services..."
-    configure_nginx
-    setup_ssl_certificates
+    configure_nginx_enhanced
+    setup_cors_configuration
     
-    # Phase 7: Health checks
+    # Phase 7: Health checks and verification
     if [ "$SKIP_TESTS" != "true" ]; then
-        log "Phase 7: Running health checks..."
+        log "Phase 7: Running comprehensive health checks..."
         run_comprehensive_health_check || { error "Health checks failed"; return 1; }
     fi
     
     success "Full deployment completed successfully!"
+    show_deployment_summary
 }
 
-deploy_docker() {
-    print_banner "Docker Deployment"
+deploy_production() {
+    print_banner "Production Docker Deployment"
     
-    acquire_lock "docker-deployment"
+    acquire_lock "production-deployment" || { error "Another deployment is running"; return 1; }
+    
+    log "Checking prerequisites for production deployment..."
     check_docker_prerequisites || { error "Docker prerequisites failed"; return 1; }
     
-    log "Pulling latest source code..."
-    cd "$SOURCE_DIR"
-    git pull origin main || { warning "Git pull failed, using current code"; }
-    
-    # Check if Node.js is available for local build
-    if command -v npm &> /dev/null; then
-        log "Building latest source code on host..."
-        npm install || { error "npm install failed"; return 1; }
-        npm run build || { error "Build failed"; return 1; }
-    else
-        log "Node.js not available on host - building inside Docker containers..."
-    fi
+    # Create production Docker Compose configuration
+    create_production_compose_config
     
     log "Stopping existing containers..."
     docker compose -f "$SOURCE_DIR/$COMPOSE_FILE" down --remove-orphans 2>/dev/null || true
     
-    log "Building Docker images with latest code..."
-    docker compose -f "$SOURCE_DIR/$COMPOSE_FILE" build --no-cache
+    log "Pulling latest production images..."
+    docker compose -f "$SOURCE_DIR/$COMPOSE_FILE" pull
     
-    log "Starting containers..."
+    log "Starting production services..."
     docker compose -f "$SOURCE_DIR/$COMPOSE_FILE" up -d
     
-    log "Waiting for containers to be ready..."
+    log "Waiting for services to be ready..."
     sleep 30
+    
+    # Verify deployment
+    verify_production_deployment
     
     if [ "$SKIP_TESTS" != "true" ]; then
         check_docker_containers || { error "Container health check failed"; return 1; }
         check_application_health || { error "Application health check failed"; return 1; }
     fi
     
-    success "Docker deployment completed!"
+    success "Production deployment completed!"
+    show_deployment_summary
 }
 
-deploy_pm2() {
-    print_banner "PM2 Deployment"
+deploy_development() {
+    print_banner "Development Deployment"
     
-    acquire_lock "pm2-deployment"
+    acquire_lock "development-deployment" || { error "Another deployment is running"; return 1; }
     
-    log "Building application for PM2..."
+    log "Setting up development environment..."
     cd "$SOURCE_DIR"
+    
+    # Update source code
+    if git rev-parse --git-dir > /dev/null 2>&1; then
+        log "Updating source code..."
+        git pull origin main || warning "Git pull failed, using current code"
+    fi
+    
+    # Install dependencies and build
+    log "Installing dependencies..."
+    npm install || { error "npm install failed"; return 1; }
+    
+    log "Building application..."
     npm run build || { error "Build failed"; return 1; }
     
-    log "Copying files to deployment directory..."
-    rsync -av --exclude=node_modules --exclude=.git "$SOURCE_DIR/" "$DEPLOY_DIR/"
+    # Setup development database
+    log "Setting up development database..."
+    setup_development_database
     
-    log "Installing production dependencies..."
-    cd "$DEPLOY_DIR"
-    npm ci --only=production
-    
-    log "Restarting PM2 process..."
-    restart_pm2_process "filmflex"
+    # Start development services
+    log "Starting development services..."
+    if [ -f "ecosystem.config.cjs" ]; then
+        pm2 start ecosystem.config.cjs || pm2 restart ecosystem.config.cjs
+    else
+        pm2 start dist/index.js --name filmflex-dev
+    fi
     
     if [ "$SKIP_TESTS" != "true" ]; then
         check_pm2_status || { error "PM2 health check failed"; return 1; }
         check_application_health || { error "Application health check failed"; return 1; }
     fi
     
-    success "PM2 deployment completed!"
+    success "Development deployment completed!"
 }
 
-deploy_quick() {
-    print_banner "Quick Redeploy"
+deploy_ssl() {
+    print_banner "SSL Certificate Setup"
     
-    acquire_lock "quick-deployment"
+    log "Checking DNS configuration..."
+    check_dns_configuration || { error "DNS configuration issues detected"; return 1; }
     
-    # Resolve SOURCE_DIR correctly
-    local current_source_dir="${SOURCE_DIR:-$PWD}"
-    if [ ! -d "$current_source_dir" ]; then
-        # Try alternative paths
-        if [ -d "/root/Film_Flex_Release" ]; then
-            current_source_dir="/root/Film_Flex_Release"
-        elif [ -d "$HOME/Film_Flex_Release" ]; then
-            current_source_dir="$HOME/Film_Flex_Release"
-        elif [ -d "$PWD" ] && [ -f "$PWD/package.json" ]; then
-            current_source_dir="$PWD"
-        else
-            error "Cannot locate source directory. Tried: $SOURCE_DIR, /root/Film_Flex_Release, $HOME/Film_Flex_Release, $PWD"
-            return 1
+    log "Setting up SSL certificates..."
+    setup_ssl_certificates_enhanced || { error "SSL setup failed"; return 1; }
+    
+    log "Configuring Nginx with SSL..."
+    configure_nginx_enhanced || { error "Nginx configuration failed"; return 1; }
+    
+    success "SSL setup completed!"
+}
+
+deploy_database() {
+    print_banner "Database Setup and Migration"
+    
+    log "Setting up comprehensive database..."
+    setup_database_comprehensive || { error "Database setup failed"; return 1; }
+    
+    success "Database setup completed!"
+}
+
+setup_server() {
+    print_banner "Initial Server Setup"
+    
+    log "Installing server prerequisites..."
+    setup_server_prerequisites || { error "Server setup failed"; return 1; }
+    
+    log "Configuring firewall..."
+    setup_firewall_rules
+    
+    log "Setting up monitoring..."
+    setup_monitoring
+    
+    success "Server setup completed!"
+}
+
+# =============================================================================
+# ENHANCED HELPER FUNCTIONS
+# =============================================================================
+
+setup_server_prerequisites() {
+    log "Installing essential packages..."
+    
+    # Update system
+    apt-get update -y
+    
+    # Install essential packages
+    apt-get install -y curl wget git nginx certbot python3-certbot-nginx \
+        postgresql-client docker.io docker-compose-plugin nodejs npm \
+        ufw fail2ban htop ncdu tree jq
+    
+    # Install PM2 globally
+    npm install -g pm2
+    
+    # Start and enable services
+    systemctl enable docker
+    systemctl start docker
+    systemctl enable nginx
+    systemctl start nginx
+    
+    # Add user to docker group
+    usermod -aG docker $USER || true
+    
+    success "Server prerequisites installed"
+}
+
+create_production_compose_config() {
+    log "Creating production Docker Compose configuration..."
+    
+    cat > "$SOURCE_DIR/$COMPOSE_FILE" << 'COMPOSE_EOF'
+version: '3.8'
+
+services:
+  postgres:
+    # Custom PostgreSQL image with complete movie database (5,005+ movies)
+    image: cuongtm2012/filmflex-postgres-data:latest
+    container_name: filmflex-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: filmflex
+      POSTGRES_USER: filmflex
+      POSTGRES_PASSWORD: filmflex2024
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - filmflex-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U filmflex -d filmflex"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    # Multi-platform FilmFlex application (supports ARM64 and AMD64)
+    image: cuongtm2012/filmflex-app:latest
+    container_name: filmflex-app
+    restart: unless-stopped
+    environment:
+      # Database Configuration
+      DATABASE_URL: postgresql://filmflex:filmflex2024@postgres:5432/filmflex
+      
+      # Application Configuration
+      NODE_ENV: production
+      PORT: 5000
+      
+      # CORS Configuration (Fixed for server deployment)
+      ALLOWED_ORIGINS: "*"
+      CLIENT_URL: "*"
+      CORS_ORIGIN: "*"
+      CORS_METHODS: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS"
+      CORS_ALLOWED_HEADERS: "Origin,X-Requested-With,Content-Type,Accept,Authorization,Cache-Control,Pragma"
+      CORS_CREDENTIALS: "true"
+      
+      # Server Configuration
+      DOMAIN: "${PRODUCTION_IP}"
+      SERVER_IP: "${PRODUCTION_IP}"
+      PUBLIC_URL: "http://${PRODUCTION_IP}:5000"
+      
+      # Security
+      SESSION_SECRET: filmflex_production_secret_2024
+    ports:
+      - "5000:5000"
+    networks:
+      - filmflex-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - app_logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  filmflex-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+  app_logs:
+    driver: local
+COMPOSE_EOF
+    
+    success "Production Docker Compose configuration created"
+}
+
+check_dns_configuration() {
+    log "Checking DNS configuration for $PRODUCTION_DOMAIN..."
+    
+    local resolved_ips=$(dig +short $PRODUCTION_DOMAIN A | sort)
+    local expected_ip="$PRODUCTION_IP"
+    
+    log "Expected IP: $expected_ip"
+    log "Resolved IPs: $resolved_ips"
+    
+    if echo "$resolved_ips" | grep -q "$expected_ip"; then
+        success "DNS includes correct IP address"
+        return 0
+    else
+        error "DNS does NOT include correct IP address ($expected_ip)"
+        return 1
+    fi
+}
+
+setup_ssl_certificates_enhanced() {
+    log "Setting up SSL certificates with Let's Encrypt..."
+    
+    # Install certbot if not present
+    if ! command -v certbot &> /dev/null; then
+        log "Installing certbot..."
+        apt-get update
+        apt-get install -y certbot python3-certbot-nginx
+    fi
+    
+    # Check if certificate already exists and is valid
+    local ssl_cert="/etc/letsencrypt/live/$PRODUCTION_DOMAIN/fullchain.pem"
+    if [ -f "$ssl_cert" ]; then
+        local exp_date=$(openssl x509 -in "$ssl_cert" -noout -enddate | cut -d= -f2)
+        local exp_timestamp=$(date -d "$exp_date" +%s 2>/dev/null || echo "0")
+        local current_timestamp=$(date +%s)
+        local days_until_expiry=$(( (exp_timestamp - current_timestamp) / 86400 ))
+        
+        if [ "$days_until_expiry" -gt 30 ]; then
+            success "SSL certificate is valid for $days_until_expiry more days"
+            return 0
         fi
     fi
     
-    log "Using source directory: $current_source_dir"
-    log "Quick application update..."
-    cd "$current_source_dir"
+    # Stop nginx temporarily for standalone mode
+    systemctl stop nginx
     
-    # Update source code
-    git pull origin main
-    
-    # Determine Docker Compose file
-    local compose_file="$COMPOSE_FILE"
-    if [ ! -f "$current_source_dir/$compose_file" ]; then
-        # Try common Docker Compose file names
-        for file in "docker-compose.server.yml" "docker-compose.yml" "docker-compose.production.yml"; do
-            if [ -f "$current_source_dir/$file" ]; then
-                compose_file="$file"
-                break
-            fi
-        done
-    fi
-    
-    log "Using Docker Compose file: $compose_file"
-    
-    # Check if we're in a Docker-only environment
-    if ! command -v npm &> /dev/null; then
-        warning "Node.js not found on host system - using Docker-only deployment"
+    # Get certificate
+    log "Obtaining SSL certificate for $PRODUCTION_DOMAIN..."
+    if certbot certonly --standalone \
+        --email "admin@$PRODUCTION_DOMAIN" \
+        --agree-tos \
+        --non-interactive \
+        --domains "$PRODUCTION_DOMAIN,www.$PRODUCTION_DOMAIN"; then
+        success "SSL certificate obtained successfully"
         
-        log "Building and restarting Docker containers..."
-        if check_docker_containers; then
-            # Docker deployment path
-            log "Rebuilding Docker images with latest code..."
-            docker compose -f "$current_source_dir/$compose_file" build --no-cache app
-            
-            log "Restarting containers..."
-            docker compose -f "$current_source_dir/$compose_file" up -d
-            
-            log "Waiting for containers to be ready..."
-            sleep 15
+        # Start nginx and configure SSL
+        systemctl start nginx
+        configure_nginx_ssl
+        
+        # Set up auto-renewal
+        local renewal_cron="0 12 * * * /usr/bin/certbot renew --quiet --post-hook 'systemctl reload nginx'"
+        (crontab -l 2>/dev/null | grep -v "certbot renew" ; echo "$renewal_cron") | crontab -
+        success "SSL auto-renewal configured"
+        
+        return 0
+    else
+        error "Failed to obtain SSL certificate"
+        systemctl start nginx
+        return 1
+    fi
+}
+
+configure_nginx_enhanced() {
+    log "Configuring Nginx with enhanced settings..."
+    
+    local nginx_conf="/etc/nginx/sites-available/$PRODUCTION_DOMAIN"
+    local ssl_cert="/etc/letsencrypt/live/$PRODUCTION_DOMAIN/fullchain.pem"
+    local ssl_key="/etc/letsencrypt/live/$PRODUCTION_DOMAIN/privkey.pem"
+    
+    # Create Nginx configuration
+    cat > "$nginx_conf" << 'NGINX_EOF'
+# FilmFlex Nginx Configuration - Enhanced
+server {
+    listen 80;
+    server_name phimgg.com www.phimgg.com;
+    
+    # Redirect HTTP to HTTPS
+    return 301 https://$server_name$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name phimgg.com www.phimgg.com;
+    
+    # SSL Configuration
+    ssl_certificate /etc/letsencrypt/live/phimgg.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/phimgg.com/privkey.pem;
+    ssl_session_timeout 1d;
+    ssl_session_cache shared:MozTLS:10m;
+    ssl_session_tickets off;
+    
+    # Modern SSL configuration
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384;
+    ssl_prefer_server_ciphers off;
+    
+    # Security headers
+    add_header Strict-Transport-Security "max-age=63072000" always;
+    add_header X-Frame-Options DENY;
+    add_header X-Content-Type-Options nosniff;
+    add_header X-XSS-Protection "1; mode=block";
+    
+    # Gzip compression
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 10240;
+    gzip_proxied expired no-cache no-store private must-revalidate auth;
+    gzip_types text/plain text/css text/xml text/javascript application/javascript application/xml+rss application/json;
+    
+    # Static file serving
+    location /static/ {
+        alias /var/www/filmflex/dist/public/;
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+    
+    # API proxy
+    location /api/ {
+        proxy_pass http://localhost:5000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+        proxy_read_timeout 86400;
+    }
+    
+    # Main application
+    location / {
+        proxy_pass http://localhost:5000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+        proxy_read_timeout 86400;
+    }
+}
+NGINX_EOF
+    
+    # Enable the site
+    ln -sf "$nginx_conf" "/etc/nginx/sites-enabled/$PRODUCTION_DOMAIN"
+    rm -f /etc/nginx/sites-enabled/default
+    
+    # Test and reload nginx
+    if nginx -t; then
+        systemctl reload nginx
+        success "Nginx configured and reloaded"
+    else
+        error "Nginx configuration test failed"
+        return 1
+    fi
+}
+
+setup_database_comprehensive() {
+    log "Setting up comprehensive database with authentication fixes..."
+    
+    # Check if we're using Docker
+    if check_docker_containers; then
+        log "Using Docker database - verifying connection..."
+        local movie_count=$(docker exec "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -t -c "SELECT COUNT(*) FROM movies;" 2>/dev/null | xargs)
+        
+        if [ ! -z "$movie_count" ] && [ "$movie_count" -gt 0 ]; then
+            success "Docker database verified: $movie_count movies loaded"
+            return 0
         else
-            # No running containers, start them fresh
-            log "Starting fresh Docker containers..."
-            docker compose -f "$current_source_dir/$compose_file" down --remove-orphans 2>/dev/null || true
-            docker compose -f "$current_source_dir/$compose_file" up -d
-            
-            log "Waiting for containers to be ready..."
-            sleep 30
+            warning "Docker database may be initializing..."
         fi
     else
-        # Traditional deployment with Node.js on host
-        log "Building application on host..."
-        npm run build
-        
-        log "Updating deployment files..."
-        rsync -av --exclude=node_modules --exclude=.git "$current_source_dir/dist/" "$DEPLOY_DIR/dist/"
-        rsync -av "$current_source_dir/package.json" "$DEPLOY_DIR/"
-        
-        log "Restarting services..."
-        if check_pm2_status; then
-            pm2 restart filmflex
-        elif check_docker_containers; then
-            docker compose -f "$current_source_dir/$compose_file" restart app
-        else
-            warning "No running services found to restart"
-        fi
+        # Setup local PostgreSQL
+        setup_local_postgresql
     fi
-    
-    success "Quick deployment completed!"
 }
 
-# =============================================================================
-# HELPER FUNCTIONS
-# =============================================================================
+setup_local_postgresql() {
+    log "Setting up local PostgreSQL with authentication fixes..."
+    
+    # Install PostgreSQL if not installed
+    if ! command -v psql &> /dev/null; then
+        log "Installing PostgreSQL..."
+        apt-get update
+        apt-get install -y postgresql postgresql-contrib
+    fi
+    
+    # Start PostgreSQL
+    systemctl start postgresql
+    systemctl enable postgresql
+    
+    # Fix authentication method
+    local pg_version=$(sudo -u postgres psql -t -c "SELECT version();" | grep -oP "PostgreSQL \K[0-9]+" | head -1)
+    local pg_hba_path="/etc/postgresql/${pg_version}/main/pg_hba.conf"
+    
+    if [ -f "$pg_hba_path" ]; then
+        log "Fixing PostgreSQL authentication method..."
+        cp "$pg_hba_path" "${pg_hba_path}.backup.$(date +%Y%m%d_%H%M%S)"
+        
+        # Change peer to md5 and scram-sha-256 to md5
+        sed -i 's/local[[:space:]]\+all[[:space:]]\+all[[:space:]]\+peer/local   all             all                                     md5/' "$pg_hba_path"
+        sed -i 's/host[[:space:]]\+all[[:space:]]\+all[[:space:]]\+127\.0\.0\.1\/32[[:space:]]\+scram-sha-256/host    all             all             127.0.0.1\/32            md5/' "$pg_hba_path"
+        sed -i 's/host[[:space:]]\+all[[:space:]]\+all[[:space:]]\+::1\/128[[:space:]]\+scram-sha-256/host    all             all             ::1\/128                 md5/' "$pg_hba_path"
+        
+        systemctl restart postgresql
+        sleep 5
+    fi
+    
+    # Create user and database
+    sudo -u postgres psql << 'EOSQL'
+DROP USER IF EXISTS filmflex;
+CREATE USER filmflex WITH PASSWORD 'filmflex2024' LOGIN CREATEDB SUPERUSER;
+DROP DATABASE IF EXISTS filmflex;
+CREATE DATABASE filmflex OWNER filmflex;
+EOSQL
+    
+    # Apply schema if available
+    local schema_file="$SOURCE_DIR/shared/filmflex_schema.sql"
+    if [ -f "$schema_file" ]; then
+        log "Applying database schema..."
+        PGPASSWORD="$DB_PASSWORD" psql -h localhost -U "$DB_USER" -d "$DB_NAME" -f "$schema_file"
+        success "Database schema applied"
+    fi
+}
 
-create_backup() {
+setup_cors_configuration() {
+    log "Setting up CORS configuration..."
+    
+    # Test CORS from different origins
+    local cors_test1=$(curl -s -I -H "Origin: https://$PRODUCTION_DOMAIN" http://localhost:5000/api/health | grep -i "access-control-allow-origin" || echo "No CORS headers")
+    
+    if [[ "$cors_test1" == *"access-control-allow-origin"* ]]; then
+        success "CORS is properly configured"
+    else
+        warning "CORS configuration may need adjustment"
+        
+        # Update environment with proper CORS settings
+        if [ -f "$DEPLOY_DIR/.env" ]; then
+            grep -v "ALLOWED_ORIGINS=" "$DEPLOY_DIR/.env" > "$DEPLOY_DIR/.env.tmp"
+            echo "ALLOWED_ORIGINS=https://$PRODUCTION_DOMAIN,https://www.$PRODUCTION_DOMAIN,http://localhost:3000,*" >> "$DEPLOY_DIR/.env.tmp"
+            mv "$DEPLOY_DIR/.env.tmp" "$DEPLOY_DIR/.env"
+            success "Updated CORS configuration"
+        fi
+    fi
+}
+
+verify_production_deployment() {
+    log "Verifying production deployment..."
+    
+    # Check container status
+    local container_status=$(docker compose -f "$SOURCE_DIR/$COMPOSE_FILE" ps --format "table {{.Name}}\t{{.Status}}")
+    log "Container status:\n$container_status"
+    
+    # Verify database connection and movie count
+    local movie_count=$(docker exec "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -t -c "SELECT COUNT(*) FROM movies;" 2>/dev/null | xargs)
+    
+    if [ ! -z "$movie_count" ] && [ "$movie_count" -gt 0 ]; then
+        success "Database verified: $movie_count movies loaded"
+    else
+        warning "Could not verify movie count - database may still be initializing"
+    fi
+    
+    # Test application endpoint
+    if curl -s -o /dev/null -w "%{http_code}" http://localhost:5000 | grep -q "200"; then
+        success "Application is responding correctly"
+    else
+        warning "Application may still be starting up"
+    fi
+}
+
+create_comprehensive_backup() {
     local backup_name="backup_$(date +%Y%m%d_%H%M%S)"
     local backup_dir="/var/backups/filmflex"
     
-    log "Creating backup: $backup_name"
+    log "Creating comprehensive backup: $backup_name"
     mkdir -p "$backup_dir"
     
     # Backup application files
     if [ -d "$DEPLOY_DIR" ]; then
-        tar -czf "$backup_dir/${backup_name}_app.tar.gz" -C "$DEPLOY_DIR" .
+        tar -czf "$backup_dir/${backup_name}_app.tar.gz" -C "$DEPLOY_DIR" . 2>/dev/null || true
     fi
     
     # Backup database
     if check_docker_containers; then
-        docker exec "$DB_CONTAINER" pg_dump -U "$DB_USER" "$DB_NAME" | gzip > "$backup_dir/${backup_name}_db.sql.gz"
+        docker exec "$DB_CONTAINER" pg_dump -U "$DB_USER" "$DB_NAME" | gzip > "$backup_dir/${backup_name}_db.sql.gz" 2>/dev/null || true
+    elif command -v psql &> /dev/null; then
+        PGPASSWORD="$DB_PASSWORD" pg_dump -h localhost -U "$DB_USER" "$DB_NAME" | gzip > "$backup_dir/${backup_name}_db.sql.gz" 2>/dev/null || true
+    fi
+    
+    # Backup configuration files
+    if [ -f "/etc/nginx/sites-available/$PRODUCTION_DOMAIN" ]; then
+        cp "/etc/nginx/sites-available/$PRODUCTION_DOMAIN" "$backup_dir/${backup_name}_nginx.conf"
     fi
     
     success "Backup created: $backup_name"
 }
 
-build_application() {
-    log "Building application..."
-    cd "$SOURCE_DIR"
+setup_firewall_rules() {
+    log "Setting up firewall rules..."
     
-    # Check if Node.js is available on host
-    if command -v npm &> /dev/null; then
-        log "Building on host system..."
-        # Clean install
-        rm -rf node_modules package-lock.json 2>/dev/null || true
-        npm install
-        
-        # Build
-        npm run build || { error "Build failed"; return 1; }
-    else
-        log "Node.js not available on host - assuming Docker-based build..."
-        warning "Skipping host build - will build inside Docker containers"
-    fi
+    # Enable UFW
+    ufw --force enable
     
-    success "Application build process completed"
+    # Default policies
+    ufw default deny incoming
+    ufw default allow outgoing
+    
+    # Allow SSH
+    ufw allow ssh
+    
+    # Allow HTTP and HTTPS
+    ufw allow 80/tcp
+    ufw allow 443/tcp
+    
+    # Allow application port
+    ufw allow 5000/tcp
+    
+    # Allow PostgreSQL (only from localhost)
+    ufw allow from 127.0.0.1 to any port 5432
+    
+    success "Firewall rules configured"
 }
 
-setup_database() {
+setup_monitoring() {
+    log "Setting up basic monitoring..."
+    
+    # Install and configure fail2ban
+    if ! command -v fail2ban-server &> /dev/null; then
+        apt-get install -y fail2ban
+    fi
+    
+    # Create jail.local for SSH protection
+    cat > /etc/fail2ban/jail.local << 'FAIL2BAN_EOF'
+[DEFAULT]
+bantime = 3600
+findtime = 600
+maxretry = 3
+
+[sshd]
+enabled = true
+port = ssh
+filter = sshd
+logpath = /var/log/auth.log
+maxretry = 3
+FAIL2BAN_EOF
+    
+    systemctl enable fail2ban
+    systemctl restart fail2ban
+    
+    success "Basic monitoring configured"
+}
+
+# ...existing code...
+
+show_deployment_summary() {
+    print_banner "Deployment Summary"
+    
+    local current_time=$(date)
+    local uptime=$(uptime -p 2>/dev/null || echo "Unknown")
+    
+    log "✅ Deployment completed successfully!"
+    log "📅 Time: $current_time"
+    log "💻 Server: $PRODUCTION_IP"
+    log "🌐 Domain: $PRODUCTION_DOMAIN"
+    log "⏱️  Uptime: $uptime"
+    
     if check_docker_containers; then
-        log "Database already running via Docker"
-        return 0
+        local movie_count=$(docker exec "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -t -c "SELECT COUNT(*) FROM movies;" 2>/dev/null | xargs)
+        log "🎬 Movies: ${movie_count:-Unknown}"
     fi
     
-    log "Setting up database..."
-    # Database setup logic here
-    success "Database setup completed"
-}
-
-deploy_application() {
-    log "Deploying application files..."
-    
-    # Create deployment directory
-    mkdir -p "$DEPLOY_DIR"
-    
-    # Copy application files
-    rsync -av --exclude=node_modules --exclude=.git --exclude=logs "$SOURCE_DIR/" "$DEPLOY_DIR/"
-    
-    # Install production dependencies
-    cd "$DEPLOY_DIR"
-    npm ci --only=production
-    
-    success "Application deployed"
-}
-
-configure_nginx() {
-    if ! command -v nginx &> /dev/null; then
-        log "Nginx not installed, skipping configuration"
-        return 0
+    echo
+    info "🌐 Application URLs:"
+    info "  • Local: http://localhost:5000"
+    info "  • Production: http://$PRODUCTION_IP:5000"
+    if [ -f "/etc/letsencrypt/live/$PRODUCTION_DOMAIN/fullchain.pem" ]; then
+        info "  • HTTPS: https://$PRODUCTION_DOMAIN"
+    else
+        info "  • HTTP: http://$PRODUCTION_DOMAIN (SSL not configured)"
     fi
     
-    log "Configuring Nginx..."
+    echo
+    info "📊 Management Commands:"
+    info "  • Health check: $0 health"
+    info "  • Quick update: $0 quick"
+    info "  • SSL setup: $0 ssl"
+    info "  • Rollback: $0 rollback"
+    info "  • View logs: tail -f $LOG_FILE"
     
-    # Update Nginx configuration if needed
-    if [ -f "/etc/nginx/sites-available/phimgg.com.conf" ]; then
-        reload_nginx
-    fi
-    
-    success "Nginx configured"
-}
-
-setup_ssl_certificates() {
-    if check_ssl_certificate; then
-        log "SSL certificates are valid"
-        return 0
-    fi
-    
-    log "SSL certificates need attention"
-    # SSL setup logic would go here
-}
-
-run_comprehensive_health_check() {
-    log "Running comprehensive health checks..."
-    
-    local health_passed=true
-    
-    # System resources
-    check_system_resources || health_passed=false
-    
-    # Application health
-    check_application_health || health_passed=false
-    check_cors_configuration || warning "CORS configuration issues detected"
-    
-    # Service health
     if check_docker_containers; then
-        log "Docker deployment detected"
-        local stats=$(get_database_stats)
-        local movies=$(echo "$stats" | cut -d'|' -f1)
-        local episodes=$(echo "$stats" | cut -d'|' -f2)
-        success "Database contains $movies movies and $episodes episodes"
-    elif check_pm2_status; then
-        log "PM2 deployment detected"
-    else
-        warning "No active deployment method detected"
-        health_passed=false
-    fi
-    
-    if [ "$health_passed" = "true" ]; then
-        success "All health checks passed"
-        return 0
-    else
-        error "Some health checks failed"
-        return 1
+        echo
+        info "🐳 Docker Commands:"
+        info "  • View logs: docker compose -f $COMPOSE_FILE logs -f"
+        info "  • Restart: docker compose -f $COMPOSE_FILE restart"
+        info "  • Stop: docker compose -f $COMPOSE_FILE down"
     fi
 }
 
-rollback_deployment() {
-    print_banner "Rollback Deployment"
-    
-    acquire_lock "rollback"
-    
-    local backup_dir="/var/backups/filmflex"
-    local latest_backup=$(ls -t "$backup_dir" | grep "_app.tar.gz" | head -n1 | sed 's/_app.tar.gz//')
-    
-    if [ -z "$latest_backup" ]; then
-        error "No backup found for rollback"
-        return 1
-    fi
-    
-    log "Rolling back to: $latest_backup"
-    
-    # Stop services
-    pm2 stop filmflex 2>/dev/null || true
-    docker compose -f "$SOURCE_DIR/$COMPOSE_FILE" down 2>/dev/null || true
-    
-    # Restore application
-    rm -rf "$DEPLOY_DIR" 2>/dev/null || true
-    mkdir -p "$DEPLOY_DIR"
-    tar -xzf "$backup_dir/${latest_backup}_app.tar.gz" -C "$DEPLOY_DIR"
-    
-    # Restore database if exists
-    if [ -f "$backup_dir/${latest_backup}_db.sql.gz" ]; then
-        log "Restoring database..."
-        if check_docker_containers; then
-            gunzip -c "$backup_dir/${latest_backup}_db.sql.gz" | docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" "$DB_NAME"
-        fi
-    fi
-    
-    # Restart services
-    if [ -f "$DEPLOY_DIR/ecosystem.config.cjs" ]; then
-        cd "$DEPLOY_DIR"
-        pm2 start ecosystem.config.cjs
-    fi
-    
-    success "Rollback completed to: $latest_backup"
-}
+# ...existing code...
 
 # =============================================================================
-# MAIN EXECUTION
+# MAIN EXECUTION - Enhanced
 # =============================================================================
 
 main() {
@@ -421,11 +780,13 @@ main() {
     local dry_run=false
     local verbose=false
     SKIP_TESTS=false
+    SKIP_SSL=false
+    CREATE_BACKUP=false
     
     # Parse arguments
     while [[ $# -gt 0 ]]; do
         case $1 in
-            full|docker|pm2|quick|health|rollback)
+            full|production|development|docker|pm2|quick|ssl|database|health|rollback|setup)
                 mode="$1"
                 ;;
             --force)
@@ -439,6 +800,12 @@ main() {
                 ;;
             --skip-tests)
                 SKIP_TESTS=true
+                ;;
+            --no-ssl)
+                SKIP_SSL=true
+                ;;
+            --backup)
+                CREATE_BACKUP=true
                 ;;
             --help|-h)
                 show_usage
@@ -454,19 +821,24 @@ main() {
     done
     
     # Initialize logging
-    init_logging "deploy-$mode"
+    if command -v init_logging &> /dev/null; then
+        init_logging "deploy-$mode"
+    fi
     
     # Dry run mode
     if [ "$dry_run" = "true" ]; then
         log "DRY RUN MODE - No changes will be made"
         log "Would execute: $mode deployment"
+        log "Source: $SOURCE_DIR"
+        log "Target: $DEPLOY_DIR"
+        log "Domain: $PRODUCTION_DOMAIN ($PRODUCTION_IP)"
         return 0
     fi
     
     # Confirmation for production deployments
-    if [ "$force" = "false" ] && [ "$mode" = "full" ]; then
-        echo -e "${YELLOW}This will perform a full production deployment.${NC}"
-        echo -e "${YELLOW}Target: $PRODUCTION_DOMAIN ($PRODUCTION_IP)${NC}"
+    if [ "$force" = "false" ] && [[ "$mode" =~ ^(full|production)$ ]]; then
+        echo -e "\033[1;33mThis will perform a $mode deployment.\033[0m"
+        echo -e "\033[1;33mTarget: $PRODUCTION_DOMAIN ($PRODUCTION_IP)\033[0m"
         read -p "Continue? (y/N): " -n 1 -r
         echo
         if [[ ! $REPLY =~ ^[Yy]$ ]]; then
@@ -480,6 +852,12 @@ main() {
         full)
             deploy_full
             ;;
+        production)
+            deploy_production
+            ;;
+        development)
+            deploy_development
+            ;;
         docker)
             deploy_docker
             ;;
@@ -489,11 +867,20 @@ main() {
         quick)
             deploy_quick
             ;;
+        ssl)
+            deploy_ssl
+            ;;
+        database)
+            deploy_database
+            ;;
         health)
             run_comprehensive_health_check
             ;;
         rollback)
             rollback_deployment
+            ;;
+        setup)
+            setup_server
             ;;
         *)
             error "Invalid deployment mode: $mode"
@@ -503,27 +890,41 @@ main() {
     esac
     
     # Cleanup
-    cleanup_old_logs 7
-    
-    print_banner "Deployment Summary"
-    log "Mode: $mode"
-    log "Status: SUCCESS"
-    log "Time: $(date)"
-    log "Logs: $LOG_FILE"
-    
-    if [ "$mode" != "health" ]; then
-        echo
-        info "🌐 Application URLs:"
-        info "  • Local: http://localhost:5000"
-        info "  • Production: http://$PRODUCTION_IP:5000"
-        info "  • Domain: https://$PRODUCTION_DOMAIN (when configured)"
-        echo
-        info "📊 Management Commands:"
-        info "  • Health check: $0 health"
-        info "  • Quick update: $0 quick"
-        info "  • Rollback: $0 rollback"
-        info "  • View logs: tail -f $LOG_FILE"
+    if command -v cleanup_old_logs &> /dev/null; then
+        cleanup_old_logs 7
     fi
+    
+    # Final summary (unless it's just a health check)
+    if [ "$mode" != "health" ]; then
+        show_deployment_summary
+    fi
+}
+
+# Helper function to check if Docker containers are running
+check_docker_containers() {
+    if command -v docker &> /dev/null; then
+        docker compose -f "$SOURCE_DIR/$COMPOSE_FILE" ps --services --filter "status=running" | grep -q "app\|postgres"
+    else
+        return 1
+    fi
+}
+
+# Helper function to acquire deployment lock
+acquire_lock() {
+    local lock_name="$1"
+    local lock_file="/tmp/filmflex-${lock_name}.lock"
+    
+    if [ -f "$lock_file" ]; then
+        local lock_pid=$(cat "$lock_file")
+        if kill -0 "$lock_pid" 2>/dev/null; then
+            return 1
+        else
+            rm -f "$lock_file"
+        fi
+    fi
+    
+    echo $$ > "$lock_file"
+    return 0
 }
 
 # Execute main function
