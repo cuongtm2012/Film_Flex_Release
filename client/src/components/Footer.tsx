@@ -180,7 +180,7 @@ const Footer = () => {
           <div className="mb-6 md:mb-0">
             <Link href="/">
               <div className="flex items-center cursor-pointer">
-                <span className="text-2xl font-bold text-primary">FilmFlex</span>
+                <span className="text-2xl font-bold text-primary">PhimGG</span>
               </div>
             </Link>
             <p className="text-gray-400 mt-2">Your ultimate streaming destination</p>

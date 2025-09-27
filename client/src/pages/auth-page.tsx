@@ -265,7 +265,7 @@ export default function AuthPage() {
                     <Button
                       type="submit"
                       data-testid="login-button"
-                      className="login-button w-full"
+                      className="login-button w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-semibold text-base shadow-lg shadow-red-600/25 border-none transition-all duration-300 transform hover:scale-[1.02] hover:shadow-xl hover:shadow-red-600/40 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                       disabled={loginMutation.isPending}
                     >
                       {loginMutation.isPending ? (
@@ -623,7 +623,7 @@ export default function AuthPage() {
                   <CardFooter className="flex flex-col gap-4">
                     <Button
                       type="submit"
-                      className="w-full"
+                      className="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-semibold text-base shadow-lg shadow-red-600/25 border-none transition-all duration-300 transform hover:scale-[1.02] hover:shadow-xl hover:shadow-red-600/40 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                       data-testid="register-button"
                       disabled={registerMutation.isPending}
                     >
