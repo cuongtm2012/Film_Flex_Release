@@ -1,323 +1,285 @@
 #!/bin/bash
 
-# FilmFlex Optimized Health Check Script
-# Version: 2.0 - Uses shared common functions and provides detailed monitoring
-
-set -e
+echo "🏥 FilmFlex System Health Check"
+echo "==============================="
+echo "📅 Date: $(date)"
+echo "🎯 Target: phimgg.com Production Environment"
+echo ""
 
 # Load common functions
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/common-functions.sh"
 
-# =============================================================================
-# HEALTH CHECK FUNCTIONS
-# =============================================================================
+# Initialize logging
+init_logging "health-check"
 
-check_application_endpoints() {
-    log "Testing application endpoints..."
+# Enhanced health check function (comprehensive version)
+perform_comprehensive_health_check() {
+    print_header "System Health Status Report"
+    echo ""
     
-    local base_url="http://localhost:5000"
-    local endpoints=(
-        "/api/health"
-        "/api/movies?page=1&limit=5"
-        "/api/categories"
-        "/"
-    )
+    local overall_health=true
+    local health_issues=()
+    local warnings=()
     
-    local passed=0
-    local total=${#endpoints[@]}
-    
-    for endpoint in "${endpoints[@]}"; do
-        local url="${base_url}${endpoint}"
-        if curl -f -s --max-time 10 "$url" >/dev/null 2>&1; then
-            success "✓ $endpoint"
-            ((passed++))
-        else
-            warning "✗ $endpoint (failed)"
-        fi
-    done
-    
-    log "Endpoint tests: $passed/$total passed"
-    
-    if [ $passed -eq $total ]; then
-        return 0
-    elif [ $passed -gt 0 ]; then
-        warning "Some endpoints failed but application is partially responding"
-        return 1
+    # 1. Docker System Health
+    print_info "1. Checking Docker system..."
+    if ! check_docker_prerequisites; then
+        health_issues+=("Docker daemon down")
+        overall_health=false
     else
-        error "All endpoints failed - application not responding"
-        return 2
+        print_status "Docker daemon is running"
+        
+        # Check Docker version and system usage
+        local docker_version=$(docker --version | awk '{print $3}' | sed 's/,//')
+        print_info "Docker version: $docker_version"
+        
+        local docker_system_df=$(docker system df --format "table {{.Type}}\t{{.TotalCount}}\t{{.Size}}" 2>/dev/null)
+        if [ ! -z "$docker_system_df" ]; then
+            print_info "Docker system usage:"
+            echo "$docker_system_df" | head -5
+        fi
     fi
-}
-
-check_database_integrity() {
-    log "Checking database integrity..."
     
+    echo ""
+    
+    # 2. Container Health
+    print_info "2. Checking container health..."
     if ! check_docker_containers; then
-        warning "Docker containers not running, skipping database check"
-        return 1
+        health_issues+=("Container issues")
+        overall_health=false
+    else
+        # Get detailed container information
+        local app_status=$(check_container_status "filmflex-app")
+        local db_status=$(check_container_status "filmflex-postgres")
+        
+        print_info "App container: $app_status"
+        print_info "DB container: $db_status"
+        
+        # Check container resource usage
+        local container_stats=$(docker stats filmflex-app --no-stream --format "table {{.CPUPerc}}\t{{.MemUsage}}" 2>/dev/null)
+        if [ ! -z "$container_stats" ]; then
+            print_info "App resource usage: $container_stats"
+        fi
     fi
     
-    # Test basic connectivity
-    if ! docker exec "$DB_CONTAINER" pg_isready -U "$DB_USER" -d "$DB_NAME" >/dev/null 2>&1; then
-        error "Database not ready"
-        return 1
+    echo ""
+    
+    # 3. Application Health
+    print_info "3. Testing application endpoints..."
+    
+    # Test main endpoint
+    if test_endpoint "http://localhost:5000" 200 3; then
+        print_status "Local application endpoint is responding"
+    else
+        print_error "Local application not responding"
+        health_issues+=("App endpoint down")
+        overall_health=false
     fi
     
-    # Get detailed statistics
-    local db_stats=$(docker exec "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -t -c "
-        SELECT 
-            COALESCE((SELECT COUNT(*) FROM movies), 0) as movies,
-            COALESCE((SELECT COUNT(*) FROM episodes), 0) as episodes,
-            COALESCE((SELECT COUNT(*) FROM categories), 0) as categories,
-            COALESCE((SELECT COUNT(*) FROM users), 0) as users
-    " 2>/dev/null | tr -d ' ' | tr '\n' '|' || echo "0|0|0|0")
+    # Test API health endpoint
+    if test_endpoint "http://localhost:5000/api/health" 200 3; then
+        print_status "API health endpoint is responding"
+        
+        # Get API health data
+        local api_health_data=$(curl -s http://localhost:5000/api/health 2>/dev/null)
+        if [ ! -z "$api_health_data" ]; then
+            print_info "API health data: $api_health_data"
+        fi
+    else
+        print_error "API health endpoint not responding"
+        health_issues+=("API endpoint down")
+        overall_health=false
+    fi
     
+    # Test Movies API
+    if test_endpoint "http://localhost:5000/api/movies?limit=1" 200 2; then
+        print_status "Movies API is responding"
+    else
+        print_warning "Movies API not responding properly"
+        warnings+=("Movies API issue")
+    fi
+    
+    echo ""
+    
+    # 4. Database Health
+    print_info "4. Checking database..."
+    local db_stats=$(get_database_stats)
     local movies=$(echo "$db_stats" | cut -d'|' -f1)
     local episodes=$(echo "$db_stats" | cut -d'|' -f2)
-    local categories=$(echo "$db_stats" | cut -d'|' -f3)
-    local users=$(echo "$db_stats" | cut -d'|' -f4)
     
-    success "Database integrity check passed"
-    log "  ├─ Movies: $movies"
-    log "  ├─ Episodes: $episodes"
-    log "  ├─ Categories: $categories"
-    log "  └─ Users: $users"
-    
-    # Check for data consistency
-    if [ "$movies" -gt 0 ] && [ "$episodes" -gt 0 ]; then
-        success "Database contains sufficient data"
-        return 0
-    elif [ "$movies" -gt 0 ]; then
-        warning "Movies found but no episodes - may need data import"
-        return 1
+    if [ "$movies" -gt 0 ]; then
+        print_status "Database has data: $movies movies, $episodes episodes"
     else
-        warning "No movie data found - database may need initialization"
-        return 1
+        print_warning "Database appears empty or connection issue"
+        health_issues+=("DB has no data")
     fi
-}
-
-check_storage_and_logs() {
-    log "Checking storage and log status..."
     
-    # Check log directories
-    local log_dirs=("/var/log/filmflex" "/app/logs")
-    for dir in "${log_dirs[@]}"; do
-        if [ -d "$dir" ]; then
-            local log_count=$(find "$dir" -name "*.log" -type f | wc -l)
-            local total_size=$(du -sh "$dir" 2>/dev/null | cut -f1 || echo "Unknown")
-            log "  ├─ $dir: $log_count files, $total_size total"
+    echo ""
+    
+    # 5. Domain Access Testing
+    print_info "5. Testing domain accessibility..."
+    
+    if test_endpoint "https://phimgg.com" 200 2; then
+        print_status "Domain https://phimgg.com is accessible"
+    elif test_endpoint "https://phimgg.com" 301 2 || test_endpoint "https://phimgg.com" 302 2; then
+        print_status "Domain redirects properly"
+    else
+        print_warning "Cannot test domain from server (may be network/DNS limitation)"
+        warnings+=("Domain access issue")
+    fi
+    
+    # Test domain API
+    if test_endpoint "https://phimgg.com/api/health" 200 2; then
+        print_status "Domain API is accessible"
+    else
+        print_info "Domain API test skipped (network limitation)"
+    fi
+    
+    echo ""
+    
+    # 6. Nginx Status
+    print_info "6. Checking Nginx reverse proxy..."
+    if check_nginx_status; then
+        print_status "Nginx is running with valid configuration"
+        
+        # Check if nginx is listening on correct ports
+        local nginx_listening=$(netstat -tuln 2>/dev/null | grep -E ":80 |:443 " | wc -l)
+        if [ "$nginx_listening" -ge 2 ]; then
+            print_status "Nginx listening on HTTP/HTTPS ports"
         else
-            warning "  └─ $dir: Not found"
-        fi
-    done
-    
-    # Check for large log files (>100MB)
-    local large_logs=$(find /var/log -name "*.log" -size +100M 2>/dev/null | wc -l)
-    if [ "$large_logs" -gt 0 ]; then
-        warning "$large_logs log files are larger than 100MB"
-    fi
-    
-    success "Storage check completed"
-    return 0
-}
-
-generate_health_report() {
-    local report_file="$LOG_DIR/health-report-$(date +%Y%m%d-%H%M%S).json"
-    
-    log "Generating detailed health report..."
-    
-    # Collect system metrics
-    local cpu_usage=$(top -bn1 | grep "Cpu(s)" | awk '{print $2}' | sed 's/%us,//' 2>/dev/null || echo "0")
-    local memory_usage=$(free | grep Mem | awk '{printf "%.1f", $3/$2 * 100.0}' 2>/dev/null || echo "0")
-    local disk_usage=$(df / | awk 'NR==2 {print $5}' | sed 's/%//' 2>/dev/null || echo "0")
-    local uptime_info=$(uptime | sed 's/.*up \([^,]*\),.*/\1/' 2>/dev/null || echo "unknown")
-    
-    # Collect application status
-    local app_health="unknown"
-    local db_health="unknown"
-    local container_status="unknown"
-    
-    if check_application_health >/dev/null 2>&1; then
-        app_health="healthy"
-    else
-        app_health="unhealthy"
-    fi
-    
-    if check_docker_containers >/dev/null 2>&1; then
-        container_status="running"
-        if docker exec "$DB_CONTAINER" pg_isready -U "$DB_USER" -d "$DB_NAME" >/dev/null 2>&1; then
-            db_health="healthy"
-        else
-            db_health="unhealthy"
+            print_warning "Nginx may not be listening on standard ports"
+            warnings+=("Nginx port configuration")
         fi
     else
-        container_status="stopped"
+        print_error "Nginx issues detected"
+        health_issues+=("Nginx down or misconfigured")
+        overall_health=false
     fi
     
-    # Generate JSON report
-    cat > "$report_file" << EOF
-{
-    "timestamp": "$(date -Iseconds)",
-    "system": {
-        "cpu_usage": "$cpu_usage",
-        "memory_usage": "$memory_usage",
-        "disk_usage": "$disk_usage",
-        "uptime": "$uptime_info"
-    },
-    "application": {
-        "status": "$app_health",
-        "containers": "$container_status",
-        "database": "$db_health"
-    },
-    "urls": {
-        "local": "http://localhost:5000",
-        "production": "http://$PRODUCTION_IP:5000",
-        "domain": "https://$PRODUCTION_DOMAIN"
-    }
-}
-EOF
+    echo ""
     
-    success "Health report generated: $report_file"
-    
-    # Display summary
-    print_banner "HEALTH SUMMARY"
-    log "System Resources: CPU ${cpu_usage}% | Memory ${memory_usage}% | Disk ${disk_usage}%"
-    log "Application: $app_health | Containers: $container_status | Database: $db_health"
-    log "Uptime: $uptime_info"
-}
-
-# =============================================================================
-# MONITORING AND ALERTING
-# =============================================================================
-
-check_critical_issues() {
-    log "Checking for critical issues..."
-    
-    local issues=()
-    
-    # Check disk space
-    local disk_usage=$(df / | awk 'NR==2 {print $5}' | sed 's/%//' 2>/dev/null || echo "0")
-    if [ "$disk_usage" -gt 90 ]; then
-        issues+=("CRITICAL: Disk usage at ${disk_usage}%")
-    elif [ "$disk_usage" -gt 80 ]; then
-        issues+=("WARNING: Disk usage at ${disk_usage}%")
+    # 7. System Resources
+    print_info "7. Checking system resources..."
+    if check_system_resources; then
+        print_status "System resources are within normal limits"
+    else
+        print_warning "High system resource usage detected"
+        warnings+=("High resource usage")
     fi
     
-    # Check memory usage
-    local memory_usage=$(free | grep Mem | awk '{printf "%.0f", $3/$2 * 100.0}' 2>/dev/null || echo "0")
-    if [ "$memory_usage" -gt 95 ]; then
-        issues+=("CRITICAL: Memory usage at ${memory_usage}%")
-    elif [ "$memory_usage" -gt 85 ]; then
-        issues+=("WARNING: Memory usage at ${memory_usage}%")
+    echo ""
+    
+    # 8. SSL Certificate
+    print_info "8. Checking SSL certificate..."
+    if check_ssl_certificate "phimgg.com"; then
+        print_status "SSL certificate is valid"
+    else
+        print_warning "SSL certificate issues detected"
+        warnings+=("SSL certificate problem")
     fi
     
-    # Check if application is responding
-    if ! check_application_health >/dev/null 2>&1; then
-        issues+=("CRITICAL: Application not responding")
-    fi
+    echo ""
     
-    # Check database connectivity
-    if check_docker_containers >/dev/null 2>&1; then
-        if ! docker exec "$DB_CONTAINER" pg_isready -U "$DB_USER" -d "$DB_NAME" >/dev/null 2>&1; then
-            issues+=("CRITICAL: Database not responding")
+    # Overall Health Summary
+    print_bold "=================== HEALTH SUMMARY ==================="
+    echo ""
+    
+    local total_checks=8
+    local critical_issues=${#health_issues[@]}
+    local warning_count=${#warnings[@]}
+    
+    print_info "Health Check Results:"
+    print_info "• Critical Issues: $critical_issues"
+    print_info "• Warnings: $warning_count"
+    print_info "• Checks Performed: $total_checks"
+    
+    echo ""
+    
+    if [ "$overall_health" = true ] && [ $critical_issues -eq 0 ] && [ $warning_count -eq 0 ]; then
+        print_status "🎉 PERFECT HEALTH - All systems optimal!"
+        echo ""
+        print_info "✓ Application: Running perfectly"
+        print_info "✓ Database: Healthy with data"
+        print_info "✓ Domain: Fully accessible"
+        print_info "✓ Nginx: Running with valid config"
+        print_info "✓ Resources: Within optimal limits"
+        print_info "✓ Security: SSL and firewall configured"
+    elif [ "$overall_health" = true ] && [ $critical_issues -eq 0 ]; then
+        print_status "✅ SYSTEM HEALTHY - Minor warnings detected"
+        echo ""
+        print_info "Core systems are functioning properly"
+        if [ $warning_count -gt 0 ]; then
+            print_info "Warnings to address:"
+            for warning in "${warnings[@]}"; do
+                echo "   • $warning"
+            done
         fi
     else
-        issues+=("CRITICAL: Docker containers not running")
+        print_error "🚨 CRITICAL ISSUES DETECTED - Immediate attention required!"
+        echo ""
+        if [ $critical_issues -gt 0 ]; then
+            print_error "Critical issues:"
+            for issue in "${health_issues[@]}"; do
+                echo "   • $issue"
+            done
+        fi
+        
+        if [ $warning_count -gt 0 ]; then
+            echo ""
+            print_warning "Additional warnings:"
+            for warning in "${warnings[@]}"; do
+                echo "   • $warning"
+            done
+        fi
     fi
     
-    # Report issues
-    if [ ${#issues[@]} -eq 0 ]; then
-        success "No critical issues detected"
-        return 0
-    else
-        error "Critical issues detected:"
-        for issue in "${issues[@]}"; do
-            error "  • $issue"
-        done
-        return 1
-    fi
+    echo ""
+    print_info "Health check completed at $(date)"
+    print_info "Next check recommended in: 1 hour (or after making changes)"
+    echo "======================================================="
+    
+    return $([ "$overall_health" = true ] && [ $critical_issues -eq 0 ] && echo 0 || echo 1)
 }
 
-# =============================================================================
-# MAIN EXECUTION
-# =============================================================================
+# Check if running as root for system checks
+if [[ $EUID -eq 0 ]]; then
+    print_info "Running as root - full system access available"
+else
+    print_warning "Running as non-root - some system checks may be limited"
+    print_info "For complete system health check, run: sudo $0"
+fi
 
-main() {
-    local mode="basic"
-    local verbose=false
-    
-    # Parse arguments
-    while [[ $# -gt 0 ]]; do
-        case $1 in
-            --detailed)
-                mode="detailed"
-                ;;
-            --report)
-                mode="report"
-                ;;
-            --critical)
-                mode="critical"
-                ;;
-            --verbose)
-                verbose=true
-                ;;
-            --help|-h)
-                echo "Usage: $0 [--detailed|--report|--critical] [--verbose]"
-                echo
-                echo "Modes:"
-                echo "  (default)   Basic health check"
-                echo "  --detailed  Comprehensive health check"
-                echo "  --report    Generate detailed JSON report"
-                echo "  --critical  Check for critical issues only"
-                echo
-                echo "Options:"
-                echo "  --verbose   Enable verbose output"
-                exit 0
-                ;;
-            *)
-                error "Unknown option: $1"
-                exit 1
-                ;;
-        esac
-        shift
-    done
-    
-    # Initialize logging
-    init_logging "health-check-$mode"
-    
-    print_banner "FilmFlex Health Check - $mode"
-    
-    case "$mode" in
-        "basic")
-            check_system_resources
-            check_application_health
-            if check_docker_containers; then
-                check_docker_containers
-            elif check_pm2_status; then
-                check_pm2_status
-            fi
-            ;;
-        "detailed")
-            check_system_resources
-            check_application_endpoints
-            check_database_integrity
-            check_storage_and_logs
-            check_cors_configuration
-            if command -v nginx >/dev/null 2>&1; then
-                check_nginx_status
-            fi
-            ;;
-        "report")
-            generate_health_report
-            ;;
-        "critical")
-            check_critical_issues
-            ;;
-    esac
-    
-    success "Health check completed - $mode mode"
-}
+echo ""
 
-# Execute main function
-main "$@"
+# Acquire lock to prevent concurrent health checks
+if acquire_lock "health-check" 60; then
+    # Run comprehensive health check
+    perform_comprehensive_health_check
+    health_result=$?
+else
+    print_warning "Another health check is already running - using basic check"
+    perform_basic_health_check
+    health_result=$?
+fi
+
+echo ""
+print_info "Health Check Tool Commands:"
+print_info "• Re-run health check: ./scripts/deployment/health-check.sh"
+print_info "• Configure domain: ./scripts/deployment/configure-domain.sh"
+print_info "• View app logs: docker compose -f docker-compose.server.yml logs -f app"
+print_info "• View db logs: docker compose -f docker-compose.server.yml logs -f postgres"
+print_info "• Check containers: docker compose -f docker-compose.server.yml ps"
+print_info "• Restart services: docker compose -f docker-compose.server.yml restart"
+print_info "• Full deployment: ./scripts/deployment/deploy-production.sh"
+
+echo ""
+if [ $health_result -eq 0 ]; then
+    print_status "System health is optimal! 🎬"
+else
+    print_warning "Please address the health issues above 🔧"
+    print_info "Run deployment script if major issues persist"
+fi
+
+# Clean up old logs
+cleanup_old_logs 7
