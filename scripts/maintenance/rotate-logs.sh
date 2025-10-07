@@ -1,95 +1,68 @@
 #!/bin/bash
 
-# PhimGG Log Rotation Script
-# Rotates and compresses old log files to save disk space
+# Log Rotation Script for FilmFlex
+# Manages log file rotation and cleanup
 
 set -e
 
 LOG_DIR="/var/log/filmflex"
-ARCHIVE_DIR="$LOG_DIR/archive"
-MAX_SIZE_MB=100
-DAYS_TO_KEEP=90
+BACKUP_DIR="/var/backups/filmflex-logs"
+MAX_LOG_SIZE="100M"
+KEEP_DAYS=30
+KEEP_ROTATED=5
 
-mkdir -p "$ARCHIVE_DIR"
+# Colors for output
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
 
-log() { 
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] [LOG-ROTATE] $1" | tee -a "$LOG_DIR/maintenance.log"
+log_rotate() {
+    local level="$1"
+    local message="$2"
+    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    
+    case "$level" in
+        "SUCCESS") echo -e "[$timestamp] ${GREEN}✅ $message${NC}" ;;
+        "WARNING") echo -e "[$timestamp] ${YELLOW}⚠️  $message${NC}" ;;
+        *) echo -e "[$timestamp] ${BLUE}ℹ️  $message${NC}" ;;
+    esac
 }
+
+# Create directories
+mkdir -p "$LOG_DIR" "$BACKUP_DIR"
+
+log_rotate "INFO" "Starting log rotation for FilmFlex"
 
 # Rotate large log files
-rotate_large_logs() {
-    local rotated_count=0
-    
-    find "$LOG_DIR" -name "*.log" -type f -size +"${MAX_SIZE_MB}M" | while read -r logfile; do
+find "$LOG_DIR" -name "*.log" -size +"$MAX_LOG_SIZE" -type f | while read -r logfile; do
+    if [ -f "$logfile" ]; then
         local basename=$(basename "$logfile" .log)
         local timestamp=$(date +%Y%m%d_%H%M%S)
-        local archived_name="$ARCHIVE_DIR/${basename}_${timestamp}.log.gz"
+        local rotated_name="${basename}_${timestamp}.log"
         
-        log "Rotating large log file: $logfile ($(du -h "$logfile" | cut -f1))"
+        # Move to backup directory
+        mv "$logfile" "$BACKUP_DIR/$rotated_name"
         
-        # Compress and move to archive
-        gzip -c "$logfile" > "$archived_name"
+        # Compress the rotated log
+        gzip "$BACKUP_DIR/$rotated_name" 2>/dev/null || true
         
-        # Truncate original file instead of deleting to avoid breaking file handles
-        > "$logfile"
+        log_rotate "SUCCESS" "Rotated large log: $(basename "$logfile") -> $rotated_name.gz"
         
-        ((rotated_count++))
-        log "Archived to: $archived_name"
-    done
-    
-    log "Rotated $rotated_count large log files"
-}
+        # Create new empty log file
+        touch "$logfile"
+        chmod 644 "$logfile"
+    fi
+done
 
-# Archive old logs
-archive_old_logs() {
-    local archived_count=0
-    
-    # Archive logs older than 7 days
-    find "$LOG_DIR" -name "*.log" -type f -mtime +7 | while read -r logfile; do
-        local basename=$(basename "$logfile")
-        if [[ "$basename" != "maintenance.log" ]]; then  # Keep maintenance log active
-            local timestamp=$(date +%Y%m%d -r "$logfile")
-            local archived_name="$ARCHIVE_DIR/${basename%.log}_${timestamp}.log.gz"
-            
-            log "Archiving old log: $logfile"
-            gzip -c "$logfile" > "$archived_name"
-            rm "$logfile"
-            
-            ((archived_count++))
-        fi
-    done
-    
-    log "Archived $archived_count old log files"
-}
+# Remove old logs
+find "$LOG_DIR" -name "*.log" -mtime +$KEEP_DAYS -type f -delete 2>/dev/null || true
+log_rotate "INFO" "Removed logs older than $KEEP_DAYS days"
 
-# Clean very old archives
-clean_old_archives() {
-    local cleaned_count=0
-    cleaned_count=$(find "$ARCHIVE_DIR" -name "*.gz" -type f -mtime +$DAYS_TO_KEEP -delete -print | wc -l)
-    log "Cleaned $cleaned_count very old archive files (older than $DAYS_TO_KEEP days)"
-}
+# Remove old rotated logs
+find "$BACKUP_DIR" -name "*.log.gz" -mtime +$((KEEP_DAYS * 2)) -type f -delete 2>/dev/null || true
 
-# Show disk usage summary
-show_disk_usage() {
-    local current_size=$(du -sh "$LOG_DIR" 2>/dev/null | cut -f1)
-    local archive_size=$(du -sh "$ARCHIVE_DIR" 2>/dev/null | cut -f1)
-    local available_space=$(df "$LOG_DIR" | awk 'NR==2 {print $4}')
-    
-    log "Log directory size: $current_size"
-    log "Archive size: $archive_size" 
-    log "Available disk space: $((available_space / 1024))MB"
-}
+# Keep only recent rotated logs
+find "$BACKUP_DIR" -name "*.log.gz" -type f | sort -r | tail -n +$((KEEP_ROTATED + 1)) | xargs rm -f 2>/dev/null || true
 
-main() {
-    log "==================== LOG ROTATION START ===================="
-    
-    show_disk_usage
-    rotate_large_logs
-    archive_old_logs
-    clean_old_archives
-    show_disk_usage
-    
-    log "==================== LOG ROTATION END ===================="
-}
-
-main "$@"
+log_rotate "SUCCESS" "Log rotation completed"

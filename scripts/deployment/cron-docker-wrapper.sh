@@ -153,20 +153,20 @@ execute_import_strategy() {
     
     case "$strategy" in
         "regular")
-            import_cmd="node scripts/data/import-movies-docker.cjs --max-pages=$max_pages --delay=2"
+            import_cmd="node /app/scripts/data/import-movies-docker.cjs --max-pages=$max_pages --delay=2"
             ;;
         "weekend")
-            import_cmd="node scripts/data/import-movies-docker.cjs --max-pages=$((max_pages * 2)) --delay=3 --include-episodes"
+            import_cmd="node /app/scripts/data/import-movies-docker.cjs --max-pages=$((max_pages * 2)) --delay=3"
             ;;
         "deep")
-            import_cmd="bash scripts/data/import-all-movies-resumable.sh --max-pages=$((max_pages * 3))"
+            import_cmd="bash /app/scripts/data/import-all-movies-resumable.sh --max-pages=$((max_pages * 3))"
             ;;
         "comprehensive")
-            import_cmd="bash scripts/data/import-all-movies-resumable.sh --full-scan"
+            import_cmd="bash /app/scripts/data/import-all-movies-resumable.sh --full-scan"
             timeout_minutes=120
             ;;
         "targeted")
-            import_cmd="node scripts/data/import-movies-docker.cjs --max-pages=$max_pages --sort=newest --delay=1"
+            import_cmd="node /app/scripts/data/import-movies-docker.cjs --max-pages=$max_pages --sort=newest --delay=1"
             ;;
         *)
             log_enhanced "ERROR" "Unknown import strategy: $strategy"

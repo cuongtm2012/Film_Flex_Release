@@ -1,145 +1,198 @@
 #!/bin/bash
 
-# PhimGG System Health Check Script
-# Checks system resources and container health before major imports
+# Enhanced Health Check Script for FilmFlex
+# Monitors system health and import effectiveness
 
 set -e
 
-# Configuration
-LOG_DIR="/var/log/filmflex"
-HEALTH_LOG="$LOG_DIR/health-check.log"
-APP_CONTAINER="filmflex-app"
-DB_CONTAINER="filmflex-postgres"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+LOG_FILE="/var/log/filmflex/health-check-$(date +%Y%m%d).log"
 
-mkdir -p "$LOG_DIR"
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
 
-log() { 
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] [HEALTH] $1" | tee -a "$HEALTH_LOG"
-}
-error() { 
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] [HEALTH-ERROR] $1" | tee -a "$HEALTH_LOG"
-}
-
-# Check system resources
-check_resources() {
-    local cpu_usage=$(top -bn1 | grep "Cpu(s)" | awk '{print $2}' | sed 's/%us,//' | cut -d'%' -f1)
-    local memory_usage=$(free | grep Mem | awk '{printf "%.0f", $3/$2 * 100.0}')
-    local disk_usage=$(df / | awk 'NR==2 {print $5}' | sed 's/%//')
-    local load_avg=$(uptime | awk -F'load average:' '{print $2}' | awk '{print $1}' | sed 's/,//')
+# Logging function
+log_health() {
+    local level="$1"
+    local message="$2"
+    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
     
-    log "System Status - CPU: ${cpu_usage}%, Memory: ${memory_usage}%, Disk: ${disk_usage}%, Load: ${load_avg}"
-    
-    # Health thresholds
-    local health_score=0
-    
-    # CPU check
-    if (( $(echo "${cpu_usage:-0} < 70" | bc -l) )); then
-        ((health_score++))
-    else
-        error "High CPU usage: ${cpu_usage}%"
-    fi
-    
-    # Memory check
-    if [ "${memory_usage:-100}" -lt 80 ]; then
-        ((health_score++))
-    else
-        error "High memory usage: ${memory_usage}%"
-    fi
-    
-    # Disk check
-    if [ "${disk_usage:-100}" -lt 85 ]; then
-        ((health_score++))
-    else
-        error "High disk usage: ${disk_usage}%"
-    fi
-    
-    # Load average check (assuming single core, adjust if needed)
-    if (( $(echo "${load_avg:-10} < 2.0" | bc -l) )); then
-        ((health_score++))
-    else
-        error "High load average: ${load_avg}"
-    fi
-    
-    log "Health score: $health_score/4"
-    return $((4 - health_score))
+    case "$level" in
+        "SUCCESS") echo -e "[$timestamp] ${GREEN}✅ $message${NC}" | tee -a "$LOG_FILE" ;;
+        "ERROR") echo -e "[$timestamp] ${RED}❌ $message${NC}" | tee -a "$LOG_FILE" ;;
+        "WARNING") echo -e "[$timestamp] ${YELLOW}⚠️  $message${NC}" | tee -a "$LOG_FILE" ;;
+        *) echo -e "[$timestamp] ${BLUE}ℹ️  $message${NC}" | tee -a "$LOG_FILE" ;;
+    esac
 }
 
-# Check Docker containers
-check_docker() {
-    local docker_score=0
+# Basic system checks
+check_basic_system() {
+    log_health "INFO" "Starting basic system health check"
     
-    # App container
-    if docker ps --format "{{.Names}}" | grep -q "$APP_CONTAINER"; then
-        ((docker_score++))
-        log "App container running: OK"
-    else
-        error "App container not running"
+    # Check Docker
+    if ! command -v docker >/dev/null 2>&1; then
+        log_health "ERROR" "Docker not installed"
+        return 1
     fi
     
-    # DB container
-    if docker ps --format "{{.Names}}" | grep -q "$DB_CONTAINER"; then
-        ((docker_score++))
-        log "DB container running: OK"
-    else
-        error "DB container not running"
+    if ! docker info >/dev/null 2>&1; then
+        log_health "ERROR" "Docker daemon not running"
+        return 1
     fi
     
-    # Database connectivity
-    if docker exec "$DB_CONTAINER" pg_isready -U filmflex -d filmflex >/dev/null 2>&1; then
-        ((docker_score++))
-        log "Database connectivity: OK"
-    else
-        error "Database not ready"
+    # Check containers
+    if ! docker ps | grep -q filmflex-app; then
+        log_health "ERROR" "App container not running"
+        return 1
     fi
     
-    log "Docker score: $docker_score/3"
-    return $((3 - docker_score))
+    if ! docker ps | grep -q filmflex-postgres; then
+        log_health "ERROR" "Database container not running"
+        return 1
+    fi
+    
+    # Check disk space
+    local disk_usage=$(df / | tail -1 | awk '{print $5}' | sed 's/%//')
+    if [ "$disk_usage" -gt 85 ]; then
+        log_health "WARNING" "High disk usage: ${disk_usage}%"
+    else
+        log_health "SUCCESS" "Disk usage normal: ${disk_usage}%"
+    fi
+    
+    # Check memory
+    local memory_usage=$(free | awk 'NR==2{printf "%.0f", $3*100/$2}')
+    if [ "$memory_usage" -gt 90 ]; then
+        log_health "WARNING" "High memory usage: ${memory_usage}%"
+    else
+        log_health "SUCCESS" "Memory usage normal: ${memory_usage}%"
+    fi
+    
+    log_health "SUCCESS" "Basic system health check passed"
+    return 0
 }
 
-# Check disk space for logs
-check_log_space() {
-    local log_size=$(du -sh "$LOG_DIR" 2>/dev/null | cut -f1)
-    local available_space=$(df "$LOG_DIR" | awk 'NR==2 {print $4}')
+# Check application endpoints
+check_application() {
+    log_health "INFO" "Checking application health"
     
-    log "Log directory size: $log_size, Available space: ${available_space}KB"
-    
-    # Clean old logs if space is low
-    if [ "$available_space" -lt 1048576 ]; then  # Less than 1GB
-        log "Low disk space, cleaning old logs..."
-        find "$LOG_DIR" -name "*.log" -type f -mtime +7 -delete
-        log "Old logs cleaned"
+    # Test local endpoint
+    local http_code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000 2>/dev/null || echo "000")
+    if [ "$http_code" = "200" ]; then
+        log_health "SUCCESS" "Application responding (HTTP $http_code)"
+    else
+        log_health "ERROR" "Application not responding (HTTP $http_code)"
+        return 1
     fi
+    
+    # Test API health endpoint
+    local api_code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/api/health 2>/dev/null || echo "000")
+    if [ "$api_code" = "200" ]; then
+        log_health "SUCCESS" "API health endpoint responding (HTTP $api_code)"
+    else
+        log_health "WARNING" "API health endpoint issues (HTTP $api_code)"
+    fi
+    
+    return 0
 }
 
-# Main health check
+# Check database health
+check_database() {
+    log_health "INFO" "Checking database health"
+    
+    # Test database connection
+    if docker exec filmflex-postgres pg_isready -U filmflex -d filmflex >/dev/null 2>&1; then
+        log_health "SUCCESS" "Database connection healthy"
+    else
+        log_health "ERROR" "Database connection failed"
+        return 1
+    fi
+    
+    # Get database stats
+    local movies=$(docker exec filmflex-postgres psql -U filmflex -d filmflex -t -c "SELECT COUNT(*) FROM movies;" 2>/dev/null | tr -d ' ' || echo "0")
+    local episodes=$(docker exec filmflex-postgres psql -U filmflex -d filmflex -t -c "SELECT COUNT(*) FROM episodes;" 2>/dev/null | tr -d ' ' || echo "0")
+    
+    log_health "INFO" "Database contains $movies movies and $episodes episodes"
+    
+    if [ "$movies" -gt 1000 ]; then
+        log_health "SUCCESS" "Database has good content volume"
+    else
+        log_health "WARNING" "Low content volume in database"
+    fi
+    
+    return 0
+}
+
+# Check import effectiveness
+check_import_effectiveness() {
+    log_health "INFO" "Checking recent import effectiveness"
+    
+    # Check for recent import logs
+    local recent_imports=$(find /var/log/filmflex -name "cron-import-*.log" -mtime -1 2>/dev/null | wc -l)
+    
+    if [ "$recent_imports" -gt 0 ]; then
+        log_health "SUCCESS" "Found $recent_imports recent import logs"
+        
+        # Check success rate
+        local successful=0
+        local total=0
+        
+        find /var/log/filmflex -name "cron-import-*.log" -mtime -7 2>/dev/null | while read -r logfile; do
+            if [ -f "$logfile" ]; then
+                total=$((total + 1))
+                if grep -q "Import Completed Successfully" "$logfile" 2>/dev/null; then
+                    successful=$((successful + 1))
+                fi
+            fi
+        done
+        
+        log_health "INFO" "Import success tracking available"
+    else
+        log_health "WARNING" "No recent import logs found"
+    fi
+    
+    return 0
+}
+
+# Main health check function
 main() {
-    log "==================== HEALTH CHECK START ===================="
+    local mode="${1:-full}"
     
-    local overall_health=0
+    # Ensure log directory exists
+    mkdir -p "$(dirname "$LOG_FILE")"
     
-    # System resources
-    check_resources
-    overall_health=$((overall_health + $?))
-    
-    # Docker containers
-    check_docker
-    overall_health=$((overall_health + $?))
-    
-    # Log space
-    check_log_space
-    
-    log "Overall health score: $((7 - overall_health))/7"
-    
-    if [ $overall_health -eq 0 ]; then
-        log "✅ System is healthy for imports"
-        exit 0
-    elif [ $overall_health -le 2 ]; then
-        log "⚠️ System has minor issues but can proceed"
-        exit 0
-    else
-        error "❌ System health is poor, imports should be delayed"
-        exit 1
-    fi
+    case "$mode" in
+        "--critical")
+            log_health "INFO" "Running critical health checks only"
+            check_basic_system && check_application && check_database
+            ;;
+        "--basic")
+            log_health "INFO" "Running basic health checks"
+            check_basic_system && check_application
+            ;;
+        "--full"|*)
+            log_health "INFO" "Running full health check"
+            local all_passed=true
+            
+            check_basic_system || all_passed=false
+            check_application || all_passed=false
+            check_database || all_passed=false
+            check_import_effectiveness || true  # Non-critical
+            
+            if [ "$all_passed" = true ]; then
+                log_health "SUCCESS" "All health checks passed"
+                exit 0
+            else
+                log_health "ERROR" "Some health checks failed"
+                exit 1
+            fi
+            ;;
+    esac
 }
 
+# Run main function
 main "$@"

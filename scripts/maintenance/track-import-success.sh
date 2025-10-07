@@ -44,7 +44,7 @@ analyze_recent_imports() {
                 successful_imports=$((successful_imports + 1))
                 
                 # Extract new items count from successful imports
-                local new_items=$(grep "Total new items imported:" "$log_file" 2>/dev/null | tail -1 | grep -o "[0-9]\+" || echo "0")
+                local new_items=$(grep "Import results:" "$log_file" 2>/dev/null | tail -1 | grep -o "+[0-9]\+" | tr -d '+' | head -2 | paste -sd+ | bc 2>/dev/null || echo "0")
                 total_new_items=$((total_new_items + new_items))
             elif grep -q "Import Failed" "$log_file"; then
                 failed_imports=$((failed_imports + 1))

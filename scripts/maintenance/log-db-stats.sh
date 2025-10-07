@@ -1,82 +1,52 @@
 #!/bin/bash
 
-# PhimGG Database Statistics Logging Script
-# Records daily database statistics for monitoring growth and performance
+# Database Statistics Logging Script
+# Logs database statistics for monitoring trends
 
 set -e
 
-LOG_DIR="/var/log/filmflex"
-STATS_LOG="$LOG_DIR/db-stats.log"
-APP_CONTAINER="filmflex-app"
-DB_CONTAINER="filmflex-postgres"
+LOG_FILE="/var/log/filmflex/db-stats-$(date +%Y%m%d).log"
+STATS_FILE="/var/log/filmflex/db-stats-history.csv"
 
-mkdir -p "$LOG_DIR"
+# Colors for output
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+NC='\033[0m'
 
-log() { 
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] [DB-STATS] $1" | tee -a "$STATS_LOG"
+log_db() {
+    local message="$1"
+    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    echo -e "[$timestamp] ${BLUE}ℹ️  $message${NC}" | tee -a "$LOG_FILE"
 }
 
-# Get comprehensive database statistics
-get_db_stats() {
-    local stats=$(docker exec "$DB_CONTAINER" psql -U filmflex -d filmflex -t -c "
-    SELECT 
-        'MOVIES: ' || COUNT(*) || ' | EPISODES: ' || (SELECT COUNT(*) FROM episodes) ||
-        ' | USERS: ' || (SELECT COUNT(*) FROM users) ||
-        ' | DB_SIZE: ' || pg_size_pretty(pg_database_size('filmflex')) ||
-        ' | LAST_MOVIE: ' || COALESCE((SELECT title FROM movies ORDER BY created_at DESC LIMIT 1), 'N/A')
-    FROM movies;
-    " 2>/dev/null | tr -d '\n' | xargs)
-    
-    echo "$stats"
-}
+# Ensure log directory exists
+mkdir -p "$(dirname "$LOG_FILE")"
+
+log_db "Starting database statistics collection"
+
+# Get database statistics
+MOVIES=$(docker exec filmflex-postgres psql -U filmflex -d filmflex -t -c "SELECT COUNT(*) FROM movies;" 2>/dev/null | tr -d ' ' || echo "0")
+EPISODES=$(docker exec filmflex-postgres psql -U filmflex -d filmflex -t -c "SELECT COUNT(*) FROM episodes;" 2>/dev/null | tr -d ' ' || echo "0")
+DB_SIZE=$(docker exec filmflex-postgres psql -U filmflex -d filmflex -t -c "SELECT pg_size_pretty(pg_database_size('filmflex'));" 2>/dev/null | tr -d ' ' || echo "Unknown")
 
 # Get table sizes
-get_table_sizes() {
-    docker exec "$DB_CONTAINER" psql -U filmflex -d filmflex -c "
-    SELECT 
-        schemaname as schema,
-        tablename as table,
-        pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) as size
-    FROM pg_tables 
-    WHERE schemaname = 'public'
-    ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC;
-    " 2>/dev/null || echo "Could not retrieve table sizes"
-}
+MOVIES_SIZE=$(docker exec filmflex-postgres psql -U filmflex -d filmflex -t -c "SELECT pg_size_pretty(pg_total_relation_size('movies'));" 2>/dev/null | tr -d ' ' || echo "Unknown")
+EPISODES_SIZE=$(docker exec filmflex-postgres psql -U filmflex -d filmflex -t -c "SELECT pg_size_pretty(pg_total_relation_size('episodes'));" 2>/dev/null | tr -d ' ' || echo "Unknown")
 
-# Check for recent import activity
-check_recent_activity() {
-    local recent_movies=$(docker exec "$DB_CONTAINER" psql -U filmflex -d filmflex -t -c "
-    SELECT COUNT(*) FROM movies WHERE created_at > NOW() - INTERVAL '24 hours';
-    " 2>/dev/null | tr -d ' ')
-    
-    local recent_episodes=$(docker exec "$DB_CONTAINER" psql -U filmflex -d filmflex -t -c "
-    SELECT COUNT(*) FROM episodes WHERE created_at > NOW() - INTERVAL '24 hours';  
-    " 2>/dev/null | tr -d ' ')
-    
-    log "Recent activity (24h): Movies: ${recent_movies:-0}, Episodes: ${recent_episodes:-0}"
-}
+# Log current statistics
+log_db "Database Statistics:"
+log_db "  Movies: $MOVIES"
+log_db "  Episodes: $EPISODES"
+log_db "  Total database size: $DB_SIZE"
+log_db "  Movies table size: $MOVIES_SIZE"
+log_db "  Episodes table size: $EPISODES_SIZE"
 
-main() {
-    if ! docker ps --format "{{.Names}}" | grep -q "$DB_CONTAINER"; then
-        log "Database container not running, skipping stats collection"
-        exit 0
-    fi
-    
-    # Daily statistics
-    local daily_stats=$(get_db_stats)
-    log "DAILY_STATS: $daily_stats"
-    
-    # Recent activity
-    check_recent_activity
-    
-    # Weekly detailed report (Sundays)
-    if [ "$(date +%u)" -eq 7 ]; then
-        log "=== WEEKLY TABLE SIZE REPORT ==="
-        get_table_sizes | while IFS= read -r line; do
-            log "$line"
-        done
-        log "=== END WEEKLY REPORT ==="
-    fi
-}
+# Create CSV header if file doesn't exist
+if [ ! -f "$STATS_FILE" ]; then
+    echo "timestamp,movies,episodes,db_size,movies_size,episodes_size" > "$STATS_FILE"
+fi
 
-main "$@"
+# Append to CSV history
+echo "$(date -Iseconds),$MOVIES,$EPISODES,$DB_SIZE,$MOVIES_SIZE,$EPISODES_SIZE" >> "$STATS_FILE"
+
+log_db "Database statistics logged to $STATS_FILE"
