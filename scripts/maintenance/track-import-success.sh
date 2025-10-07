@@ -33,20 +33,20 @@ get_db_stats() {
 analyze_recent_imports() {
     log_with_timestamp "Analyzing recent import performance..."
     
-    local recent_logs=$(find /var/log/filmflex -name "*enhanced-import*.log" -mtime -1 | sort -r | head -5)
+    local recent_logs=$(find /var/log/filmflex -name "*cron-import*.log" -mtime -1 2>/dev/null | sort -r | head -5)
     local successful_imports=0
     local failed_imports=0
     local total_new_items=0
     
     for log_file in $recent_logs; do
         if [ -f "$log_file" ]; then
-            if grep -q "Enhanced FilmFlex Import Completed Successfully" "$log_file"; then
+            if grep -q "Import Completed Successfully" "$log_file"; then
                 successful_imports=$((successful_imports + 1))
                 
                 # Extract new items count from successful imports
                 local new_items=$(grep "Total new items imported:" "$log_file" 2>/dev/null | tail -1 | grep -o "[0-9]\+" || echo "0")
                 total_new_items=$((total_new_items + new_items))
-            else
+            elif grep -q "Import Failed" "$log_file"; then
                 failed_imports=$((failed_imports + 1))
             fi
         fi
@@ -82,6 +82,13 @@ update_success_stats() {
     local total_movies=$(echo "$db_stats" | cut -d'|' -f1)
     local total_episodes=$(echo "$db_stats" | cut -d'|' -f2)
     
+    # Calculate success rate (avoid division by zero)
+    local total_attempts=$((successful + failed))
+    local success_rate="0"
+    if [ "$total_attempts" -gt 0 ]; then
+        success_rate=$(echo "scale=2; $successful * 100 / $total_attempts" | bc -l 2>/dev/null || echo "0")
+    fi
+    
     # Create or update JSON stats
     cat > "$SUCCESS_STATS_FILE" << EOF
 {
@@ -90,7 +97,7 @@ update_success_stats() {
     "successful_imports": $successful,
     "failed_imports": $failed,
     "total_new_items": $new_items,
-    "success_rate": $(echo "scale=2; $successful * 100 / ($successful + $failed + 0.01)" | bc -l 2>/dev/null || echo "0")
+    "success_rate": $success_rate
   },
   "database_state": {
     "total_movies": $total_movies,
@@ -120,9 +127,10 @@ generate_report() {
     echo -e "${BLUE}Generated: $(date)${NC}"
     echo ""
     
-    if [ "$((successful + failed))" -gt 0 ]; then
-        local success_rate=$(echo "scale=1; $successful * 100 / ($successful + $failed)" | bc -l 2>/dev/null || echo "0")
-        echo -e "${GREEN}Success Rate: ${success_rate}% ($successful/$((successful + failed)) imports)${NC}"
+    local total_attempts=$((successful + failed))
+    if [ "$total_attempts" -gt 0 ]; then
+        local success_rate=$(echo "scale=1; $successful * 100 / $total_attempts" | bc -l 2>/dev/null || echo "0")
+        echo -e "${GREEN}Success Rate: ${success_rate}% ($successful/$total_attempts imports)${NC}"
     else
         echo -e "${YELLOW}No recent imports to analyze${NC}"
     fi
@@ -150,33 +158,6 @@ generate_report() {
     echo ""
 }
 
-# Test the enhanced import wrapper
-test_enhanced_wrapper() {
-    log_with_timestamp "Testing enhanced import wrapper..."
-    
-    local test_script="/root/Film_Flex_Release/scripts/deployment/enhanced-cron-wrapper.sh"
-    
-    if [ ! -f "$test_script" ]; then
-        log_with_timestamp "ERROR: Enhanced wrapper script not found: $test_script"
-        return 1
-    fi
-    
-    if [ ! -x "$test_script" ]; then
-        chmod +x "$test_script"
-        log_with_timestamp "Made enhanced wrapper executable"
-    fi
-    
-    # Test dry run
-    log_with_timestamp "Running test import with enhanced wrapper..."
-    if timeout 300 "$test_script" regular test >/dev/null 2>&1; then
-        log_with_timestamp "SUCCESS: Enhanced wrapper test completed"
-        return 0
-    else
-        log_with_timestamp "WARNING: Enhanced wrapper test failed or timed out"
-        return 1
-    fi
-}
-
 # Main execution
 main() {
     local command="${1:-analyze}"
@@ -200,11 +181,6 @@ main() {
             log_with_timestamp "=== Import Success Analysis Complete ==="
             ;;
         
-        "test")
-            log_with_timestamp "=== Testing Enhanced Import System ==="
-            test_enhanced_wrapper
-            ;;
-        
         "report")
             if [ -f "$SUCCESS_STATS_FILE" ]; then
                 echo "Current Import Statistics:"
@@ -221,11 +197,10 @@ main() {
             ;;
         
         *)
-            echo "Usage: $0 {analyze|test|report|reset}"
+            echo "Usage: $0 {analyze|report|reset}"
             echo ""
             echo "Commands:"
             echo "  analyze  - Analyze recent import performance (default)"
-            echo "  test     - Test the enhanced import wrapper"
             echo "  report   - Show current statistics"
             echo "  reset    - Reset failure counters"
             ;;
