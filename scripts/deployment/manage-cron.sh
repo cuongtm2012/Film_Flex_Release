@@ -66,13 +66,8 @@ install_enhanced_cron() {
     
     if [ ! -f "$ENHANCED_CRON_CONFIG" ]; then
         error "Enhanced cron configuration file not found: $ENHANCED_CRON_CONFIG"
-        if [ -f "$ORIGINAL_CRON_CONFIG" ]; then
-            warning "Falling back to original configuration"
-            local config_to_use="$ORIGINAL_CRON_CONFIG"
-        else
-            error "No cron configuration found"
-            return 1
-        fi
+        log "Creating enhanced cron configuration..."
+        create_enhanced_cron_config
     else
         local config_to_use="$ENHANCED_CRON_CONFIG"
         success "Using enhanced cron configuration"
@@ -89,12 +84,25 @@ install_enhanced_cron() {
     fi
     
     # Install enhanced cron configuration
-    sudo cp "$config_to_use" "$CRON_DEST"
+    sudo cp "$ENHANCED_CRON_CONFIG" "$CRON_DEST"
     success "Enhanced cron jobs installed to $CRON_DEST"
     
-    # Restart cron service
-    sudo systemctl reload cron
-    success "Cron service reloaded"
+    # Fix cron service reload (try different service names)
+    if systemctl is-active --quiet cron 2>/dev/null; then
+        if sudo systemctl restart cron 2>/dev/null; then
+            success "Cron service restarted"
+        else
+            warning "Cron service restart failed, but configuration is installed"
+        fi
+    elif systemctl is-active --quiet crond 2>/dev/null; then
+        if sudo systemctl restart crond 2>/dev/null; then
+            success "Crond service restarted"
+        else
+            warning "Crond service restart failed, but configuration is installed"
+        fi
+    else
+        warning "Could not detect cron service, but configuration is installed"
+    fi
     
     # Initialize tracking files
     touch /tmp/import_failed_count
@@ -104,6 +112,50 @@ install_enhanced_cron() {
     cat "$CRON_DEST" | grep -v "^#" | grep -v "^$" | while IFS= read -r line; do
         echo "  $line"
     done
+}
+
+# Create enhanced cron configuration
+create_enhanced_cron_config() {
+    log "Creating enhanced cron configuration..."
+    
+    cat > "$ENHANCED_CRON_CONFIG" << 'EOF'
+# Enhanced PhimGG Cron Job Configuration
+# Optimized for better content discovery and import success
+# Copy this to /etc/cron.d/filmflex-imports
+
+# Environment variables for cron jobs
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+SHELL=/bin/bash
+
+# 1. Enhanced regular imports - Weekday mornings and evenings (smart scanning)
+0 6,18 * * 1-5 root /root/Film_Flex_Release/scripts/deployment/cron-docker-wrapper.sh regular >/dev/null 2>&1
+
+# 2. Weekend enhanced imports - Saturday and Sunday with deep discovery
+0 10 * * 6,0 root /root/Film_Flex_Release/scripts/deployment/cron-docker-wrapper.sh weekend >/dev/null 2>&1
+
+# 3. Deep discovery scan - Saturday early morning (comprehensive scanning)
+0 4 * * 6 root /root/Film_Flex_Release/scripts/deployment/cron-docker-wrapper.sh deep >/dev/null 2>&1
+
+# 4. Weekly comprehensive scan - First Sunday of month (full database refresh)
+0 1 1-7 * 0 root /root/Film_Flex_Release/scripts/deployment/cron-docker-wrapper.sh comprehensive >/dev/null 2>&1
+
+# 5. Alternative content discovery - Mid-week targeted scan for new content
+0 14 * * 3 root /root/Film_Flex_Release/scripts/deployment/cron-docker-wrapper.sh targeted >/dev/null 2>&1
+
+# 6. Daily log cleanup and optimization
+0 0 * * * root find /var/log/filmflex -name "*.log" -type f -mtime +30 -delete >/dev/null 2>&1
+
+# 7. Database statistics and health monitoring - Daily at 2 AM  
+0 2 * * * root /root/Film_Flex_Release/scripts/maintenance/health-check.sh --critical >/dev/null 2>&1
+
+# 8. Enhanced health check - Every 4 hours with improved diagnostics
+0 */4 * * * root /root/Film_Flex_Release/scripts/deployment/health-check.sh >/dev/null 2>&1
+
+# 9. Database optimization - Weekly maintenance
+0 3 * * 0 root docker exec filmflex-postgres psql -U filmflex -d filmflex -c "VACUUM ANALYZE;" >/dev/null 2>&1
+EOF
+
+    success "Enhanced cron configuration created: $ENHANCED_CRON_CONFIG"
 }
 
 # Show enhanced status with import effectiveness
