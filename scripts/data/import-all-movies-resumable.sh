@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# FilmFlex Complete Movie Import Script with Resume Capability
+# PhimGG Complete Movie Import Script with Resume Capability
 # This script starts a full import using the Node.js script and can resume from where it left off
 
 # Set up trap to handle interruptions
@@ -36,7 +36,7 @@ mkdir -p "$LOG_DIR"
 # Print banner
 echo -e "${BLUE}"
 echo "======================================================"
-echo "  FilmFlex Complete Database Import Script (Resumable)"
+echo "  PhimGG Complete Database Import Script (Resumable)"
 echo "======================================================"
 echo -e "${NC}"
 

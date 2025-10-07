@@ -1,4 +1,4 @@
-# 📋 FilmFlex Documentation - Workflow Guide
+# 📋 PhimGG Documentation - Workflow Guide
 
 **Status**: Production Ready | **Server**: 38.54.14.154 | **Domain**: phimgg.com  
 **Last Updated**: September 8, 2025
@@ -7,7 +7,7 @@
 
 | Stage | Guide | Purpose |
 |-------|-------|---------|
-| **🎯 Setup** | [Quick Start Guide](01-setup/quick-start.md) | Get FilmFlex running in 5 minutes |
+| **🎯 Setup** | [Quick Start Guide](01-setup/quick-start.md) | Get PhimGG running in 5 minutes |
 | **💻 Development** | [Development Workflow](02-development/development-workflow.md) | Local development and feature building |
 | **🚀 Deployment** | [Production Deployment](03-deployment/production-deployment.md) | Deploy to production servers |
 | **🛠️ Maintenance** | [Maintenance Tasks](04-maintenance/maintenance-tasks.md) | Keep your system running smoothly |
@@ -129,4 +129,4 @@ This workflow-based documentation replaces the old scattered markdown files:
 
 ---
 
-**🎉 Your FilmFlex system is production-ready!** Start with the [Quick Start Guide](01-setup/quick-start.md) if you're new, or jump to any specific workflow stage above.
+**🎉 Your PhimGG system is production-ready!** Start with the [Quick Start Guide](01-setup/quick-start.md) if you're new, or jump to any specific workflow stage above.

@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# FilmFlex Simple Upload Script for Windows Users
+# PhimGG Simple Upload Script for Windows Users
 # Upload files from Windows to Ubuntu server using WSL, Git Bash, or PowerShell with OpenSSH
 # Usage: ./upload.sh
 
-echo "🚀 FilmFlex Upload Script"
+echo "🚀 PhimGG Upload Script"
 echo "========================"
 echo ""
 

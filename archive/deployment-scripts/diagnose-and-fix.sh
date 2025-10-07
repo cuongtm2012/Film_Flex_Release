@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Comprehensive FilmFlex Diagnostic and Fix Script
-echo "🔧 FilmFlex Diagnostic and Fix Script"
+# Comprehensive PhimGG Diagnostic and Fix Script
+echo "🔧 PhimGG Diagnostic and Fix Script"
 
 # Colors for output
 RED='\033[0;31m'
@@ -52,7 +52,7 @@ for i in {1..30}; do
 done
 
 # Start the app
-echo -e "\n${YELLOW}Starting FilmFlex app...${NC}"
+echo -e "\n${YELLOW}Starting PhimGG app...${NC}"
 docker-compose -f docker-compose.prod.yml up -d app
 
 # Wait for app to be healthy

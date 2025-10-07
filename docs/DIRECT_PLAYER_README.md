@@ -1,6 +1,6 @@
-# FilmFlex Direct Player
+# PhimGG Direct Player
 
-This is a solution for slow-loading videos in the FilmFlex streaming platform. Many movies were experiencing long loading times when using the default player.phimapi.com wrapper.
+This is a solution for slow-loading videos in the PhimGG streaming platform. Many movies were experiencing long loading times when using the default player.phimapi.com wrapper.
 
 ## Why Videos Were Loading Slowly
 
@@ -85,7 +85,7 @@ If you still experience playback issues:
 
 2. **Network Issues**: Check your internet connection
 
-3. **Server Status**: Ensure the FilmFlex server is running
+3. **Server Status**: Ensure the PhimGG server is running
    ```bash
    curl http://localhost:5000/api/health
    ```
@@ -116,4 +116,4 @@ When deploying:
 
 ## Support
 
-For issues or questions about the direct player, please contact the FilmFlex development team. 
+For issues or questions about the direct player, please contact the PhimGG development team. 

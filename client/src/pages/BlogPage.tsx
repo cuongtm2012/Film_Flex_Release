@@ -57,7 +57,7 @@ const BlogPage = () => {
     },
     {
       id: 2,
-      title: "Behind the Scenes: How FilmFlex Curates Content for Global Audiences",
+      title: "Behind the Scenes: How PhimGG Curates Content for Global Audiences",
       excerpt: "Get an exclusive look at our content curation process and how we ensure diverse, quality entertainment for viewers worldwide.",
       author: "Samantha Lee",
       date: "April 22, 2025",
@@ -113,7 +113,7 @@ const BlogPage = () => {
     },
     {
       id: 7,
-      title: "Accessibility in Streaming: How FilmFlex is Making Content Available to Everyone",
+      title: "Accessibility in Streaming: How PhimGG is Making Content Available to Everyone",
       excerpt: "Learn about our initiatives to make streaming more accessible through subtitles, audio descriptions, interface design, and more.",
       author: "Sam Taylor",
       date: "March 20, 2025",
@@ -124,7 +124,7 @@ const BlogPage = () => {
     },
     {
       id: 8,
-      title: "FilmFlex Mobile: Tips and Tricks for Streaming On-the-Go",
+      title: "PhimGG Mobile: Tips and Tricks for Streaming On-the-Go",
       excerpt: "Get the most out of our mobile app with these expert tips for offline downloads, data usage, and mobile-specific features.",
       author: "Lin Wei",
       date: "March 15, 2025",
@@ -163,7 +163,7 @@ const BlogPage = () => {
       {/* Header section */}
       <div className="text-center mb-12">
         <BookOpen className="h-12 w-12 text-primary mx-auto mb-4" />
-        <h1 className="text-4xl font-bold mb-3">FilmFlex Blog</h1>
+        <h1 className="text-4xl font-bold mb-3">PhimGG Blog</h1>
         <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
           Insights, guides, and stories from the world of streaming entertainment.
         </p>
@@ -356,7 +356,7 @@ const BlogPage = () => {
               </div>
               <h3 className="text-xl font-bold mb-2">Company</h3>
               <p className="text-sm text-muted-foreground mb-4">
-                Updates and stories from behind the scenes at FilmFlex
+                Updates and stories from behind the scenes at PhimGG
               </p>
               <Button asChild variant="outline" size="sm">
                 <a href="/blog/category/company">View Articles</a>
@@ -400,7 +400,7 @@ const BlogPage = () => {
           <div>
             <h2 className="text-2xl font-bold mb-3">Stay Updated</h2>
             <p className="text-muted-foreground mb-6">
-              Subscribe to our newsletter to receive the latest articles, industry insights, and FilmFlex updates directly in your inbox.
+              Subscribe to our newsletter to receive the latest articles, industry insights, and PhimGG updates directly in your inbox.
             </p>
             <div className="flex flex-col sm:flex-row gap-3">
               <Input 
@@ -422,7 +422,7 @@ const BlogPage = () => {
                 <Smartphone className="h-10 w-10 text-primary mb-3" />
                 <h3 className="text-lg font-semibold mb-1">Blog on the Go</h3>
                 <p className="text-sm text-muted-foreground">
-                  Access our blog articles anytime, anywhere with the FilmFlex mobile app.
+                  Access our blog articles anytime, anywhere with the PhimGG mobile app.
                 </p>
               </div>
             </div>

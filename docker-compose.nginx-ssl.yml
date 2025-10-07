@@ -21,7 +21,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # FilmFlex Application
+  # PhimGG Application
   app:
     build: .
     container_name: filmflex-app

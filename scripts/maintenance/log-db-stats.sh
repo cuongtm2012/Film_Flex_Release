@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# FilmFlex Database Statistics Logging Script
+# PhimGG Database Statistics Logging Script
 # Records daily database statistics for monitoring growth and performance
 
 set -e

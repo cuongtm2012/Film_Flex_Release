@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# FilmFlex Master Deployment Orchestrator - Enhanced Edition
+# PhimGG Master Deployment Orchestrator - Enhanced Edition
 # Version: 3.1 - Fixed source code sync and SSL issues
 # This script combines all deployment functionality into one comprehensive tool
 
@@ -440,7 +440,7 @@ show_deployment_info() {
     log "Health check: https://$PRODUCTION_DOMAIN/api/health"
     log "Application logs: ssh $PRODUCTION_USER@$PRODUCTION_IP 'docker logs filmflex-app'"
     
-    success "FilmFlex is now deployed and accessible!"
+    success "PhimGG is now deployed and accessible!"
 }
 
 # =============================================================================

@@ -187,15 +187,15 @@ fi
 # Check Docker containers
 print_info "Checking Docker containers..."
 if docker ps | grep -q filmflex-app; then
-    print_status "FilmFlex app container is running"
+    print_status "PhimGG app container is running"
 else
-    print_error "FilmFlex app container is not running"
+    print_error "PhimGG app container is not running"
 fi
 
 if docker ps | grep -q filmflex-postgres; then
-    print_status "FilmFlex database container is running"
+    print_status "PhimGG database container is running"
 else
-    print_error "FilmFlex database container is not running"
+    print_error "PhimGG database container is not running"
 fi
 
 # Check firewall status

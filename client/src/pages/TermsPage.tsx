@@ -11,7 +11,7 @@ const TermsPage = () => {
         <FileTerminal className="h-12 w-12 text-primary mx-auto mb-4" />
         <h1 className="text-4xl font-bold mb-3">Terms of Use</h1>
         <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-          Please read these terms carefully before using FilmFlex.
+          Please read these terms carefully before using PhimGG.
         </p>
         <div className="flex justify-center mt-6 text-sm text-muted-foreground">
           <p>Last updated: May 1, 2025</p>
@@ -47,10 +47,10 @@ const TermsPage = () => {
           </div>
           <div className="text-muted-foreground space-y-4 pl-9">
             <p>
-              By accessing or using FilmFlex, you agree to be bound by these Terms of Use and all applicable laws and regulations. If you do not agree with any of these terms, you are prohibited from using or accessing this service.
+              By accessing or using PhimGG, you agree to be bound by these Terms of Use and all applicable laws and regulations. If you do not agree with any of these terms, you are prohibited from using or accessing this service.
             </p>
             <p>
-              These Terms constitute a legally binding agreement between you and FilmFlex regarding your use of the streaming platform and services offered through our website, applications, and other related services (collectively, the "Services").
+              These Terms constitute a legally binding agreement between you and PhimGG regarding your use of the streaming platform and services offered through our website, applications, and other related services (collectively, the "Services").
             </p>
           </div>
         </section>
@@ -65,7 +65,7 @@ const TermsPage = () => {
           </div>
           <div className="text-muted-foreground space-y-4 pl-9">
             <p>
-              FilmFlex reserves the right to modify these Terms at any time. We will notify you of any significant changes by posting a notice on our website or sending you an email. Your continued use of the Services after any changes indicates your acceptance of the modified Terms.
+              PhimGG reserves the right to modify these Terms at any time. We will notify you of any significant changes by posting a notice on our website or sending you an email. Your continued use of the Services after any changes indicates your acceptance of the modified Terms.
             </p>
             <p>
               It is your responsibility to check these Terms periodically for changes. If you do not agree to the new terms, you should discontinue using the service.
@@ -83,12 +83,12 @@ const TermsPage = () => {
           </div>
           <div className="text-muted-foreground space-y-4 pl-9">
             <p>
-              FilmFlex grants you a limited, non-exclusive, non-transferable, and revocable license to access and use the Services for your personal, non-commercial use. This license does not include the right to:
+              PhimGG grants you a limited, non-exclusive, non-transferable, and revocable license to access and use the Services for your personal, non-commercial use. This license does not include the right to:
             </p>
             <ul className="list-disc list-inside ml-4 space-y-2">
               <li>Modify or copy the materials</li>
               <li>Use the materials for any commercial purpose</li>
-              <li>Attempt to decompile or reverse engineer any software contained on FilmFlex</li>
+              <li>Attempt to decompile or reverse engineer any software contained on PhimGG</li>
               <li>Remove any copyright or other proprietary notations from the materials</li>
               <li>Transfer the materials to another person or "mirror" the materials on any other server</li>
             </ul>
@@ -111,7 +111,7 @@ const TermsPage = () => {
               To access certain features of the Services, you will need to create an account. You are responsible for maintaining the confidentiality of your account information, including your password, and for all activity that occurs under your account.
             </p>
             <p>
-              You agree to notify FilmFlex immediately of any unauthorized use of your account or any other breach of security. FilmFlex will not be liable for any loss or damage arising from your failure to comply with this section.
+              You agree to notify PhimGG immediately of any unauthorized use of your account or any other breach of security. PhimGG will not be liable for any loss or damage arising from your failure to comply with this section.
             </p>
             <p>
               You may not use another user's account without permission. You may not sell, transfer, or assign your account or any account rights.
@@ -129,13 +129,13 @@ const TermsPage = () => {
           </div>
           <div className="text-muted-foreground space-y-4 pl-9">
             <p>
-              To access premium content on FilmFlex, you must subscribe to one of our subscription plans. By subscribing, you agree to pay the applicable subscription fees as they become due plus any applicable taxes.
+              To access premium content on PhimGG, you must subscribe to one of our subscription plans. By subscribing, you agree to pay the applicable subscription fees as they become due plus any applicable taxes.
             </p>
             <p>
               Subscription fees are billed in advance on a monthly or annual basis, depending on the subscription plan you select. Your subscription will automatically renew at the end of each billing period unless you cancel it before the renewal date.
             </p>
             <p>
-              FilmFlex reserves the right to change subscription fees at any time, but we will give you reasonable advance notice of any increase in such fees. If you do not agree to a fee change, you may cancel your subscription before the change takes effect.
+              PhimGG reserves the right to change subscription fees at any time, but we will give you reasonable advance notice of any increase in such fees. If you do not agree to a fee change, you may cancel your subscription before the change takes effect.
             </p>
             <p>
               All payments are non-refundable, except as expressly set forth in these Terms or as required by applicable law.
@@ -157,7 +157,7 @@ const TermsPage = () => {
               If you have any questions about these Terms, please contact us at:
             </p>
             <div className="bg-black/10 p-4 rounded-md">
-              <p>FilmFlex Legal Department</p>
+              <p>PhimGG Legal Department</p>
               <p>123 Streaming Lane</p>
               <p>Digital City, FL 10001</p>
               <p>Email: legal@filmflex.example.com</p>

@@ -22,7 +22,7 @@ error() { echo -e "${RED}❌ $1${NC}"; }
 
 # Quick database reset
 reset_db() {
-    log "Resetting FilmFlex database..."
+    log "Resetting PhimGG database..."
     
     if docker ps | grep -q "$CONTAINER_NAME"; then
         log "Stopping and removing existing container..."

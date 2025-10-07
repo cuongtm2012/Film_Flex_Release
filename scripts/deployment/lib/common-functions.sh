@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# FilmFlex Deployment Common Functions Library
+# PhimGG Deployment Common Functions Library
 # Shared utilities for all deployment scripts
 
 # Color codes for output

@@ -215,7 +215,7 @@ async function handleEmailSend(request: Request, emailService: EmailService, cor
 
     const emailOptions = {
       to,
-      from: from || { email: 'noreply@filmflex.com', name: 'FilmFlex' },
+      from: from || { email: 'noreply@filmflex.com', name: 'PhimGG' },
       subject,
       text,
       html,

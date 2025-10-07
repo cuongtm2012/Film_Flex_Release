@@ -23,7 +23,7 @@ services:
       retries: 5
     restart: unless-stopped
 
-  # FilmFlex Application from Docker Hub
+  # PhimGG Application from Docker Hub
   app:
     image: cuongtm2012/filmflex-app:latest
     container_name: filmflex-app

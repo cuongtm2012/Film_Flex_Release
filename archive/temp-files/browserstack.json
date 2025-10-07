@@ -22,8 +22,8 @@
   ],
   "run_settings": {
     "cypress_config_file": "./cypress.cjs.config.js",
-    "project_name": "FilmFlex Automation Testing",
-    "build_name": "FilmFlex Build 1.0",
+    "project_name": "PhimGG Automation Testing",
+    "build_name": "PhimGG Build 1.0",
     "parallels": 2,
     "npm_dependencies": {
       "cypress": "^14.3.0"

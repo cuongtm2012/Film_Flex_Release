@@ -17,7 +17,7 @@ info() { echo -e "${BLUE}[$(date +'%Y-%m-%d %H:%M:%S')] INFO: $1${NC}" >&2; }
 warn() { echo -e "${YELLOW}[$(date +'%Y-%m-%d %H:%M:%S')] WARN: $1${NC}" >&2; }
 error() { echo -e "${RED}[$(date +'%Y-%m-%d %H:%M:%S')] ERROR: $1${NC}" >&2; }
 
-log "Starting FilmFlex PostgreSQL initialization..."
+log "Starting PhimGG PostgreSQL initialization..."
 
 # Database connection parameters
 DB_NAME="${POSTGRES_DB:-filmflex}"
@@ -139,7 +139,7 @@ verify_setup() {
 
 # Main initialization process
 main() {
-    log "=== FilmFlex PostgreSQL Initialization Started ==="
+    log "=== PhimGG PostgreSQL Initialization Started ==="
     
     # Wait a moment for PostgreSQL to be fully ready
     sleep 2
@@ -153,7 +153,7 @@ main() {
     # Verify setup
     verify_setup
     
-    log "=== FilmFlex PostgreSQL Initialization Completed ==="
+    log "=== PhimGG PostgreSQL Initialization Completed ==="
 }
 
 # Only run if this script is executed directly (not sourced)

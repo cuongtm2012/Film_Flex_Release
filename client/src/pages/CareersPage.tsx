@@ -174,10 +174,10 @@ const CareersPage = () => {
         <div className="absolute inset-0 flex items-center z-20 px-8 md:px-16">
           <div className="max-w-xl">
             <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
-              Why Work at FilmFlex?
+              Why Work at PhimGG?
             </h2>
             <p className="text-white/90 text-lg mb-6">
-              At FilmFlex, we're building the future of entertainment. Our team is passionate, innovative, and driven to create exceptional streaming experiences for millions of users worldwide.
+              At PhimGG, we're building the future of entertainment. Our team is passionate, innovative, and driven to create exceptional streaming experiences for millions of users worldwide.
             </p>
             <div className="flex flex-wrap gap-3">
               <Button asChild className="bg-white text-primary hover:bg-white/90">
@@ -220,10 +220,10 @@ const CareersPage = () => {
         </div>
       </div>
 
-      {/* Life at FilmFlex section */}
+      {/* Life at PhimGG section */}
       <div className="mb-20">
         <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold mb-3">Life at FilmFlex</h2>
+          <h2 className="text-3xl font-bold mb-3">Life at PhimGG</h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
             We work hard to create an environment where everyone can do their best work.
           </p>
@@ -415,7 +415,7 @@ const CareersPage = () => {
             </div>
             <div className="absolute -bottom-4 -right-4 bg-black/80 p-4 rounded-lg">
               <p className="text-sm font-medium">
-                "The internship at FilmFlex was incredibly valuable. I worked on real projects that made a difference."
+                "The internship at PhimGG was incredibly valuable. I worked on real projects that made a difference."
               </p>
               <p className="text-xs text-muted-foreground mt-2">
                 — Former Engineering Intern, now Full-time Engineer
@@ -479,7 +479,7 @@ const CareersPage = () => {
 
       {/* Contact */}
       <div className="text-center text-sm text-muted-foreground">
-        <p>Have questions about working at FilmFlex?</p>
+        <p>Have questions about working at PhimGG?</p>
         <p>Email us at <a href="mailto:careers@filmflex.example.com" className="text-primary hover:underline">careers@filmflex.example.com</a></p>
       </div>
     </div>

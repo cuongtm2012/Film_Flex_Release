@@ -50,7 +50,7 @@ const DEBUG_MODE = process.env.NODE_ENV === 'development' || localStorage.getIte
 // Debug logging function
 const debugLog = (message: string, data?: any) => {
   if (DEBUG_MODE) {
-    console.log(`🔍 FilmFlex Debug: ${message}`, data || '');
+    console.log(`🔍 PhimGG Debug: ${message}`, data || '');
   }
 };
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# FilmFlex Local Database Export Script
+# PhimGG Local Database Export Script
 # This script exports your complete local PostgreSQL database to /shared folder
 
 set -e
@@ -15,7 +15,7 @@ NC='\033[0m' # No Color
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 SHARED_DIR="./shared"
 
-echo -e "${BLUE}🗄️  FilmFlex Local Database Export Script${NC}"
+echo -e "${BLUE}🗄️  PhimGG Local Database Export Script${NC}"
 echo "=========================================="
 echo "Timestamp: $TIMESTAMP"
 echo ""
@@ -234,7 +234,7 @@ NC='\033[0m'
 log() { echo -e "\${GREEN}✅ \$1\${NC}"; }
 error() { echo -e "\${RED}❌ \$1\${NC}"; }
 
-echo -e "\${BLUE}🗄️ FilmFlex VPS Database Import\${NC}"
+echo -e "\${BLUE}🗄️ PhimGG VPS Database Import\${NC}"
 echo "Generated from local export: $TIMESTAMP"
 echo ""
 

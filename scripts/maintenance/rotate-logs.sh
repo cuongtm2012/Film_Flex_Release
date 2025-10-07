@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# FilmFlex Log Rotation Script
+# PhimGG Log Rotation Script
 # Rotates and compresses old log files to save disk space
 
 set -e

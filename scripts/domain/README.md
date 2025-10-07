@@ -1,6 +1,6 @@
-# FilmFlex Domain Management
+# PhimGG Domain Management
 
-This directory contains the unified domain management solution for FilmFlex.
+This directory contains the unified domain management solution for PhimGG.
 
 ## 🚀 **Unified Script: domain-manager.sh**
 
@@ -150,7 +150,7 @@ All defaults can be overridden with command-line parameters.
 
 - **SSL Auto-Installation:** If DNS isn't ready during setup, the script sets up a cron job to automatically install SSL once DNS propagates
 - **Security Headers:** Adds comprehensive security headers to nginx configuration
-- **CORS Configuration:** Properly configured for FilmFlex application
+- **CORS Configuration:** Properly configured for PhimGG application
 - **Log Management:** All operations are logged to `/var/log/filmflex/`
 
 ## 🔍 **Troubleshooting**
@@ -199,4 +199,4 @@ If you're experiencing nginx configuration errors (like the current issue), run:
 sudo bash fix-nginx-config.sh
 ```
 
-This unified approach ensures consistent, reliable domain management for your FilmFlex deployment.
+This unified approach ensures consistent, reliable domain management for your PhimGG deployment.

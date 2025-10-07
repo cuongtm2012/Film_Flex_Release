@@ -38,7 +38,7 @@ const DevicesPage = () => {
         <Cast className="h-12 w-12 text-primary mx-auto mb-4" />
         <h1 className="text-4xl font-bold mb-3">Supported Devices</h1>
         <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-          FilmFlex is available on a wide range of devices to ensure you can enjoy your favorite content anywhere, anytime.
+          PhimGG is available on a wide range of devices to ensure you can enjoy your favorite content anywhere, anytime.
         </p>
       </div>
 

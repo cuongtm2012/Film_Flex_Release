@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# Setup script for the FilmFlex Direct Player
+# Setup script for the PhimGG Direct Player
 # This script copies the direct-player.html file to all necessary locations
 
-echo "=== Setting up FilmFlex Direct Player ==="
+echo "=== Setting up PhimGG Direct Player ==="
 
 # Make sure we have the public directories
 mkdir -p public
@@ -31,7 +31,7 @@ fi
 # Create .htaccess file to ensure proper MIME types for m3u8 files
 echo "Creating .htaccess for proper MIME types..."
 cat > public/.htaccess << EOF
-# FilmFlex MIME type configuration
+# PhimGG MIME type configuration
 # Ensure proper MIME types for streaming media files
 
 <IfModule mod_mime.c>

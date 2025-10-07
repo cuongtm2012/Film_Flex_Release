@@ -14,14 +14,14 @@ interface ShareModalProps {
 const ShareModal: React.FC<ShareModalProps> = ({
   isOpen,
   onClose,
-  title = "FilmFlex Movie",
+  title = "PhimGG Movie",
   url = window.location.href,
   shareCount = 34
 }) => {
   const shareData = {
     title,
     url,
-    text: `Check out this amazing movie on FilmFlex!`
+    text: `Check out this amazing movie on PhimGG!`
   };
 
   const handleShare = (platform: string) => {

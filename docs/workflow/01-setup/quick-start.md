@@ -1,4 +1,4 @@
-# 🚀 FilmFlex Quick Start Guide
+# 🚀 PhimGG Quick Start Guide
 
 **Status**: Production Ready | **Server**: 38.54.14.154 | **Domain**: phimgg.com
 
@@ -90,7 +90,7 @@ pm2 start ecosystem.config.cjs
 
 ## 📊 **What Gets Automated**
 
-Your FilmFlex setup includes:
+Your PhimGG setup includes:
 
 - **Daily Movie Import** (2:00 AM): ~150 latest movies
 - **Weekly Deep Scan** (Saturday 3:00 AM): ~500 movies  
@@ -100,7 +100,7 @@ Your FilmFlex setup includes:
 
 ## 🎬 **Success!**
 
-After setup, your FilmFlex application will:
+After setup, your PhimGG application will:
 - ✅ Automatically import new movies daily
 - ✅ Monitor itself and restart if needed
 - ✅ Backup database regularly

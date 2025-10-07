@@ -28,7 +28,7 @@ Import from existing SQL backup files.
 # SSH to your server
 ssh root@38.54.14.154
 
-# Navigate to FilmFlex directory
+# Navigate to PhimGG directory
 cd ~/Film_Flex_Release
 
 # Import latest 20 movies

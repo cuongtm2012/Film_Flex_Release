@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# FilmFlex Docker PostgreSQL Manager
+# PhimGG Docker PostgreSQL Manager
 # Consolidated script for all PostgreSQL operations in Docker environment
 
 set -e
@@ -31,7 +31,7 @@ highlight() { echo -e "${CYAN}🔧 $1${NC}"; }
 print_banner() {
     echo -e "${PURPLE}"
     echo "========================================"
-    echo "  FilmFlex Docker PostgreSQL Manager"
+    echo "  PhimGG Docker PostgreSQL Manager"
     echo "  Unified Database Management for Docker"
     echo "========================================"
     echo -e "${NC}"
@@ -422,7 +422,7 @@ main() {
             fi
             ;;
         "help"|*)
-            echo -e "${CYAN}FilmFlex Docker PostgreSQL Manager${NC}"
+            echo -e "${CYAN}PhimGG Docker PostgreSQL Manager${NC}"
             echo ""
             echo -e "${YELLOW}Usage:${NC} $0 [command]"
             echo ""

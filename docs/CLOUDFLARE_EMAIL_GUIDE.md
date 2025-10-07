@@ -1,8 +1,8 @@
-# FilmFlex Email Service - Cloudflare Integration Guide
+# PhimGG Email Service - Cloudflare Integration Guide
 
 ## Overview
 
-This guide explains how to configure the email service in your FilmFlex project to work with Cloudflare Workers, following the same pattern as your OAuth configuration.
+This guide explains how to configure the email service in your PhimGG project to work with Cloudflare Workers, following the same pattern as your OAuth configuration.
 
 ## Configuration Options
 
@@ -29,14 +29,14 @@ Your environment files have been updated:
 USE_CLOUDFLARE_EMAIL=false
 SENDGRID_API_KEY=your_sendgrid_api_key_here
 FROM_EMAIL=noreply@filmflex.com
-FROM_NAME=FilmFlex
+FROM_NAME=PhimGG
 ```
 
 **`.env` (Production):**
 ```env
 USE_CLOUDFLARE_EMAIL=true
 FROM_EMAIL=noreply@filmflex.com
-FROM_NAME=FilmFlex
+FROM_NAME=PhimGG
 ```
 
 ### Step 2: Configure Cloudflare Secrets
@@ -81,7 +81,7 @@ wrangler deploy
    - Plain text fallback
 
 2. **Welcome Emails**
-   - Branded FilmFlex design
+   - Branded PhimGG design
    - Feature highlights
    - Engaging user onboarding
 
@@ -92,7 +92,7 @@ wrangler deploy
 ### Email Templates
 
 All emails feature:
-- 🎬 FilmFlex branding with movie theme
+- 🎬 PhimGG branding with movie theme
 - Dark theme design matching your app
 - Responsive HTML templates
 - Plain text fallbacks
@@ -111,7 +111,7 @@ All emails feature:
   "to": "user@example.com",
   "from": {
     "email": "noreply@filmflex.com",
-    "name": "FilmFlex"
+    "name": "PhimGG"
   },
   "subject": "Email Subject",
   "html": "<h1>HTML Content</h1>",

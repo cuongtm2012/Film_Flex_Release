@@ -27,7 +27,7 @@ export class EmailService {
 
   constructor() {
     this.fromEmail = config.fromEmail || 'noreply@filmflex.com';
-    this.fromName = config.fromName || 'FilmFlex';
+    this.fromName = config.fromName || 'PhimGG';
   }
 
   /**
@@ -151,7 +151,7 @@ export class EmailService {
 
     return await this.sendEmail({
       to: email,
-      subject: '🔐 Reset Your FilmFlex Password',
+      subject: '🔐 Reset Your PhimGG Password',
       html: resetEmailHtml,
       text: resetEmailText
     });
@@ -166,7 +166,7 @@ export class EmailService {
 
     return await this.sendEmail({
       to: email,
-      subject: '🎬 Welcome to FilmFlex - Your Gateway to Premium Entertainment!',
+      subject: '🎬 Welcome to PhimGG - Your Gateway to Premium Entertainment!',
       html: welcomeHtml,
       text: welcomeText
     });
@@ -185,7 +185,7 @@ export class EmailService {
 
     return await this.sendEmail({
       to: email,
-      subject: '✅ Activate Your FilmFlex Account',
+      subject: '✅ Activate Your PhimGG Account',
       html: activationHtml,
       text: activationText
     });
@@ -201,7 +201,7 @@ export class EmailService {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reset Your FilmFlex Password</title>
+    <title>Reset Your PhimGG Password</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -289,7 +289,7 @@ export class EmailService {
 <body>
     <div class="container">
         <div class="header">
-            <div class="logo">🎬 FilmFlex</div>
+            <div class="logo">🎬 PhimGG</div>
             <div class="film-strip"></div>
             <h1 class="title">Reset Your Password</h1>
             <p class="subtitle">We received a request to reset your password</p>
@@ -297,7 +297,7 @@ export class EmailService {
         
         <div class="content">
             <p>Hi <strong>${data.username}</strong>,</p>
-            <p>You requested to reset your password for your FilmFlex account. Click the button below to create a new password:</p>
+            <p>You requested to reset your password for your PhimGG account. Click the button below to create a new password:</p>
         </div>
         
         <div style="text-align: center;">
@@ -322,10 +322,10 @@ export class EmailService {
         
         <div class="footer">
             <div class="film-strip"></div>
-            <p>🎥 Keep watching amazing content on FilmFlex!</p>
+            <p>🎥 Keep watching amazing content on PhimGG!</p>
             <p>If you have any questions, contact our support team.</p>
             <p style="margin-top: 20px;">
-                © 2025 FilmFlex. All rights reserved.<br>
+                © 2025 PhimGG. All rights reserved.<br>
                 This email was sent automatically. Please do not reply.
             </p>
         </div>
@@ -339,11 +339,11 @@ export class EmailService {
    */
   private generatePasswordResetText(data: PasswordResetEmailData): string {
     return `
-🎬 FilmFlex - Reset Your Password
+🎬 PhimGG - Reset Your Password
 
 Hi ${data.username},
 
-You requested to reset your password for your FilmFlex account.
+You requested to reset your password for your PhimGG account.
 
 Reset your password by clicking this link:
 ${data.resetLink}
@@ -355,9 +355,9 @@ Important:
 
 If the link doesn't work, copy and paste it into your browser.
 
-🎥 Keep watching amazing content on FilmFlex!
+🎥 Keep watching amazing content on PhimGG!
 
-© 2025 FilmFlex. All rights reserved.
+© 2025 PhimGG. All rights reserved.
 This email was sent automatically. Please do not reply.
 `;
   }
@@ -372,7 +372,7 @@ This email was sent automatically. Please do not reply.
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Welcome to FilmFlex</title>
+    <title>Welcome to PhimGG</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -444,15 +444,15 @@ This email was sent automatically. Please do not reply.
 <body>
     <div class="container">
         <div class="header">
-            <div class="logo">🎬 FilmFlex</div>
+            <div class="logo">🎬 PhimGG</div>
             <div class="film-strip"></div>
-            <h1 class="title">Welcome to FilmFlex!</h1>
+            <h1 class="title">Welcome to PhimGG!</h1>
             <p class="subtitle">Your gateway to premium entertainment</p>
         </div>
         
         <div class="content">
             <p>Hi <strong>${username}</strong>,</p>
-            <p>Welcome to the FilmFlex family! 🎉 Your account has been successfully created and you're ready to explore thousands of amazing movies and TV shows.</p>
+            <p>Welcome to the PhimGG family! 🎉 Your account has been successfully created and you're ready to explore thousands of amazing movies and TV shows.</p>
         </div>
         
         <div class="features">
@@ -471,7 +471,7 @@ This email was sent automatically. Please do not reply.
         <div class="footer">
             <div class="film-strip"></div>
             <p>🍿 Happy watching!</p>
-            <p>© 2025 FilmFlex. All rights reserved.</p>
+            <p>© 2025 PhimGG. All rights reserved.</p>
         </div>
     </div>
 </body>
@@ -483,11 +483,11 @@ This email was sent automatically. Please do not reply.
    */
   private generateWelcomeText(username: string): string {
     return `
-🎬 FilmFlex - Welcome!
+🎬 PhimGG - Welcome!
 
 Hi ${username},
 
-Welcome to the FilmFlex family! 🎉 Your account has been successfully created and you're ready to explore thousands of amazing movies and TV shows.
+Welcome to the PhimGG family! 🎉 Your account has been successfully created and you're ready to explore thousands of amazing movies and TV shows.
 
 What you can do now:
 🔍 Browse our extensive movie and TV show library
@@ -500,7 +500,7 @@ Start exploring now and discover your next favorite movie or series!
 
 🍿 Happy watching!
 
-© 2025 FilmFlex. All rights reserved.
+© 2025 PhimGG. All rights reserved.
 `;
   }
 
@@ -514,7 +514,7 @@ Start exploring now and discover your next favorite movie or series!
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Activate Your FilmFlex Account</title>
+    <title>Activate Your PhimGG Account</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -585,14 +585,14 @@ Start exploring now and discover your next favorite movie or series!
 <body>
     <div class="container">
         <div class="header">
-            <div class="logo">🎬 FilmFlex</div>
+            <div class="logo">🎬 PhimGG</div>
             <div class="film-strip"></div>
             <h1 class="title">Activate Your Account</h1>
         </div>
         
         <div class="content">
             <p>Hi <strong>${username}</strong>,</p>
-            <p>Thank you for signing up for FilmFlex! To complete your registration and start enjoying premium entertainment, please activate your account by clicking the button below:</p>
+            <p>Thank you for signing up for PhimGG! To complete your registration and start enjoying premium entertainment, please activate your account by clicking the button below:</p>
         </div>
         
         <div style="text-align: center;">
@@ -608,7 +608,7 @@ Start exploring now and discover your next favorite movie or series!
         
         <div class="footer">
             <div class="film-strip"></div>
-            <p>© 2025 FilmFlex. All rights reserved.</p>
+            <p>© 2025 PhimGG. All rights reserved.</p>
         </div>
     </div>
 </body>
@@ -620,15 +620,15 @@ Start exploring now and discover your next favorite movie or series!
    */
   private generateActivationText(username: string, activationLink: string): string {
     return `
-🎬 FilmFlex - Activate Your Account
+🎬 PhimGG - Activate Your Account
 
 Hi ${username},
 
-Thank you for signing up for FilmFlex! To complete your registration and start enjoying premium entertainment, please activate your account:
+Thank you for signing up for PhimGG! To complete your registration and start enjoying premium entertainment, please activate your account:
 
 ${activationLink}
 
-© 2025 FilmFlex. All rights reserved.
+© 2025 PhimGG. All rights reserved.
 `;
   }
 }

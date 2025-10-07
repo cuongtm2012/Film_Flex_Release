@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# Simple FilmFlex Data Transfer Script
+# Simple PhimGG Data Transfer Script
 # Transfers data from local database to Docker container using INSERT statements
 
 set -e
 
-echo "🚀 Starting FilmFlex Data Transfer..."
+echo "🚀 Starting PhimGG Data Transfer..."
 
 # Configuration
 DOCKER_CONTAINER="filmflex-postgres"
@@ -152,6 +152,6 @@ ORDER BY table_name;
 "
 
 echo ""
-log "🎉 FilmFlex data transfer completed!"
+log "🎉 PhimGG data transfer completed!"
 echo "Your Docker application now has all your local data."
 echo "Test your app at: http://localhost:5000"

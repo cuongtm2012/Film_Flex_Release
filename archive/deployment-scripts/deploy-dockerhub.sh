@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# FilmFlex Docker Hub Production Deployment Script
+# PhimGG Docker Hub Production Deployment Script
 # Server: 38.54.14.154
 
-echo "🚀 FilmFlex Docker Hub Deployment Script"
+echo "🚀 PhimGG Docker Hub Deployment Script"
 echo "=========================================="
 
 # Colors for output
@@ -37,7 +37,7 @@ echo -e "${BLUE}🐳 Pulling latest images from Docker Hub...${NC}"
 docker pull cuongtm2012/filmflex-app:latest
 docker pull cuongtm2012/filmflex-postgres:latest
 
-echo -e "${BLUE}🚀 Starting FilmFlex application...${NC}"
+echo -e "${BLUE}🚀 Starting PhimGG application...${NC}"
 docker-compose -f docker-compose.production.yml up -d
 
 echo -e "${BLUE}📊 Waiting for services to be healthy...${NC}"
@@ -48,7 +48,7 @@ docker-compose -f docker-compose.production.yml ps
 
 echo -e "${BLUE}🔧 Checking application health...${NC}"
 if curl -f http://localhost:5000/api/health &>/dev/null; then
-    echo -e "${GREEN}✅ FilmFlex application is running successfully!${NC}"
+    echo -e "${GREEN}✅ PhimGG application is running successfully!${NC}"
     echo -e "${GREEN}🌐 Access your app at: http://38.54.14.154:5000${NC}"
 else
     echo -e "${YELLOW}⚠️  Application may still be starting up...${NC}"

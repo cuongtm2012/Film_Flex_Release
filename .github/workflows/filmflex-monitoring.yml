@@ -1,4 +1,4 @@
-name: FilmFlex Monitoring
+name: PhimGG Monitoring
 
 on:
   # Run every 30 minutes
@@ -80,7 +80,7 @@ jobs:
             ps aux | grep node | grep -v grep
             echo
             
-            echo "===== FilmFlex Logs ====="
+            echo "===== PhimGG Logs ====="
             echo "PM2 Logs (recent errors):"
             pm2 logs --lines 20 | grep -i error
             echo
@@ -117,11 +117,11 @@ jobs:
             
             # Check if PM2 process is running
             if ! pm2 list | grep -q filmflex; then
-              echo "FilmFlex process not found in PM2, attempting to start..."
+              echo "PhimGG process not found in PM2, attempting to start..."
               cd /var/www/filmflex
               pm2 start filmflex-server.cjs --name filmflex
             else
-              echo "Restarting FilmFlex process..."
+              echo "Restarting PhimGG process..."
               pm2 restart filmflex
             fi
             

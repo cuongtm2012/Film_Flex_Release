@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Node.js Installation Script for FilmFlex
+# Node.js Installation Script for PhimGG
 # This script installs Node.js 18.x LTS on Ubuntu/Debian systems
 
 # Define colors for output
@@ -11,7 +11,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 echo -e "${BLUE}========================================${NC}"
-echo -e "${BLUE}   FilmFlex Node.js Installation${NC}"
+echo -e "${BLUE}   PhimGG Node.js Installation${NC}"
 echo -e "${BLUE}========================================${NC}"
 
 # Check if running as root
@@ -111,7 +111,7 @@ if command -v node &> /dev/null && command -v npm &> /dev/null; then
     echo -e "${GREEN}========================================${NC}"
     echo -e "${GREEN}   Node.js Installation Complete!${NC}"
     echo -e "${GREEN}========================================${NC}"
-    echo -e "${BLUE}You can now run the FilmFlex import scripts${NC}"
+    echo -e "${BLUE}You can now run the PhimGG import scripts${NC}"
     echo -e "${BLUE}Next steps:${NC}"
     echo -e "  1. cd ~/Film_Flex_Release/scripts/data"
     echo -e "  2. ./test-cron-manual.sh"

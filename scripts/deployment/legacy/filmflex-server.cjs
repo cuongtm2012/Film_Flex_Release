@@ -1,5 +1,5 @@
 /**
- * FilmFlex Production Server (CommonJS version)
+ * PhimGG Production Server (CommonJS version)
  */
 
 const express = require('express');
@@ -70,7 +70,7 @@ if (!fs.existsSync(staticPath)) {
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
-    message: 'FilmFlex API is running in production mode',
+    message: 'PhimGG API is running in production mode',
     time: new Date().toISOString(),
     node_version: process.version
   });
@@ -298,7 +298,7 @@ app.get('*', (req, res) => {
 
 // Start server
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`FilmFlex production server running on port ${PORT}`);
+  console.log(`PhimGG production server running on port ${PORT}`);
   console.log(`Server time: ${new Date().toISOString()}`);
   console.log(`Node version: ${process.version}`);
   console.log(`Working directory: ${process.cwd()}`);

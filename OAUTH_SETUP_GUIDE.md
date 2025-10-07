@@ -1,4 +1,4 @@
-# 🔐 OAuth Setup Guide for FilmFlex
+# 🔐 OAuth Setup Guide for PhimGG
 
 ## Current Issue: Error 401 - invalid_client
 
@@ -17,7 +17,7 @@ The **Error 401: invalid_client** you're seeing indicates that your Google/Faceb
 1. Go to **APIs & Services** → **Credentials**
 2. Click **+ CREATE CREDENTIALS** → **OAuth 2.0 Client IDs**
 3. Choose **Web application**
-4. Set **Name**: `FilmFlex OAuth`
+4. Set **Name**: `PhimGG OAuth`
 
 #### Step 3: Configure Redirect URIs
 Add these **Authorized redirect URIs**:

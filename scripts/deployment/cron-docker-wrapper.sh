@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# FilmFlex Optimized Cron Docker Wrapper
+# PhimGG Optimized Cron Docker Wrapper
 # Version: 2.0 - Uses shared common functions
 
 set -e

@@ -1,4 +1,4 @@
-name: FilmFlex Data Maintenance
+name: PhimGG Data Maintenance
 
 on:
   # Run every day at 2:00 AM UTC (adjust as needed)

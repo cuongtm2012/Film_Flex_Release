@@ -1,6 +1,6 @@
-# FilmFlex Data Scripts
+# PhimGG Data Scripts
 
-This directory contains scripts for managing and manipulating the FilmFlex database and data.
+This directory contains scripts for managing and manipulating the PhimGG database and data.
 
 ## Available Scripts
 
@@ -186,7 +186,7 @@ tail -f log/complete-node-import.log
 
 ## Automated Imports
 
-FilmFlex has a daily import scheduled via cron at 2:00 AM:
+PhimGG has a daily import scheduled via cron at 2:00 AM:
 
 ```
 # In /etc/cron.d/filmflex-data-import

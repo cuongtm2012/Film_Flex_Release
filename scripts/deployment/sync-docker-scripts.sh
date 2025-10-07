@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# FilmFlex Docker Scripts Sync Script
+# PhimGG Docker Scripts Sync Script
 # This script copies the latest import scripts to the running Docker container
 
 set -e
@@ -25,7 +25,7 @@ error() { echo -e "${RED}❌ $1${NC}"; }
 print_banner() {
     echo -e "${BLUE}"
     echo "======================================================"
-    echo "    FilmFlex Docker Scripts Sync"
+    echo "    PhimGG Docker Scripts Sync"
     echo "======================================================"
     echo -e "${NC}"
     echo "Project Root: $PROJECT_ROOT"

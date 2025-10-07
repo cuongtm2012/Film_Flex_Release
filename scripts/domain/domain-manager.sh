@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # =============================================================================
-# FilmFlex Complete Domain & SSL Management Script v6.0
+# PhimGG Complete Domain & SSL Management Script v6.0
 # =============================================================================
 # This unified script handles all domain and SSL tasks:
 # - DNS diagnostics and troubleshooting  
@@ -50,7 +50,7 @@ FORCE_RENEW=false
 print_banner() {
     echo -e "${CYAN}"
     echo "============================================================================="
-    echo "                   FilmFlex Domain & SSL Management Suite"
+    echo "                   PhimGG Domain & SSL Management Suite"
     echo "============================================================================="
     echo -e "${NC}"
 }
@@ -1228,7 +1228,7 @@ monitor_status() {
     
     while true; do
         clear
-        echo -e "${CYAN}FilmFlex Domain Monitor - $DOMAIN${NC}"
+        echo -e "${CYAN}PhimGG Domain Monitor - $DOMAIN${NC}"
         echo "Last check: $(date)"
         echo "----------------------------------------"
         

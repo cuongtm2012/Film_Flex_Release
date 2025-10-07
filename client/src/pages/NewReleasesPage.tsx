@@ -196,7 +196,7 @@ const NewReleasesPage = () => {
                   </div>
                   
                   <p className="text-muted-foreground leading-relaxed text-base lg:text-lg">
-                    {newReleases[0].description || "Experience the latest release on FilmFlex, now available for streaming in high quality."}
+                    {newReleases[0].description || "Experience the latest release on PhimGG, now available for streaming in high quality."}
                   </p>
                   
                   <div className="flex flex-wrap gap-2">

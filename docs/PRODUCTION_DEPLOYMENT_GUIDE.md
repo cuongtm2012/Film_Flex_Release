@@ -1,7 +1,7 @@
-# FilmFlex Production Deployment Guide 🚀
+# PhimGG Production Deployment Guide 🚀
 
 ## Overview
-This guide covers the complete production deployment process for FilmFlex (phimgg.com), including server deployment, Cloudflare Worker setup, database configuration, and email service integration.
+This guide covers the complete production deployment process for PhimGG (phimgg.com), including server deployment, Cloudflare Worker setup, database configuration, and email service integration.
 
 ## 🔧 **Phase 1: Pre-Deployment Preparation**
 
@@ -30,7 +30,7 @@ CLOUDFLARE_WORKER_URL=https://phimgg.com
 
 # Email Configuration
 FROM_EMAIL=noreply@phimgg.com
-FROM_NAME=FilmFlex
+FROM_NAME=PhimGG
 
 # Domain
 DOMAIN=phimgg.com
@@ -322,4 +322,4 @@ curl -X POST https://phimgg.com/api/email/send \
    - Application code backups
    - Configuration backups
 
-Your FilmFlex application is now ready for production deployment! 🎬✨
+Your PhimGG application is now ready for production deployment! 🎬✨

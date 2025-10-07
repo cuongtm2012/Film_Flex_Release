@@ -29,7 +29,7 @@ const PartnersPage = () => {
       id: 1,
       name: "Cinematic Studios",
       logo: "https://images.unsplash.com/photo-1651598835995-e053768e7c4a?auto=format&fit=crop&q=80&w=580&h=580",
-      description: "A leading film production company providing exclusive content to FilmFlex subscribers.",
+      description: "A leading film production company providing exclusive content to PhimGG subscribers.",
       type: "content"
     },
     {
@@ -57,21 +57,21 @@ const PartnersPage = () => {
       id: 5,
       name: "SmartTV Corp",
       logo: "https://images.unsplash.com/photo-1617791160536-598cf32026fb?auto=format&fit=crop&q=80&w=580&h=580",
-      description: "Leading smart TV manufacturer with FilmFlex pre-installed on all new devices.",
+      description: "Leading smart TV manufacturer with PhimGG pre-installed on all new devices.",
       type: "distribution"
     },
     {
       id: 6,
       name: "Telecom Partners",
       logo: "https://images.unsplash.com/photo-1563986768494-4dee2763ff3f?auto=format&fit=crop&q=80&w=580&h=580",
-      description: "Major telecommunications provider offering FilmFlex bundled with internet service packages.",
+      description: "Major telecommunications provider offering PhimGG bundled with internet service packages.",
       type: "distribution"
     },
     {
       id: 7,
       name: "Independent Film Collective",
       logo: "https://images.unsplash.com/photo-1626785774573-4b799315345d?auto=format&fit=crop&q=80&w=580&h=580",
-      description: "Collective of independent filmmakers creating exclusive original content for FilmFlex.",
+      description: "Collective of independent filmmakers creating exclusive original content for PhimGG.",
       type: "content"
     },
     {
@@ -85,7 +85,7 @@ const PartnersPage = () => {
       id: 9,
       name: "Mobile Carriers Alliance",
       logo: "https://images.unsplash.com/photo-1570717173024-ec8081c8f8e9?auto=format&fit=crop&q=80&w=580&h=580",
-      description: "Group of mobile carriers offering FilmFlex as part of premium data plans.",
+      description: "Group of mobile carriers offering PhimGG as part of premium data plans.",
       type: "distribution"
     }
   ];
@@ -100,7 +100,7 @@ const PartnersPage = () => {
         "Advanced analytics on content performance",
         "Co-production opportunities for original content",
         "Revenue sharing models",
-        "Marketing support across FilmFlex channels"
+        "Marketing support across PhimGG channels"
       ]
     },
     {
@@ -112,13 +112,13 @@ const PartnersPage = () => {
         "Exposure to a rapidly growing user base",
         "Collaborative innovation opportunities",
         "Joint marketing initiatives",
-        "Early access to new FilmFlex features"
+        "Early access to new PhimGG features"
       ]
     },
     {
       title: "Distribution Partners",
       icon: <Globe className="h-10 w-10 text-primary" />,
-      description: "Hardware manufacturers, telecom companies, and service providers who help deliver FilmFlex to consumers.",
+      description: "Hardware manufacturers, telecom companies, and service providers who help deliver PhimGG to consumers.",
       benefits: [
         "Value-added service for your customers",
         "Revenue sharing opportunities",
@@ -147,7 +147,7 @@ const PartnersPage = () => {
         <div className="absolute inset-0 flex items-center z-20 px-8 md:px-16">
           <div className="max-w-xl">
             <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
-              Partner With FilmFlex
+              Partner With PhimGG
             </h2>
             <p className="text-white/90 text-lg mb-6">
               Join our network of global partners and help shape the future of entertainment. We collaborate with content creators, technology innovators, and distribution channels.
@@ -327,13 +327,13 @@ const PartnersPage = () => {
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent flex items-end">
                 <div className="p-4">
                   <Badge className="mb-2">Content Partnership</Badge>
-                  <h3 className="text-xl font-semibold text-white">Global Media Group + FilmFlex</h3>
+                  <h3 className="text-xl font-semibold text-white">Global Media Group + PhimGG</h3>
                 </div>
               </div>
             </div>
             <div className="p-6">
               <p className="text-muted-foreground mb-4">
-                "Our partnership with FilmFlex has allowed us to reach audiences we never could before. Our content is now available in 35 countries, and we've seen a 200% increase in viewership for our catalog."
+                "Our partnership with PhimGG has allowed us to reach audiences we never could before. Our content is now available in 35 countries, and we've seen a 200% increase in viewership for our catalog."
               </p>
               <div className="flex items-center">
                 <div className="w-10 h-10 rounded-full bg-gray-600 mr-3"></div>
@@ -355,13 +355,13 @@ const PartnersPage = () => {
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent flex items-end">
                 <div className="p-4">
                   <Badge className="mb-2">Technology Partnership</Badge>
-                  <h3 className="text-xl font-semibold text-white">TechStream Solutions + FilmFlex</h3>
+                  <h3 className="text-xl font-semibold text-white">TechStream Solutions + PhimGG</h3>
                 </div>
               </div>
             </div>
             <div className="p-6">
               <p className="text-muted-foreground mb-4">
-                "Integrating our video encoding technology with FilmFlex has been a game-changer. We've been able to optimize streaming quality while reducing bandwidth by 40%, creating a win-win for both companies."
+                "Integrating our video encoding technology with PhimGG has been a game-changer. We've been able to optimize streaming quality while reducing bandwidth by 40%, creating a win-win for both companies."
               </p>
               <div className="flex items-center">
                 <div className="w-10 h-10 rounded-full bg-gray-600 mr-3"></div>
@@ -379,7 +379,7 @@ const PartnersPage = () => {
       <div className="bg-gradient-to-r from-primary/20 to-primary/5 rounded-lg p-8 mb-16" id="become-partner">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
           <div>
-            <h2 className="text-2xl font-bold mb-3">Become a FilmFlex Partner</h2>
+            <h2 className="text-2xl font-bold mb-3">Become a PhimGG Partner</h2>
             <p className="text-muted-foreground mb-6">
               We're always looking to expand our network of partners across content, technology, and distribution. Join us in shaping the future of streaming entertainment.
             </p>
@@ -389,7 +389,7 @@ const PartnersPage = () => {
                 <div>
                   <h4 className="font-medium">For Companies</h4>
                   <p className="text-sm text-muted-foreground">
-                    If you represent a company interested in partnering with FilmFlex, our business development team would love to hear from you.
+                    If you represent a company interested in partnering with PhimGG, our business development team would love to hear from you.
                   </p>
                 </div>
               </div>
@@ -491,7 +491,7 @@ const PartnersPage = () => {
           </div>
           
           <div className="bg-black/20 p-6 rounded-lg">
-            <h3 className="font-semibold text-lg mb-3">What support does FilmFlex provide to partners?</h3>
+            <h3 className="font-semibold text-lg mb-3">What support does PhimGG provide to partners?</h3>
             <p className="text-muted-foreground">
               We provide technical integration support, marketing opportunities, analytics dashboards, and a dedicated partner manager to ensure success.
             </p>
@@ -503,7 +503,7 @@ const PartnersPage = () => {
       <div className="text-center">
         <h2 className="text-2xl font-bold mb-4">Ready to Partner With Us?</h2>
         <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto">
-          Take the first step toward a mutually beneficial partnership that can help grow your business and enhance the FilmFlex experience.
+          Take the first step toward a mutually beneficial partnership that can help grow your business and enhance the PhimGG experience.
         </p>
         <Button asChild size="lg">
           <a href="/contact">Get Started</a>

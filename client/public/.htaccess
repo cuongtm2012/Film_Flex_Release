@@ -1,4 +1,4 @@
-# FilmFlex MIME type configuration
+# PhimGG MIME type configuration
 # Ensure proper MIME types for streaming media files
 
 <IfModule mod_mime.c>

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Simple FilmFlex SSL Setup Script
+# Simple PhimGG SSL Setup Script
 # Step-by-step approach to avoid hanging issues
 
 set -e

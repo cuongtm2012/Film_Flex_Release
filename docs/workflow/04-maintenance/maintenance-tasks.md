@@ -4,7 +4,7 @@
 
 ## 🔄 **Automated Maintenance (Already Running)**
 
-Your FilmFlex server runs these tasks automatically:
+Your PhimGG server runs these tasks automatically:
 
 ### **Daily Tasks (2:00 AM)**
 - 🎬 Import ~150 latest movies

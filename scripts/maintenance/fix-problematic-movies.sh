@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# FilmFlex - Fix Problematic Movies Script
+# PhimGG - Fix Problematic Movies Script
 # This script reimports and tests specific movies that have loading issues
 
-echo "=== FilmFlex Movie Repair Tool ==="
+echo "=== PhimGG Movie Repair Tool ==="
 
 # List of known problematic movies to fix
 MOVIE_SLUGS=(

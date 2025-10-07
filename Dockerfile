@@ -1,4 +1,4 @@
-# FilmFlex Dockerfile with React Frontend Build - Fixed for package-lock.json sync issues
+# PhimGG Dockerfile with React Frontend Build - Fixed for package-lock.json sync issues
 FROM node:20-alpine AS builder
 
 WORKDIR /app

@@ -51,8 +51,8 @@ export default function ForgotPasswordPage() {
   return (
     <>
       <Helmet>
-        <title>Forgot Password - FilmFlex</title>
-        <meta name="description" content="Reset your password for FilmFlex account - Your gateway to premium entertainment" />
+        <title>Forgot Password - PhimGG</title>
+        <meta name="description" content="Reset your password for PhimGG account - Your gateway to premium entertainment" />
       </Helmet>
       
       {/* Cinematic Background with Film Texture */}

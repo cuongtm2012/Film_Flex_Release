@@ -83,7 +83,7 @@ export default function AdminSidebar({ activeTab, onTabChange }: SidebarProps) {
           text-xl 
           ${isCollapsed ? 'hidden' : 'block'}
         `}>
-          FilmFlex
+          PhimGG
         </span>
         {isCollapsed && (
           <span className="font-bold text-xl">FF</span>

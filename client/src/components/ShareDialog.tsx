@@ -54,25 +54,25 @@ export default function ShareDialog({ isOpen, onClose, title, url }: ShareDialog
       name: "Facebook",
       icon: Facebook,
       color: "bg-blue-600 hover:bg-blue-700",
-      url: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}&quote=${encodeURIComponent(`Check out "${title}" on FilmFlex!`)}`
+      url: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}&quote=${encodeURIComponent(`Check out "${title}" on PhimGG!`)}`
     },
     {
       name: "Reddit",
       icon: MessageCircle,
       color: "bg-orange-600 hover:bg-orange-700",
-      url: `https://www.reddit.com/submit?url=${encodeURIComponent(url)}&title=${encodeURIComponent(`Check out "${title}" on FilmFlex!`)}`
+      url: `https://www.reddit.com/submit?url=${encodeURIComponent(url)}&title=${encodeURIComponent(`Check out "${title}" on PhimGG!`)}`
     },
     {
       name: "Telegram",
       icon: Send,
       color: "bg-blue-500 hover:bg-blue-600",
-      url: `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(`Check out "${title}" on FilmFlex!`)}`
+      url: `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(`Check out "${title}" on PhimGG!`)}`
     },
     {
       name: "X",
       icon: MessageCircle,
       color: "bg-black hover:bg-gray-800",
-      url: `https://x.com/intent/tweet?text=${encodeURIComponent(`Check out "${title}" on FilmFlex!`)}&url=${encodeURIComponent(url)}`
+      url: `https://x.com/intent/tweet?text=${encodeURIComponent(`Check out "${title}" on PhimGG!`)}&url=${encodeURIComponent(url)}`
     }
   ];
 
@@ -143,8 +143,8 @@ export default function ShareDialog({ isOpen, onClose, title, url }: ShareDialog
               <Button
                 onClick={() => {
                   navigator.share({
-                    title: `${title} - FilmFlex`,
-                    text: `Check out "${title}" on FilmFlex!`,
+                    title: `${title} - PhimGG`,
+                    text: `Check out "${title}" on PhimGG!`,
                     url: url,
                   }).catch(console.error);
                 }}

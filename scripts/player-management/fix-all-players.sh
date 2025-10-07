@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# FilmFlex - Complete Movie Player Fix Script
+# PhimGG - Complete Movie Player Fix Script
 # This script sets up direct players and fixes all problematic movies
 
-echo "=== FilmFlex Complete Player Fix ==="
+echo "=== PhimGG Complete Player Fix ==="
 echo "This script will fix all slow-loading movies by implementing direct players."
 
 # 1. Set up the direct player system
@@ -29,7 +29,7 @@ cat > $REPORT_FILE << EOF
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>FilmFlex Player Test Report</title>
+  <title>PhimGG Player Test Report</title>
   <style>
     body {
       font-family: system-ui, -apple-system, sans-serif;
@@ -86,8 +86,8 @@ cat > $REPORT_FILE << EOF
 </head>
 <body>
   <div class="container">
-    <h1>FilmFlex Player Test Report</h1>
-    <p>This report provides solutions for slow-loading videos in FilmFlex.</p>
+    <h1>PhimGG Player Test Report</h1>
+    <p>This report provides solutions for slow-loading videos in PhimGG.</p>
 
     <div class="problem-movies">
       <h2>Known Problematic Movies</h2>

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * FilmFlex Movie Data Import Script (SQL Version)
+ * PhimGG Movie Data Import Script (SQL Version)
  * 
  * This script fetches the latest movie data from the API and imports it into the database
  * using direct SQL queries instead of relying on the schema.

@@ -64,7 +64,7 @@ const TopRatedPage = () => {
           Top Rated
         </h1>
         <p className="text-muted-foreground text-lg">
-          The highest rated movies and TV shows on FilmFlex
+          The highest rated movies and TV shows on PhimGG
         </p>
       </div>
 
@@ -72,7 +72,7 @@ const TopRatedPage = () => {
       <div className="mb-16">
         <h2 className="text-2xl font-semibold mb-8 flex items-center">
           <Award className="mr-2 h-6 w-6 text-yellow-500" />
-          FilmFlex Award Winners
+          PhimGG Award Winners
         </h2>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">

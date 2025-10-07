@@ -1,4 +1,4 @@
-# FilmFlex Domain Setup Scripts
+# PhimGG Domain Setup Scripts
 
 This folder contains comprehensive scripts for managing the `phimgg.com` domain setup, SSL configuration, and ongoing maintenance.
 
@@ -213,4 +213,4 @@ All scripts are designed for:
 
 ---
 
-**🌐 Your FilmFlex site is available at: https://phimgg.com**
+**🌐 Your PhimGG site is available at: https://phimgg.com**

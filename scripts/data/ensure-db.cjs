@@ -1,5 +1,5 @@
 /**
- * FilmFlex Database Existence Check
+ * PhimGG Database Existence Check
  * This script ensures the database exists before running reset operations
  */
 

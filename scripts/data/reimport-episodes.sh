@@ -30,7 +30,7 @@ if [ -z "$MOVIE_SLUG" ]; then
 fi
 
 echo -e "${BLUE}======================================================"
-echo "  FilmFlex Episode Reimport Tool"
+echo "  PhimGG Episode Reimport Tool"
 echo "======================================================${NC}"
 echo -e "${GREEN}Reimporting episodes for movie: ${MOVIE_SLUG}${NC}"
 

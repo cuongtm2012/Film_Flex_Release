@@ -1,4 +1,4 @@
-# FilmFlex Complete Cron Job Setup Script - DOCKER VERSION
+# PhimGG Complete Cron Job Setup Script - DOCKER VERSION
 # This script handles everything needed for automated movie data import INTO DOCKER CONTAINERS
 
 # Define colors for output
@@ -69,7 +69,7 @@ echo -e "${BLUE}Docker Compose File: $DOCKER_COMPOSE_FILE${NC}"
 # Print banner
 echo -e "${BLUE}"
 echo "========================================"
-echo "  FilmFlex Docker Import Setup"
+echo "  PhimGG Docker Import Setup"
 echo "========================================"
 echo -e "${NC}"
 
@@ -80,7 +80,7 @@ if [ "$DIAGNOSTIC_MODE" = true ]; then
     echo -e "${BLUE}Checking Docker containers...${NC}"
     if command -v docker &> /dev/null; then
         echo "Docker containers status:"
-        docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep -E "(filmflex|postgres)" || echo "No FilmFlex containers found"
+        docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep -E "(filmflex|postgres)" || echo "No PhimGG containers found"
         
         # Test Docker database connection
         echo -e "\n${BLUE}Testing Docker PostgreSQL connection...${NC}"
@@ -174,7 +174,7 @@ mkdir -p "$APP_DIR/scripts/deployment"
 cat > "$CRON_WRAPPER" << 'DOCKER_WRAPPER_EOF'
 #!/bin/bash
 
-# FilmFlex Docker Cron Job Wrapper Script
+# PhimGG Docker Cron Job Wrapper Script
 # This script runs import jobs inside Docker containers
 
 # Define colors for output
@@ -206,7 +206,7 @@ fi
 LOG_DIR="/var/log/filmflex"
 mkdir -p "$LOG_DIR"
 
-echo "[$DATE] Starting FilmFlex Docker cron wrapper..." >&2
+echo "[$DATE] Starting PhimGG Docker cron wrapper..." >&2
 echo "[$DATE] APP_DIR: $APP_DIR" >&2
 echo "[$DATE] COMPOSE_FILE: $COMPOSE_FILE" >&2
 
@@ -241,7 +241,7 @@ echo -e "${GREEN}Docker cron wrapper created successfully${NC}"
 # Create Docker-specific cron job file
 echo -e "${BLUE}Creating Docker cron job entries...${NC}"
 cat > $CRON_FILE << EOF
-# FilmFlex Docker Data Import Cron Jobs
+# PhimGG Docker Data Import Cron Jobs
 # These jobs run inside Docker containers
 PATH=/usr/local/bin:/usr/bin:/bin:/sbin:/usr/sbin
 SHELL=/bin/bash

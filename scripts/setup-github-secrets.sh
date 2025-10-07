@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# FilmFlex GitHub Secrets Setup Script
+# PhimGG GitHub Secrets Setup Script
 # This script will help you set up the required GitHub secrets for deployment
 # using the GitHub CLI. Make sure you have it installed and authenticated.
 
@@ -80,5 +80,5 @@ set_secret "DATABASE_URL" "Enter your PostgreSQL connection string:" "postgresql
 # Telegram notification support has been removed
 
 echo -e "${GREEN}All secrets have been configured successfully!${NC}"
-echo -e "${BLUE}You can now use the GitHub Actions workflows to deploy FilmFlex.${NC}"
+echo -e "${BLUE}You can now use the GitHub Actions workflows to deploy PhimGG.${NC}"
 echo -e "For more information, see the docs/GITHUB_DEPLOYMENT.md file."

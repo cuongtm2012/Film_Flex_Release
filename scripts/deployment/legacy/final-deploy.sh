@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# FilmFlex Enhanced Final Deployment Script v5.1 - phimgg.com Production
+# PhimGG Enhanced Final Deployment Script v5.1 - phimgg.com Production
 # =====================================================================
 # This script handles complete deployment including:
 # - DNS verification and instructions
@@ -512,7 +512,7 @@ perform_comprehensive_verification() {
 }
 
 # Start deployment
-log "${BLUE}===== FilmFlex Final Deployment Started at $(date) =====${NC}"
+log "${BLUE}===== PhimGG Final Deployment Started at $(date) =====${NC}"
 log "Production Environment: phimgg.com (${PRODUCTION_IP})"
 log "Source directory: $SOURCE_DIR"
 log "Deploy directory: $DEPLOY_DIR"
@@ -1325,7 +1325,7 @@ if [ "$INITIAL_VERIFICATION_RESULT" -ne 0 ]; then
         log "Creating DNS monitoring script..."
         cat > "/usr/local/bin/filmflex-dns-monitor.sh" << 'EODNS'
 #!/bin/bash
-# FilmFlex DNS Monitoring and SSL Auto-Installation Script
+# PhimGG DNS Monitoring and SSL Auto-Installation Script
 
 DOMAIN="phimgg.com"
 EXPECTED_IP="38.54.14.154"
@@ -1358,7 +1358,7 @@ install_ssl_auto() {
         crontab -l | grep -v "filmflex-dns-monitor.sh" | crontab -
         
         # Send notification to system log
-        logger "FilmFlex: SSL certificate successfully installed for $DOMAIN"
+        logger "PhimGG: SSL certificate successfully installed for $DOMAIN"
         
         return 0
     else
@@ -1434,7 +1434,7 @@ fi
 log ""
 log "${BLUE}===== BEGINNING APPLICATION DEPLOYMENT =====${NC}"
 # 1. Stop any existing processes
-log "${BLUE}1. Stopping any existing FilmFlex processes...${NC}"
+log "${BLUE}1. Stopping any existing PhimGG processes...${NC}"
 pm2 stop filmflex 2>/dev/null || true
 pm2 delete filmflex 2>/dev/null || true
 
@@ -1456,7 +1456,7 @@ else
 {
   "name": "filmflex",
   "version": "1.0.0",
-  "description": "FilmFlex Production Server",
+  "description": "PhimGG Production Server",
   "main": "dist/index.js",
   "scripts": {
     "start": "node dist/index.js",
@@ -1768,7 +1768,7 @@ app.get('*', (req, res) => {
 
 // Start server
 app.listen(port, '0.0.0.0', () => {
-  console.log(`🚀 FilmFlex Server running on port ${port}`);
+  console.log(`🚀 PhimGG Server running on port ${port}`);
   console.log(`📊 Database URL: ${process.env.DATABASE_URL || 'using default connection'}`);
   console.log(`🌐 Domain: ${process.env.DOMAIN || 'localhost'}`);
   console.log(`🔒 CORS: ${process.env.ALLOWED_ORIGINS || 'default settings'}`);
@@ -2291,7 +2291,7 @@ fi
 log "Creating enhanced restart script for production..."
 cat > "$DEPLOY_DIR/restart.sh" << 'EORESTART'
 #!/bin/bash
-# FilmFlex Production Restart Script for phimgg.com
+# PhimGG Production Restart Script for phimgg.com
 export NODE_ENV="production"
 export PORT="5000"
 export ALLOWED_ORIGINS="*"
@@ -2303,15 +2303,15 @@ export SERVER_IP="38.54.14.154"
 
 cd "$(dirname "$0")"
 
-echo "🚀 Restarting FilmFlex for phimgg.com production..."
+echo "🚀 Restarting PhimGG for phimgg.com production..."
 echo "📍 Production IP: 38.54.14.154"
 echo "🌐 Domain: phimgg.com"
 
 if pm2 list | grep -q "filmflex"; then
-  echo "🔄 Restarting FilmFlex with PM2..."
+  echo "🔄 Restarting PhimGG with PM2..."
   pm2 restart filmflex
 else
-  echo "▶️  Starting FilmFlex with PM2..."
+  echo "▶️  Starting PhimGG with PM2..."
   pm2 start pm2.config.cjs || pm2 start dist/index.js --name filmflex
 fi
 
@@ -2333,7 +2333,7 @@ EORESTART
 chmod +x "$DEPLOY_DIR/restart.sh"
 
 # End deployment
-log "${GREEN}===== FilmFlex Final Deployment Completed at $(date) =====${NC}"
+log "${GREEN}===== PhimGG Final Deployment Completed at $(date) =====${NC}"
 
 # Final comprehensive verification
 log ""
@@ -2395,7 +2395,7 @@ log ""
 log "📊 Server Resource Usage:"
 if command -v ps >/dev/null 2>&1; then
     FILMFLEX_PROCESSES=$(ps aux | grep filmflex | grep -v grep | wc -l)
-    log "   FilmFlex processes: $FILMFLEX_PROCESSES"
+    log "   PhimGG processes: $FILMFLEX_PROCESSES"
     if [ "$FILMFLEX_PROCESSES" -gt 0 ]; then
         ps aux | grep filmflex | grep -v grep | head -3
     fi

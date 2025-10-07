@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Fix deployment issues and redeploy FilmFlex
+# Fix deployment issues and redeploy PhimGG
 echo "🔧 Fixing deployment issues..."
 
 # Colors for output

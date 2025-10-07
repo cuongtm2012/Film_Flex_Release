@@ -1,6 +1,6 @@
-# FilmFlex GitHub Actions Deployment
+# PhimGG GitHub Actions Deployment
 
-This document explains how to set up and use the GitHub Actions workflows for deploying FilmFlex.
+This document explains how to set up and use the GitHub Actions workflows for deploying PhimGG.
 
 ## Setup Instructions
 
@@ -56,7 +56,7 @@ The workflow supports three deployment modes that can be selected when manually 
 To manually trigger a deployment:
 
 1. Go to the "Actions" tab in your GitHub repository
-2. Select "FilmFlex Full Deployment" from the workflows list
+2. Select "PhimGG Full Deployment" from the workflows list
 3. Click "Run workflow"
 4. Choose the desired deployment mode
 5. Click "Run workflow" to start the deployment process

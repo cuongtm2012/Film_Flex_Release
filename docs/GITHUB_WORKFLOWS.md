@@ -1,12 +1,12 @@
-# FilmFlex GitHub Workflows
+# PhimGG GitHub Workflows
 
-This document provides an overview of all the GitHub Actions workflows available for the FilmFlex application.
+This document provides an overview of all the GitHub Actions workflows available for the PhimGG application.
 
 ## Available Workflows
 
 ### 1. `filmflex-deploy.yml`
 
-**Purpose:** Main deployment workflow for FilmFlex
+**Purpose:** Main deployment workflow for PhimGG
 
 **Triggers:**
 - Push to `main` branch (except for `.md` and `.gitignore` files)
@@ -127,4 +127,4 @@ If a workflow fails, check:
 
 For more detailed information, refer to:
 - [GitHub Actions Documentation](https://docs.github.com/en/actions)
-- [FilmFlex Deployment Guide](./GITHUB_DEPLOYMENT.md)
+- [PhimGG Deployment Guide](./GITHUB_DEPLOYMENT.md)

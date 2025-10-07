@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# FilmFlex Fresh Instance Deployment Manager
+# PhimGG Fresh Instance Deployment Manager
 # Version: 2.0 - Fresh Instance Setup + Deployment
 # Updated for new VPS: 38.54.14.154
 # Date: July 5, 2025
@@ -53,7 +53,7 @@ command_exists() {
 
 # Initial server setup for fresh Ubuntu 22.04 instance
 setup_server() {
-    log "🚀 Setting up fresh Ubuntu 22.04 server for FilmFlex"
+    log "🚀 Setting up fresh Ubuntu 22.04 server for PhimGG"
     log "======================================================"
     
     info "📋 Server Information:"
@@ -103,12 +103,12 @@ setup_server() {
         systemctl enable postgresql
         success "PostgreSQL installed and started"
         
-        # Configure PostgreSQL for FilmFlex
-        log "🔧 Configuring PostgreSQL for FilmFlex..."
+        # Configure PostgreSQL for PhimGG
+        log "🔧 Configuring PostgreSQL for PhimGG..."
         sudo -u postgres psql -c "CREATE USER filmflex WITH PASSWORD 'filmflex2024';" 2>/dev/null || true
         sudo -u postgres psql -c "CREATE DATABASE filmflex OWNER filmflex;" 2>/dev/null || true
         sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE filmflex TO filmflex;" 2>/dev/null || true
-        success "PostgreSQL configured for FilmFlex"
+        success "PostgreSQL configured for PhimGG"
     else
         success "PostgreSQL already installed"
     fi
@@ -139,8 +139,8 @@ setup_server() {
     chown -R www-data:www-data "$DEPLOY_DIR" 2>/dev/null || true
     success "Application directories created"
     
-    # Create nginx configuration for FilmFlex
-    log "⚙️ Configuring Nginx for FilmFlex..."
+    # Create nginx configuration for PhimGG
+    log "⚙️ Configuring Nginx for PhimGG..."
     cat > /etc/nginx/sites-available/filmflex << 'EOF'
 server {
     listen 80;
@@ -188,7 +188,7 @@ EOF
     ln -sf /etc/nginx/sites-available/filmflex /etc/nginx/sites-enabled/ 2>/dev/null || true
     rm -f /etc/nginx/sites-enabled/default 2>/dev/null || true
     nginx -t >/dev/null 2>&1 && systemctl reload nginx
-    success "Nginx configured for FilmFlex"
+    success "Nginx configured for PhimGG"
     
     success "🎉 Server setup completed successfully!"
     log ""
@@ -274,7 +274,7 @@ preflight_checks() {
 deploy_application() {
     local deploy_type="${1:-quick}"
     
-    log "🚀 Starting FilmFlex deployment ($deploy_type)"
+    log "🚀 Starting PhimGG deployment ($deploy_type)"
     log "============================================="
     
     # Run pre-flight checks
@@ -390,7 +390,7 @@ EOF
 const { spawn } = require('child_process');
 const path = require('path');
 
-console.log('🚀 Starting FilmFlex Production Server...');
+console.log('🚀 Starting PhimGG Production Server...');
 
 // Set production environment
 process.env.NODE_ENV = 'production';
@@ -483,9 +483,9 @@ EOF
     # Verify deployment
     log "✅ Verifying deployment..."
     if pm2 list | grep filmflex | grep -q online; then
-        success "PM2: FilmFlex is online"
+        success "PM2: PhimGG is online"
     else
-        error "PM2: FilmFlex failed to start"
+        error "PM2: PhimGG failed to start"
         pm2 logs filmflex --lines 10
         return 1
     fi
@@ -505,7 +505,7 @@ EOF
         warning "HTTP: Application not responding yet"
     fi
     
-    success "🎉 FilmFlex deployment completed!"
+    success "🎉 PhimGG deployment completed!"
     log ""
     log "📋 Deployment Summary:"
     log "  🌐 URL: http://$SERVER_IP"
@@ -513,20 +513,20 @@ EOF
     log "  📊 PM2: pm2 logs filmflex"
     log "  🔧 Logs: $LOG_FILE"
     log ""
-    log "🚀 FilmFlex is now running on http://$SERVER_IP"
+    log "🚀 PhimGG is now running on http://$SERVER_IP"
 }
 
 # Application status check
 check_status() {
-    log "🔍 FilmFlex Application Status Check"
+    log "🔍 PhimGG Application Status Check"
     log "===================================="
     
     # PM2 Status
     info "📊 PM2 Process Status:"
     if pm2 list 2>/dev/null | grep filmflex | grep -q online; then
-        success "FilmFlex is running in PM2"
+        success "PhimGG is running in PM2"
     else
-        warning "FilmFlex process not found or not online"
+        warning "PhimGG process not found or not online"
         pm2 list 2>/dev/null || echo "PM2 not available"
     fi
     
@@ -578,7 +578,7 @@ check_status() {
 # Show application logs
 show_logs() {
     local lines="${1:-20}"
-    log "📄 FilmFlex Application Logs (last $lines lines)"
+    log "📄 PhimGG Application Logs (last $lines lines)"
     log "============================================="
     
     if command_exists pm2; then
@@ -590,7 +590,7 @@ show_logs() {
 
 # Restart application
 restart_application() {
-    log "🔄 Restarting FilmFlex Application"
+    log "🔄 Restarting PhimGG Application"
     log "================================="
     
     pm2 restart filmflex >/dev/null 2>&1 || {
@@ -610,7 +610,7 @@ restart_application() {
 fix_issues() {
     local fix_type="${1:-all}"
     
-    log "🔧 Fixing FilmFlex Issues ($fix_type)"
+    log "🔧 Fixing PhimGG Issues ($fix_type)"
     log "===================================="
     
     case "$fix_type" in
@@ -652,7 +652,7 @@ fix_issues() {
 
 # Help function
 show_help() {
-    echo "FilmFlex Fresh Instance Deployment Manager"
+    echo "PhimGG Fresh Instance Deployment Manager"
     echo "=========================================="
     echo "Version: 2.0 - For Ubuntu 22.04 Fresh Instance"
     echo "Server: $SERVER_IP"
@@ -677,7 +677,7 @@ show_help() {
     echo ""
     echo "Fresh Instance Workflow:"
     echo "  1. $0 setup                # Setup Node.js, PM2, PostgreSQL, Nginx"
-    echo "  2. $0 deploy full          # Deploy FilmFlex application"
+    echo "  2. $0 deploy full          # Deploy PhimGG application"
     echo "  3. $0 status               # Verify deployment"
     echo ""
 }

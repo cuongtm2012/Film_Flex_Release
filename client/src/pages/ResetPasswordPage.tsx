@@ -117,8 +117,8 @@ export default function ResetPasswordPage() {
   return (
     <>
       <Helmet>
-        <title>Reset Password - FilmFlex</title>
-        <meta name="description" content="Create a new password for your FilmFlex account - Your gateway to premium entertainment" />
+        <title>Reset Password - PhimGG</title>
+        <meta name="description" content="Create a new password for your PhimGG account - Your gateway to premium entertainment" />
       </Helmet>
       
       {/* Cinematic Background with Film Texture */}

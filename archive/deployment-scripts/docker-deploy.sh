@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# FilmFlex Docker Build and Deploy Script
+# PhimGG Docker Build and Deploy Script
 set -e
 
 # Colors for output
@@ -16,7 +16,7 @@ TAG=${1:-latest}
 REGISTRY=${DOCKER_REGISTRY:-""}  # Set this to your registry URL
 COMPOSE_FILE="docker-compose.yml"
 
-echo -e "${BLUE}🐳 FilmFlex Docker Build and Deploy Script${NC}"
+echo -e "${BLUE}🐳 PhimGG Docker Build and Deploy Script${NC}"
 echo "=================================="
 
 # Function to print colored output

@@ -1,6 +1,6 @@
-# FilmFlex Maintenance Guide
+# PhimGG Maintenance Guide
 
-This document provides instructions for performing maintenance tasks for the FilmFlex application.
+This document provides instructions for performing maintenance tasks for the PhimGG application.
 
 ## Table of Contents
 
@@ -31,7 +31,7 @@ This will:
 
 ### Managing User Roles
 
-FilmFlex supports multiple user roles:
+PhimGG supports multiple user roles:
 - `admin`: Full system access
 - `moderator`: Content management but no system settings
 - `premium`: Premium user features

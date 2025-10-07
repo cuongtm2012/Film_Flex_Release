@@ -37,60 +37,60 @@ const PressPage = () => {
   const pressReleases: PressRelease[] = [
     {
       id: 1,
-      title: "FilmFlex Announces International Expansion to 10 New Countries",
+      title: "PhimGG Announces International Expansion to 10 New Countries",
       date: "April 15, 2025",
-      summary: "FilmFlex is expanding its streaming service to 10 new countries across Europe and Asia, bringing its unique content library and personalized viewing experience to millions of new viewers worldwide.",
+      summary: "PhimGG is expanding its streaming service to 10 new countries across Europe and Asia, bringing its unique content library and personalized viewing experience to millions of new viewers worldwide.",
       category: "Company",
       featured: true
     },
     {
       id: 2,
-      title: "FilmFlex Introduces Enhanced 4K Streaming with Dolby Atmos Support",
+      title: "PhimGG Introduces Enhanced 4K Streaming with Dolby Atmos Support",
       date: "March 22, 2025",
-      summary: "Today FilmFlex rolled out enhanced 4K streaming capabilities with Dolby Atmos support, offering viewers unparalleled visual and audio quality for select content across compatible devices.",
+      summary: "Today PhimGG rolled out enhanced 4K streaming capabilities with Dolby Atmos support, offering viewers unparalleled visual and audio quality for select content across compatible devices.",
       category: "Product",
       featured: true
     },
     {
       id: 3,
-      title: "FilmFlex Secures Exclusive Streaming Rights to Award-Winning Film Festival Selections",
+      title: "PhimGG Secures Exclusive Streaming Rights to Award-Winning Film Festival Selections",
       date: "February 10, 2025",
-      summary: "FilmFlex has acquired exclusive streaming rights to this year's top film festival selections, including winners from Sundance, Berlin, and SXSW, reinforcing its commitment to bringing diverse, critically-acclaimed content to subscribers.",
+      summary: "PhimGG has acquired exclusive streaming rights to this year's top film festival selections, including winners from Sundance, Berlin, and SXSW, reinforcing its commitment to bringing diverse, critically-acclaimed content to subscribers.",
       category: "Content"
     },
     {
       id: 4,
-      title: "FilmFlex Named 'Streaming Service of the Year' at Digital Entertainment Awards",
+      title: "PhimGG Named 'Streaming Service of the Year' at Digital Entertainment Awards",
       date: "January 28, 2025",
-      summary: "FilmFlex has been recognized as 'Streaming Service of the Year' at the 2025 Digital Entertainment Awards, praised for its innovative features, content curation, and user experience design.",
+      summary: "PhimGG has been recognized as 'Streaming Service of the Year' at the 2025 Digital Entertainment Awards, praised for its innovative features, content curation, and user experience design.",
       category: "Awards"
     },
     {
       id: 5,
-      title: "FilmFlex Partners with Leading Studios for Original Content Development",
+      title: "PhimGG Partners with Leading Studios for Original Content Development",
       date: "December 12, 2024",
-      summary: "FilmFlex announces strategic partnerships with five major studios to develop exclusive original content, with plans to release over 20 new original series and films in the coming year.",
+      summary: "PhimGG announces strategic partnerships with five major studios to develop exclusive original content, with plans to release over 20 new original series and films in the coming year.",
       category: "Content"
     },
     {
       id: 6,
-      title: "FilmFlex Launches New Mobile App with Enhanced Offline Viewing Experience",
+      title: "PhimGG Launches New Mobile App with Enhanced Offline Viewing Experience",
       date: "November 5, 2024",
-      summary: "FilmFlex has released a completely redesigned mobile application featuring enhanced offline viewing capabilities, improved navigation, and personalized content recommendations powered by AI.",
+      summary: "PhimGG has released a completely redesigned mobile application featuring enhanced offline viewing capabilities, improved navigation, and personalized content recommendations powered by AI.",
       category: "Product"
     },
     {
       id: 7,
-      title: "FilmFlex Reports 40% Growth in Subscriber Base for Q3 2024",
+      title: "PhimGG Reports 40% Growth in Subscriber Base for Q3 2024",
       date: "October 20, 2024",
-      summary: "FilmFlex today announced a 40% year-over-year increase in its global subscriber base for Q3 2024, driven by content acquisitions, product innovations, and expanded market reach.",
+      summary: "PhimGG today announced a 40% year-over-year increase in its global subscriber base for Q3 2024, driven by content acquisitions, product innovations, and expanded market reach.",
       category: "Company"
     },
     {
       id: 8,
-      title: "FilmFlex's Interactive Movie Experience 'Choose Your Adventure' Wins Innovation Prize",
+      title: "PhimGG's Interactive Movie Experience 'Choose Your Adventure' Wins Innovation Prize",
       date: "September 15, 2024",
-      summary: "FilmFlex's groundbreaking interactive movie experience 'Choose Your Adventure' has won the prestigious Innovation in Entertainment Technology Award for its revolutionary approach to viewer engagement.",
+      summary: "PhimGG's groundbreaking interactive movie experience 'Choose Your Adventure' has won the prestigious Innovation in Entertainment Technology Award for its revolutionary approach to viewer engagement.",
       category: "Awards"
     }
   ];
@@ -99,7 +99,7 @@ const PressPage = () => {
     {
       id: 1,
       outlet: "TechCrunch",
-      title: "How FilmFlex is Redefining the Streaming Experience with AI-Powered Recommendations",
+      title: "How PhimGG is Redefining the Streaming Experience with AI-Powered Recommendations",
       date: "April 5, 2025",
       url: "#",
       logo: "https://techcrunch.com/wp-content/uploads/2015/02/cropped-cropped-favicon-gradient.png?w=32"
@@ -107,7 +107,7 @@ const PressPage = () => {
     {
       id: 2,
       outlet: "Variety",
-      title: "FilmFlex's International Expansion Strategy Pays Off with Record Growth",
+      title: "PhimGG's International Expansion Strategy Pays Off with Record Growth",
       date: "March 30, 2025",
       url: "#",
       logo: "https://variety.com/wp-content/uploads/2023/09/favicon.png?w=32"
@@ -115,7 +115,7 @@ const PressPage = () => {
     {
       id: 3,
       outlet: "The Hollywood Reporter",
-      title: "FilmFlex Emerges as Major Player in Streaming Wars with Studio Partnerships",
+      title: "PhimGG Emerges as Major Player in Streaming Wars with Studio Partnerships",
       date: "March 15, 2025",
       url: "#",
       logo: "https://www.hollywoodreporter.com/wp-content/uploads/2022/10/cropped-thr-site-icon-1-32x32.png?w=32"
@@ -123,7 +123,7 @@ const PressPage = () => {
     {
       id: 4,
       outlet: "WIRED",
-      title: "The Technology Behind FilmFlex's Seamless 4K Streaming Experience",
+      title: "The Technology Behind PhimGG's Seamless 4K Streaming Experience",
       date: "February 22, 2025",
       url: "#",
       logo: "https://www.wired.com/favicon.ico"
@@ -131,7 +131,7 @@ const PressPage = () => {
     {
       id: 5,
       outlet: "Forbes",
-      title: "FilmFlex CEO Discusses the Future of Entertainment in Digital Age",
+      title: "PhimGG CEO Discusses the Future of Entertainment in Digital Age",
       date: "February 10, 2025",
       url: "#",
       logo: "https://i.forbesimg.com/media/assets/appicons/forbes-app-icon_57x57.png"
@@ -139,7 +139,7 @@ const PressPage = () => {
     {
       id: 6,
       outlet: "Deadline",
-      title: "FilmFlex's Original Content Strategy Attracts Top Industry Talent",
+      title: "PhimGG's Original Content Strategy Attracts Top Industry Talent",
       date: "January 28, 2025",
       url: "#",
       logo: "https://deadline.com/wp-content/uploads/2021/03/cropped-deadline-favicon-2021.png?w=32"
@@ -164,7 +164,7 @@ const PressPage = () => {
         <Newspaper className="h-12 w-12 text-primary mx-auto mb-4" />
         <h1 className="text-4xl font-bold mb-3">Press & Media</h1>
         <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-          Latest news, press releases, and media resources for FilmFlex.
+          Latest news, press releases, and media resources for PhimGG.
         </p>
       </div>
 
@@ -322,7 +322,7 @@ const PressPage = () => {
 
       {/* Media coverage */}
       <div className="mb-16">
-        <h2 className="text-2xl font-bold mb-8">FilmFlex in the News</h2>
+        <h2 className="text-2xl font-bold mb-8">PhimGG in the News</h2>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {mediaMentions.map(mention => (
@@ -375,7 +375,7 @@ const PressPage = () => {
                 Company Growth
               </h3>
               <p className="text-muted-foreground text-sm">
-                FilmFlex has experienced 200% year-over-year growth since its launch in 2023, expanding from 5 to 35 countries and growing its content library from 2,000 to over 10,000 titles.
+                PhimGG has experienced 200% year-over-year growth since its launch in 2023, expanding from 5 to 35 countries and growing its content library from 2,000 to over 10,000 titles.
               </p>
             </div>
             <div>
@@ -384,7 +384,7 @@ const PressPage = () => {
                 Leadership
               </h3>
               <p className="text-muted-foreground text-sm">
-                FilmFlex was founded by a team of technology and entertainment industry veterans with previous experience at Netflix, Disney, and major tech companies.
+                PhimGG was founded by a team of technology and entertainment industry veterans with previous experience at Netflix, Disney, and major tech companies.
               </p>
             </div>
             <div>
@@ -393,7 +393,7 @@ const PressPage = () => {
                 Recognition
               </h3>
               <p className="text-muted-foreground text-sm">
-                FilmFlex has been recognized with multiple industry awards for its innovative technology, user experience design, and content curation.
+                PhimGG has been recognized with multiple industry awards for its innovative technology, user experience design, and content curation.
               </p>
             </div>
             <div>
@@ -417,7 +417,7 @@ const PressPage = () => {
         <div className="text-center mb-8">
           <h2 className="text-2xl font-bold mb-3">Press Kit</h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            Download official FilmFlex assets for media use, including logos, product images, executive headshots, and more.
+            Download official PhimGG assets for media use, including logos, product images, executive headshots, and more.
           </p>
         </div>
         
@@ -425,7 +425,7 @@ const PressPage = () => {
           <Card className="bg-black/30 border-gray-800">
             <CardHeader>
               <CardTitle>Logo Package</CardTitle>
-              <CardDescription>FilmFlex logos in various formats</CardDescription>
+              <CardDescription>PhimGG logos in various formats</CardDescription>
             </CardHeader>
             <CardContent>
               <Button asChild variant="outline" className="w-full" size="sm">
@@ -481,7 +481,7 @@ const PressPage = () => {
         
         <div className="mt-8 p-4 bg-black/40 rounded-md text-sm text-muted-foreground">
           <p>
-            All assets are provided for press and media use only. By downloading, you agree to use these materials in accordance with FilmFlex's usage guidelines and to provide appropriate attribution when necessary.
+            All assets are provided for press and media use only. By downloading, you agree to use these materials in accordance with PhimGG's usage guidelines and to provide appropriate attribution when necessary.
           </p>
         </div>
       </div>
@@ -500,12 +500,12 @@ const PressPage = () => {
               </div>
             </div>
             <div className="md:col-span-3">
-              <h3 className="text-lg font-semibold">FilmFlex Developer Conference</h3>
+              <h3 className="text-lg font-semibold">PhimGG Developer Conference</h3>
               <p className="text-sm text-muted-foreground mb-3">
                 San Francisco, CA • 9:00 AM - 5:00 PM PST
               </p>
               <p className="text-sm text-muted-foreground mb-4">
-                Join us for our annual developer conference where we'll unveil new APIs, tools, and platform features for developers building on the FilmFlex ecosystem.
+                Join us for our annual developer conference where we'll unveil new APIs, tools, and platform features for developers building on the PhimGG ecosystem.
               </p>
               <div className="flex space-x-3">
                 <Button asChild variant="outline" size="sm">
@@ -527,12 +527,12 @@ const PressPage = () => {
               </div>
             </div>
             <div className="md:col-span-3">
-              <h3 className="text-lg font-semibold">FilmFlex Summer Showcase</h3>
+              <h3 className="text-lg font-semibold">PhimGG Summer Showcase</h3>
               <p className="text-sm text-muted-foreground mb-3">
                 Virtual Event • 10:00 AM PST
               </p>
               <p className="text-sm text-muted-foreground mb-4">
-                A virtual event showcasing FilmFlex's summer content lineup, featuring exclusive trailers, creator interviews, and announcements of new original productions.
+                A virtual event showcasing PhimGG's summer content lineup, featuring exclusive trailers, creator interviews, and announcements of new original productions.
               </p>
               <div className="flex space-x-3">
                 <Button asChild variant="outline" size="sm">
@@ -559,7 +559,7 @@ const PressPage = () => {
                 London, UK • 9:00 AM - 4:00 PM BST
               </p>
               <p className="text-sm text-muted-foreground mb-4">
-                FilmFlex's CTO will be delivering a keynote address on the future of streaming technology and AI-driven content discovery at this industry-leading summit.
+                PhimGG's CTO will be delivering a keynote address on the future of streaming technology and AI-driven content discovery at this industry-leading summit.
               </p>
               <div className="flex space-x-3">
                 <Button asChild variant="outline" size="sm">

@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# FilmFlex Production Fix Script
+# PhimGG Production Fix Script
 # This script fixes the ES module issue on the production server
 
-echo "🔧 Fixing FilmFlex ES Module Issue..."
+echo "🔧 Fixing PhimGG ES Module Issue..."
 
 # Colors for output
 GREEN='\033[0;32m'
@@ -18,12 +18,12 @@ log_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
 # Navigate to application directory
-cd /var/www/filmflex || { log_error "FilmFlex directory not found"; exit 1; }
+cd /var/www/filmflex || { log_error "PhimGG directory not found"; exit 1; }
 
 log_info "Current directory: $(pwd)"
 
 # Stop the application
-log_info "Stopping FilmFlex application..."
+log_info "Stopping PhimGG application..."
 pm2 stop filmflex 2>/dev/null || true
 pm2 delete filmflex 2>/dev/null || true
 
@@ -73,7 +73,7 @@ else
 fi
 
 # Restart with PM2
-log_info "Starting FilmFlex with PM2..."
+log_info "Starting PhimGG with PM2..."
 pm2 start ecosystem.config.js
 
 # Wait a moment and check status
@@ -85,7 +85,7 @@ log_info "Checking application health..."
 sleep 10
 
 if curl -f http://localhost:5000/api/health &>/dev/null; then
-    log_success "✅ FilmFlex is running successfully!"
+    log_success "✅ PhimGG is running successfully!"
     log_success "🌐 Application is available at: https://phimgg.com"
 else
     log_error "❌ Application health check failed"

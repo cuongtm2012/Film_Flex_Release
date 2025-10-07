@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# FilmFlex Domain Management Toolkit
+# PhimGG Domain Management Toolkit
 # Comprehensive script for managing phimgg.com domain setup and maintenance
 
 set -e
@@ -36,7 +36,7 @@ error() {
 print_banner() {
     echo -e "${PURPLE}"
     echo "========================================"
-    echo "  FilmFlex Domain Management Toolkit"
+    echo "  PhimGG Domain Management Toolkit"
     echo "  Domain: $DOMAIN"
     echo "  Server: $SERVER_IP"
     echo "========================================"
@@ -115,9 +115,9 @@ check_server_status() {
     fi
     
     if docker ps | grep -q "filmflex-app"; then
-        success "FilmFlex app container running"
+        success "PhimGG app container running"
     else
-        error "FilmFlex app container not running"
+        error "PhimGG app container not running"
     fi
     
     if docker ps | grep -q "filmflex-nginx-proxy"; then
@@ -193,7 +193,7 @@ monitor_domain() {
     
     while true; do
         clear
-        echo -e "${CYAN}=== FilmFlex Domain Monitor - $(date) ===${NC}"
+        echo -e "${CYAN}=== PhimGG Domain Monitor - $(date) ===${NC}"
         echo ""
         
         # Quick status check
@@ -221,7 +221,7 @@ monitor_domain() {
 
 # Show help menu
 show_help() {
-    echo -e "${CYAN}FilmFlex Domain Management Commands:${NC}"
+    echo -e "${CYAN}PhimGG Domain Management Commands:${NC}"
     echo ""
     echo -e "${YELLOW}Health Checks:${NC}"
     echo "  dns         - Check DNS resolution"

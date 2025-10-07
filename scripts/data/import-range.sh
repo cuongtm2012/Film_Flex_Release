@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# FilmFlex Movie Import Range Script
+# PhimGG Movie Import Range Script
 # This script imports movies from a specified range of pages
 
 # Define colors for output

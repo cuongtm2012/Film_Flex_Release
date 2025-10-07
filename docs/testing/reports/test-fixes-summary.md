@@ -1,4 +1,4 @@
-# FilmFlex Admin Panel Test Fixes
+# PhimGG Admin Panel Test Fixes
 
 ## Summary of Changes
 

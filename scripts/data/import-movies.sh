@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# FilmFlex Daily Movie Data Import Script
+# PhimGG Daily Movie Data Import Script
 # This script runs a daily import of the newest movies from phimapi.com
 
 # Define colors for output
@@ -31,7 +31,7 @@ DATE=$(date '+%Y-%m-%d %H:%M:%S')
 # Print banner
 echo -e "${BLUE}"
 echo "========================================"
-echo "    FilmFlex Daily Movie Import"
+echo "    PhimGG Daily Movie Import"
 echo "========================================"
 echo -e "${NC}"
 
@@ -39,7 +39,7 @@ echo -e "${NC}"
 mkdir -p "$LOG_DIR"
 
 # Print start message
-echo -e "${BLUE}[$DATE] Starting FilmFlex daily movie import...${NC}" | tee -a "$LOG_FILE"
+echo -e "${BLUE}[$DATE] Starting PhimGG daily movie import...${NC}" | tee -a "$LOG_FILE"
 
 # Change to application directory
 cd "$APP_DIR"
@@ -117,7 +117,7 @@ if [ "$API_CHECK_RESULT" = "OK" ]; then
   
   # Check if the script executed successfully
   if [ ${PIPESTATUS[0]} -eq 0 ]; then
-    echo -e "${GREEN}[$DATE] FilmFlex daily movie import completed successfully${NC}" | tee -a "$LOG_FILE"
+    echo -e "${GREEN}[$DATE] PhimGG daily movie import completed successfully${NC}" | tee -a "$LOG_FILE"
     
     # Count how many movies were imported
     SAVED_COUNT=$(grep -c "Processed.*movies:.*saved" "$LOG_FILE")
@@ -126,7 +126,7 @@ if [ "$API_CHECK_RESULT" = "OK" ]; then
     
     echo -e "${GREEN}[$DATE] Import summary: $SAVED_COUNT new movies, $EXISTING_COUNT existing, $FAILED_COUNT failed${NC}" | tee -a "$LOG_FILE"
   else
-    echo -e "${RED}[$DATE] FilmFlex daily movie import failed${NC}" | tee -a "$LOG_FILE"
+    echo -e "${RED}[$DATE] PhimGG daily movie import failed${NC}" | tee -a "$LOG_FILE"
     exit 1
   fi
 else

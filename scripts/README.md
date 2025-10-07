@@ -1,6 +1,6 @@
-# FilmFlex Scripts
+# PhimGG Scripts
 
-This directory contains various scripts for managing and maintaining the FilmFlex application.
+This directory contains various scripts for managing and maintaining the PhimGG application.
 
 ## Database Scripts
 

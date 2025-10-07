@@ -680,7 +680,7 @@ export default function AdminPage() {  const { user } = useAuth();
                       <Input 
                         id="site-title"
                         placeholder="Enter the site title"
-                        value="FilmFlex Admin"
+                        value="PhimGG Admin"
                         onChange={() => {}}
                       />
                     </div>
@@ -913,7 +913,7 @@ export default function AdminPage() {  const { user } = useAuth();
                       <Input 
                         id="email-name"
                         placeholder="Enter the from name for emails"
-                        value="FilmFlex Support"
+                        value="PhimGG Support"
                         onChange={() => {}}
                       />
                     </div>

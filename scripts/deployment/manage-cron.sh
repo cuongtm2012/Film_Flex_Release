@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# FilmFlex Cron Job Management Script
-# Install, manage, and monitor cron jobs for FilmFlex imports
+# PhimGG Cron Job Management Script
+# Install, manage, and monitor cron jobs for PhimGG imports
 
 set -e
 
@@ -25,7 +25,7 @@ error() { echo -e "${RED}❌ $1${NC}"; }
 print_banner() {
     echo -e "${BLUE}"
     echo "======================================================"
-    echo "    FilmFlex Cron Job Management System"
+    echo "    PhimGG Cron Job Management System"
     echo "======================================================"
     echo -e "${NC}"
     echo "Project Root: $PROJECT_ROOT"
@@ -57,7 +57,7 @@ make_scripts_executable() {
 
 # Install cron jobs
 install_cron() {
-    log "Installing FilmFlex cron jobs..."
+    log "Installing PhimGG cron jobs..."
     
     if [ ! -f "$CRON_CONFIG" ]; then
         error "Cron configuration file not found: $CRON_CONFIG"
@@ -85,7 +85,7 @@ install_cron() {
 
 # Remove cron jobs
 remove_cron() {
-    log "Removing FilmFlex cron jobs..."
+    log "Removing PhimGG cron jobs..."
     
     if [ -f "$CRON_DEST" ]; then
         sudo rm "$CRON_DEST"
@@ -99,7 +99,7 @@ remove_cron() {
 
 # Show current cron status
 show_status() {
-    log "FilmFlex Cron Job Status:"
+    log "PhimGG Cron Job Status:"
     echo ""
     
     if [ -f "$CRON_DEST" ]; then
@@ -203,7 +203,7 @@ show_usage() {
     echo ""
     echo "Commands:"
     echo "  install              Install cron jobs and make scripts executable"
-    echo "  remove               Remove all FilmFlex cron jobs"  
+    echo "  remove               Remove all PhimGG cron jobs"  
     echo "  status               Show current cron job status and recent activity"
     echo "  logs [type] [lines]  Show logs (types: imports, errors, health, stats, all)"
     echo "  test [type]          Test import (types: regular, weekend, deep, comprehensive)"

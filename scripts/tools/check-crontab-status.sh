@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# FilmFlex Crontab Status Checker
+# PhimGG Crontab Status Checker
 # Comprehensive cron job monitoring for production environments
 # Version: 1.0
 
@@ -22,7 +22,7 @@ info() { echo -e "${BLUE}ℹ $1${NC}"; }
 debug() { echo -e "${PURPLE}🔧 $1${NC}"; }
 
 echo -e "${PURPLE}=========================================="
-echo "    FilmFlex Crontab Status Check"
+echo "    PhimGG Crontab Status Check"
 echo "    $(date '+%Y-%m-%d %H:%M:%S')"
 echo -e "==========================================${NC}"
 echo
@@ -77,24 +77,24 @@ if [ -d /etc/cron.d ]; then
     done
 fi
 
-# 5. Check FilmFlex specific cron jobs
-info "FilmFlex specific cron jobs:"
+# 5. Check PhimGG specific cron jobs
+info "PhimGG specific cron jobs:"
 found_filmflex=false
 
-# Check root crontab for FilmFlex
+# Check root crontab for PhimGG
 if crontab -u root -l 2>/dev/null | grep -i filmflex >/dev/null 2>&1; then
     found_filmflex=true
-    echo "=== Root crontab (FilmFlex jobs) ==="
+    echo "=== Root crontab (PhimGG jobs) ==="
     crontab -u root -l 2>/dev/null | grep -i filmflex
     echo
 fi
 
-# Check system crontabs for FilmFlex
+# Check system crontabs for PhimGG
 if [ -d /etc/cron.d ]; then
     for file in /etc/cron.d/*; do
         if [ -f "$file" ] && grep -i filmflex "$file" >/dev/null 2>&1; then
             found_filmflex=true
-            echo "=== $(basename $file) (FilmFlex jobs) ==="
+            echo "=== $(basename $file) (PhimGG jobs) ==="
             grep -i filmflex "$file"
             echo
         fi
@@ -102,7 +102,7 @@ if [ -d /etc/cron.d ]; then
 fi
 
 if [ "$found_filmflex" = false ]; then
-    warning "No FilmFlex cron jobs found"
+    warning "No PhimGG cron jobs found"
 fi
 
 # 6. Check cron logs
@@ -118,11 +118,11 @@ else
 fi
 echo
 
-# 7. Check FilmFlex cron logs
-info "FilmFlex cron execution logs:"
+# 7. Check PhimGG cron logs
+info "PhimGG cron execution logs:"
 if [ -d /var/log/filmflex ]; then
-    echo "=== Recent FilmFlex cron logs ==="
-    ls -la /var/log/filmflex/cron-* 2>/dev/null | tail -10 || echo "No FilmFlex cron logs found"
+    echo "=== Recent PhimGG cron logs ==="
+    ls -la /var/log/filmflex/cron-* 2>/dev/null | tail -10 || echo "No PhimGG cron logs found"
     echo
     
     # Show last execution status
@@ -138,12 +138,12 @@ if [ -d /var/log/filmflex ]; then
         echo
     fi
 else
-    warning "FilmFlex log directory not found: /var/log/filmflex"
+    warning "PhimGG log directory not found: /var/log/filmflex"
 fi
 
-# 8. Check for running FilmFlex processes
-info "Current FilmFlex processes:"
-ps aux | grep -E "(filmflex|import-movies|import-all)" | grep -v grep || echo "No FilmFlex processes currently running"
+# 8. Check for running PhimGG processes
+info "Current PhimGG processes:"
+ps aux | grep -E "(filmflex|import-movies|import-all)" | grep -v grep || echo "No PhimGG processes currently running"
 echo
 
 # 9. Check next scheduled runs
@@ -154,8 +154,8 @@ if command -v crontab >/dev/null 2>&1; then
     echo "Current time: $(date)"
     echo
     
-    # Show when the next FilmFlex jobs should run based on schedule
-    echo "=== FilmFlex Job Schedule ==="
+    # Show when the next PhimGG jobs should run based on schedule
+    echo "=== PhimGG Job Schedule ==="
     echo "• Movie import: Daily at 6:00 AM and 6:00 PM"
     echo "• Deep scan: Saturdays at 6:00 AM"
     echo "• Full import: First Sunday of month at 2:00 AM"
@@ -164,7 +164,7 @@ if command -v crontab >/dev/null 2>&1; then
 fi
 
 # 10. Validate cron job paths and scripts
-info "Validating FilmFlex cron job paths:"
+info "Validating PhimGG cron job paths:"
 validation_errors=0
 
 # Check if import script exists
@@ -220,4 +220,4 @@ echo
 
 success "Crontab status check completed!"
 echo -e "${BLUE}For real-time cron monitoring: journalctl -u cron -f${NC}"
-echo -e "${BLUE}For FilmFlex logs: tail -f /var/log/filmflex/cron-*.log${NC}"
+echo -e "${BLUE}For PhimGG logs: tail -f /var/log/filmflex/cron-*.log${NC}"

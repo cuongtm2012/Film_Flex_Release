@@ -20,7 +20,7 @@ BUILD_TIME=$(date +%s)
 
 echo -e "${BLUE}"
 echo "============================================="
-echo "    FilmFlex Blank Page Fix Deployment"
+echo "    PhimGG Blank Page Fix Deployment"
 echo "    Version: 3.0 - Ultimate Solution"
 echo "    Build Time: $BUILD_TIME"
 echo "    App Version: $APP_VERSION"
@@ -220,7 +220,7 @@ cat > dist/troubleshoot-blank-page.js << 'EOF'
 // Run this in browser console: copy and paste, then press Enter
 
 (function() {
-    console.log('🔧 FilmFlex Blank Page Troubleshooter Started');
+    console.log('🔧 PhimGG Blank Page Troubleshooter Started');
     
     const info = {
         url: location.href,

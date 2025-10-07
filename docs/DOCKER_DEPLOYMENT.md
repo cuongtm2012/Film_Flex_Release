@@ -1,4 +1,4 @@
-# FilmFlex Docker Deployment Guide
+# PhimGG Docker Deployment Guide
 
 ## Quick Start
 

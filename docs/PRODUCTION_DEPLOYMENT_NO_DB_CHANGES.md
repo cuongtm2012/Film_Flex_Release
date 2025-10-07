@@ -1,7 +1,7 @@
-# FilmFlex Production Deployment Guide - Without Database Changes
+# PhimGG Production Deployment Guide - Without Database Changes
 
 ## Overview
-This guide provides step-by-step instructions for deploying FilmFlex to production while preserving your existing database. This is ideal for updates, feature deployments, or maintenance releases where you want to keep all your existing data intact.
+This guide provides step-by-step instructions for deploying PhimGG to production while preserving your existing database. This is ideal for updates, feature deployments, or maintenance releases where you want to keep all your existing data intact.
 
 ## Prerequisites
 
@@ -76,7 +76,7 @@ version: '3.8'
 
 services:
   app:
-    # Updated FilmFlex application image
+    # Updated PhimGG application image
     image: cuongtm2012/filmflex-app:latest
     container_name: filmflex-app
     restart: unless-stopped
@@ -373,4 +373,4 @@ docker stats
 curl -w "@curl-format.txt" -o /dev/null -s https://phimgg.com
 ```
 
-This guide ensures your database remains untouched while updating your FilmFlex application in production. Always test the deployment process in a staging environment first, and keep backups before any production changes.
+This guide ensures your database remains untouched while updating your PhimGG application in production. Always test the deployment process in a staging environment first, and keep backups before any production changes.

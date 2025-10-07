@@ -18,7 +18,7 @@ const AboutPage = () => {
     <div className="container mx-auto px-4 py-10">
       {/* Hero section */}
       <div className="mb-16 text-center max-w-3xl mx-auto">
-        <h1 className="text-4xl md:text-5xl font-bold mb-6">About FilmFlex</h1>
+        <h1 className="text-4xl md:text-5xl font-bold mb-6">About PhimGG</h1>
         <p className="text-xl text-muted-foreground mb-8">
           Your premier streaming destination, bringing quality entertainment to audiences worldwide.
         </p>
@@ -37,7 +37,7 @@ const AboutPage = () => {
         <div className="order-2 md:order-1">
           <h2 className="text-3xl font-bold mb-4">Our Story</h2>
           <p className="text-muted-foreground mb-4">
-            Founded in 2023, FilmFlex began with a simple mission: to create a streaming platform that delivers exceptional content while providing an intuitive user experience.
+            Founded in 2023, PhimGG began with a simple mission: to create a streaming platform that delivers exceptional content while providing an intuitive user experience.
           </p>
           <p className="text-muted-foreground mb-4">
             What started as a small team of passionate film enthusiasts has grown into a platform serving viewers across multiple countries, offering thousands of titles across every genre imaginable.
@@ -93,7 +93,7 @@ const AboutPage = () => {
         <div className="text-center mb-12">
           <h2 className="text-3xl font-bold mb-4">Our Mission & Values</h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            At FilmFlex, we're guided by core principles that define how we operate and the experience we create for our users.
+            At PhimGG, we're guided by core principles that define how we operate and the experience we create for our users.
           </p>
         </div>
 
@@ -135,7 +135,7 @@ const AboutPage = () => {
         <div className="text-center mb-12">
           <h2 className="text-3xl font-bold mb-4">Meet Our Leadership</h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            FilmFlex is powered by a diverse team of industry experts passionate about entertainment and technology.
+            PhimGG is powered by a diverse team of industry experts passionate about entertainment and technology.
           </p>
         </div>
 
@@ -236,9 +236,9 @@ const AboutPage = () => {
 
       {/* Call to action */}
       <div className="text-center bg-primary/10 p-10 rounded-lg mb-10">
-        <h2 className="text-3xl font-bold mb-4">Join the FilmFlex Community</h2>
+        <h2 className="text-3xl font-bold mb-4">Join the PhimGG Community</h2>
         <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto">
-          Start streaming today and discover why millions of viewers choose FilmFlex for their entertainment needs.
+          Start streaming today and discover why millions of viewers choose PhimGG for their entertainment needs.
         </p>
         <div className="flex flex-wrap justify-center gap-4">
           <a href="/auth" className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2">
@@ -252,7 +252,7 @@ const AboutPage = () => {
 
       {/* Related pages */}
       <div className="text-center mb-6">
-        <h3 className="text-xl font-semibold mb-4">More About FilmFlex</h3>
+        <h3 className="text-xl font-semibold mb-4">More About PhimGG</h3>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-10">
         <a href="/faqs" className="p-4 bg-black/20 rounded-lg flex justify-between items-center hover:bg-black/30 transition-colors">

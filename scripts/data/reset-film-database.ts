@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 /**
- * FilmFlex Database Reset Script
+ * PhimGG Database Reset Script
  * 
  * This script performs a complete reset and reinitialization of the film database.
  * It drops and recreates all tables, ensuring data integrity and consistency.

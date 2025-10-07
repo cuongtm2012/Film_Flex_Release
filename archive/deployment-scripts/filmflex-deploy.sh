@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# FilmFlex Unified Deployment Manager
+# PhimGG Unified Deployment Manager
 # Consolidates all deployment, fixing, and status checking functionality
 # Version: 1.0 - Unified Script
 #
@@ -47,7 +47,7 @@ info() { log "${BLUE}ℹ️ $1${NC}"; }
 
 # Help function
 show_help() {
-    echo "FilmFlex Unified Deployment Manager"
+    echo "PhimGG Unified Deployment Manager"
     echo "=================================="
     echo ""
     echo "Usage: $0 <command> [options]"
@@ -75,7 +75,7 @@ show_help() {
 
 # Status check function
 check_status() {
-    log "🔍 FilmFlex Application Status Check"
+    log "🔍 PhimGG Application Status Check"
     log "===================================="
     
     # PM2 Status
@@ -84,12 +84,12 @@ check_status() {
     if pm2 list | grep -q filmflex; then
         if pm2 list | grep filmflex | grep -q online; then
             pm2_status="ONLINE"
-            success "FilmFlex is running in PM2"
+            success "PhimGG is running in PM2"
         else
-            warning "FilmFlex process exists but not online"
+            warning "PhimGG process exists but not online"
         fi
     else
-        warning "FilmFlex process not found in PM2"
+        warning "PhimGG process not found in PM2"
     fi
     
     # Port Status
@@ -416,7 +416,7 @@ fix_all() {
 
 # Restart application
 restart_app() {
-    log "🔄 Restarting FilmFlex Application"
+    log "🔄 Restarting PhimGG Application"
     log "================================="
     
     info "🛑 Stopping application..."

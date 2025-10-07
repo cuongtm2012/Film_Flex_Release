@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * FilmFlex Movie Data Import Script (Docker SQL Version)
+ * PhimGG Movie Data Import Script (Docker SQL Version)
  * 
  * This script fetches the latest movie data from the API and imports it into the Docker PostgreSQL database
  * using direct SQL queries.

@@ -31,7 +31,7 @@ nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
 nginx: configuration file /etc/nginx/nginx.conf test is successful
 ✓ Nginx configuration reloaded
 Creating restart script...
-===== FilmFlex Final Deployment Completed at Fri May  9 08:43:02 CST 2025 =====
+===== PhimGG Final Deployment Completed at Fri May  9 08:43:02 CST 2025 =====
 
 To check the status, use these commands:
   - Server status: pm2 status filmflex

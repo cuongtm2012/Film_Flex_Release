@@ -1,4 +1,4 @@
-# FilmFlex Database Scripts (Docker Optimized)
+# PhimGG Database Scripts (Docker Optimized)
 
 This folder contains optimized PostgreSQL management scripts specifically designed for Docker containers.
 
@@ -134,7 +134,7 @@ COMPOSE_FILE="docker-compose.nginx-ssl.yml"
 ## 📋 Prerequisites
 
 - Docker and Docker Compose installed
-- FilmFlex PostgreSQL container configured
+- PhimGG PostgreSQL container configured
 - Schema and data files in `./shared/` directory
 
 ## 🚨 Troubleshooting

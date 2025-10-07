@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# FilmFlex Failed Import Retry Script
+# PhimGG Failed Import Retry Script
 # Attempts to retry failed imports based on error logs
 
 set -e

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# FilmFlex Master Database Manager - Updated for Current Architecture
+# PhimGG Master Database Manager - Updated for Current Architecture
 # Consolidated script for all database operations (local, Docker, production)
 # Updated to support OAuth authentication and comprehensive table structure
 
@@ -29,7 +29,7 @@ highlight() { echo -e "${CYAN}🔧 $1${NC}"; }
 print_banner() {
     echo -e "${PURPLE}"
     echo "========================================"
-    echo "  FilmFlex Master Database Manager"
+    echo "  PhimGG Master Database Manager"
     echo "  Updated for Current Architecture"
     echo "========================================"
     echo -e "${NC}"
@@ -586,7 +586,7 @@ show_status() {
 
 # Enhanced help with OAuth information
 show_help() {
-    echo -e "${CYAN}FilmFlex Master Database Manager (Current Architecture)${NC}"
+    echo -e "${CYAN}PhimGG Master Database Manager (Current Architecture)${NC}"
     echo ""
     echo -e "${YELLOW}🔥 Features:${NC}"
     echo "  ✅ OAuth Support (Google, Facebook)"

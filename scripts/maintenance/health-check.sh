@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# FilmFlex System Health Check Script
+# PhimGG System Health Check Script
 # Checks system resources and container health before major imports
 
 set -e

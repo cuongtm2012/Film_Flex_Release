@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# FilmFlex Batch Movie Import Script
+# PhimGG Batch Movie Import Script
 # This script handles batch importing movies from specific page ranges
 
 # Exit immediately if a command exits with a non-zero status
@@ -25,7 +25,7 @@ IMPORT_SCRIPT="${SCRIPT_DIR}/${SCRIPT_NAME}"
 # Print banner
 echo -e "${BLUE}"
 echo "=============================================="
-echo "    FilmFlex Batch Movie Import Script"
+echo "    PhimGG Batch Movie Import Script"
 echo "=============================================="
 echo -e "${NC}"
 

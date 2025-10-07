@@ -276,7 +276,7 @@ export default function ProfilePage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Recent Activity</CardTitle>
-                  <CardDescription>Your latest interactions on FilmFlex</CardDescription>
+                  <CardDescription>Your latest interactions on PhimGG</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-6">

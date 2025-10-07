@@ -37,7 +37,7 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  # FilmFlex Application
+  # PhimGG Application
   app:
     build: 
       context: .

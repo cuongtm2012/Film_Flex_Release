@@ -25,7 +25,7 @@ const HowToWatchPage = () => {
       {/* Header section */}
       <div className="text-center mb-16">
         <PlayCircle className="h-12 w-12 text-primary mx-auto mb-4" />
-        <h1 className="text-4xl font-bold mb-3">How to Watch FilmFlex</h1>
+        <h1 className="text-4xl font-bold mb-3">How to Watch PhimGG</h1>
         <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
           Enjoy your favorite movies and shows on any device, anytime, anywhere.
         </p>
@@ -68,7 +68,7 @@ const HowToWatchPage = () => {
               <div>
                 <h3 className="text-xl font-bold mb-4">Smart TVs</h3>
                 <p className="text-muted-foreground mb-6">
-                  FilmFlex is compatible with a wide range of Smart TVs, offering a seamless viewing experience on the big screen.
+                  PhimGG is compatible with a wide range of Smart TVs, offering a seamless viewing experience on the big screen.
                 </p>
                 <ul className="space-y-3">
                   <li className="flex items-start">
@@ -102,8 +102,8 @@ const HowToWatchPage = () => {
                 <Tv className="h-24 w-24 mx-auto mb-4 text-primary" />
                 <h4 className="text-lg font-semibold mb-2">Getting Started</h4>
                 <ol className="text-sm text-muted-foreground text-left space-y-3">
-                  <li className="border-b border-gray-800 pb-3">1. Search for "FilmFlex" in your TV's app store</li>
-                  <li className="border-b border-gray-800 pb-3">2. Download and install the FilmFlex app</li>
+                  <li className="border-b border-gray-800 pb-3">1. Search for "PhimGG" in your TV's app store</li>
+                  <li className="border-b border-gray-800 pb-3">2. Download and install the PhimGG app</li>
                   <li className="border-b border-gray-800 pb-3">3. Open the app and sign in with your account</li>
                   <li>4. Start streaming your favorite content</li>
                 </ol>
@@ -116,7 +116,7 @@ const HowToWatchPage = () => {
               <div>
                 <h3 className="text-xl font-bold mb-4">Mobile Devices</h3>
                 <p className="text-muted-foreground mb-6">
-                  Take FilmFlex with you wherever you go on your smartphone. Download content to watch offline during your commute or travels.
+                  Take PhimGG with you wherever you go on your smartphone. Download content to watch offline during your commute or travels.
                 </p>
                 <ul className="space-y-3">
                   <li className="flex items-start">
@@ -171,7 +171,7 @@ const HowToWatchPage = () => {
               <div>
                 <h3 className="text-xl font-bold mb-4">Tablets</h3>
                 <p className="text-muted-foreground mb-6">
-                  Enjoy FilmFlex on the larger screen of your tablet for a more immersive experience, perfect for traveling or relaxing at home.
+                  Enjoy PhimGG on the larger screen of your tablet for a more immersive experience, perfect for traveling or relaxing at home.
                 </p>
                 <ul className="space-y-3">
                   <li className="flex items-start">
@@ -205,7 +205,7 @@ const HowToWatchPage = () => {
                     <span className="font-medium text-foreground">HD Quality:</span> Enhanced resolution for larger screens
                   </li>
                   <li className="border-b border-gray-800 pb-3">
-                    <span className="font-medium text-foreground">Split View:</span> Use FilmFlex alongside other apps
+                    <span className="font-medium text-foreground">Split View:</span> Use PhimGG alongside other apps
                   </li>
                   <li className="border-b border-gray-800 pb-3">
                     <span className="font-medium text-foreground">Landscape Mode:</span> Optimized interface for widescreen viewing
@@ -223,7 +223,7 @@ const HowToWatchPage = () => {
               <div>
                 <h3 className="text-xl font-bold mb-4">Computer</h3>
                 <p className="text-muted-foreground mb-6">
-                  Access FilmFlex through your web browser on any computer for convenient streaming with advanced features.
+                  Access PhimGG through your web browser on any computer for convenient streaming with advanced features.
                 </p>
                 <ul className="space-y-3">
                   <li className="flex items-start">
@@ -278,7 +278,7 @@ const HowToWatchPage = () => {
               <div>
                 <h3 className="text-xl font-bold mb-4">Game Consoles</h3>
                 <p className="text-muted-foreground mb-6">
-                  Turn your gaming console into an entertainment center with FilmFlex, available on major gaming platforms.
+                  Turn your gaming console into an entertainment center with PhimGG, available on major gaming platforms.
                 </p>
                 <ul className="space-y-3">
                   <li className="flex items-start">
@@ -305,9 +305,9 @@ const HowToWatchPage = () => {
                 <h4 className="text-lg font-semibold mb-2">Installation Steps</h4>
                 <ol className="text-sm text-muted-foreground text-left space-y-3">
                   <li className="border-b border-gray-800 pb-3">1. Navigate to your console's store (PlayStation Store, Microsoft Store, etc.)</li>
-                  <li className="border-b border-gray-800 pb-3">2. Search for the FilmFlex app</li>
+                  <li className="border-b border-gray-800 pb-3">2. Search for the PhimGG app</li>
                   <li className="border-b border-gray-800 pb-3">3. Download and install the application</li>
-                  <li className="border-b border-gray-800 pb-3">4. Launch the app and sign in with your FilmFlex account</li>
+                  <li className="border-b border-gray-800 pb-3">4. Launch the app and sign in with your PhimGG account</li>
                   <li>5. Use your controller to navigate the interface</li>
                 </ol>
               </div>
@@ -319,7 +319,7 @@ const HowToWatchPage = () => {
               <div>
                 <h3 className="text-xl font-bold mb-4">Streaming Devices</h3>
                 <p className="text-muted-foreground mb-6">
-                  Use dedicated streaming devices to enjoy FilmFlex on any TV, even if it's not a smart TV.
+                  Use dedicated streaming devices to enjoy PhimGG on any TV, even if it's not a smart TV.
                 </p>
                 <ul className="space-y-3">
                   <li className="flex items-start">
@@ -468,7 +468,7 @@ const HowToWatchPage = () => {
             </div>
             <h3 className="text-xl font-semibold">Create an Account</h3>
             <p className="text-muted-foreground mb-4">
-              Sign up for FilmFlex by visiting our website or downloading the app. Choose a subscription plan that fits your needs.
+              Sign up for PhimGG by visiting our website or downloading the app. Choose a subscription plan that fits your needs.
             </p>
             <Button asChild variant="outline" size="sm">
               <a href="/auth">Create Account</a>
@@ -480,7 +480,7 @@ const HowToWatchPage = () => {
             </div>
             <h3 className="text-xl font-semibold">Download the App</h3>
             <p className="text-muted-foreground mb-4">
-              Install the FilmFlex app on your preferred device from the appropriate app store or marketplace.
+              Install the PhimGG app on your preferred device from the appropriate app store or marketplace.
             </p>
           </li>
           <li className="mb-10 ml-8">

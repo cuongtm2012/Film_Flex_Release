@@ -272,7 +272,7 @@ const Footer = () => {
               <span>Back to Top</span>
             </button>
           </div>
-          <p className="text-sm">© {new Date().getFullYear()} FilmFlex. All rights reserved.</p>
+          <p className="text-sm">© {new Date().getFullYear()} PhimGG. All rights reserved.</p>
           <p className="mt-1 text-xs">
             For demonstration purposes only.
           </p>

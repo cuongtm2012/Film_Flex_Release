@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# FilmFlex Production Deployment Script - FIXED VERSION
-# This script deploys FilmFlex to production with proper SSL and latest code
+# PhimGG Production Deployment Script - FIXED VERSION
+# This script deploys PhimGG to production with proper SSL and latest code
 
 set -e  # Exit on any error
 
@@ -262,7 +262,7 @@ EOF
 
 # Main deployment function
 main() {
-    print_status "Starting FilmFlex production deployment..."
+    print_status "Starting PhimGG production deployment..."
     
     # Pre-deployment checks
     check_root
@@ -277,7 +277,7 @@ main() {
     setup_monitoring
     verify_deployment
     
-    print_success "🎉 FilmFlex deployment completed successfully!"
+    print_success "🎉 PhimGG deployment completed successfully!"
     echo ""
     echo -e "${GREEN}Application URLs:${NC}"
     echo -e "  • HTTPS: ${BLUE}https://$DOMAIN${NC}"

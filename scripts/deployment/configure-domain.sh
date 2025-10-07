@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🌐 FilmFlex Domain Configuration Tool"
+echo "🌐 PhimGG Domain Configuration Tool"
 echo "===================================="
 echo "📅 Date: $(date)"
 echo "🎯 Domain: phimgg.com"

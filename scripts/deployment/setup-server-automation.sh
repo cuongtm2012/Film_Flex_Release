@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# FilmFlex Server Setup Script - Automated Import & Cron Configuration
+# PhimGG Server Setup Script - Automated Import & Cron Configuration
 # Run this script on your server to set up automated movie imports and maintenance
 
 set -e
@@ -14,7 +14,7 @@ NC='\033[0m'
 
 echo -e "${BLUE}"
 echo "========================================================"
-echo "  FilmFlex Server Setup - Import & Cron Configuration"  
+echo "  PhimGG Server Setup - Import & Cron Configuration"  
 echo "========================================================"
 echo -e "${NC}"
 
@@ -229,7 +229,7 @@ info "Preparing crontab configuration..."
 
 CRON_JOBS=$(cat << 'EOF'
 
-# FilmFlex Automated Tasks - Added by setup script
+# PhimGG Automated Tasks - Added by setup script
 # Daily movie import at 2:00 AM
 0 2 * * * /bin/bash ~/Film_Flex_Release/scripts/cron/daily-import.sh
 
@@ -309,7 +309,7 @@ CURRENT_MOVIES=$(docker compose -f docker-compose.server.yml exec -T postgres ps
 log "Current movies in database: $CURRENT_MOVIES"
 
 # Check crontab
-if crontab -l | grep -q "FilmFlex"; then
+if crontab -l | grep -q "PhimGG"; then
     log "Crontab jobs are installed"
 else
     warn "Crontab jobs not found - manual installation may be needed"
@@ -323,7 +323,7 @@ else
 fi
 
 echo ""
-echo -e "${GREEN}🎉 FilmFlex Server Setup Complete!${NC}"
+echo -e "${GREEN}🎉 PhimGG Server Setup Complete!${NC}"
 echo "=================================="
 echo ""
 log "✅ Automated Import & Maintenance System Ready"
@@ -343,6 +343,6 @@ info "📖 Documentation:"
 info "• Import Guide: ~/Film_Flex_Release/docs/DOCKER_POSTGRES_IMPORT_GUIDE.md"
 info "• Crontab Guide: ~/Film_Flex_Release/docs/SERVER_CRONTAB_SETUP_GUIDE.md"
 echo ""
-log "🌐 Your FilmFlex application: http://38.54.14.154:5000"
+log "🌐 Your PhimGG application: http://38.54.14.154:5000"
 echo ""
 echo -e "${BLUE}Your server is now fully automated with regular movie updates! 🚀${NC}"

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# FilmFlex Selective Deployment Script v1.0
+# PhimGG Selective Deployment Script v1.0
 # =========================================
 # Lightweight deployment script for targeted updates:
 # - Frontend changes (client/dist files)
@@ -70,7 +70,7 @@ info() {
 
 # Show help
 show_help() {
-    echo -e "${BLUE}FilmFlex Selective Deployment Script v1.0${NC}"
+    echo -e "${BLUE}PhimGG Selective Deployment Script v1.0${NC}"
     echo -e "${BLUE}==========================================${NC}"
     echo ""
     echo -e "${GREEN}Usage:${NC}"
@@ -493,7 +493,7 @@ validate_database_deployment() {
 
 # Main deployment execution
 main() {
-    log "${BLUE}===== FilmFlex Selective Deployment Started at $(date) =====${NC}"
+    log "${BLUE}===== PhimGG Selective Deployment Started at $(date) =====${NC}"
     log "Source: $SOURCE_DIR"
     log "Target: $DEPLOY_DIR"
     log "Log: $LOG_FILE"

@@ -398,7 +398,7 @@ export default function AuthPage() {
                 <CardHeader>
                   <CardTitle>Create an account</CardTitle>
                   <CardDescription>
-                    Join FilmFlex to access our vast collection of movies
+                    Join PhimGG to access our vast collection of movies
                   </CardDescription>
                 </CardHeader>
                 <form onSubmit={registerForm.handleSubmit(onRegisterSubmit)}>
@@ -776,7 +776,7 @@ export default function AuthPage() {
                 />
               </svg>
             </div>
-            <h1 className="text-4xl font-bold">FilmFlex</h1>
+            <h1 className="text-4xl font-bold">PhimGG</h1>
           </div>
 
           <h2 className="text-3xl font-semibold mb-6 leading-tight">
@@ -786,7 +786,7 @@ export default function AuthPage() {
 
           <p className="text-lg mb-8 text-gray-300 max-w-lg">
             Discover, watch, and enjoy thousands of movies and TV shows from
-            around the world. With FilmFlex, your entertainment journey knows no
+            around the world. With PhimGG, your entertainment journey knows no
             bounds.
           </p>
 

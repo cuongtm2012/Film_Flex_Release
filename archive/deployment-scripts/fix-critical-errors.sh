@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# FilmFlex Critical Error Fix Script
+# PhimGG Critical Error Fix Script
 # Fixes CORS configuration errors and module import issues
 
-echo "🚨 FilmFlex Critical Error Fix"
+echo "🚨 PhimGG Critical Error Fix"
 echo "============================="
 echo ""
 
@@ -36,7 +36,7 @@ error() {
 }
 
 # Stop the application first
-log "🛑 Stopping FilmFlex application..."
+log "🛑 Stopping PhimGG application..."
 pm2 stop filmflex >/dev/null 2>&1 || pm2 stop all >/dev/null 2>&1
 sleep 2
 success "Application stopped"
@@ -155,12 +155,12 @@ log "🚀 Creating enhanced startup configuration..."
 cat > $APP_DIR/start-filmflex.js << 'EOF'
 #!/usr/bin/env node
 
-// Enhanced startup script for FilmFlex with error handling
+// Enhanced startup script for PhimGG with error handling
 const { spawn } = require('child_process');
 const path = require('path');
 
 const startApp = () => {
-    console.log('🎬 Starting FilmFlex application...');
+    console.log('🎬 Starting PhimGG application...');
     
     const appPath = path.join(__dirname, 'dist', 'index.js');
     const child = spawn('node', [appPath], {
@@ -221,7 +221,7 @@ EOF
 success "PM2 configuration updated"
 
 # Start the application with enhanced monitoring
-log "🚀 Starting FilmFlex with enhanced configuration..."
+log "🚀 Starting PhimGG with enhanced configuration..."
 
 # Clear PM2 logs
 pm2 flush 2>/dev/null || true
@@ -288,7 +288,7 @@ echo "HTTP Status: $HTTP_STATUS"
 echo ""
 
 if [ "$HTTP_STATUS" = "RESPONDING" ]; then
-    success "🎉 FilmFlex is now running successfully!"
+    success "🎉 PhimGG is now running successfully!"
     echo ""
     echo "🌍 Application accessible at:"
     echo "   http://38.54.14.154:5000"

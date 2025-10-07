@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🚀 FilmFlex Production Deployment Script"
+echo "🚀 PhimGG Production Deployment Script"
 echo "=========================================="
 echo "📅 Date: $(date)"
 echo "🌐 Target: Production Server (38.54.14.154)"
@@ -19,13 +19,13 @@ echo ""
 print_header "Select Deployment Mode:"
 echo ""
 print_mode "1) Full Deployment (Database + Application)"
-echo "   ├─ Redeploys both PostgreSQL and FilmFlex containers"
+echo "   ├─ Redeploys both PostgreSQL and PhimGG containers"
 echo "   ├─ Use for fresh setup or major updates"
 echo "   ├─ Includes database initialization and health checks"
 echo "   └─ Takes longer but ensures complete environment refresh"
 echo ""
 print_mode "2) App-Only Deployment (Application Only)"
-echo "   ├─ Updates only the FilmFlex application container"
+echo "   ├─ Updates only the PhimGG application container"
 echo "   ├─ Use for code updates and quick releases"
 echo "   ├─ Keeps existing database container running"
 echo "   └─ Faster deployment for routine updates"
@@ -282,7 +282,7 @@ fi
 
 # Start services
 if [ "$DEPLOY_DATABASE" = true ]; then
-    print_info "Starting all FilmFlex services..."
+    print_info "Starting all PhimGG services..."
     docker compose -f docker-compose.server.yml up -d --force-recreate --renew-anon-volumes
     
     # Wait and verify database
@@ -304,7 +304,7 @@ if [ "$DEPLOY_DATABASE" = true ]; then
         print_status "Database verified: $MOVIE_COUNT movies loaded"
     fi
 else
-    print_info "Starting FilmFlex application (app-only deployment)..."
+    print_info "Starting PhimGG application (app-only deployment)..."
     
     # Check existing database
     if ! docker ps | grep -q filmflex-postgres; then
@@ -357,7 +357,7 @@ HEALTH_PASSED=$?
 
 # Final summary
 echo ""
-print_header "🎉 FilmFlex $MODE_NAME Complete!"
+print_header "🎉 PhimGG $MODE_NAME Complete!"
 print_status "Domain URL: https://phimgg.com"
 print_status "Direct Access: http://38.54.14.154:5000"
 print_status "Status: Production Ready"

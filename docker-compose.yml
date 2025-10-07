@@ -23,7 +23,7 @@ services:
       retries: 5
     restart: unless-stopped
 
-  # FilmFlex Application
+  # PhimGG Application
   app:
     build:
       context: .

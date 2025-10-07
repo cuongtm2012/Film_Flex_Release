@@ -41,7 +41,7 @@ export class StreamingUtility {
           method: 'GET',
           signal: controller.signal,
           headers: {
-            'User-Agent': 'FilmFlex-Server/1.0',
+            'User-Agent': 'PhimGG-Server/1.0',
             'Accept': '*/*',
             'Accept-Encoding': 'identity',
             ...(req.headers.range && { 'Range': req.headers.range }),
@@ -165,7 +165,7 @@ export class StreamingUtility {
         method: 'HEAD',
         signal: controller.signal,
         headers: {
-          'User-Agent': 'FilmFlex-Server/1.0'
+          'User-Agent': 'PhimGG-Server/1.0'
         }
       });
 
@@ -201,7 +201,7 @@ export class StreamingUtility {
         method: 'HEAD',
         signal: controller.signal,
         headers: {
-          'User-Agent': 'FilmFlex-Server/1.0'
+          'User-Agent': 'PhimGG-Server/1.0'
         }
       });
 

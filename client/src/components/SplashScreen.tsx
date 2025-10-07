@@ -63,7 +63,7 @@ export default function SplashScreen({ onClose }: SplashScreenProps) {
           </div>
           
           <h1 className="text-5xl md:text-7xl font-bold text-white mb-2 bg-gradient-to-r from-red-500 via-yellow-400 to-red-500 bg-clip-text text-transparent animate-pulse">
-            FilmFlex
+            PhimGG
           </h1>
           
           <div className="flex items-center justify-center gap-2 mb-4">

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# FilmFlex Direct Player CLI
+# PhimGG Direct Player CLI
 # This script allows you to play movies directly from the command line
 
 # Default values
@@ -46,7 +46,7 @@ if [ -z "$MOVIE_SLUG" ]; then
   read -r MOVIE_SLUG
 fi
 
-echo "=== FilmFlex Direct Player CLI ==="
+echo "=== PhimGG Direct Player CLI ==="
 echo "Fetching stream information for: $MOVIE_SLUG"
 
 # Fetch movie data from API

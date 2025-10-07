@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# FilmFlex Database Migration Script
+# PhimGG Database Migration Script
 # This script migrates data from local PostgreSQL to Docker container
 
 set -e
@@ -19,7 +19,7 @@ DOCKER_DB_NAME="filmflex"
 BACKUP_DIR="./database_backup"
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 
-echo -e "${BLUE}🗄️  FilmFlex Database Migration Script${NC}"
+echo -e "${BLUE}🗄️  PhimGG Database Migration Script${NC}"
 echo "======================================"
 
 # Function to print colored output
@@ -169,5 +169,5 @@ echo "- Data exported from local database"
 echo "- Data imported to Docker container"
 echo "- Backup saved: $DUMP_FILE"
 echo ""
-echo "Your FilmFlex Docker application now has all your local data!"
+echo "Your PhimGG Docker application now has all your local data!"
 echo "Test your app at: http://localhost:5000"

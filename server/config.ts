@@ -54,7 +54,7 @@ export const config: Config = {
   useCloudflareEmail: process.env.USE_CLOUDFLARE_EMAIL === 'true' || nodeEnv === 'production',
   sendgridApiKey: process.env.SENDGRID_API_KEY,
   fromEmail: process.env.FROM_EMAIL || 'noreply@filmflex.com',
-  fromName: process.env.FROM_NAME || 'FilmFlex'
+  fromName: process.env.FROM_NAME || 'PhimGG'
 };
 
 // Debug OAuth and Email configuration in development

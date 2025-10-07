@@ -12,7 +12,7 @@ NC='\033[0m'
 log() { echo -e "${GREEN}✅ $1${NC}"; }
 error() { echo -e "${RED}❌ $1${NC}"; }
 
-echo -e "${BLUE}🗄️ FilmFlex VPS Database Import${NC}"
+echo -e "${BLUE}🗄️ PhimGG VPS Database Import${NC}"
 echo "Generated from local export: 20250817_200439"
 echo ""
 

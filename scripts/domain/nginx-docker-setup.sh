@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# FilmFlex Nginx Docker SSL Setup Script
+# PhimGG Nginx Docker SSL Setup Script
 # Based on nginx-reverse-proxy best practices
 # Automated setup for Nginx with Let's Encrypt SSL certificates
 
@@ -46,7 +46,7 @@ error() {
 print_banner() {
     echo -e "${BLUE}"
     echo "========================================"
-    echo "  FilmFlex Nginx Docker SSL Setup"
+    echo "  PhimGG Nginx Docker SSL Setup"
     echo "  nginx-reverse-proxy Pattern"
     echo "  Nginx + Let's Encrypt + Auto-Renewal"
     echo "========================================"
@@ -113,7 +113,7 @@ start_initial_services() {
     
     # Check if app is responding
     if $DOCKER_COMPOSE -f $COMPOSE_FILE exec -T app curl -f http://localhost:5000/api/health > /dev/null 2>&1; then
-        success "FilmFlex app is running and healthy"
+        success "PhimGG app is running and healthy"
     else
         warning "App health check failed, but continuing..."
     fi
@@ -277,7 +277,7 @@ test_setup() {
     # Test app health through proxy
     log "Testing app connectivity through proxy..."
     if curl -s -k https://$DOMAIN/api/health > /dev/null 2>&1; then
-        success "FilmFlex app accessible through HTTPS proxy"
+        success "PhimGG app accessible through HTTPS proxy"
     else
         warning "App may not be accessible through HTTPS proxy (may be normal during DNS propagation)"
     fi
@@ -314,9 +314,9 @@ show_management_commands() {
 # Display completion message
 show_completion_message() {
     echo ""
-    success "🎉 FilmFlex Nginx SSL setup completed successfully!"
+    success "🎉 PhimGG Nginx SSL setup completed successfully!"
     echo ""
-    log "Your FilmFlex application is now running with:"
+    log "Your PhimGG application is now running with:"
     log "✅ Nginx reverse proxy with modern configuration"
     log "✅ Let's Encrypt SSL certificates"
     log "✅ Automatic certificate renewal every 12 hours"

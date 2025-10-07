@@ -1,8 +1,8 @@
-# FilmFlex Cron Setup Comparison Guide
+# PhimGG Cron Setup Comparison Guide
 
 ## 🚨 **PROBLEM: Current Setup (Wrong)**
 
-Your current cron jobs are trying to import data into the **HOST system database**, but your FilmFlex app runs in **Docker containers** with an isolated database.
+Your current cron jobs are trying to import data into the **HOST system database**, but your PhimGG app runs in **Docker containers** with an isolated database.
 
 ```bash
 # Current cron jobs (WRONG - imports to host database)

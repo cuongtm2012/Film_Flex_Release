@@ -3,7 +3,7 @@ README.md  archive  env.example  filmflex-server.cjs  final-deploy.sh  push-to-g
 root@lightnode:~/Film_Flex_Release/scripts/deployment# ./final
 -bash: ./final: No such file or directory
 root@lightnode:~/Film_Flex_Release/scripts/deployment# ./final-deploy.sh 
-===== FilmFlex Final Deployment Started at Thu May  8 22:27:22 CST 2025 =====
+===== PhimGG Final Deployment Started at Thu May  8 22:27:22 CST 2025 =====
 Source directory: /root/Film_Flex_Release
 Deploy directory: /var/www/filmflex
 0. Fixing database schema...
@@ -73,7 +73,7 @@ psql:/tmp/db-fix.sql:91: NOTICE:  movie_slug column already exists in episodes t
 DO
 DO
 Database schema fix completed successfully
-1. Stopping any existing FilmFlex processes...
+1. Stopping any existing PhimGG processes...
 2. Setting up deployment directory...
 3. Creating proper package.json without ESM type...
 4. Copying CommonJS server file...
@@ -127,11 +127,11 @@ found 0 vulnerabilities
    ! All automatic methods failed
    - Please try manually running: node /var/www/filmflex/filmflex-server.cjs
 11. Checking API response...
-   ✓ API is responding correctly: {"status":"ok","message":"FilmFlex API is running in production mode","time":"2025-05-08T14:27:43.437Z","node_version":"v20.19.1"}
+   ✓ API is responding correctly: {"status":"ok","message":"PhimGG API is running in production mode","time":"2025-05-08T14:27:43.437Z","node_version":"v20.19.1"}
 12. Reloading Nginx configuration...
 nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
 nginx: configuration file /etc/nginx/nginx.conf test is successful
-===== FilmFlex Final Deployment Completed at Thu May  8 22:27:43 CST 2025 =====
+===== PhimGG Final Deployment Completed at Thu May  8 22:27:43 CST 2025 =====
 
 To check the status, use these commands:
   - Server status: pm2 status filmflex

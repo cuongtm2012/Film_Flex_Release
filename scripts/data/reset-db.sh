@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# FilmFlex Database Reset Script
+# PhimGG Database Reset Script
 # This script provides a convenient way to run the database reset operation
 
 # Colors for output
@@ -16,7 +16,7 @@ cd "$SCRIPT_DIR/../.."
 
 # Print header
 echo -e "${BLUE}========================================"
-echo "  FilmFlex Database Reset"
+echo "  PhimGG Database Reset"
 echo -e "========================================${NC}\n"
 
 # Check for database URL

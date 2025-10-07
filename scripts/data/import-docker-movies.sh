@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# FilmFlex Docker Movie Import Script - Fixed Version
+# PhimGG Docker Movie Import Script - Fixed Version
 # This script imports movie data into the Docker PostgreSQL container
 
 # Remove set -e to prevent premature exit during page range imports
@@ -31,7 +31,7 @@ info() { echo -e "${PURPLE}ℹ️ $1${NC}"; }
 print_banner() {
     echo -e "${BLUE}"
     echo "======================================================"
-    echo "  FilmFlex Docker Movie Import Script (Fixed)"
+    echo "  PhimGG Docker Movie Import Script (Fixed)"
     echo "======================================================"
     echo -e "${NC}"
     echo "App Container: $APP_CONTAINER"
@@ -456,7 +456,7 @@ main() {
     success "Movies added: $added_count"
     
     echo ""
-    info "Your FilmFlex app is available at: https://phimgg.com"
+    info "Your PhimGG app is available at: https://phimgg.com"
 }
 
 # Handle command line arguments

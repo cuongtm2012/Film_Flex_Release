@@ -63,7 +63,7 @@ export default function HeroSection({ movie, isLoading = false }: HeroSectionPro
       
       <div className="container mx-auto px-4 h-full flex flex-col justify-end pb-6 md:pb-12 relative z-10">
         <h1 className="text-3xl md:text-5xl lg:text-6xl font-bold mb-2 md:mb-3 font-title text-white drop-shadow-lg">
-          {movie ? movie.movie.name : "Welcome to FilmFlex"}
+          {movie ? movie.movie.name : "Welcome to PhimGG"}
         </h1>
         <p className="text-lg md:text-xl lg:text-2xl mb-4 md:mb-6 max-w-2xl text-gray-200 drop-shadow-md">
           {movie 

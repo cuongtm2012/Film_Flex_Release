@@ -18,12 +18,12 @@ const FAQsPage = () => {
         {
           question: "How do I create an account?",
           answer:
-            "To create an account, click on the 'Sign Up' button at the top right of the page. Fill in your details including email, username, and password. Follow the verification steps sent to your email, and you'll be ready to start using FilmFlex.",
+            "To create an account, click on the 'Sign Up' button at the top right of the page. Fill in your details including email, username, and password. Follow the verification steps sent to your email, and you'll be ready to start using PhimGG.",
         },
         {
           question: "What subscription plans do you offer?",
           answer:
-            "FilmFlex offers several subscription tiers: Basic (standard definition, single device), Standard (high definition, two devices), and Premium (ultra HD, four devices). Visit our pricing page for current rates and special offers.",
+            "PhimGG offers several subscription tiers: Basic (standard definition, single device), Standard (high definition, two devices), and Premium (ultra HD, four devices). Visit our pricing page for current rates and special offers.",
         },
         {
           question: "How can I update my payment information?",
@@ -46,9 +46,9 @@ const FAQsPage = () => {
       category: "Content & Streaming",
       items: [
         {
-          question: "What content is available on FilmFlex?",
+          question: "What content is available on PhimGG?",
           answer:
-            "FilmFlex offers a wide variety of movies and TV shows across all genres, including action, comedy, drama, documentaries, horror, sci-fi, and more. We regularly update our library with new releases and classics.",
+            "PhimGG offers a wide variety of movies and TV shows across all genres, including action, comedy, drama, documentaries, horror, sci-fi, and more. We regularly update our library with new releases and classics.",
         },
         {
           question: "Can I download content to watch offline?",
@@ -56,14 +56,14 @@ const FAQsPage = () => {
             "Yes, most titles are available for download on our mobile and tablet apps. Look for the download icon next to the title. Downloaded content remains available for 48 hours after you start watching, or 7 days if unwatched.",
         },
         {
-          question: "What streaming quality does FilmFlex offer?",
+          question: "What streaming quality does PhimGG offer?",
           answer:
-            "Depending on your subscription plan and internet connection, FilmFlex offers streaming in SD (480p), HD (720p and 1080p), and Ultra HD (4K). Our adaptive streaming technology adjusts quality automatically based on your internet speed.",
+            "Depending on your subscription plan and internet connection, PhimGG offers streaming in SD (480p), HD (720p and 1080p), and Ultra HD (4K). Our adaptive streaming technology adjusts quality automatically based on your internet speed.",
         },
         {
-          question: "Is FilmFlex available in my country?",
+          question: "Is PhimGG available in my country?",
           answer:
-            "FilmFlex is currently available in over 25 countries. Visit our availability page to see if your country is supported. Please note that content libraries may vary by region due to licensing agreements.",
+            "PhimGG is currently available in over 25 countries. Visit our availability page to see if your country is supported. Please note that content libraries may vary by region due to licensing agreements.",
         },
         {
           question: "Why isn't a particular movie or show available?",
@@ -76,9 +76,9 @@ const FAQsPage = () => {
       category: "Technical Support",
       items: [
         {
-          question: "What devices can I use to watch FilmFlex?",
+          question: "What devices can I use to watch PhimGG?",
           answer:
-            "FilmFlex is compatible with most internet-connected devices, including smart TVs, game consoles, streaming media players, set-top boxes, smartphones, tablets, and web browsers on computers.",
+            "PhimGG is compatible with most internet-connected devices, including smart TVs, game consoles, streaming media players, set-top boxes, smartphones, tablets, and web browsers on computers.",
         },
         {
           question: "Why am I experiencing buffering or poor video quality?",
@@ -91,9 +91,9 @@ const FAQsPage = () => {
             "The number of devices you can stream on simultaneously depends on your subscription plan: Basic (1 device), Standard (2 devices), Premium (4 devices).",
         },
         {
-          question: "Can I watch FilmFlex on my TV?",
+          question: "Can I watch PhimGG on my TV?",
           answer:
-            "Yes, you can watch FilmFlex on smart TVs with our app installed, or by connecting devices like Chromecast, Roku, Amazon Fire TV, Apple TV, or game consoles. Many modern TVs come with the FilmFlex app pre-installed.",
+            "Yes, you can watch PhimGG on smart TVs with our app installed, or by connecting devices like Chromecast, Roku, Amazon Fire TV, Apple TV, or game consoles. Many modern TVs come with the PhimGG app pre-installed.",
         },
         {
           question: "How do I reset my password?",
@@ -108,7 +108,7 @@ const FAQsPage = () => {
         {
           question: "How does the recommendation system work?",
           answer:
-            "Our recommendation system uses a combination of your viewing history, ratings, searches, and preferences to suggest content you might enjoy. The more you watch and interact with FilmFlex, the more personalized your recommendations become.",
+            "Our recommendation system uses a combination of your viewing history, ratings, searches, and preferences to suggest content you might enjoy. The more you watch and interact with PhimGG, the more personalized your recommendations become.",
         },
         {
           question: "Can I create multiple profiles on one account?",
@@ -123,10 +123,10 @@ const FAQsPage = () => {
         {
           question: "Can I set parental controls on my account?",
           answer:
-            "Yes, FilmFlex offers robust parental controls. You can set content restrictions based on maturity ratings for specific profiles, and even protect certain profiles with a PIN to prevent unauthorized access.",
+            "Yes, PhimGG offers robust parental controls. You can set content restrictions based on maturity ratings for specific profiles, and even protect certain profiles with a PIN to prevent unauthorized access.",
         },
         {
-          question: "How do I rate content on FilmFlex?",
+          question: "How do I rate content on PhimGG?",
           answer:
             "You can rate content by clicking on the rating stars on a title's detail page after watching. Your ratings help improve our recommendations for you and contribute to our community ratings.",
         },
@@ -141,7 +141,7 @@ const FAQsPage = () => {
         <FileQuestion className="h-12 w-12 text-primary mx-auto mb-4" />
         <h1 className="text-4xl font-bold mb-3">Frequently Asked Questions</h1>
         <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-          Find answers to common questions about FilmFlex, from account management to streaming features.
+          Find answers to common questions about PhimGG, from account management to streaming features.
         </p>
       </div>
 
@@ -211,7 +211,7 @@ const FAQsPage = () => {
         <HelpCircle className="h-10 w-10 text-primary mx-auto mb-4" />
         <h2 className="text-2xl font-bold mb-3">Didn't Find Your Answer?</h2>
         <p className="text-muted-foreground mb-6">
-          Our support team is here to help with any questions you may have about FilmFlex.
+          Our support team is here to help with any questions you may have about PhimGG.
         </p>
         <div className="flex flex-wrap justify-center gap-4">
           <a href="/contact" className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2">
@@ -230,7 +230,7 @@ const FAQsPage = () => {
           <span className="font-medium">Terms of Service</span>
         </a>
         <a href="/about" className="p-4 bg-black/20 rounded-lg text-center hover:bg-black/30 transition-colors">
-          <span className="font-medium">About FilmFlex</span>
+          <span className="font-medium">About PhimGG</span>
         </a>
         <a href="/how-to-watch" className="p-4 bg-black/20 rounded-lg text-center hover:bg-black/30 transition-colors">
           <span className="font-medium">How to Watch</span>

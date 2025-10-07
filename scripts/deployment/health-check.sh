@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🏥 FilmFlex System Health Check"
+echo "🏥 PhimGG System Health Check"
 echo "==============================="
 echo "📅 Date: $(date)"
 echo "🎯 Target: phimgg.com Production Environment"

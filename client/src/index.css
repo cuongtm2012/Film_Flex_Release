@@ -13,7 +13,7 @@
   --card-foreground: 20 14.3% 4.1%;
   --border: 20 5.9% 90%;
   --input: 20 5.9% 90%;
-  --primary: 0 72.2% 50.6%;  /* FilmFlex red */
+  --primary: 0 72.2% 50.6%;  /* PhimGG red */
   --primary-foreground: 60 9.1% 97.8%;
   --secondary: 60 4.8% 95.9%;
   --secondary-foreground: 24 9.8% 10%;
@@ -29,17 +29,17 @@
 }
 
 .dark {
-  --background: 240 10% 3.9%;  /* FilmFlex dark background */
+  --background: 240 10% 3.9%;  /* PhimGG dark background */
   --foreground: 0 0% 98%;
   --muted: 240 3.7% 15.9%;
   --muted-foreground: 240 5% 64.9%;
   --popover: 240 10% 3.9%;
   --popover-foreground: 0 0% 98%;
-  --card: 235 11% 12%;  /* FilmFlex card surface */
+  --card: 235 11% 12%;  /* PhimGG card surface */
   --card-foreground: 0 0% 98%;
   --border: 240 3.7% 15.9%;
   --input: 240 3.7% 15.9%;
-  --primary: 0 72.2% 50.6%;  /* FilmFlex red */
+  --primary: 0 72.2% 50.6%;  /* PhimGG red */
   --primary-foreground: 0 0% 98%;
   --secondary: 240 3.7% 15.9%;
   --secondary-foreground: 0 0% 98%;
