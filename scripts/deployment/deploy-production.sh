@@ -1,58 +1,162 @@
 #!/bin/bash
 
-echo "🚀 PhimGG Production Deployment Script"
+echo "🚀 FilmFlex Production Deployment Script"
 echo "=========================================="
 echo "📅 Date: $(date)"
 echo "🌐 Target: Production Server (38.54.14.154)"
 echo "🎬 Database: 5,005+ Movies Pre-loaded"
 echo ""
 
-# Load common functions
+# Color codes for output (fallback if common functions not available)
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+NC='\033[0m' # No Color
+
+# Basic print functions (fallback)
+print_status() {
+    echo -e "${GREEN}✅ $1${NC}"
+}
+
+print_warning() {
+    echo -e "${YELLOW}⚠️  $1${NC}"
+}
+
+print_error() {
+    echo -e "${RED}❌ $1${NC}"
+}
+
+print_info() {
+    echo -e "${BLUE}ℹ️  $1${NC}"
+}
+
+print_header() {
+    echo -e "${PURPLE}🎯 $1${NC}"
+}
+
+print_mode() {
+    echo -e "${BLUE}📦 $1${NC}"
+}
+
+# Try to load common functions if available
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/lib/common-functions.sh"
-
-# Initialize logging
-init_logging "deploy-production"
-
-# Deployment mode selection
-echo ""
-print_header "Select Deployment Mode:"
-echo ""
-print_mode "1) Full Deployment (Database + Application)"
-echo "   ├─ Redeploys both PostgreSQL and PhimGG containers"
-echo "   ├─ Use for fresh setup or major updates"
-echo "   ├─ Includes database initialization and health checks"
-echo "   └─ Takes longer but ensures complete environment refresh"
-echo ""
-print_mode "2) App-Only Deployment (Application Only)"
-echo "   ├─ Updates only the PhimGG application container"
-echo "   ├─ Use for code updates and quick releases"
-echo "   ├─ Keeps existing database container running"
-echo "   └─ Faster deployment for routine updates"
-echo ""
-
-# Get user selection with validation
-DEPLOYMENT_MODE=""
-while [[ ! "$DEPLOYMENT_MODE" =~ ^[12]$ ]]; do
-    read -p "Please select deployment mode (1 or 2): " DEPLOYMENT_MODE
-    if [[ ! "$DEPLOYMENT_MODE" =~ ^[12]$ ]]; then
-        print_warning "Invalid selection. Please enter 1 or 2."
-    fi
-done
-
-# Set deployment flags based on selection
-if [ "$DEPLOYMENT_MODE" = "1" ]; then
-    DEPLOY_DATABASE=true
-    DEPLOY_APP=true
-    MODE_NAME="Full Deployment"
-    print_status "Selected: Full Deployment (Database + Application)"
+if [ -f "$SCRIPT_DIR/lib/common-functions.sh" ]; then
+    source "$SCRIPT_DIR/lib/common-functions.sh"
+    print_info "Loaded common functions library"
 else
-    DEPLOY_DATABASE=false
-    DEPLOY_APP=true
-    MODE_NAME="App-Only Deployment"
-    print_status "Selected: App-Only Deployment (Application Only)"
+    print_warning "Common functions library not found, using fallback functions"
 fi
 
+# Default deployment mode
+DEPLOYMENT_MODE=""
+DEPLOY_DATABASE=false
+DEPLOY_APP=false
+MODE_NAME=""
+
+# Parse command line arguments
+show_usage() {
+    echo "Usage: $0 [--full|--app-only] [OPTIONS]"
+    echo ""
+    echo "DEPLOYMENT MODES:"
+    echo "  --full        Full deployment (Database + Application)"
+    echo "  --app-only    Application-only deployment (faster updates)"
+    echo ""
+    echo "OPTIONS:"
+    echo "  --help, -h    Show this help message"
+    echo ""
+    echo "EXAMPLES:"
+    echo "  $0 --full         # Deploy everything (database + app)"
+    echo "  $0 --app-only     # Deploy only the application"
+    echo ""
+    echo "DESCRIPTION:"
+    echo "  --full: Redeploys both PostgreSQL and FilmFlex containers"
+    echo "          Use for fresh setup or major updates"
+    echo "          Includes database initialization and health checks"
+    echo ""
+    echo "  --app-only: Updates only the FilmFlex application container"
+    echo "              Use for code updates and quick releases" 
+    echo "              Keeps existing database container running"
+    echo ""
+}
+
+# Parse arguments
+while [ $# -gt 0 ]; do
+    case $1 in
+        --full)
+            DEPLOYMENT_MODE="full"
+            DEPLOY_DATABASE=true
+            DEPLOY_APP=true
+            MODE_NAME="Full Deployment"
+            shift
+            ;;
+        --app-only)
+            DEPLOYMENT_MODE="app-only"
+            DEPLOY_DATABASE=false
+            DEPLOY_APP=true
+            MODE_NAME="App-Only Deployment"
+            shift
+            ;;
+        --help|-h)
+            show_usage
+            exit 0
+            ;;
+        *)
+            print_error "Unknown option: $1"
+            show_usage
+            exit 1
+            ;;
+    esac
+done
+
+# If no mode specified, show interactive selection
+if [ -z "$DEPLOYMENT_MODE" ]; then
+    echo ""
+    print_header "Select Deployment Mode:"
+    echo ""
+    print_mode "1) Full Deployment (Database + Application)"
+    echo "   ├─ Redeploys both PostgreSQL and FilmFlex containers"
+    echo "   ├─ Use for fresh setup or major updates"
+    echo "   ├─ Includes database initialization and health checks"
+    echo "   └─ Takes longer but ensures complete environment refresh"
+    echo ""
+    print_mode "2) App-Only Deployment (Application Only)"
+    echo "   ├─ Updates only the FilmFlex application container"
+    echo "   ├─ Use for code updates and quick releases"
+    echo "   ├─ Keeps existing database container running"
+    echo "   └─ Faster deployment for routine updates"
+    echo ""
+
+    # Get user selection with validation
+    while true; do
+        printf "Please select deployment mode (1 or 2): "
+        read selection
+        case $selection in
+            1)
+                DEPLOYMENT_MODE="full"
+                DEPLOY_DATABASE=true
+                DEPLOY_APP=true
+                MODE_NAME="Full Deployment"
+                break
+                ;;
+            2)
+                DEPLOYMENT_MODE="app-only"
+                DEPLOY_DATABASE=false
+                DEPLOY_APP=true
+                MODE_NAME="App-Only Deployment"
+                break
+                ;;
+            *)
+                print_warning "Invalid selection. Please enter 1 or 2."
+                ;;
+        esac
+    done
+fi
+
+print_status "Selected: $MODE_NAME"
+
+# Show configuration summary
 echo ""
 print_header "Deployment Configuration:"
 print_info "• Mode: $MODE_NAME"
@@ -62,20 +166,39 @@ print_info "• Source: Latest code from main branch"
 echo ""
 
 # Confirmation prompt
-read -p "Continue with $MODE_NAME? (y/N): " -n 1 -r
-echo ""
-if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+printf "Continue with $MODE_NAME? (y/N): "
+read -r reply
+if [ "$reply" != "y" ] && [ "$reply" != "Y" ]; then
     print_info "Deployment cancelled by user."
     exit 0
 fi
 
-# Acquire deployment lock
-acquire_lock "deployment" 300
-
-# Check prerequisites
+# Basic prerequisite checks
 print_info "Checking prerequisites..."
-check_docker_prerequisites || exit 1
+
+# Check if Docker is available
+if ! command -v docker >/dev/null 2>&1; then
+    print_error "Docker is not installed or not in PATH"
+    exit 1
+fi
+
+# Check if Docker Compose is available
+if ! docker compose version >/dev/null 2>&1; then
+    print_error "Docker Compose is not available"
+    exit 1
+fi
+
 print_status "Prerequisites check passed"
+
+# Function to get existing database network
+get_database_network() {
+    local db_network=$(docker inspect filmflex-postgres --format='{{range $net, $conf := .NetworkSettings.Networks}}{{$net}}{{end}}' 2>/dev/null | head -1)
+    if [ -n "$db_network" ]; then
+        echo "$db_network"
+    else
+        echo "bridge"
+    fi
+}
 
 # Conditional cleanup based on deployment mode
 if [ "$DEPLOY_DATABASE" = true ]; then
@@ -99,14 +222,16 @@ else
     docker rmi cuongtm2012/filmflex-app:latest 2>/dev/null || true
     docker rmi cuongtm2012/filmflex-app:local 2>/dev/null || true
     
-    # Check if database is running
+    # Check if database is running and get its network
     if docker ps | grep -q filmflex-postgres; then
         print_status "Database container is running - will be preserved"
+        DB_NETWORK=$(get_database_network)
+        print_info "Database is on network: $DB_NETWORK"
     else
         print_warning "Database container is not running - consider Full Deployment mode"
-        read -p "Continue with App-Only deployment anyway? (y/N): " -n 1 -r
-        echo ""
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        printf "Continue with App-Only deployment anyway? (y/N): "
+        read -r reply
+        if [ "$reply" != "y" ] && [ "$reply" != "Y" ]; then
             print_info "Switching to Full Deployment mode..."
             DEPLOY_DATABASE=true
             MODE_NAME="Full Deployment (Auto-switched)"
@@ -117,18 +242,23 @@ fi
 # Clean up Docker system
 docker system prune -f 2>/dev/null || true
 
-# Configure domain settings
-print_info "Configuring domain settings for phimgg.com..."
-configure_domain
-
-# Ensure latest main branch code
-ensure_main_branch || {
-    print_warning "Could not update to latest main branch - continuing with current code"
-}
+# Update to latest code if in git repository
+if git rev-parse --git-dir >/dev/null 2>&1; then
+    print_info "Updating to latest main branch code..."
+    git stash 2>/dev/null || true
+    git fetch origin || print_warning "Git fetch failed"
+    git checkout main 2>/dev/null || git checkout -b main origin/main 2>/dev/null
+    git reset --hard origin/main 2>/dev/null && print_status "Updated to latest main branch"
+    git clean -fd 2>/dev/null || true
+else
+    print_warning "Not a Git repository - using current code"
+fi
 
 # Create Docker Compose configuration based on deployment mode
+print_info "Creating Docker Compose configuration for $MODE_NAME..."
+
 if [ "$DEPLOY_DATABASE" = true ]; then
-    print_info "Creating full Docker Compose configuration (Database + App)..."
+    # Full deployment configuration
     cat > docker-compose.server.yml << 'COMPOSE_EOF'
 version: '3.8'
 
@@ -206,8 +336,12 @@ volumes:
     driver: local
 COMPOSE_EOF
 else
-    print_info "Creating app-only Docker Compose configuration..."
-    cat > docker-compose.server.yml << 'COMPOSE_EOF'
+    # App-only deployment configuration - connect to existing database network
+    # First, detect the existing database network
+    DB_NETWORK=${DB_NETWORK:-"bridge"}
+    print_info "Connecting app to existing database network: $DB_NETWORK"
+    
+    cat > docker-compose.server.yml << COMPOSE_EOF
 version: '3.8'
 
 services:
@@ -237,8 +371,6 @@ services:
       CACHE_BUSTER: "$(date +%Y%m%d_%H%M%S)"
     ports:
       - "127.0.0.1:5000:5000"
-    external_links:
-      - "filmflex-postgres:postgres"
     volumes:
       - app_logs:/app/logs
     healthcheck:
@@ -247,6 +379,7 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    network_mode: "$DB_NETWORK"
 
 volumes:
   app_logs:
@@ -259,11 +392,11 @@ print_status "Docker Compose configuration created for $MODE_NAME"
 # Pull/build images
 print_info "Starting deployment process..."
 if [ "$DEPLOY_DATABASE" = true ]; then
-    print_info "Pulling all Docker images (forcing fresh download)..."
-    docker compose -f docker-compose.server.yml pull --no-cache
+    print_info "Pulling all Docker images..."
+    docker compose -f docker-compose.server.yml pull
 else
-    print_info "Pulling only application Docker image (forcing fresh download)..."
-    docker pull --no-cache cuongtm2012/filmflex-app:latest
+    print_info "Pulling application Docker image..."
+    docker pull cuongtm2012/filmflex-app:latest
 fi
 
 # Build local image if source available
@@ -282,14 +415,14 @@ fi
 
 # Start services
 if [ "$DEPLOY_DATABASE" = true ]; then
-    print_info "Starting all PhimGG services..."
+    print_info "Starting all FilmFlex services..."
     docker compose -f docker-compose.server.yml up -d --force-recreate --renew-anon-volumes
     
     # Wait and verify database
     print_info "Waiting for database initialization..."
     sleep 30
     
-    for i in {1..10}; do
+    for i in $(seq 1 10); do
         if docker exec filmflex-postgres pg_isready -U filmflex -d filmflex >/dev/null 2>&1; then
             print_status "Database is ready"
             break
@@ -304,7 +437,7 @@ if [ "$DEPLOY_DATABASE" = true ]; then
         print_status "Database verified: $MOVIE_COUNT movies loaded"
     fi
 else
-    print_info "Starting PhimGG application (app-only deployment)..."
+    print_info "Starting FilmFlex application (app-only deployment)..."
     
     # Check existing database
     if ! docker ps | grep -q filmflex-postgres; then
@@ -312,22 +445,43 @@ else
         exit 1
     fi
     
+    # For app-only deployment, we need to connect to the existing network
+    print_info "Connecting new app container to existing database network..."
     docker compose -f docker-compose.server.yml up -d --force-recreate app
-    sleep 15
+    
+    # Wait for container to start
+    sleep 20
+    
+    # Additional verification - ensure app can connect to database
+    print_info "Verifying database connectivity..."
+    for i in $(seq 1 5); do
+        if docker exec filmflex-app nc -z filmflex-postgres 5432 2>/dev/null; then
+            print_status "App can connect to database"
+            break
+        elif [ $i -eq 5 ]; then
+            print_error "App cannot connect to database after 5 attempts"
+            print_info "Checking container logs for details..."
+            docker logs filmflex-app --tail 10
+        else
+            print_info "Waiting for database connection... (attempt $i/5)"
+            sleep 10
+        fi
+    done
 fi
 
 # Test application
 print_info "Testing application endpoints..."
-sleep 10
+sleep 15
 
 LOCAL_HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000 2>/dev/null || echo "000")
 API_HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/api/health 2>/dev/null || echo "000")
-DOMAIN_HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://phimgg.com 2>/dev/null || echo "000")
 
 if [ "$LOCAL_HTTP_CODE" = "200" ]; then
     print_status "Local application responding (HTTP $LOCAL_HTTP_CODE)"
 else
     print_warning "Local application not responding (HTTP $LOCAL_HTTP_CODE)"
+    print_info "Checking application logs..."
+    docker logs filmflex-app --tail 20
 fi
 
 if [ "$API_HTTP_CODE" = "200" ]; then
@@ -337,7 +491,7 @@ else
 fi
 
 # Check Nginx
-if systemctl is-active --quiet nginx 2>/dev/null; then
+if command -v systemctl >/dev/null 2>&1 && systemctl is-active --quiet nginx 2>/dev/null; then
     print_status "Nginx is running"
     if nginx -t 2>/dev/null; then
         print_status "Nginx configuration is valid"
@@ -349,15 +503,45 @@ else
     print_warning "Nginx is not running - domain access will not work"
 fi
 
-# Post-deployment health check
+# Basic health check
 echo ""
 print_header "Post-Deployment Health Check"
-perform_basic_health_check
-HEALTH_PASSED=$?
+
+health_passed=true
+
+# Check Docker containers
+if docker ps --format "table {{.Names}}" | grep -q "^filmflex-app$"; then
+    print_status "Application container is running"
+else
+    print_error "Application container not found"
+    health_passed=false
+fi
+
+if [ "$DEPLOY_DATABASE" = true ]; then
+    if docker ps --format "table {{.Names}}" | grep -q "^filmflex-postgres$"; then
+        print_status "Database container is running"
+    else
+        print_error "Database container not found"
+        health_passed=false
+    fi
+elif docker ps --format "table {{.Names}}" | grep -q "^filmflex-postgres$"; then
+    print_status "Database container is running (preserved)"
+else
+    print_error "Database container not found"
+    health_passed=false
+fi
+
+# Test endpoints
+if [ "$LOCAL_HTTP_CODE" = "200" ]; then
+    print_status "Application is responding"
+else
+    print_error "Application not responding"
+    health_passed=false
+fi
 
 # Final summary
 echo ""
-print_header "🎉 PhimGG $MODE_NAME Complete!"
+print_header "🎉 FilmFlex $MODE_NAME Complete!"
 print_status "Domain URL: https://phimgg.com"
 print_status "Direct Access: http://38.54.14.154:5000"
 print_status "Status: Production Ready"
@@ -368,22 +552,22 @@ print_info "• Mode: $MODE_NAME"
 print_info "• Source: Latest main branch code"
 print_info "• Application: Updated with latest changes"
 print_info "• Domain: Configured for phimgg.com"
-print_info "• Health Check: $([ $HEALTH_PASSED -eq 0 ] && echo "PASSED" || echo "ISSUES DETECTED")"
+print_info "• Health Check: $([ "$health_passed" = true ] && echo "PASSED" || echo "ISSUES DETECTED")"
 
 echo ""
 print_info "Management Commands:"
 print_info "• View logs: docker compose -f docker-compose.server.yml logs -f"
 print_info "• Restart services: docker compose -f docker-compose.server.yml restart"
-print_info "• Health check: ./scripts/deployment/health-check.sh"
-print_info "• Domain config: ./scripts/deployment/configure-domain.sh"
+print_info "• Check containers: docker compose -f docker-compose.server.yml ps"
 
 # Final status
-if [ "$LOCAL_HTTP_CODE" = "200" ] && [ $HEALTH_PASSED -eq 0 ]; then
+if [ "$LOCAL_HTTP_CODE" = "200" ] && [ "$health_passed" = true ]; then
     print_status "✅ $MODE_NAME SUCCESS: All systems operational!"
 elif [ "$LOCAL_HTTP_CODE" = "200" ]; then
     print_warning "⚠️  $MODE_NAME PARTIAL: App works but health issues detected"
 else
     print_error "❌ $MODE_NAME FAILED: Application not responding"
+    exit 1
 fi
 
 print_status "Deployment completed! 🎬"
