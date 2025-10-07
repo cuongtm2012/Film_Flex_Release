@@ -204,14 +204,20 @@ ensure_main_branch() {
 
 # Container management functions
 check_container_status() {
-    local container_name=$1
-    if docker ps --format "table {{.Names}}" | grep -q "^$container_name$"; then
-        local status=$(docker inspect "$container_name" --format='{{.State.Status}}' 2>/dev/null)
-        echo "$status"
-        return 0
+    local container_name="$1"
+    local status=$(docker inspect "$container_name" --format='{{.State.Status}}' 2>/dev/null || echo "not found")
+    local health=$(docker inspect "$container_name" --format='{{.State.Health.Status}}' 2>/dev/null || echo "no health check")
+    
+    if [ "$status" = "running" ]; then
+        if [ "$health" = "healthy" ]; then
+            echo "running (healthy)"
+        elif [ "$health" = "no health check" ]; then
+            echo "running (no health check)"
+        else
+            echo "running ($health)"
+        fi
     else
-        echo "not_found"
-        return 1
+        echo "$status"
     fi
 }
 
@@ -418,17 +424,15 @@ check_application_health() {
 }
 
 check_cors_configuration() {
-    local url="${1:-http://localhost:5000}"
+    print_info "Testing CORS configuration..."
     
-    log "Testing CORS configuration..."
+    local cors_test=$(curl -s -I -H "Origin: https://phimgg.com" "http://localhost:5000/api/health" 2>/dev/null | grep -i "access-control-allow-origin" || echo "")
     
-    local cors_test=$(curl -s -I -H "Origin: https://phimgg.com" "$url/api/health" | grep -i "access-control-allow-origin" || echo "No CORS headers")
-    
-    if [[ "$cors_test" == *"access-control-allow-origin"* ]]; then
-        success "CORS headers configured: $cors_test"
+    if [ -n "$cors_test" ]; then
+        print_status "CORS headers detected: $(echo $cors_test | tr -d '\r\n')"
         return 0
     else
-        warning "CORS headers not detected: $cors_test"
+        print_warning "CORS headers not detected"
         return 1
     fi
 }
