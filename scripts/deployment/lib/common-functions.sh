@@ -311,26 +311,29 @@ info() {
 # =============================================================================
 
 check_system_resources() {
-    log "Checking system resources..."
+    print_info "Checking system resources..."
     
-    # CPU usage
-    local cpu_usage=$(top -bn1 | grep "Cpu(s)" | awk '{print $2}' | sed 's/%us,//' 2>/dev/null || echo "0")
-    
-    # Memory usage
-    local memory_usage=$(free | grep Mem | awk '{printf "%.0f", $3/$2 * 100.0}' 2>/dev/null || echo "0")
-    
-    # Disk usage
-    local disk_usage=$(df / | awk 'NR==2 {print $5}' | sed 's/%//' 2>/dev/null || echo "0")
-    
-    log "Resources - CPU: ${cpu_usage}%, Memory: ${memory_usage}%, Disk: ${disk_usage}%"
-    
-    # Resource thresholds
-    if (( $(echo "$cpu_usage > 90" | bc -l 2>/dev/null || echo "0") )) || [ "$memory_usage" -gt 90 ] || [ "$disk_usage" -gt 90 ]; then
-        warning "High resource usage detected - CPU: ${cpu_usage}%, Memory: ${memory_usage}%, Disk: ${disk_usage}%"
+    # Check disk usage
+    local disk_usage=$(df / | tail -1 | awk '{print $5}' | sed 's/%//')
+    if [ "$disk_usage" -lt 90 ]; then
+        print_status "Disk usage: ${disk_usage}% (healthy)"
+    else
+        print_warning "Disk usage: ${disk_usage}% (high)"
         return 1
     fi
     
-    success "System resources OK"
+    # Check memory usage
+    local memory_info=$(free | awk 'NR==2{printf "%.0f %.0f", $3*100/$2, $2/1024/1024}')
+    local memory_percent=$(echo $memory_info | awk '{print $1}')
+    local total_memory=$(echo $memory_info | awk '{print $2}')
+    
+    if [ "$memory_percent" -lt 90 ]; then
+        print_status "Memory usage: ${memory_percent}% of ${total_memory}GB (healthy)"
+    else
+        print_warning "Memory usage: ${memory_percent}% of ${total_memory}GB (high)"
+        return 1
+    fi
+    
     return 0
 }
 
@@ -356,37 +359,39 @@ check_docker_prerequisites() {
 }
 
 check_docker_containers() {
-    log "Checking Docker container health..."
+    print_info "Checking Docker containers..."
     
-    # Check if containers are running
-    if ! docker ps --format "table {{.Names}}" | grep -q "$APP_CONTAINER"; then
-        warning "App container '$APP_CONTAINER' is not running"
-        return 1
+    local containers_healthy=true
+    
+    # Check app container
+    if docker ps --format "table {{.Names}}\t{{.Status}}" | grep -q "filmflex-app.*Up"; then
+        print_status "FilmFlex app container is running"
+    else
+        print_error "FilmFlex app container is not running properly"
+        containers_healthy=false
     fi
     
-    if ! docker ps --format "table {{.Names}}" | grep -q "$DB_CONTAINER"; then
-        warning "Database container '$DB_CONTAINER' is not running" 
-        return 1
+    # Check database container
+    if docker ps --format "table {{.Names}}\t{{.Status}}" | grep -q "filmflex-postgres.*Up"; then
+        print_status "FilmFlex database container is running"
+    else
+        print_error "FilmFlex database container is not running properly"
+        containers_healthy=false
     fi
     
-    # Check database connectivity
-    if ! docker exec "$DB_CONTAINER" pg_isready -U "$DB_USER" -d "$DB_NAME" >/dev/null 2>&1; then
-        warning "Database is not ready"
-        return 1
-    fi
-    
-    success "All containers healthy"
-    return 0
+    return $([ "$containers_healthy" = true ] && echo 0 || echo 1)
 }
 
 get_database_stats() {
-    local stats=$(docker exec "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -t -c "
-        SELECT 
-            COALESCE((SELECT COUNT(*) FROM movies), 0) as movies,
-            COALESCE((SELECT COUNT(*) FROM episodes), 0) as episodes
-    " 2>/dev/null | tr -d ' ' || echo "0|0")
+    local movies=0
+    local episodes=0
     
-    echo "$stats"
+    if docker exec filmflex-postgres psql -U filmflex -d filmflex -c "\dt" >/dev/null 2>&1; then
+        movies=$(docker exec filmflex-postgres psql -U filmflex -d filmflex -t -c "SELECT COUNT(*) FROM movies;" 2>/dev/null | tr -d ' ' || echo "0")
+        episodes=$(docker exec filmflex-postgres psql -U filmflex -d filmflex -t -c "SELECT COUNT(*) FROM episodes;" 2>/dev/null | tr -d ' ' || echo "0")
+    fi
+    
+    echo "${movies}|${episodes}"
 }
 
 # =============================================================================
@@ -529,25 +534,40 @@ release_lock() {
 # =============================================================================
 
 check_nginx_status() {
-    log "Checking Nginx status..."
+    print_info "Checking Nginx status..."
     
-    if ! command -v nginx &> /dev/null; then
-        warning "Nginx is not installed"
-        return 1
-    fi
-    
-    if nginx -t >/dev/null 2>&1; then
-        success "Nginx configuration is valid"
+    # Check if nginx service is running
+    if systemctl is-active --quiet nginx 2>/dev/null; then
+        print_status "Nginx service is active"
+        
+        # Check if nginx configuration is valid
+        if nginx -t 2>/dev/null; then
+            print_status "Nginx configuration is valid"
+            
+            # Check if nginx is listening on standard ports using ss
+            local http_listening=$(ss -tln | grep -c ":80 ")
+            local https_listening=$(ss -tln | grep -c ":443 ")
+            
+            if [ "$http_listening" -gt 0 ]; then
+                print_status "Nginx listening on HTTP port 80"
+            else
+                print_warning "Nginx not listening on HTTP port 80"
+                return 1
+            fi
+            
+            if [ "$https_listening" -gt 0 ]; then
+                print_status "Nginx listening on HTTPS port 443"
+            else
+                print_warning "Nginx not listening on HTTPS port 443"
+            fi
+            
+            return 0
+        else
+            print_error "Nginx configuration has errors"
+            return 1
+        fi
     else
-        error "Nginx configuration has errors"
-        return 1
-    fi
-    
-    if systemctl is-active --quiet nginx; then
-        success "Nginx service is running"
-        return 0
-    else
-        warning "Nginx service is not running"
+        print_error "Nginx service is not running"
         return 1
     fi
 }
@@ -570,28 +590,21 @@ reload_nginx() {
 # =============================================================================
 
 check_ssl_certificate() {
-    local domain="${1:-$PRODUCTION_DOMAIN}"
+    local domain="${1:-phimgg.com}"
     
-    log "Checking SSL certificate for $domain..."
-    
-    if [ ! -f "/etc/letsencrypt/live/$domain/fullchain.pem" ]; then
-        warning "SSL certificate not found for $domain"
-        return 1
+    if [ -f "/etc/letsencrypt/live/$domain/fullchain.pem" ]; then
+        # Check certificate expiry
+        local cert_expiry=$(openssl x509 -enddate -noout -in "/etc/letsencrypt/live/$domain/cert.pem" 2>/dev/null | cut -d= -f2)
+        if [ ! -z "$cert_expiry" ]; then
+            # Check if certificate expires within 30 days
+            if openssl x509 -checkend 2592000 -noout -in "/etc/letsencrypt/live/$domain/cert.pem" 2>/dev/null; then
+                return 0
+            else
+                return 1
+            fi
+        fi
     fi
-    
-    # Check certificate expiration
-    local expiry_date=$(openssl x509 -enddate -noout -in "/etc/letsencrypt/live/$domain/fullchain.pem" | cut -d= -f2)
-    local expiry_timestamp=$(date -d "$expiry_date" +%s)
-    local current_timestamp=$(date +%s)
-    local days_until_expiry=$(( (expiry_timestamp - current_timestamp) / 86400 ))
-    
-    if [ $days_until_expiry -lt 30 ]; then
-        warning "SSL certificate expires in $days_until_expiry days"
-        return 1
-    else
-        success "SSL certificate valid for $days_until_expiry days"
-        return 0
-    fi
+    return 1
 }
 
 # =============================================================================
