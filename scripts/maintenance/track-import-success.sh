@@ -43,8 +43,15 @@ analyze_recent_imports() {
             if grep -q "Import Completed Successfully" "$log_file"; then
                 successful_imports=$((successful_imports + 1))
                 
-                # Extract new items count from successful imports
-                local new_items=$(grep "Import results:" "$log_file" 2>/dev/null | tail -1 | grep -o "+[0-9]\+" | tr -d '+' | head -2 | paste -sd+ | bc 2>/dev/null || echo "0")
+                # Extract new items count from successful imports - fix the parsing
+                local movies_added=$(grep "Import results:" "$log_file" 2>/dev/null | tail -1 | grep -o "+[0-9]\+ movies" | grep -o "[0-9]\+" | head -1 || echo "0")
+                local episodes_added=$(grep "Import results:" "$log_file" 2>/dev/null | tail -1 | grep -o "+[0-9]\+ episodes" | grep -o "[0-9]\+" | head -1 || echo "0")
+                
+                # Ensure we have valid numbers
+                movies_added=${movies_added:-0}
+                episodes_added=${episodes_added:-0}
+                
+                local new_items=$((movies_added + episodes_added))
                 total_new_items=$((total_new_items + new_items))
             elif grep -q "Import Failed" "$log_file"; then
                 failed_imports=$((failed_imports + 1))
