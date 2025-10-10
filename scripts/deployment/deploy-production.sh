@@ -233,6 +233,79 @@ pre_build_application() {
     return 0
 }
 
+# Sync static files with Nginx directory
+sync_nginx_static_files() {
+    print_header "🔄 Syncing Static Files with Nginx"
+    
+    local nginx_static_dir="/var/www/filmflex"
+    local temp_dist_dir="/tmp/filmflex-dist-$(date +%s)"
+    
+    # Check if nginx static directory exists
+    if [ ! -d "$nginx_static_dir" ]; then
+        print_info "Creating Nginx static directory: $nginx_static_dir"
+        if ! mkdir -p "$nginx_static_dir"; then
+            print_error "Failed to create Nginx static directory"
+            return 1
+        fi
+    fi
+    
+    # Extract static files from the deployed container
+    print_info "Extracting static files from filmflex-app container..."
+    if ! docker cp filmflex-app:/app/dist "$temp_dist_dir"; then
+        print_error "Failed to extract static files from container"
+        return 1
+    fi
+    
+    # Backup existing static files if they exist
+    if [ -d "$nginx_static_dir/dist" ]; then
+        local backup_dir="$nginx_static_dir/dist.backup.$(date +%Y%m%d_%H%M%S)"
+        print_info "Backing up existing static files to: $backup_dir"
+        if ! mv "$nginx_static_dir/dist" "$backup_dir"; then
+            print_warning "Failed to backup existing static files, continuing anyway..."
+        fi
+    fi
+    
+    # Copy new static files to Nginx directory
+    print_info "Copying new static files to Nginx directory..."
+    if ! cp -r "$temp_dist_dir" "$nginx_static_dir/dist"; then
+        print_error "Failed to copy static files to Nginx directory"
+        return 1
+    fi
+    
+    # Set proper permissions
+    print_info "Setting proper permissions on static files..."
+    chown -R www-data:www-data "$nginx_static_dir" 2>/dev/null || true
+    chmod -R 755 "$nginx_static_dir" 2>/dev/null || true
+    
+    # Clean up temporary directory
+    rm -rf "$temp_dist_dir"
+    
+    # Reload Nginx to ensure it picks up any changes
+    print_info "Reloading Nginx configuration..."
+    if command -v systemctl >/dev/null 2>&1; then
+        if ! systemctl reload nginx; then
+            print_warning "Failed to reload Nginx via systemctl, trying alternative..."
+            nginx -s reload 2>/dev/null || print_warning "Failed to reload Nginx"
+        fi
+    else
+        nginx -s reload 2>/dev/null || print_warning "Failed to reload Nginx"
+    fi
+    
+    # Verify static files were copied correctly
+    if [ -f "$nginx_static_dir/dist/index.html" ] || [ -f "$nginx_static_dir/dist/public/index.html" ]; then
+        print_status "✅ Static files synchronized successfully"
+        
+        # Show some info about what was synced
+        local static_size=$(du -sh "$nginx_static_dir/dist" 2>/dev/null | cut -f1)
+        print_info "Static files size: $static_size"
+        
+        return 0
+    else
+        print_error "❌ Static file synchronization verification failed"
+        return 1
+    fi
+}
+
 # Create docker compose configuration
 create_docker_compose_config() {
     print_header "📄 Creating Docker Compose Configuration"
@@ -798,6 +871,11 @@ main() {
         if perform_health_check; then
             print_status "✅ App-only deployment completed successfully"
             
+            # Sync static files with Nginx
+            if ! sync_nginx_static_files; then
+                print_warning "⚠️  Static file synchronization failed"
+            fi
+            
             # Generate deployment report
             generate_deployment_report "SUCCESS"
             
@@ -835,6 +913,11 @@ main() {
         # Perform enhanced health check
         if perform_health_check; then
             print_status "✅ Full deployment completed successfully"
+            
+            # Sync static files with Nginx
+            if ! sync_nginx_static_files; then
+                print_warning "⚠️  Static file synchronization failed"
+            fi
             
             # Generate deployment report
             generate_deployment_report "SUCCESS"
