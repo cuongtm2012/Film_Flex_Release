@@ -688,7 +688,10 @@ create_docker_compose_config() {
         
         print_info "Creating app-only docker-compose configuration..."
         
-        cat > "$compose_file" << 'EOF'
+        # For app-only deployment, we need to handle the network differently
+        if [ "$DATABASE_NETWORK" = "bridge" ]; then
+            # Use bridge network - no external network needed
+            cat > "$compose_file" << 'EOF'
 version: '3.8'
 
 services:
@@ -704,8 +707,38 @@ services:
       - DB_NAME=filmflex
       - DB_USER=filmflex
       - DB_PASSWORD=filmflex123
-    depends_on:
-      - filmflex-postgres
+    restart: unless-stopped
+    volumes:
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  default:
+    driver: bridge
+EOF
+        else
+            # Use external network
+            cat > "$compose_file" << EOF
+version: '3.8'
+
+services:
+  filmflex-app:
+    build: .
+    container_name: filmflex-app
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=production
+      - DB_HOST=filmflex-postgres
+      - DB_PORT=5432
+      - DB_NAME=filmflex
+      - DB_USER=filmflex
+      - DB_PASSWORD=filmflex123
     restart: unless-stopped
     volumes:
       - ./logs:/app/logs
@@ -719,11 +752,9 @@ services:
 networks:
   default:
     external: true
-    name: DATABASE_NETWORK_PLACEHOLDER
+    name: $DATABASE_NETWORK
 EOF
-        
-        # Replace the network placeholder with actual network
-        sed -i "s/DATABASE_NETWORK_PLACEHOLDER/$DATABASE_NETWORK/" "$compose_file"
+        fi
         
         print_status "App-only docker-compose.server.yml created with network: $DATABASE_NETWORK"
         
