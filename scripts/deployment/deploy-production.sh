@@ -679,6 +679,24 @@ create_docker_compose_config() {
         rm -f "$compose_file"
     fi
     
+    # Determine the correct build context (project root)
+    local project_root="$(cd "$SCRIPT_DIR/../.." && pwd)"
+    print_info "Project root directory: $project_root"
+    
+    # Check if Dockerfile exists
+    if [ -f "$project_root/Dockerfile.final" ]; then
+        local dockerfile="Dockerfile.final"
+        print_info "Using Dockerfile.final for build"
+    elif [ -f "$project_root/Dockerfile" ]; then
+        local dockerfile="Dockerfile"
+        print_info "Using Dockerfile for build"
+    else
+        print_error "No Dockerfile found in project root: $project_root"
+        print_info "Available files in project root:"
+        ls -la "$project_root" | grep -E "(Dockerfile|\.dockerfile)" || print_info "No Dockerfile variants found"
+        return 1
+    fi
+    
     if [ "$DEPLOYMENT_MODE" = "app-only" ]; then
         # App-only deployment - connect to existing database network
         if ! get_database_network; then
@@ -691,12 +709,14 @@ create_docker_compose_config() {
         # For app-only deployment, we need to handle the network differently
         if [ "$DATABASE_NETWORK" = "bridge" ]; then
             # Use bridge network - no external network needed
-            cat > "$compose_file" << 'EOF'
+            cat > "$compose_file" << EOF
 version: '3.8'
 
 services:
   filmflex-app:
-    build: .
+    build:
+      context: $project_root
+      dockerfile: $dockerfile
     container_name: filmflex-app
     ports:
       - "5000:5000"
@@ -709,7 +729,7 @@ services:
       - DB_PASSWORD=filmflex123
     restart: unless-stopped
     volumes:
-      - ./logs:/app/logs
+      - $project_root/logs:/app/logs
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
       interval: 30s
@@ -728,7 +748,9 @@ version: '3.8'
 
 services:
   filmflex-app:
-    build: .
+    build:
+      context: $project_root
+      dockerfile: $dockerfile
     container_name: filmflex-app
     ports:
       - "5000:5000"
@@ -741,7 +763,7 @@ services:
       - DB_PASSWORD=filmflex123
     restart: unless-stopped
     volumes:
-      - ./logs:/app/logs
+      - $project_root/logs:/app/logs
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
       interval: 30s
@@ -762,7 +784,7 @@ EOF
         # Full deployment - include database
         print_info "Creating full deployment docker-compose configuration..."
         
-        cat > "$compose_file" << 'EOF'
+        cat > "$compose_file" << EOF
 version: '3.8'
 
 services:
@@ -776,7 +798,7 @@ services:
       POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./shared:/docker-entrypoint-initdb.d
+      - $project_root/shared:/docker-entrypoint-initdb.d
     ports:
       - "5432:5432"
     restart: unless-stopped
@@ -788,7 +810,9 @@ services:
       start_period: 30s
 
   filmflex-app:
-    build: .
+    build:
+      context: $project_root
+      dockerfile: $dockerfile
     container_name: filmflex-app
     ports:
       - "5000:5000"
@@ -804,7 +828,7 @@ services:
         condition: service_healthy
     restart: unless-stopped
     volumes:
-      - ./logs:/app/logs
+      - $project_root/logs:/app/logs
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
       interval: 30s
