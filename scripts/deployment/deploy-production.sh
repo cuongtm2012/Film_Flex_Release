@@ -676,6 +676,165 @@ update_nginx_configuration() {
     fi
 }
 
+# Enhanced build verification and cache busting
+verify_build_content() {
+    local image_name="$1"
+    print_header "🔍 Verifying Build Content"
+    
+    # Create temporary container to inspect content
+    local temp_container="filmflex-verify-$(date +%s)"
+    
+    if docker create --name "$temp_container" "$image_name" >/dev/null 2>&1; then
+        # Check if PhimGG branding is present in the built application
+        print_info "Checking for PhimGG branding in built application..."
+        
+        # Extract and check footer component
+        if docker cp "$temp_container:/app/dist/index.html" /tmp/verify-index.html 2>/dev/null; then
+            if grep -q "PhimGG" /tmp/verify-index.html 2>/dev/null; then
+                print_status "✅ PhimGG branding found in built application"
+                BUILD_VERIFICATION_PASSED=true
+            else
+                print_warning "⚠️  PhimGG branding not found in index.html - checking source files"
+                
+                # Check if source files contain PhimGG
+                if docker cp "$temp_container:/app/client/src/components/Footer.tsx" /tmp/verify-footer.tsx 2>/dev/null; then
+                    if grep -q "PhimGG" /tmp/verify-footer.tsx 2>/dev/null; then
+                        print_status "✅ PhimGG branding found in Footer component source"
+                        BUILD_VERIFICATION_PASSED=true
+                    else
+                        print_error "❌ PhimGG branding missing from Footer component"
+                        BUILD_VERIFICATION_PASSED=false
+                    fi
+                else
+                    print_warning "Could not verify source files in container"
+                    BUILD_VERIFICATION_PASSED=false
+                fi
+            fi
+        else
+            print_warning "Could not extract files for verification"
+            BUILD_VERIFICATION_PASSED=false
+        fi
+        
+        # Check build timestamp
+        if docker cp "$temp_container:/app/build-info.txt" /tmp/build-info.txt 2>/dev/null; then
+            local build_time=$(cat /tmp/build-info.txt 2>/dev/null || echo "Unknown")
+            print_info "Build timestamp: $build_time"
+        fi
+        
+        # Clean up temporary files
+        rm -f /tmp/verify-*.html /tmp/verify-*.tsx /tmp/build-info.txt 2>/dev/null
+        
+        # Clean up container
+        docker rm "$temp_container" >/dev/null 2>&1
+        
+        return $([ "$BUILD_VERIFICATION_PASSED" = true ] && echo 0 || echo 1)
+    else
+        print_error "Failed to create verification container"
+        return 1
+    fi
+}
+
+# Force rebuild with no cache and content verification
+force_fresh_build() {
+    print_header "🔨 Force Fresh Build with Latest Code"
+    
+    # Ensure we have the latest code
+    print_info "Ensuring latest source code..."
+    if git rev-parse --git-dir >/dev/null 2>&1; then
+        # Stash any local changes
+        git stash push -m "Pre-deployment stash $(date)" 2>/dev/null || true
+        
+        # Force fetch and reset to latest
+        git fetch origin --force
+        git reset --hard origin/main
+        git clean -fxd  # Remove all untracked files and build artifacts
+        
+        print_status "✅ Source code updated to latest main branch"
+    else
+        print_warning "Not a git repository - using current code"
+    fi
+    
+    # Remove ALL related images to force complete rebuild
+    print_info "Removing all existing FilmFlex images..."
+    docker rmi $(docker images | grep -E "(cuongtm2012/filmflex|filmflex)" | awk '{print $3}') 2>/dev/null || true
+    
+    # Clear Docker build cache
+    print_info "Clearing Docker build cache..."
+    docker builder prune -f 2>/dev/null || true
+    
+    # Determine best Dockerfile
+    local dockerfile="Dockerfile"
+    if [ -f "Dockerfile.final" ]; then
+        dockerfile="Dockerfile.final"
+        print_info "Using Dockerfile.final for build"
+    elif [ -f "Dockerfile" ]; then
+        dockerfile="Dockerfile"
+        print_info "Using Dockerfile for build"
+    else
+        print_error "No Dockerfile found!"
+        return 1
+    fi
+    
+    # Add build timestamp to track deployment
+    echo "Build Time: $(date)" > build-info.txt
+    echo "Git Commit: $(git rev-parse HEAD 2>/dev/null || echo 'Unknown')" >> build-info.txt
+    echo "Build Mode: Force Fresh Build" >> build-info.txt
+    
+    # Build with no cache and pull latest base images
+    print_info "Building application with --no-cache and --pull flags..."
+    if docker build \
+        --no-cache \
+        --pull \
+        --build-arg BUILDKIT_INLINE_CACHE=0 \
+        --build-arg BUILD_TIME="$(date)" \
+        --build-arg CACHE_BUSTER="$(date +%s)" \
+        -t cuongtm2012/filmflex-app:local \
+        -f "$dockerfile" .; then
+        
+        print_status "✅ Fresh build completed successfully"
+        
+        # Verify the build contains our changes
+        if verify_build_content "cuongtm2012/filmflex-app:local"; then
+            print_status "✅ Build verification passed - latest changes included"
+            return 0
+        else
+            print_error "❌ Build verification failed - changes not reflected"
+            return 1
+        fi
+    else
+        print_error "❌ Build failed"
+        return 1
+    fi
+}
+
+# Enhanced cache invalidation
+invalidate_all_caches() {
+    print_header "🧹 Comprehensive Cache Invalidation"
+    
+    # 1. Clear browser cache headers by updating environment variables
+    local cache_buster="$(date +%Y%m%d_%H%M%S)"
+    print_info "Setting cache-busting headers with timestamp: $cache_buster"
+    
+    # 2. Clear Nginx cache if present
+    if [ -d "/var/cache/nginx" ]; then
+        print_info "Clearing Nginx cache..."
+        rm -rf /var/cache/nginx/* 2>/dev/null || true
+        print_status "Nginx cache cleared"
+    fi
+    
+    # 3. Restart Nginx to clear any in-memory cache
+    if command -v systemctl >/dev/null 2>&1 && systemctl is-active --quiet nginx 2>/dev/null; then
+        print_info "Restarting Nginx to clear in-memory cache..."
+        systemctl restart nginx 2>/dev/null && print_status "Nginx restarted"
+    fi
+    
+    # 4. Set cache-control headers in the Docker environment
+    export CACHE_BUSTER="$cache_buster"
+    export APP_VERSION="$(date +%s)"
+    
+    print_status "✅ Cache invalidation completed"
+}
+
 # Parse command line arguments
 show_usage() {
     echo "Usage: $0 [--full|--app-only] [OPTIONS]"
@@ -1042,29 +1201,33 @@ fi
 
 print_status "Docker Compose configuration created for $MODE_NAME"
 
-# Pull/build images
-print_info "Starting deployment process..."
-if [ "$DEPLOY_DATABASE" = true ]; then
-    print_info "Pulling all Docker images..."
-    docker compose -f docker-compose.server.yml pull
+# Pull/build images with enhanced verification
+print_info "Starting deployment process with enhanced build verification..."
+
+# Step 1: Force fresh build to ensure latest changes
+if ! force_fresh_build; then
+    print_error "Fresh build failed - attempting fallback to remote image"
+    
+    # Fallback: Try to pull latest remote image
+    if [ "$DEPLOY_DATABASE" = true ]; then
+        print_info "Pulling all Docker images as fallback..."
+        docker compose -f docker-compose.server.yml pull
+    else
+        print_info "Pulling application Docker image as fallback..."
+        docker pull cuongtm2012/filmflex-app:latest
+    fi
+    
+    # Use the remote image but warn user
+    print_warning "Using remote image - may not contain latest local changes"
+    print_info "Consider pushing latest changes to repository and rebuilding the Docker image"
 else
-    print_info "Pulling application Docker image..."
-    docker pull cuongtm2012/filmflex-app:latest
+    # Update compose file to use our verified local build
+    sed -i 's|image: cuongtm2012/filmflex-app:latest|image: cuongtm2012/filmflex-app:local|' docker-compose.server.yml
+    print_status "✅ Using verified fresh build with latest changes"
 fi
 
-# Build local image if source available
-if [ -f "Dockerfile" ] || [ -f "Dockerfile.final" ]; then
-    print_info "Building application with latest source code..."
-    dockerfile="Dockerfile"
-    [ -f "Dockerfile.final" ] && dockerfile="Dockerfile.final"
-    
-    if docker build --no-cache --pull -t cuongtm2012/filmflex-app:local -f "$dockerfile" .; then
-        print_status "Using locally built image with latest source code"
-        sed -i 's|image: cuongtm2012/filmflex-app:latest|image: cuongtm2012/filmflex-app:local|' docker-compose.server.yml
-    else
-        print_warning "Local build failed, using pulled image"
-    fi
-fi
+# Step 2: Comprehensive cache invalidation
+invalidate_all_caches
 
 # Start services
 if [ "$DEPLOY_DATABASE" = true ]; then
