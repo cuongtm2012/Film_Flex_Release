@@ -124,15 +124,54 @@ pre_build_application() {
         return 1
     fi
     
-    # Install dependencies if node_modules doesn't exist or is incomplete
-    if [ ! -d "node_modules" ] || [ ! -f "node_modules/.package-lock.json" ]; then
-        print_info "Installing dependencies..."
-        if ! npm install; then
-            print_error "Failed to install dependencies"
+    # Clean npm cache to avoid conflicts
+    print_info "Cleaning npm cache..."
+    npm cache clean --force 2>/dev/null || true
+    
+    # Remove node_modules and package-lock.json to ensure fresh install
+    print_info "Cleaning previous installation..."
+    rm -rf node_modules package-lock.json 2>/dev/null || true
+    
+    # Install ALL dependencies including devDependencies
+    print_info "Installing all dependencies (including dev dependencies)..."
+    if ! npm install --include=dev; then
+        print_error "Failed to install dependencies"
+        print_info "Trying alternative installation method..."
+        
+        # Try with legacy peer deps flag
+        if ! npm install --include=dev --legacy-peer-deps; then
+            print_error "Failed to install dependencies with legacy peer deps"
             return 1
         fi
-    else
-        print_info "Dependencies already installed"
+    fi
+    
+    # Verify critical build dependencies
+    print_info "Verifying build dependencies..."
+    local missing_deps=()
+    
+    if [ ! -d "node_modules/@vitejs/plugin-react" ]; then
+        missing_deps+=("@vitejs/plugin-react")
+    fi
+    
+    if [ ! -d "node_modules/vite" ]; then
+        missing_deps+=("vite")
+    fi
+    
+    if [ ! -d "node_modules/esbuild" ]; then
+        missing_deps+=("esbuild")
+    fi
+    
+    if [ ${#missing_deps[@]} -gt 0 ]; then
+        print_warning "Missing critical dependencies: ${missing_deps[*]}"
+        print_info "Installing missing dependencies individually..."
+        
+        for dep in "${missing_deps[@]}"; do
+            print_info "Installing $dep..."
+            if ! npm install "$dep" --save-dev; then
+                print_error "Failed to install $dep"
+                return 1
+            fi
+        done
     fi
     
     # Clean previous build
@@ -141,12 +180,27 @@ pre_build_application() {
         rm -rf dist
     fi
     
-    # Build the application
+    # Set Node environment for build
+    export NODE_ENV=production
+    
+    # Build the application with verbose output
     print_info "Building application..."
-    if ! npm run build; then
+    if ! npm run build 2>&1; then
         print_error "Failed to build application"
-        print_info "Build logs above should show the specific error"
-        return 1
+        print_info "Trying alternative build approach..."
+        
+        # Try building client and server separately
+        print_info "Building client first..."
+        if ! npm run build:client; then
+            print_error "Failed to build client"
+            return 1
+        fi
+        
+        print_info "Building server..."
+        if ! npm run build:server; then
+            print_error "Failed to build server"
+            return 1
+        fi
     fi
     
     # Verify build output
@@ -165,6 +219,10 @@ pre_build_application() {
     print_status "✅ Application built successfully"
     print_info "Build output:"
     ls -la dist/ | head -10
+    
+    # Verify build size
+    local dist_size=$(du -sh dist 2>/dev/null | cut -f1)
+    print_info "Build size: $dist_size"
     
     # Return to deployment script directory
     cd "$SCRIPT_DIR" || {
