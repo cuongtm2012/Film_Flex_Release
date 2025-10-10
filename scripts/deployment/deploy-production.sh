@@ -492,3 +492,469 @@ perform_health_check() {
     
     return $([ "$check_passed" = true ] && echo 0 || echo 1)
 }
+
+# Command line argument parsing and deployment mode selection
+parse_arguments() {
+    print_header "🔧 Parsing Deployment Options"
+    
+    # Parse command line arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --full|--complete)
+                DEPLOYMENT_MODE="full"
+                DEPLOY_DATABASE=true
+                DEPLOY_APP=true
+                MODE_NAME="Full Deployment (Database + Application)"
+                print_mode "$MODE_NAME"
+                shift
+                ;;
+            --app-only|--app)
+                DEPLOYMENT_MODE="app-only"
+                DEPLOY_DATABASE=false
+                DEPLOY_APP=true
+                MODE_NAME="App-Only Deployment (Preserve Database)"
+                print_mode "$MODE_NAME"
+                shift
+                ;;
+            --db-only|--database)
+                DEPLOYMENT_MODE="db-only"
+                DEPLOY_DATABASE=true
+                DEPLOY_APP=false
+                MODE_NAME="Database-Only Deployment"
+                print_mode "$MODE_NAME"
+                shift
+                ;;
+            --skip-nginx)
+                SKIP_NGINX=true
+                print_info "Nginx configuration will be skipped"
+                shift
+                ;;
+            --force)
+                FORCE_DEPLOYMENT=true
+                print_warning "Force mode enabled - will override safety checks"
+                shift
+                ;;
+            --help|-h)
+                show_help
+                exit 0
+                ;;
+            *)
+                print_error "Unknown option: $1"
+                show_help
+                exit 1
+                ;;
+        esac
+    done
+    
+    # Set default mode if none specified
+    if [ -z "$DEPLOYMENT_MODE" ]; then
+        print_info "No deployment mode specified, using interactive selection..."
+        select_deployment_mode
+    fi
+    
+    print_status "Selected mode: $MODE_NAME"
+}
+
+# Interactive deployment mode selection
+select_deployment_mode() {
+    print_header "📋 Select Deployment Mode"
+    
+    echo "Available deployment modes:"
+    echo "1) 🚀 Full Deployment (Database + Application)"
+    echo "2) 📱 App-Only (Preserve existing database)"
+    echo "3) 🗄️  Database-Only (Preserve existing app)"
+    echo "4) ❌ Cancel deployment"
+    echo ""
+    
+    while true; do
+        read -p "Please select deployment mode (1-4): " choice
+        case $choice in
+            1)
+                DEPLOYMENT_MODE="full"
+                DEPLOY_DATABASE=true
+                DEPLOY_APP=true
+                MODE_NAME="Full Deployment (Database + Application)"
+                break
+                ;;
+            2)
+                DEPLOYMENT_MODE="app-only"
+                DEPLOY_DATABASE=false
+                DEPLOY_APP=true
+                MODE_NAME="App-Only Deployment (Preserve Database)"
+                break
+                ;;
+            3)
+                DEPLOYMENT_MODE="db-only"
+                DEPLOY_DATABASE=true
+                DEPLOY_APP=false
+                MODE_NAME="Database-Only Deployment"
+                break
+                ;;
+            4)
+                print_info "Deployment cancelled by user"
+                exit 0
+                ;;
+            *)
+                print_error "Invalid selection. Please choose 1-4."
+                ;;
+        esac
+    done
+    
+    print_status "Selected: $MODE_NAME"
+}
+
+# Show help information
+show_help() {
+    cat << EOF
+🚀 FilmFlex Production Deployment Script
+
+USAGE:
+    $0 [OPTIONS]
+
+DEPLOYMENT MODES:
+    --full, --complete      Deploy both database and application (fresh start)
+    --app-only, --app       Deploy only application (preserve existing database)
+    --db-only, --database   Deploy only database (preserve existing application)
+
+OPTIONS:
+    --skip-nginx           Skip Nginx configuration updates
+    --force               Force deployment (override safety checks)
+    --help, -h            Show this help message
+
+EXAMPLES:
+    $0 --app-only          # Deploy only the application, keep existing database
+    $0 --full              # Fresh deployment of both database and application
+    $0 --app-only --skip-nginx  # App deployment without Nginx updates
+
+INTERACTIVE MODE:
+    Running the script without arguments will prompt for deployment mode selection.
+
+EOF
+}
+
+# Get existing database network for app-only deployments
+get_database_network() {
+    print_info "Detecting existing database network..."
+    
+    # Check if database container exists
+    if ! docker ps -a --format "{{.Names}}" | grep -q "^filmflex-postgres$"; then
+        print_error "Database container 'filmflex-postgres' not found"
+        print_info "Available containers:"
+        docker ps -a --format "table {{.Names}}\t{{.Status}}"
+        return 1
+    fi
+    
+    # Get database networks
+    local db_networks=$(docker inspect filmflex-postgres --format='{{range $net, $conf := .NetworkSettings.Networks}}{{$net}} {{end}}' 2>/dev/null)
+    
+    if [ -n "$db_networks" ]; then
+        # Use the first non-default network, or default if only that exists
+        for network in $db_networks; do
+            if [ "$network" != "bridge" ]; then
+                DATABASE_NETWORK="$network"
+                print_status "Found database network: $DATABASE_NETWORK"
+                return 0
+            fi
+        done
+        
+        # If only bridge network, use that
+        DATABASE_NETWORK="bridge"
+        print_status "Using default bridge network"
+        return 0
+    else
+        print_error "Could not determine database network"
+        return 1
+    fi
+}
+
+# Create docker compose configuration
+create_docker_compose_config() {
+    print_header "📄 Creating Docker Compose Configuration"
+    
+    local compose_file="docker-compose.server.yml"
+    
+    # Remove existing compose file
+    if [ -f "$compose_file" ]; then
+        print_info "Removing existing docker-compose.server.yml"
+        rm -f "$compose_file"
+    fi
+    
+    if [ "$DEPLOYMENT_MODE" = "app-only" ]; then
+        # App-only deployment - connect to existing database network
+        if ! get_database_network; then
+            print_error "Failed to detect database network for app-only deployment"
+            return 1
+        fi
+        
+        print_info "Creating app-only docker-compose configuration..."
+        
+        cat > "$compose_file" << 'EOF'
+version: '3.8'
+
+services:
+  filmflex-app:
+    build: .
+    container_name: filmflex-app
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=production
+      - DB_HOST=filmflex-postgres
+      - DB_PORT=5432
+      - DB_NAME=filmflex
+      - DB_USER=filmflex
+      - DB_PASSWORD=filmflex123
+    depends_on:
+      - filmflex-postgres
+    restart: unless-stopped
+    volumes:
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  default:
+    external: true
+    name: DATABASE_NETWORK_PLACEHOLDER
+EOF
+        
+        # Replace the network placeholder with actual network
+        sed -i "s/DATABASE_NETWORK_PLACEHOLDER/$DATABASE_NETWORK/" "$compose_file"
+        
+        print_status "App-only docker-compose.server.yml created with network: $DATABASE_NETWORK"
+        
+    else
+        # Full deployment - include database
+        print_info "Creating full deployment docker-compose configuration..."
+        
+        cat > "$compose_file" << 'EOF'
+version: '3.8'
+
+services:
+  filmflex-postgres:
+    image: postgres:15-alpine
+    container_name: filmflex-postgres
+    environment:
+      POSTGRES_DB: filmflex
+      POSTGRES_USER: filmflex
+      POSTGRES_PASSWORD: filmflex123
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./shared:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U filmflex -d filmflex"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  filmflex-app:
+    build: .
+    container_name: filmflex-app
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=production
+      - DB_HOST=filmflex-postgres
+      - DB_PORT=5432
+      - DB_NAME=filmflex
+      - DB_USER=filmflex
+      - DB_PASSWORD=filmflex123
+    depends_on:
+      filmflex-postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    volumes:
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  postgres_data:
+
+networks:
+  default:
+    driver: bridge
+EOF
+        
+        print_status "Full deployment docker-compose.server.yml created"
+    fi
+    
+    # Verify compose file was created
+    if [ ! -f "$compose_file" ]; then
+        print_error "Failed to create docker-compose.server.yml"
+        return 1
+    fi
+    
+    # Validate compose file syntax
+    if ! docker compose -f "$compose_file" config >/dev/null 2>&1; then
+        print_error "Invalid docker-compose configuration"
+        print_info "Checking configuration:"
+        docker compose -f "$compose_file" config
+        return 1
+    fi
+    
+    print_status "Docker compose configuration validated successfully"
+    return 0
+}
+
+# Initialize deployment variables
+initialize_deployment() {
+    # Initialize global variables
+    LOCAL_HTTP_CODE="000"
+    API_HTTP_CODE="000"
+    MOVIE_COUNT="0"
+    SKIP_NGINX=${SKIP_NGINX:-false}
+    FORCE_DEPLOYMENT=${FORCE_DEPLOYMENT:-false}
+    DATABASE_NETWORK=""
+    
+    # Create logs directory
+    mkdir -p logs/deployment 2>/dev/null || true
+    
+    print_status "Deployment variables initialized"
+}
+
+# Main deployment execution
+main() {
+    print_header "🚀 Starting FilmFlex Production Deployment"
+    
+    # Initialize deployment
+    initialize_deployment
+    
+    # Parse command line arguments
+    parse_arguments "$@"
+    
+    # Setup logging
+    setup_deployment_logging
+    
+    # Create docker compose configuration
+    if ! create_docker_compose_config; then
+        print_error "Failed to create docker compose configuration"
+        exit 1
+    fi
+    
+    # For app-only deployments, try to connect to existing database network
+    if [ "$DEPLOYMENT_MODE" = "app-only" ]; then
+        print_info "App-only deployment detected - attempting to connect to existing database network"
+        
+        # Build and start only the app service
+        print_header "🏗️  Building Application"
+        if ! docker compose -f docker-compose.server.yml build filmflex-app; then
+            print_error "Failed to build application"
+            exit 1
+        fi
+        
+        print_header "🚀 Starting Application"
+        if ! docker compose -f docker-compose.server.yml up -d filmflex-app; then
+            print_error "Failed to start application"
+            exit 1
+        fi
+        
+        # Wait for app to be ready
+        print_info "Waiting for application to start..."
+        sleep 15
+        
+        # Perform enhanced health check
+        if perform_health_check; then
+            print_status "✅ App-only deployment completed successfully"
+            
+            # Generate deployment report
+            generate_deployment_report "SUCCESS"
+            
+            # Final production readiness check
+            if final_production_check; then
+                print_status "🎉 Production deployment completed successfully!"
+                print_info "🌐 Application available at: http://38.54.14.154:5000"
+                print_info "🔗 Domain: https://phimgg.com"
+            else
+                print_warning "⚠️  Deployment completed but with some issues detected"
+            fi
+        else
+            print_error "❌ Health check failed after app-only deployment"
+            exit 1
+        fi
+        
+    else
+        # Full deployment
+        print_header "🏗️  Building Services"
+        if ! docker compose -f docker-compose.server.yml build; then
+            print_error "Failed to build services"
+            exit 1
+        fi
+        
+        print_header "🚀 Starting Services"
+        if ! docker compose -f docker-compose.server.yml up -d; then
+            print_error "Failed to start services"
+            exit 1
+        fi
+        
+        # Wait for services to be ready
+        print_info "Waiting for services to start..."
+        sleep 30
+        
+        # Perform enhanced health check
+        if perform_health_check; then
+            print_status "✅ Full deployment completed successfully"
+            
+            # Generate deployment report
+            generate_deployment_report "SUCCESS"
+            
+            # Final production readiness check
+            if final_production_check; then
+                print_status "🎉 Production deployment completed successfully!"
+                print_info "🌐 Application available at: http://38.54.14.154:5000"
+                print_info "🔗 Domain: https://phimgg.com"
+            else
+                print_warning "⚠️  Deployment completed but with some issues detected"
+            fi
+        else
+            print_error "❌ Health check failed after full deployment"
+            exit 1
+        fi
+    fi
+}
+
+# Error handling and cleanup
+cleanup_on_error() {
+    local exit_code=$?
+    
+    if [ $exit_code -ne 0 ]; then
+        print_error "🚨 Deployment failed with exit code: $exit_code"
+        
+        print_info "Gathering failure information..."
+        
+        # Show container status
+        print_info "Container status:"
+        docker ps -a --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep filmflex || echo "No FilmFlex containers found"
+        
+        # Show recent logs
+        print_info "Recent application logs:"
+        docker logs filmflex-app --tail 10 2>/dev/null || echo "Could not retrieve app logs"
+        
+        print_info "Recent database logs:"
+        docker logs filmflex-postgres --tail 10 2>/dev/null || echo "Could not retrieve database logs"
+        
+        # Generate failure report
+        generate_deployment_report "FAILED"
+        
+        print_error "❌ Deployment failed. Check logs above for details."
+    fi
+}
+
+# Set up error handling
+trap cleanup_on_error EXIT
+
+# Run main function with all arguments
+main "$@"
