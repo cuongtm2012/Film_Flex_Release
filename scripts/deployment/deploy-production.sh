@@ -104,6 +104,77 @@ setup_deployment_logging() {
     log_deployment "FilmFlex $MODE_NAME started"
 }
 
+# Pre-build application before Docker build
+pre_build_application() {
+    print_header "🔨 Pre-building Application"
+    
+    local project_root="$(cd "$SCRIPT_DIR/../.." && pwd)"
+    
+    # Change to project root
+    cd "$project_root" || {
+        print_error "Failed to change to project root: $project_root"
+        return 1
+    }
+    
+    print_info "Building application in: $(pwd)"
+    
+    # Check if package.json exists
+    if [ ! -f "package.json" ]; then
+        print_error "package.json not found in project root"
+        return 1
+    fi
+    
+    # Install dependencies if node_modules doesn't exist or is incomplete
+    if [ ! -d "node_modules" ] || [ ! -f "node_modules/.package-lock.json" ]; then
+        print_info "Installing dependencies..."
+        if ! npm install; then
+            print_error "Failed to install dependencies"
+            return 1
+        fi
+    else
+        print_info "Dependencies already installed"
+    fi
+    
+    # Clean previous build
+    if [ -d "dist" ]; then
+        print_info "Cleaning previous build..."
+        rm -rf dist
+    fi
+    
+    # Build the application
+    print_info "Building application..."
+    if ! npm run build; then
+        print_error "Failed to build application"
+        print_info "Build logs above should show the specific error"
+        return 1
+    fi
+    
+    # Verify build output
+    if [ ! -d "dist" ]; then
+        print_error "Build completed but dist directory not found"
+        return 1
+    fi
+    
+    if [ ! -f "dist/index.js" ]; then
+        print_error "Build completed but dist/index.js not found"
+        print_info "Contents of dist directory:"
+        ls -la dist/ 2>/dev/null || print_info "dist directory is empty"
+        return 1
+    fi
+    
+    print_status "✅ Application built successfully"
+    print_info "Build output:"
+    ls -la dist/ | head -10
+    
+    # Return to deployment script directory
+    cd "$SCRIPT_DIR" || {
+        print_error "Failed to return to deployment script directory"
+        return 1
+    }
+    
+    return 0
+}
+
 # Generate deployment report
 generate_deployment_report() {
     local deployment_status="$1"
@@ -893,6 +964,12 @@ main() {
     
     # Setup logging
     setup_deployment_logging
+    
+    # Pre-build application
+    if ! pre_build_application; then
+        print_error "Failed to pre-build application"
+        exit 1
+    fi
     
     # Create docker compose configuration
     if ! create_docker_compose_config; then
