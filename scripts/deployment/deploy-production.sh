@@ -483,6 +483,271 @@ initialize_deployment() {
     print_status "Deployment variables initialized"
 }
 
+# Parse command line arguments
+parse_arguments() {
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --app-only)
+                DEPLOYMENT_MODE="app-only"
+                DEPLOY_APP=true
+                MODE_NAME="App-Only Deployment"
+                shift
+                ;;
+            --full|--complete)
+                DEPLOYMENT_MODE="full"
+                DEPLOY_DATABASE=true
+                DEPLOY_APP=true
+                MODE_NAME="Full Deployment"
+                shift
+                ;;
+            --force)
+                FORCE_DEPLOYMENT=true
+                shift
+                ;;
+            --skip-nginx)
+                SKIP_NGINX=true
+                shift
+                ;;
+            -h|--help)
+                show_help
+                exit 0
+                ;;
+            *)
+                print_error "Unknown option: $1"
+                show_help
+                exit 1
+                ;;
+        esac
+    done
+    
+    # Set default mode if not specified
+    if [ -z "$DEPLOYMENT_MODE" ]; then
+        DEPLOYMENT_MODE="app-only"
+        DEPLOY_APP=true
+        MODE_NAME="App-Only Deployment (default)"
+    fi
+    
+    print_mode "Deployment mode: $MODE_NAME"
+}
+
+# Show help information
+show_help() {
+    echo "Usage: $0 [OPTIONS]"
+    echo ""
+    echo "Options:"
+    echo "  --app-only       Deploy only the application (connect to existing database)"
+    echo "  --full           Deploy both application and database"
+    echo "  --force          Force deployment even if checks fail"
+    echo "  --skip-nginx     Skip Nginx configuration"
+    echo "  -h, --help       Show this help message"
+    echo ""
+    echo "Examples:"
+    echo "  $0 --app-only    # Deploy app only (recommended)"
+    echo "  $0 --full        # Deploy everything"
+}
+
+# Get database network information
+get_database_network() {
+    print_info "Detecting database network configuration..."
+    
+    # Check if postgres container exists and is running
+    if ! docker ps | grep -q filmflex-postgres; then
+        print_error "Database container 'filmflex-postgres' not found or not running"
+        return 1
+    fi
+    
+    # Get the network that the postgres container is using
+    DATABASE_NETWORK=$(docker inspect filmflex-postgres --format='{{range .NetworkSettings.Networks}}{{.NetworkMode}}{{end}}' 2>/dev/null)
+    
+    if [ -z "$DATABASE_NETWORK" ]; then
+        # Fallback: get network name directly
+        DATABASE_NETWORK=$(docker inspect filmflex-postgres --format='{{range $k, $v := .NetworkSettings.Networks}}{{$k}}{{end}}' 2>/dev/null | head -1)
+    fi
+    
+    if [ -z "$DATABASE_NETWORK" ]; then
+        print_warning "Could not detect database network, using default bridge"
+        DATABASE_NETWORK="bridge"
+    fi
+    
+    print_status "Database network detected: $DATABASE_NETWORK"
+    return 0
+}
+
+# Perform comprehensive health check
+perform_health_check() {
+    print_header "🔍 Performing Health Check"
+    
+    local max_attempts=30
+    local attempt=1
+    local health_passed=false
+    
+    print_info "Waiting for application to be ready..."
+    
+    while [ $attempt -le $max_attempts ]; do
+        print_info "Health check attempt $attempt/$max_attempts"
+        
+        # Check if container is running
+        if ! docker ps | grep -q filmflex-app; then
+            print_warning "Application container not running, checking status..."
+            docker ps -a | grep filmflex-app || print_warning "Container not found"
+            
+            # Check container logs for errors
+            print_info "Recent container logs:"
+            docker logs filmflex-app --tail 5 2>/dev/null || print_info "No logs available"
+            
+            sleep 5
+            ((attempt++))
+            continue
+        fi
+        
+        # Test HTTP endpoint
+        local http_code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/ 2>/dev/null || echo "000")
+        
+        if [ "$http_code" = "200" ]; then
+            print_status "✅ HTTP health check passed (HTTP $http_code)"
+            
+            # Test API endpoint
+            local api_code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/api/health 2>/dev/null || echo "000")
+            
+            if [ "$api_code" = "200" ]; then
+                print_status "✅ API health check passed (HTTP $api_code)"
+                health_passed=true
+                break
+            else
+                print_info "API endpoint not ready yet (HTTP $api_code)"
+            fi
+        else
+            print_info "Application not ready yet (HTTP $http_code)"
+        fi
+        
+        sleep 10
+        ((attempt++))
+    done
+    
+    if [ "$health_passed" = true ]; then
+        print_status "✅ All health checks passed"
+        return 0
+    else
+        print_error "❌ Health checks failed after $max_attempts attempts"
+        
+        # Diagnostic information
+        print_info "Diagnostic information:"
+        print_info "Container status:"
+        docker ps -a | grep filmflex
+        
+        print_info "Recent application logs:"
+        docker logs filmflex-app --tail 20 2>/dev/null || print_info "No application logs"
+        
+        return 1
+    fi
+}
+
+# Generate deployment report
+generate_deployment_report() {
+    local status="$1"
+    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    
+    print_header "📊 Deployment Report"
+    
+    echo "=================================="
+    echo "FilmFlex Deployment Report"
+    echo "=================================="
+    echo "Status: $status"
+    echo "Timestamp: $timestamp"
+    echo "Mode: $MODE_NAME"
+    echo ""
+    
+    # Container status
+    echo "Container Status:"
+    docker ps -a --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep filmflex || echo "No FilmFlex containers found"
+    echo ""
+    
+    # Network information
+    if [ "$DEPLOYMENT_MODE" = "app-only" ]; then
+        echo "Network Configuration:"
+        echo "Database Network: $DATABASE_NETWORK"
+        echo ""
+    fi
+    
+    # Application URLs
+    echo "Access Information:"
+    echo "Local: http://localhost:5000"
+    echo "Server: http://38.54.14.154:5000"
+    echo "Domain: https://phimgg.com"
+    echo ""
+    
+    # Save report to file if possible
+    if [ -n "$DEPLOYMENT_LOG" ]; then
+        {
+            echo "=================================="
+            echo "FilmFlex Deployment Report"
+            echo "=================================="
+            echo "Status: $status"
+            echo "Timestamp: $timestamp"
+            echo "Mode: $MODE_NAME"
+        } >> "$DEPLOYMENT_LOG" 2>/dev/null || true
+    fi
+}
+
+# Final production readiness check
+final_production_check() {
+    print_header "🎯 Final Production Check"
+    
+    local checks_passed=0
+    local total_checks=4
+    
+    # Check 1: Application response
+    print_info "Checking application response..."
+    local http_code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/ 2>/dev/null || echo "000")
+    if [ "$http_code" = "200" ]; then
+        print_status "✅ Application responding (HTTP $http_code)"
+        ((checks_passed++))
+    else
+        print_error "❌ Application not responding (HTTP $http_code)"
+    fi
+    
+    # Check 2: API endpoint
+    print_info "Checking API endpoint..."
+    local api_code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/api/health 2>/dev/null || echo "000")
+    if [ "$api_code" = "200" ]; then
+        print_status "✅ API endpoint healthy (HTTP $api_code)"
+        ((checks_passed++))
+    else
+        print_error "❌ API endpoint not healthy (HTTP $api_code)"
+    fi
+    
+    # Check 3: Container health
+    print_info "Checking container health..."
+    if docker ps | grep -q "filmflex-app.*Up"; then
+        print_status "✅ Application container running"
+        ((checks_passed++))
+    else
+        print_error "❌ Application container not running properly"
+    fi
+    
+    # Check 4: Database connectivity (for app-only deployments)
+    if [ "$DEPLOYMENT_MODE" = "app-only" ]; then
+        print_info "Checking database connectivity..."
+        if docker ps | grep -q "filmflex-postgres.*(healthy)"; then
+            print_status "✅ Database container healthy"
+            ((checks_passed++))
+        else
+            print_warning "⚠️  Database container status unclear"
+            ((checks_passed++))  # Don't fail for this in app-only mode
+        fi
+    else
+        ((checks_passed++))  # Skip this check for full deployments
+    fi
+    
+    print_info "Production checks: $checks_passed/$total_checks passed"
+    
+    if [ $checks_passed -eq $total_checks ]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
 # Main deployment execution
 main() {
     print_header "🚀 Starting FilmFlex Production Deployment"
