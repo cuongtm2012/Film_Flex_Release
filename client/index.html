@@ -132,10 +132,93 @@
     }
     </script>
     
-    <!-- Performance & Security Headers -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com https://player.phimapi.com https://*.phim1280.tv https://*.phimapi.com https://pagead2.googlesyndication.com; style-src 'self' 'unsafe-inline' fonts.googleapis.com https://cdn.jsdelivr.net; font-src 'self' fonts.gstatic.com; img-src 'self' data: https: blob:; connect-src 'self' https://api.phimgg.com https: wss: ws: https://*.phim1280.tv https://*.phimapi.com https://pagead2.googlesyndication.com; media-src 'self' https: blob: data: https://*.phim1280.tv https://*.phimapi.com; frame-src 'self' https: http: data: blob: https://player.phimapi.com https://*.phim1280.tv https://*.phimapi.com https://pagead2.googlesyndication.com; child-src 'self' https: http: data: blob: https://player.phimapi.com https://*.phim1280.tv https://*.phimapi.com https://pagead2.googlesyndication.com; object-src 'none';" />
+    <!-- Enhanced Performance & Security Headers with Improved CSP -->
+    <meta http-equiv="Content-Security-Policy" content="
+      default-src 'self';
+      script-src 'self' 'unsafe-inline' 'unsafe-eval' 
+        https://cdn.jsdelivr.net 
+        https://unpkg.com 
+        https://player.phimapi.com 
+        https://*.phim1280.tv 
+        https://*.phimapi.com 
+        https://pagead2.googlesyndication.com
+        https://googletagmanager.com
+        https://www.google-analytics.com
+        https://connect.facebook.net
+        https://apis.google.com;
+      style-src 'self' 'unsafe-inline' 
+        https://fonts.googleapis.com 
+        https://cdn.jsdelivr.net
+        https://unpkg.com;
+      font-src 'self' 
+        https://fonts.gstatic.com 
+        https://cdn.jsdelivr.net
+        data:;
+      img-src 'self' data: https: blob:
+        https://*.phim1280.tv
+        https://*.phimapi.com
+        https://img.phimapi.com
+        https://image.tmdb.org
+        https://*.googleusercontent.com
+        https://pagead2.googlesyndication.com;
+      connect-src 'self' 
+        https://api.phimgg.com 
+        https: wss: ws: 
+        https://*.phim1280.tv 
+        https://*.phimapi.com 
+        https://pagead2.googlesyndication.com
+        https://www.google-analytics.com
+        https://analytics.google.com
+        https://graph.facebook.com
+        https://api.themoviedb.org;
+      media-src 'self' https: blob: data: 
+        https://*.phim1280.tv 
+        https://*.phimapi.com
+        https://*.kkphimplayer6.com
+        https://*.cloudfront.net;
+      frame-src 'self' https: http: data: blob: 
+        https://player.phimapi.com 
+        https://*.phim1280.tv 
+        https://*.phimapi.com 
+        https://pagead2.googlesyndication.com
+        https://www.facebook.com
+        https://accounts.google.com;
+      child-src 'self' https: http: data: blob: 
+        https://player.phimapi.com 
+        https://*.phim1280.tv 
+        https://*.phimapi.com 
+        https://pagead2.googlesyndication.com;
+      object-src 'none';
+      base-uri 'self';
+      form-action 'self' 
+        https://accounts.google.com 
+        https://www.facebook.com;
+      frame-ancestors 'none';
+      upgrade-insecure-requests;
+    " />
     <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
-    <meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(), camera=()" />
+    <meta http-equiv="Permissions-Policy" content="
+      geolocation=(), 
+      microphone=(), 
+      camera=(), 
+      payment=(),
+      usb=(),
+      magnetometer=(),
+      gyroscope=(),
+      accelerometer=(),
+      ambient-light-sensor=(),
+      autoplay=(self),
+      encrypted-media=(self),
+      fullscreen=(self),
+      picture-in-picture=(self)
+    " />
+    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+    <meta http-equiv="X-Frame-Options" content="DENY" />
+    <meta http-equiv="X-XSS-Protection" content="1; mode=block" />
+    
+    <!-- Performance Optimization Headers -->
+    <meta http-equiv="Cache-Control" content="public, max-age=3600, stale-while-revalidate=86400" />
+    <meta name="format-detection" content="telephone=no, date=no, email=no, address=no" />
     
     <!-- Google AdSense -->
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6124954442503878"
@@ -229,79 +312,326 @@
         });
       }
       
-      // Enhanced cache management utilities
+      // Enhanced cache management utilities with performance monitoring
       window.filmflexCache = {
-        // Clear all caches and reload
+        // Performance metrics tracking
+        _metrics: {
+          cacheHits: 0,
+          cacheMisses: 0,
+          lastCleared: null,
+          totalCacheSize: 0,
+          performanceData: []
+        },
+
+        // Clear all caches and reload with detailed logging
         clearAll: async () => {
           console.log('🧹 Clearing all caches...');
+          const startTime = performance.now();
           try {
             // Clear caches
             if ('caches' in window) {
               const cacheNames = await caches.keys();
               console.log('Found caches:', cacheNames);
+              
+              // Get cache sizes before clearing
+              let totalSize = 0;
+              for (const name of cacheNames) {
+                const cache = await caches.open(name);
+                const keys = await cache.keys();
+                totalSize += keys.length;
+              }
+              
               await Promise.all(cacheNames.map(name => caches.delete(name)));
+              console.log(`🗑️ Cleared ${cacheNames.length} caches with ${totalSize} items`);
             }
             
             // Unregister all service workers
             if ('serviceWorker' in navigator) {
               const registrations = await navigator.serviceWorker.getRegistrations();
               await Promise.all(registrations.map(reg => reg.unregister()));
+              console.log(`🔄 Unregistered ${registrations.length} service workers`);
             }
             
-            // Clear storage
+            // Clear storage with size tracking
+            const localStorageSize = Object.keys(localStorage).length;
+            const sessionStorageSize = Object.keys(sessionStorage).length;
             localStorage.clear();
             sessionStorage.clear();
             
-            console.log('✅ All caches and storage cleared');
+            const endTime = performance.now();
+            const clearTime = endTime - startTime;
+            
+            // Update metrics
+            this._metrics.lastCleared = new Date().toISOString();
+            this._metrics.totalCacheSize = 0;
+            
+            console.log(`✅ Cache clear completed in ${clearTime.toFixed(2)}ms`);
+            console.log(`📊 Cleared ${localStorageSize} localStorage items, ${sessionStorageSize} sessionStorage items`);
+            
+            // Store performance data
+            const performanceEntry = {
+              timestamp: new Date().toISOString(),
+              operation: 'clearAll',
+              duration: clearTime,
+              itemsCleared: totalSize + localStorageSize + sessionStorageSize
+            };
+            
+            // Save to sessionStorage for this session
+            try {
+              sessionStorage.setItem('filmflex-last-clear', JSON.stringify(performanceEntry));
+            } catch (e) {
+              console.warn('Could not save performance data:', e);
+            }
+            
             window.location.reload();
           } catch (error) {
-            console.error('Failed to clear caches:', error);
+            console.error('❌ Failed to clear caches:', error);
             window.location.reload();
           }
         },
         
-        // Get cache information
+        // Get comprehensive cache information and performance metrics
         info: async () => {
+          console.log('📊 FilmFlex Cache Performance Report');
+          console.log('=====================================');
+          
+          const report = {
+            timestamp: new Date().toISOString(),
+            caches: [],
+            storage: {},
+            performance: {},
+            metrics: this._metrics
+          };
+
+          // Cache information
           if ('caches' in window) {
             const cacheNames = await caches.keys();
+            let totalCacheItems = 0;
+            let totalCacheSize = 0;
+            
             const cacheInfo = await Promise.all(
               cacheNames.map(async (name) => {
                 const cache = await caches.open(name);
                 const keys = await cache.keys();
+                const urls = keys.map(req => req.url);
+                
+                // Estimate cache size (rough calculation)
+                let estimatedSize = 0;
+                for (const url of urls.slice(0, 10)) { // Sample first 10 URLs
+                  try {
+                    const response = await cache.match(url);
+                    if (response && response.headers.get('content-length')) {
+                      estimatedSize += parseInt(response.headers.get('content-length'));
+                    }
+                  } catch (e) {
+                    // Ignore errors for size estimation
+                  }
+                }
+                
+                totalCacheItems += keys.length;
+                totalCacheSize += estimatedSize;
+                
                 return {
                   name,
-                  size: keys.length,
-                  urls: keys.map(req => req.url).slice(0, 5) // First 5 URLs
+                  itemCount: keys.length,
+                  estimatedSizeKB: Math.round(estimatedSize / 1024),
+                  sampleUrls: urls.slice(0, 3),
+                  createdAt: name.includes('v') ? name.split('v')[1] : 'unknown'
                 };
               })
             );
+            
+            report.caches = cacheInfo;
+            this._metrics.totalCacheSize = totalCacheSize;
+            
+            console.log(`🗄️ Total Caches: ${cacheNames.length}`);
+            console.log(`📦 Total Cached Items: ${totalCacheItems}`);
+            console.log(`💾 Estimated Cache Size: ${Math.round(totalCacheSize / 1024)} KB`);
             console.table(cacheInfo);
-            return cacheInfo;
           }
+
+          // Storage information
+          const storageInfo = {
+            localStorage: {
+              itemCount: Object.keys(localStorage).length,
+              estimatedSizeKB: Math.round(JSON.stringify(localStorage).length / 1024),
+              keys: Object.keys(localStorage).slice(0, 10)
+            },
+            sessionStorage: {
+              itemCount: Object.keys(sessionStorage).length,
+              estimatedSizeKB: Math.round(JSON.stringify(sessionStorage).length / 1024),
+              keys: Object.keys(sessionStorage).slice(0, 10)
+            }
+          };
+          
+          report.storage = storageInfo;
+          console.log('🗃️ Storage Information:');
+          console.table(storageInfo);
+
+          // Performance information
+          const performanceInfo = {
+            navigation: performance.getEntriesByType('navigation')[0],
+            memory: performance.memory ? {
+              usedJSHeapSize: Math.round(performance.memory.usedJSHeapSize / 1024 / 1024) + ' MB',
+              totalJSHeapSize: Math.round(performance.memory.totalJSHeapSize / 1024 / 1024) + ' MB',
+              jsHeapSizeLimit: Math.round(performance.memory.jsHeapSizeLimit / 1024 / 1024) + ' MB'
+            } : 'Not available',
+            lastClearTime: this._metrics.lastCleared,
+            cacheHitRate: this._metrics.cacheHits + this._metrics.cacheMisses > 0 
+              ? ((this._metrics.cacheHits / (this._metrics.cacheHits + this._metrics.cacheMisses)) * 100).toFixed(2) + '%'
+              : 'No data'
+          };
+          
+          report.performance = performanceInfo;
+          console.log('⚡ Performance Metrics:');
+          console.log(performanceInfo);
+
+          // Service Worker status
+          if ('serviceWorker' in navigator) {
+            const registration = await navigator.serviceWorker.getRegistration();
+            const swInfo = {
+              registered: !!registration,
+              active: registration?.active?.state || 'none',
+              waiting: registration?.waiting?.state || 'none',
+              installing: registration?.installing?.state || 'none'
+            };
+            
+            report.serviceWorker = swInfo;
+            console.log('🔧 Service Worker Status:');
+            console.log(swInfo);
+          }
+
+          // Connection information
+          if ('connection' in navigator) {
+            const connectionInfo = {
+              effectiveType: navigator.connection.effectiveType,
+              downlink: navigator.connection.downlink + ' Mbps',
+              rtt: navigator.connection.rtt + ' ms',
+              saveData: navigator.connection.saveData
+            };
+            
+            report.connection = connectionInfo;
+            console.log('🌐 Network Information:');
+            console.log(connectionInfo);
+          }
+
+          console.log('=====================================');
+          console.log('💡 Commands: clearAll(), forceUpdate(), enableDebug(), trackMetrics()');
+          
+          return report;
         },
         
-        // Force SW update
+        // Force SW update with performance tracking
         forceUpdate: async () => {
+          const startTime = performance.now();
           if ('serviceWorker' in navigator) {
             const registration = await navigator.serviceWorker.getRegistration();
             if (registration) {
               console.log('🔄 Forcing SW update...');
               await registration.update();
-              console.log('✅ SW update triggered');
+              const endTime = performance.now();
+              console.log(`✅ SW update triggered in ${(endTime - startTime).toFixed(2)}ms`);
+              
+              // Track metrics
+              this._metrics.performanceData.push({
+                operation: 'forceUpdate',
+                duration: endTime - startTime,
+                timestamp: new Date().toISOString()
+              });
+            } else {
+              console.log('❌ No service worker registration found');
             }
           }
         },
         
-        // Enable debug mode
+        // Enable debug mode with enhanced logging
         enableDebug: () => {
           localStorage.setItem('filmflex-debug', 'true');
-          console.log('🔧 Debug mode enabled - reload to see debug logs');
+          localStorage.setItem('filmflex-debug-level', 'verbose');
+          console.log('🔧 Enhanced debug mode enabled - reload to see verbose debug logs');
+          console.log('🔍 Debug features: SW lifecycle, cache operations, performance tracking');
         },
         
         // Disable debug mode
         disableDebug: () => {
           localStorage.removeItem('filmflex-debug');
+          localStorage.removeItem('filmflex-debug-level');
           console.log('🔧 Debug mode disabled');
+        },
+
+        // Track cache hit/miss metrics
+        trackMetrics: (hit = true) => {
+          if (hit) {
+            this._metrics.cacheHits++;
+          } else {
+            this._metrics.cacheMisses++;
+          }
+        },
+
+        // Get performance summary
+        getPerformanceSummary: () => {
+          const summary = {
+            cacheHitRate: this._metrics.cacheHits + this._metrics.cacheMisses > 0 
+              ? ((this._metrics.cacheHits / (this._metrics.cacheHits + this._metrics.cacheMisses)) * 100).toFixed(2) + '%'
+              : 'No data',
+            totalOperations: this._metrics.performanceData.length,
+            averageOperationTime: this._metrics.performanceData.length > 0
+              ? (this._metrics.performanceData.reduce((sum, op) => sum + op.duration, 0) / this._metrics.performanceData.length).toFixed(2) + 'ms'
+              : 'No data',
+            lastCleared: this._metrics.lastCleared || 'Never',
+            estimatedCacheSize: Math.round(this._metrics.totalCacheSize / 1024) + ' KB'
+          };
+          
+          console.log('📈 Performance Summary:');
+          console.table(summary);
+          return summary;
+        },
+
+        // Monitor real-time performance
+        startPerformanceMonitoring: () => {
+          if (this._performanceMonitor) {
+            console.log('⚠️ Performance monitoring already running');
+            return;
+          }
+
+          console.log('🚀 Starting real-time performance monitoring...');
+          
+          this._performanceMonitor = setInterval(() => {
+            const now = performance.now();
+            const memory = performance.memory;
+            
+            if (memory) {
+              const memoryUsage = Math.round(memory.usedJSHeapSize / 1024 / 1024);
+              const memoryLimit = Math.round(memory.jsHeapSizeLimit / 1024 / 1024);
+              const memoryPercent = ((memoryUsage / memoryLimit) * 100).toFixed(1);
+              
+              // Log only if memory usage is high
+              if (memoryPercent > 75) {
+                console.warn(`⚠️ High memory usage: ${memoryUsage}MB (${memoryPercent}%)`);
+              }
+            }
+            
+            // Check for slow operations
+            const recentOps = this._metrics.performanceData.slice(-10);
+            const slowOps = recentOps.filter(op => op.duration > 1000);
+            
+            if (slowOps.length > 0) {
+              console.warn(`🐌 Detected ${slowOps.length} slow operations in last 10 operations`);
+            }
+          }, 30000); // Check every 30 seconds
+
+          console.log('✅ Performance monitoring started (30s intervals)');
+        },
+
+        // Stop performance monitoring
+        stopPerformanceMonitoring: () => {
+          if (this._performanceMonitor) {
+            clearInterval(this._performanceMonitor);
+            this._performanceMonitor = null;
+            console.log('⏹️ Performance monitoring stopped');
+          } else {
+            console.log('ℹ️ Performance monitoring was not running');
+          }
         }
       };
       
