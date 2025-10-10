@@ -63,20 +63,44 @@ NGINX_BACKUP_DIR="/etc/nginx/backup/$(date +%Y%m%d_%H%M%S)"
 
 # Enhanced deployment logging and reporting
 setup_deployment_logging() {
-    # Create deployment logs directory
+    # Create deployment logs directory with proper permissions
     local log_dir="$(pwd)/logs/deployment"
-    mkdir -p "$log_dir"
+    
+    # Try to create directory, fallback to /tmp if permissions fail
+    if ! mkdir -p "$log_dir" 2>/dev/null; then
+        print_warning "Cannot create logs in $(pwd)/logs - using /tmp/filmflex-logs"
+        log_dir="/tmp/filmflex-logs"
+        mkdir -p "$log_dir" 2>/dev/null || log_dir="/tmp"
+    fi
     
     # Create deployment log file with timestamp
     DEPLOYMENT_LOG="$log_dir/deployment-$(date +%Y%m%d_%H%M%S).log"
     
+    # Test if we can write to the log file
+    if ! touch "$DEPLOYMENT_LOG" 2>/dev/null; then
+        print_warning "Cannot write to $DEPLOYMENT_LOG - using console only"
+        DEPLOYMENT_LOG=""
+    fi
+    
     # Function to log both to console and file
     log_deployment() {
         local message="$1"
-        echo "$(date '+%Y-%m-%d %H:%M:%S') - $message" >> "$DEPLOYMENT_LOG"
+        local timestamp="$(date '+%Y-%m-%d %H:%M:%S')"
+        
+        if [ -n "$DEPLOYMENT_LOG" ] && [ -w "$DEPLOYMENT_LOG" ]; then
+            echo "$timestamp - $message" >> "$DEPLOYMENT_LOG" 2>/dev/null || true
+        fi
+        
+        # Always log to console
+        echo "$timestamp - $message" >&2
     }
     
-    print_info "Deployment logging initialized: $DEPLOYMENT_LOG"
+    if [ -n "$DEPLOYMENT_LOG" ]; then
+        print_info "Deployment logging initialized: $DEPLOYMENT_LOG"
+    else
+        print_info "Deployment logging: console only (file logging disabled)"
+    fi
+    
     log_deployment "FilmFlex $MODE_NAME started"
 }
 
