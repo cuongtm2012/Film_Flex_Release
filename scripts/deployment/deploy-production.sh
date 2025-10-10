@@ -851,6 +851,7 @@ services:
       - "5000:5000"
     environment:
       - NODE_ENV=production
+      - DATABASE_URL=postgresql://filmflex:filmflex123@filmflex-postgres:5432/filmflex
       - DB_HOST=filmflex-postgres
       - DB_PORT=5432
       - DB_NAME=filmflex
@@ -885,6 +886,7 @@ services:
       - "5000:5000"
     environment:
       - NODE_ENV=production
+      - DATABASE_URL=postgresql://filmflex:filmflex123@filmflex-postgres:5432/filmflex
       - DB_HOST=filmflex-postgres
       - DB_PORT=5432
       - DB_NAME=filmflex
@@ -947,6 +949,7 @@ services:
       - "5000:5000"
     environment:
       - NODE_ENV=production
+      - DATABASE_URL=postgresql://filmflex:filmflex123@filmflex-postgres:5432/filmflex
       - DB_HOST=filmflex-postgres
       - DB_PORT=5432
       - DB_NAME=filmflex
