@@ -380,88 +380,87 @@ export class DatabaseStorage implements IStorage {
     const offset = (page - 1) * limit;
     
     // Build filter conditions
-    let filterConditions = sql`TRUE`;
-      if (filters?.isRecommended !== undefined) {
-      filterConditions = sql`${filterConditions} AND ${movies.isRecommended} = ${filters.isRecommended}`;
+    const conditions = [];
+    if (filters?.isRecommended !== undefined) {
+      conditions.push(eq(movies.isRecommended, filters.isRecommended));
     }
-      if (filters?.type) {
-      filterConditions = sql`${filterConditions} AND ${movies.type} = ${filters.type}`;
+    if (filters?.type) {
+      conditions.push(eq(movies.type, filters.type));
     }
-      if (filters?.section) {
-      filterConditions = sql`${filterConditions} AND ${movies.section} = ${filters.section}`;
+    if (filters?.section) {
+      conditions.push(eq(movies.section, filters.section));
     }
+
+    // Use a simpler approach: get all matching movies with DISTINCT ON to eliminate duplicates
+    // This query gets unique movies by slug, selecting the most recent one based on modifiedAt
+    const baseConditions = conditions.length > 0 ? and(...conditions) : undefined;
     
-    // Query to get unique movies by slug, selecting the one with the most recent modifiedAt
-    // This ensures we only get one entry per movie, showing the latest version
     const uniqueMoviesQuery = sql`
-      SELECT DISTINCT ON (${movies.slug}) *
+      SELECT DISTINCT ON (slug) 
+        id, movie_id, slug, name, origin_name, poster_url, thumb_url, year, type, quality, 
+        lang, time, view, description, status, trailer_url, section, is_recommended, 
+        categories, countries, actors, directors, episode_current, episode_total, modified_at
       FROM ${movies}
-      WHERE ${filterConditions}
-      ORDER BY ${movies.slug}, ${movies.modifiedAt} DESC
+      ${baseConditions ? sql`WHERE ${baseConditions}` : sql``}
+      ORDER BY slug, modified_at DESC
     `;
-    
-    // For the year sorting case, we need to get all unique movies and sort manually
-    if (sortBy === 'year') {
-      const allMovies = await db.execute(uniqueMoviesQuery);
+
+    // Execute the query to get all unique movies
+    const uniqueMoviesResult = await db.execute(uniqueMoviesQuery);
+    const allUniqueMovies = uniqueMoviesResult.rows as Movie[];
+
+    // Now apply sorting to the unique movies in memory
+    const sortedMovies = allUniqueMovies.sort((a, b) => {
       const currentYear = new Date().getFullYear();
       
-      const sortedMovies = allMovies.rows.sort((a: any, b: any) => {
-        const yearA = typeof a.year === 'number' && a.year > 1900 && a.year <= currentYear ? a.year : 0;
-        const yearB = typeof b.year === 'number' && b.year > 1900 && b.year <= currentYear ? b.year : 0;
-        
-        if (yearA === 0 && yearB !== 0) return 1;
-        if (yearB === 0 && yearA !== 0) return -1;
-        
-        return yearB - yearA;
-      });
-      
-      const total = sortedMovies.length;
-      const paginatedMovies = sortedMovies.slice(offset, offset + limit);
-      
-      return { data: paginatedMovies as Movie[], total };
-    }
-
-    // For all other sorting options, use a subquery approach
-    const sortedUniqueMoviesQuery = (() => {
       switch (sortBy) {
         case 'latest':
-          return sql`
-            SELECT * FROM (${uniqueMoviesQuery}) AS unique_movies
-            ORDER BY year DESC NULLS LAST, modified_at DESC
-          `;
+          // Sort by year first, then by modifiedAt
+          const yearA = typeof a.year === 'number' && a.year > 1900 && a.year <= currentYear ? a.year : 0;
+          const yearB = typeof b.year === 'number' && b.year > 1900 && b.year <= currentYear ? b.year : 0;
+          
+          if (yearA !== yearB) {
+            if (yearA === 0 && yearB !== 0) return 1;
+            if (yearB === 0 && yearA !== 0) return -1;
+            return yearB - yearA;
+          }
+          
+          return new Date(b.modifiedAt).getTime() - new Date(a.modifiedAt).getTime();
+          
         case 'popular':
         case 'rating':
-          return sql`
-            SELECT * FROM (${uniqueMoviesQuery}) AS unique_movies
-            ORDER BY view DESC, modified_at DESC
-          `;
+          // Sort by view count, then by modifiedAt
+          const viewA = a.view || 0;
+          const viewB = b.view || 0;
+          
+          if (viewA !== viewB) {
+            return viewB - viewA;
+          }
+          
+          return new Date(b.modifiedAt).getTime() - new Date(a.modifiedAt).getTime();
+          
+        case 'year':
+          // Sort by year only
+          const movieYearA = typeof a.year === 'number' && a.year > 1900 && a.year <= currentYear ? a.year : 0;
+          const movieYearB = typeof b.year === 'number' && b.year > 1900 && b.year <= currentYear ? b.year : 0;
+          
+          if (movieYearA === 0 && movieYearB !== 0) return 1;
+          if (movieYearB === 0 && movieYearA !== 0) return -1;
+          
+          return movieYearB - movieYearA;
+          
         default:
-          return sql`
-            SELECT * FROM (${uniqueMoviesQuery}) AS unique_movies
-            ORDER BY year DESC NULLS LAST, modified_at DESC
-          `;
+          return new Date(b.modifiedAt).getTime() - new Date(a.modifiedAt).getTime();
       }
-    })();
+    });
 
-    // Add pagination to the final query
-    const paginatedQuery = sql`
-      ${sortedUniqueMoviesQuery}
-      LIMIT ${limit} OFFSET ${offset}
-    `;
-
-    // Get the count of unique movies
-    const countQuery = sql`
-      SELECT COUNT(*) as count FROM (${uniqueMoviesQuery}) AS unique_count
-    `;
-
-    const [dataResult, countResult] = await Promise.all([
-      db.execute(paginatedQuery),
-      db.execute(countQuery)
-    ]);
+    // Apply pagination to the sorted results
+    const total = sortedMovies.length;
+    const paginatedMovies = sortedMovies.slice(offset, offset + limit);
     
     return { 
-      data: dataResult.rows as Movie[], 
-      total: (countResult.rows[0] as any)?.count || 0 
+      data: paginatedMovies, 
+      total 
     };
   }
   
