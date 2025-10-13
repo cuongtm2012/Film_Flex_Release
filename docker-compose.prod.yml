@@ -70,6 +70,25 @@ services:
       - app
     restart: unless-stopped
 
+  # Elasticsearch Service
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: filmflex-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - filmflex-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
 networks:
   filmflex-network:
     driver: bridge
@@ -80,4 +99,6 @@ volumes:
   app_logs:
     driver: local
   nginx_logs:
+    driver: local
+  elasticsearch_data:
     driver: local

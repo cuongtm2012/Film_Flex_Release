@@ -21,6 +21,8 @@ import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import connectPg from "connect-pg-simple";
 import session from "express-session";
 import { pool } from "./db.js";
+import { createElasticsearchService, ElasticsearchService } from './services/elasticsearch.js';
+import { createDataSyncService, DataSyncService } from './services/data-sync.js';
 
 export interface IStorage {
   // User methods
@@ -61,7 +63,7 @@ export interface IStorage {
   getMovieByMovieId(movieId: string): Promise<Movie | undefined>;
   saveMovie(movie: InsertMovie): Promise<Movie>;
   updateMovieSection(movieId: string, section: string): Promise<Movie | undefined>;
-  searchMovies(query: string, normalizedQuery: string, page: number, limit: number, filters?: {section?: string, isRecommended?: boolean, type?: string}): Promise<{ data: Movie[], total: number }>;
+  searchMovies(query: string, normalizedQuery: string, page: number, limit: number, sortBy?: string, filters?: {section?: string, isRecommended?: boolean, type?: string}): Promise<{ data: Movie[], total: number }>;
   getMoviesByCategory(categorySlug: string, page: number, limit: number, sortBy?: string): Promise<{ data: Movie[], total: number }>;
   getMoviesByCountry(countrySlug: string, page: number, limit: number, sortBy?: string): Promise<{ data: Movie[], total: number }>;
   getMoviesBySection(section: string, page: number, limit: number): Promise<{ data: Movie[], total: number }>;
@@ -137,6 +139,11 @@ export class DatabaseStorage implements IStorage {
   // In-memory storage for password reset tokens
   private passwordResetTokens: Map<string, { userId: number; expiresAt: Date }> = new Map();
 
+  // Elasticsearch and Data Sync services
+  private elasticsearchService: ElasticsearchService | null = null;
+  private dataSyncService: DataSyncService | null = null;
+  private elasticsearchEnabled = false;
+
   constructor() {
     const PgSession = connectPg(session);
     this.sessionStore = new PgSession({
@@ -153,6 +160,26 @@ export class DatabaseStorage implements IStorage {
     setInterval(() => {
       this.cleanupExpiredCache();
     }, 60 * 1000); // Cleanup every minute
+
+    // Initialize Elasticsearch
+    this.initializeElasticsearch();
+  }
+
+  private async initializeElasticsearch(): Promise<void> {
+    try {
+      this.elasticsearchService = createElasticsearchService();
+      
+      if (this.elasticsearchService) {
+        await this.elasticsearchService.initialize();
+        this.dataSyncService = createDataSyncService(this.elasticsearchService);
+        await this.dataSyncService.initialize();
+        this.elasticsearchEnabled = true;
+        console.log('Elasticsearch integration enabled');
+      }
+    } catch (error) {
+      console.warn('Elasticsearch not available, falling back to PostgreSQL:', error.message);
+      this.elasticsearchEnabled = false;
+    }
   }
 
   // User methods
@@ -1222,7 +1249,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Add search and category methods
-  async searchMovies(query: string, _normalizedQuery: string, page: number, limit: number, sortBy: string = 'latest', filters?: {section?: string, isRecommended?: boolean, type?: string}): Promise<{ data: Movie[], total: number }> {
+  async searchMovies(query: string, _normalizedQuery: string, page: number, limit: number, sortBy?: string, filters?: {section?: string, isRecommended?: boolean, type?: string}): Promise<{ data: Movie[], total: number }> {
     const offset = (page - 1) * limit;
 
     // Convert query to lowercase for case-insensitive search
@@ -1255,16 +1282,19 @@ export class DatabaseStorage implements IStorage {
       .from(movies)
       .where(conditions);
 
-    // Apply sorting
+    // Apply sorting with default to 'latest'
+    const actualSortBy = sortBy || 'latest';
     const sortedQuery = (() => {
-      switch (sortBy) {
+      switch (actualSortBy) {
         case 'latest':
-          return baseQuery.orderBy(desc(movies.year));
+          return baseQuery.orderBy(desc(movies.year), desc(movies.modifiedAt));
         case 'popular':
         case 'rating':
-          return baseQuery.orderBy(desc(movies.view));
-        default:
+          return baseQuery.orderBy(desc(movies.view), desc(movies.modifiedAt));
+        case 'year':
           return baseQuery.orderBy(desc(movies.year));
+        default:
+          return baseQuery.orderBy(desc(movies.year), desc(movies.modifiedAt));
       }
     })();
 
@@ -1483,6 +1513,394 @@ export class DatabaseStorage implements IStorage {
 
   async getMovieCategoryCache(categorySlug: string, page: number): Promise<MovieListResponse | null> {
     return this.getCache(this.getCacheKey('movieCategory', categorySlug, page));
+  }
+
+  // Enhanced search method with Elasticsearch integration
+  async searchMovies(
+    query: string,
+    options: {
+      page?: number;
+      limit?: number;
+      section?: string;
+      type?: string;
+      isRecommended?: boolean;
+      yearRange?: [number, number];
+      categories?: string[];
+      countries?: string[];
+      sortBy?: string;
+      fuzzy?: boolean;
+    } = {}
+  ): Promise<{ data: Movie[]; total: number; page: number; limit: number }> {
+    const { page = 1, limit = 20, ...filters } = options;
+
+    // Try Elasticsearch first if available
+    if (this.elasticsearchEnabled && this.elasticsearchService) {
+      try {
+        const result = await this.elasticsearchService.searchMovies(query, {
+          page,
+          limit,
+          filters: {
+            section: filters.section,
+            type: filters.type,
+            isRecommended: filters.isRecommended,
+            year: filters.yearRange,
+            categories: filters.categories,
+            countries: filters.countries
+          },
+          sortBy: filters.sortBy,
+          fuzzy: filters.fuzzy
+        });
+
+        return {
+          data: result.data,
+          total: result.total,
+          page,
+          limit
+        };
+      } catch (error) {
+        console.error('Elasticsearch search failed, falling back to PostgreSQL:', error);
+        // Fall through to PostgreSQL search
+      }
+    }
+
+    // Fallback to existing PostgreSQL search
+    return this.fallbackSearch(query, options);
+  }
+
+  // Keep existing search as fallback
+  private async fallbackSearch(
+    query: string,
+    options: any
+  ): Promise<{ data: Movie[]; total: number; page: number; limit: number }> {
+    // ...existing searchMovies implementation...
+    const { page = 1, limit = 20, section, type, isRecommended, yearRange, categories, countries, sortBy } = options;
+    const offset = (page - 1) * limit;
+
+    let whereConditions: string[] = [];
+    let params: any[] = [];
+    let paramIndex = 1;
+
+    // Build search conditions (existing logic)
+    if (query && query.trim()) {
+      const searchQuery = `%${query.trim().toLowerCase()}%`;
+      whereConditions.push(`(
+        LOWER(m.name) LIKE $${paramIndex} OR 
+        LOWER(m."originName") LIKE $${paramIndex + 1} OR
+        LOWER(m.description) LIKE $${paramIndex + 2} OR
+        LOWER(m.actors) LIKE $${paramIndex + 3} OR
+        LOWER(m.directors) LIKE $${paramIndex + 4}
+      )`);
+      params.push(searchQuery, searchQuery, searchQuery, searchQuery, searchQuery);
+      paramIndex += 5;
+    }
+
+    if (section) {
+      whereConditions.push(`m.section = $${paramIndex}`);
+      params.push(section);
+      paramIndex++;
+    }
+
+    if (type) {
+      whereConditions.push(`m.type = $${paramIndex}`);
+      params.push(type);
+      paramIndex++;
+    }
+
+    if (isRecommended !== undefined) {
+      whereConditions.push(`m."isRecommended" = $${paramIndex}`);
+      params.push(isRecommended);
+      paramIndex++;
+    }
+
+    if (yearRange && yearRange.length === 2) {
+      whereConditions.push(`m.year BETWEEN $${paramIndex} AND $${paramIndex + 1}`);
+      params.push(yearRange[0], yearRange[1]);
+      paramIndex += 2;
+    }
+
+    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+
+    let orderBy = 'ORDER BY m."modifiedAt" DESC';
+    if (sortBy === 'name') {
+      orderBy = 'ORDER BY m.name ASC';
+    } else if (sortBy === 'year') {
+      orderBy = 'ORDER BY m.year DESC, m."modifiedAt" DESC';
+    } else if (sortBy === 'view') {
+      orderBy = 'ORDER BY m.view DESC, m."modifiedAt" DESC';
+    } else if (sortBy === 'created') {
+      orderBy = 'ORDER BY m."createdAt" DESC';
+    }
+
+    const countSql = `
+      SELECT COUNT(*) as total
+      FROM movies m
+      ${whereClause}
+    `;
+
+    const dataSql = `
+      SELECT 
+        m.*,
+        COALESCE(
+          json_agg(
+            DISTINCT jsonb_build_object(
+              'id', c.id,
+              'name', c.name,
+              'slug', c.slug
+            )
+          ) FILTER (WHERE c.id IS NOT NULL), 
+          '[]'::json
+        ) as categories,
+        COALESCE(
+          json_agg(
+            DISTINCT jsonb_build_object(
+              'id', co.id,
+              'name', co.name,
+              'slug', co.slug
+            )
+          ) FILTER (WHERE co.id IS NOT NULL), 
+          '[]'::json
+        ) as countries
+      FROM movies m
+      LEFT JOIN movie_categories mc ON m.slug = mc."movieSlug"
+      LEFT JOIN categories c ON mc."categoryId" = c.id
+      LEFT JOIN movie_countries mco ON m.slug = mco."movieSlug"
+      LEFT JOIN countries co ON mco."countryId" = co.id
+      ${whereClause}
+      GROUP BY m.slug
+      ${orderBy}
+      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+    `;
+
+    const [countResult, dataResult] = await Promise.all([
+      this.db.query(countSql, params),
+      this.db.query(dataSql, [...params, limit, offset])
+    ]);
+
+    const total = parseInt(countResult.rows[0].total);
+    const movies = dataResult.rows.map(this.mapMovieRow);
+
+    return { data: movies, total, page, limit };
+  }
+
+  // Enhanced autocomplete with Elasticsearch
+  async getSearchSuggestions(query: string, limit: number = 8): Promise<string[]> {
+    if (this.elasticsearchEnabled && this.elasticsearchService) {
+      try {
+        return await this.elasticsearchService.getSuggestions(query, limit);
+      } catch (error) {
+        console.error('Elasticsearch suggestions failed:', error);
+      }
+    }
+
+    // Fallback to simple PostgreSQL suggestions
+    if (!query || query.trim() === '') return [];
+
+    const searchQuery = `${query.trim().toLowerCase()}%`;
+    const sql = `
+      SELECT DISTINCT name
+      FROM movies
+      WHERE LOWER(name) LIKE $1
+      ORDER BY name
+      LIMIT $2
+    `;
+
+    const result = await this.db.query(sql, [searchQuery, limit]);
+    return result.rows.map(row => row.name);
+  }
+
+  // Enhanced category and country queries with Elasticsearch
+  async getMoviesByCategory(
+    categorySlug: string,
+    page: number = 1,
+    limit: number = 20,
+    sortBy: string = 'modified'
+  ): Promise<{ data: Movie[]; total: number; page: number; limit: number }> {
+    if (this.elasticsearchEnabled && this.elasticsearchService) {
+      try {
+        const result = await this.elasticsearchService.getMoviesByCategory(categorySlug, {
+          page,
+          limit,
+          sortBy
+        });
+
+        return {
+          data: result.data,
+          total: result.total,
+          page,
+          limit
+        };
+      } catch (error) {
+        console.error('Elasticsearch category search failed:', error);
+      }
+    }
+
+    // Fallback to existing PostgreSQL implementation
+    return this.getMoviesByCategoryFallback(categorySlug, page, limit, sortBy);
+  }
+
+  async getMoviesByCountry(
+    countrySlug: string,
+    page: number = 1,
+    limit: number = 20,
+    sortBy: string = 'modified'
+  ): Promise<{ data: Movie[]; total: number; page: number; limit: number }> {
+    if (this.elasticsearchEnabled && this.elasticsearchService) {
+      try {
+        const result = await this.elasticsearchService.getMoviesByCountry(countrySlug, {
+          page,
+          limit,
+          sortBy
+        });
+
+        return {
+          data: result.data,
+          total: result.total,
+          page,
+          limit
+        };
+      } catch (error) {
+        console.error('Elasticsearch country search failed:', error);
+      }
+    }
+
+    // Fallback to existing PostgreSQL implementation
+    return this.getMoviesByCountryFallback(countrySlug, page, limit, sortBy);
+  }
+
+  // Override movie creation/update methods to sync with Elasticsearch
+  async createMovie(movieData: Omit<Movie, 'createdAt' | 'modifiedAt'>): Promise<Movie> {
+    const movie = await this.createMovieOriginal(movieData);
+    
+    // Sync with Elasticsearch
+    if (this.elasticsearchEnabled && this.dataSyncService) {
+      try {
+        await this.dataSyncService.handleDataChange('movie', 'create', movie);
+      } catch (error) {
+        console.error('Failed to sync movie creation with Elasticsearch:', error);
+      }
+    }
+
+    return movie;
+  }
+
+  async updateMovie(slug: string, movieData: Partial<Movie>): Promise<Movie | null> {
+    const movie = await this.updateMovieOriginal(slug, movieData);
+    
+    // Sync with Elasticsearch
+    if (movie && this.elasticsearchEnabled && this.dataSyncService) {
+      try {
+        await this.dataSyncService.handleDataChange('movie', 'update', movie);
+      } catch (error) {
+        console.error('Failed to sync movie update with Elasticsearch:', error);
+      }
+    }
+
+    return movie;
+  }
+
+  async deleteMovie(slug: string): Promise<boolean> {
+    const success = await this.deleteMovieOriginal(slug);
+    
+    // Sync with Elasticsearch
+    if (success && this.elasticsearchEnabled && this.dataSyncService) {
+      try {
+        await this.dataSyncService.handleDataChange('movie', 'delete', { slug });
+      } catch (error) {
+        console.error('Failed to sync movie deletion with Elasticsearch:', error);
+      }
+    }
+
+    return success;
+  }
+
+  // Helper methods for storage operations that need to exist
+  async getMoviesModifiedSince(since: Date): Promise<Movie[]> {
+    const sql = `
+      SELECT 
+        m.*,
+        COALESCE(
+          json_agg(
+            DISTINCT jsonb_build_object(
+              'id', c.id,
+              'name', c.name,
+              'slug', c.slug
+            )
+          ) FILTER (WHERE c.id IS NOT NULL), 
+          '[]'::json
+        ) as categories,
+        COALESCE(
+          json_agg(
+            DISTINCT jsonb_build_object(
+              'id', co.id,
+              'name', co.name,
+              'slug', co.slug
+            )
+          ) FILTER (WHERE co.id IS NOT NULL), 
+          '[]'::json
+        ) as countries
+      FROM movies m
+      LEFT JOIN movie_categories mc ON m.slug = mc."movieSlug"
+      LEFT JOIN categories c ON mc."categoryId" = c.id
+      LEFT JOIN movie_countries mco ON m.slug = mco."movieSlug"
+      LEFT JOIN countries co ON mco."countryId" = co.id
+      WHERE m."modifiedAt" > $1
+      GROUP BY m.slug
+      ORDER BY m."modifiedAt" DESC
+    `;
+
+    const result = await this.db.query(sql, [since]);
+    return result.rows.map(this.mapMovieRow);
+  }
+
+  async getAllMovieSlugs(): Promise<string[]> {
+    const sql = 'SELECT slug FROM movies ORDER BY slug';
+    const result = await this.db.query(sql);
+    return result.rows.map(row => row.slug);
+  }
+
+  async getMovieCount(): Promise<number> {
+    const sql = 'SELECT COUNT(*) as total FROM movies';
+    const result = await this.db.query(sql);
+    return parseInt(result.rows[0].total);
+  }
+
+  async getEpisodeCount(): Promise<number> {
+    const sql = 'SELECT COUNT(*) as total FROM episodes';
+    const result = await this.db.query(sql);
+    return parseInt(result.rows[0].total);
+  }
+
+  // Elasticsearch management methods
+  async getElasticsearchHealth(): Promise<any> {
+    if (this.elasticsearchService) {
+      return await this.elasticsearchService.getHealth();
+    }
+    return { error: 'Elasticsearch not available' };
+  }
+
+  async triggerFullSync(): Promise<any> {
+    if (this.dataSyncService) {
+      return await this.dataSyncService.fullSync();
+    }
+    throw new Error('Data sync service not available');
+  }
+
+  async getSyncStatus(): Promise<any> {
+    if (this.dataSyncService) {
+      return await this.dataSyncService.getSyncStatus();
+    }
+    return { error: 'Data sync service not available' };
+  }
+
+  async validateSync(): Promise<any> {
+    if (this.dataSyncService) {
+      return await this.dataSyncService.validateSync();
+    }
+    throw new Error('Data sync service not available');
+  }
+
+  isElasticsearchEnabled(): boolean {
+    return this.elasticsearchEnabled;
   }
 }
 
