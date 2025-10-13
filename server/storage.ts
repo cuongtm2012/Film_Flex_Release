@@ -129,8 +129,6 @@ export interface IStorage {
 
 export class DatabaseStorage implements IStorage {
   sessionStore: session.Store;
-  // Add connection pool size limit
-  private readonly MAX_CONNECTIONS = 20;
   // Reduce cache TTL to prevent memory bloat
   private readonly CACHE_TTL = 2 * 60 * 1000; // 2 minutes instead of 5
   // Add cache size limit
@@ -146,7 +144,6 @@ export class DatabaseStorage implements IStorage {
       tableName: 'sessions',
       createTableIfMissing: true,
       pruneSessionInterval: 60 * 15, // Prune expired sessions every 15 minutes
-      maxPool: this.MAX_CONNECTIONS, // Use the constant
       errorLog: (error: Error) => {
         console.error('Session store error:', error);
       }
@@ -394,12 +391,21 @@ export class DatabaseStorage implements IStorage {
       filterConditions = sql`${filterConditions} AND ${movies.section} = ${filters.section}`;
     }
     
-    // For the year sorting case, we need to get all movies and sort manually
+    // Query to get unique movies by slug, selecting the one with the most recent modifiedAt
+    // This ensures we only get one entry per movie, showing the latest version
+    const uniqueMoviesQuery = sql`
+      SELECT DISTINCT ON (${movies.slug}) *
+      FROM ${movies}
+      WHERE ${filterConditions}
+      ORDER BY ${movies.slug}, ${movies.modifiedAt} DESC
+    `;
+    
+    // For the year sorting case, we need to get all unique movies and sort manually
     if (sortBy === 'year') {
-      const allMovies = await db.select().from(movies).where(filterConditions);
+      const allMovies = await db.execute(uniqueMoviesQuery);
       const currentYear = new Date().getFullYear();
       
-      const sortedMovies = allMovies.sort((a: Movie, b: Movie) => {
+      const sortedMovies = allMovies.rows.sort((a: any, b: any) => {
         const yearA = typeof a.year === 'number' && a.year > 1900 && a.year <= currentYear ? a.year : 0;
         const yearB = typeof b.year === 'number' && b.year > 1900 && b.year <= currentYear ? b.year : 0;
         
@@ -412,32 +418,50 @@ export class DatabaseStorage implements IStorage {
       const total = sortedMovies.length;
       const paginatedMovies = sortedMovies.slice(offset, offset + limit);
       
-      return { data: paginatedMovies, total };
+      return { data: paginatedMovies as Movie[], total };
     }
 
-    // For all other sorting options
-    const baseQuery = db.select().from(movies).where(filterConditions);
-    const sortedQuery = (() => {
+    // For all other sorting options, use a subquery approach
+    const sortedUniqueMoviesQuery = (() => {
       switch (sortBy) {
         case 'latest':
-          // Sort by modifiedAt first, then by year (descending) as secondary sort
-          return baseQuery.orderBy(desc(movies.year));
+          return sql`
+            SELECT * FROM (${uniqueMoviesQuery}) AS unique_movies
+            ORDER BY year DESC NULLS LAST, modified_at DESC
+          `;
         case 'popular':
-        case 'rating': // Fall back to popularity for now
-          return baseQuery.orderBy(desc(movies.view));
+        case 'rating':
+          return sql`
+            SELECT * FROM (${uniqueMoviesQuery}) AS unique_movies
+            ORDER BY view DESC, modified_at DESC
+          `;
         default:
-          // Default to latest with year as secondary sort
-          return baseQuery.orderBy(desc(movies.year), desc(movies.modifiedAt));
+          return sql`
+            SELECT * FROM (${uniqueMoviesQuery}) AS unique_movies
+            ORDER BY year DESC NULLS LAST, modified_at DESC
+          `;
       }
     })();
 
-    const paginatedQuery = sortedQuery.limit(limit).offset(offset);
-    const [{ count }] = await db.select({ count: sql<number>`count(*)` }).from(movies).where(filterConditions);
-    const data = await paginatedQuery;
+    // Add pagination to the final query
+    const paginatedQuery = sql`
+      ${sortedUniqueMoviesQuery}
+      LIMIT ${limit} OFFSET ${offset}
+    `;
+
+    // Get the count of unique movies
+    const countQuery = sql`
+      SELECT COUNT(*) as count FROM (${uniqueMoviesQuery}) AS unique_count
+    `;
+
+    const [dataResult, countResult] = await Promise.all([
+      db.execute(paginatedQuery),
+      db.execute(countQuery)
+    ]);
     
     return { 
-      data, 
-      total: count || 0 
+      data: dataResult.rows as Movie[], 
+      total: (countResult.rows[0] as any)?.count || 0 
     };
   }
   
@@ -1142,7 +1166,17 @@ export class DatabaseStorage implements IStorage {
   async getAuditLogs(page: number, limit: number, filters?: {activityType?: string, userId?: number}): Promise<{ data: AuditLog[], total: number }> {
     const offset = (page - 1) * limit;
     
-    let query = db.select({
+    // Build filter conditions
+    const conditions = [];
+    if (filters?.activityType) {
+      conditions.push(eq(auditLogs.activityType, filters.activityType));
+    }
+    if (filters?.userId) {
+      conditions.push(eq(auditLogs.userId, filters.userId));
+    }
+
+    // Base query structure
+    const baseQuery = db.select({
       auditLog: auditLogs,
       user: {
         id: users.id,
@@ -1153,23 +1187,15 @@ export class DatabaseStorage implements IStorage {
     .from(auditLogs)
     .leftJoin(users, eq(auditLogs.userId, users.id));
 
-    // Apply filters
-    if (filters?.activityType) {
-      query = query.where(eq(auditLogs.activityType, filters.activityType));
-    }
-    if (filters?.userId) {
-      query = query.where(eq(auditLogs.userId, filters.userId));
-    }
+    // Apply conditions if they exist
+    const finalQuery = conditions.length > 0 
+      ? baseQuery.where(and(...conditions))
+      : baseQuery;
 
     const [data, countResult] = await Promise.all([
-      query.orderBy(desc(auditLogs.timestamp)).limit(limit).offset(offset),
+      finalQuery.orderBy(desc(auditLogs.timestamp)).limit(limit).offset(offset),
       db.select({ count: sql<number>`count(*)` }).from(auditLogs)
-        .where(
-          and(
-            filters?.activityType ? eq(auditLogs.activityType, filters.activityType) : undefined,
-            filters?.userId ? eq(auditLogs.userId, filters.userId) : undefined
-          )
-        )
+        .where(conditions.length > 0 ? and(...conditions) : undefined)
     ]);
 
     const total = countResult[0]?.count || 0;
