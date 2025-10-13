@@ -224,6 +224,144 @@ export function registerRoutes(app: Express): void {
     });
   });
 
+  // Elasticsearch sync endpoints
+  router.post("/elasticsearch/sync/full", async (req, res) => {
+    try {
+      if (!storage.isElasticsearchEnabled()) {
+        return res.status(503).json({
+          status: false,
+          message: "Elasticsearch is not available"
+        });
+      }
+
+      // Get the data sync service from storage
+      const dataSyncService = storage.dataSync;
+      if (!dataSyncService) {
+        return res.status(503).json({
+          status: false,
+          message: "Data sync service is not available"
+        });
+      }
+
+      console.log('Starting manual full sync...');
+      const result = await dataSyncService.fullSync();
+      
+      res.json({
+        status: true,
+        message: "Full sync completed successfully",
+        result: {
+          movies: result.movies,
+          episodes: result.episodes,
+          errors: result.errors.length,
+          errorDetails: result.errors
+        }
+      });
+    } catch (error) {
+      console.error('Manual full sync failed:', error);
+      res.status(500).json({
+        status: false,
+        message: "Full sync failed",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  router.post("/elasticsearch/sync/incremental", async (req, res) => {
+    try {
+      if (!storage.isElasticsearchEnabled()) {
+        return res.status(503).json({
+          status: false,
+          message: "Elasticsearch is not available"
+        });
+      }
+
+      const dataSyncService = storage.dataSync;
+      if (!dataSyncService) {
+        return res.status(503).json({
+          status: false,
+          message: "Data sync service is not available"
+        });
+      }
+
+      console.log('Starting manual incremental sync...');
+      const result = await dataSyncService.incrementalSync();
+      
+      res.json({
+        status: true,
+        message: "Incremental sync completed successfully",
+        result: {
+          movies: result.movies,
+          episodes: result.episodes,
+          errors: result.errors.length,
+          errorDetails: result.errors
+        }
+      });
+    } catch (error) {
+      console.error('Manual incremental sync failed:', error);
+      res.status(500).json({
+        status: false,
+        message: "Incremental sync failed",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  router.get("/elasticsearch/status", async (req, res) => {
+    try {
+      const isEnabled = storage.isElasticsearchEnabled();
+      
+      if (!isEnabled) {
+        return res.json({
+          status: true,
+          elasticsearch: {
+            enabled: false,
+            message: "Elasticsearch is not available"
+          }
+        });
+      }
+
+      const dataSyncService = storage.dataSync;
+      if (!dataSyncService) {
+        return res.json({
+          status: true,
+          elasticsearch: {
+            enabled: true,
+            syncService: false,
+            message: "Data sync service is not available"
+          }
+        });
+      }
+
+      const syncStatus = await dataSyncService.getSyncStatus();
+      const validation = await dataSyncService.validateSync();
+      
+      res.json({
+        status: true,
+        elasticsearch: {
+          enabled: true,
+          syncService: true,
+          lastSync: syncStatus.lastSyncTime,
+          isFullSyncRunning: syncStatus.isFullSyncRunning,
+          health: syncStatus.elasticsearchHealth,
+          validation: {
+            dbMovies: validation.dbMovieCount,
+            esMovies: validation.esMovieCount,
+            dbEpisodes: validation.dbEpisodeCount,
+            esEpisodes: validation.esEpisodeCount,
+            isInSync: validation.isInSync
+          }
+        }
+      });
+    } catch (error) {
+      console.error('Failed to get Elasticsearch status:', error);
+      res.status(500).json({
+        status: false,
+        message: "Failed to get Elasticsearch status",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
   // Note: setupAuth(app) is already called in server/index.ts
   // Removed duplicate call to prevent duplicate middleware registration
   
@@ -855,7 +993,44 @@ export function registerRoutes(app: Express): void {
       });
     }
   });
-    // API endpoint for fetching movies for admin content management
+
+  // Add missing movies search endpoint for admin panel
+  router.get("/movies/search", async (req, res) => {
+    try {
+      const keyword = (req.query.q as string || "").trim();
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 20;
+      
+      if (!keyword) {
+        return res.json({
+          status: true,
+          items: [],
+          total: 0
+        });
+      }
+      
+      // Use the same search logic as the main search endpoint
+      const lowercaseKeyword = keyword.toLowerCase();
+      const normalizedKeyword = normalizeText(lowercaseKeyword);
+      
+      const searchResults = await searchMovies(lowercaseKeyword, normalizedKeyword, page, limit);
+      
+      res.json({
+        status: true,
+        items: searchResults.items || [],
+        total: searchResults.pagination?.totalItems || 0
+      });
+    } catch (error) {
+      console.error('Movie search error:', error);
+      res.json({
+        status: true,
+        items: [],
+        total: 0
+      });
+    }
+  });
+
+  // API endpoint for fetching movies for admin content management
   router.get("/admin/movies", async (req, res) => {
     try {
       const page = parseInt(req.query.page as string) || 1;

@@ -68,6 +68,7 @@ export interface IStorage {
   getMoviesByCountry(countrySlug: string, page: number, limit: number, sortBy?: string): Promise<{ data: Movie[], total: number }>;
   getMoviesBySection(section: string, page: number, limit: number): Promise<{ data: Movie[], total: number }>;
   updateMovieBySlug(slug: string, updateData: Partial<Movie>): Promise<Movie | undefined>;
+  getRecommendedMovies(page: number, limit: number): Promise<{ data: Movie[], total: number }>;
   
   // Episode methods
   getEpisodesByMovieSlug(movieSlug: string): Promise<Episode[]>;
@@ -144,6 +145,11 @@ export class DatabaseStorage implements IStorage {
   private dataSyncService: DataSyncService | null = null;
   private elasticsearchEnabled = false;
 
+  // Expose data sync service for API endpoints
+  get dataSync() {
+    return this.dataSyncService;
+  }
+
   constructor() {
     const PgSession = connectPg(session);
     this.sessionStore = new PgSession({
@@ -177,7 +183,8 @@ export class DatabaseStorage implements IStorage {
         console.log('Elasticsearch integration enabled');
       }
     } catch (error) {
-      console.warn('Elasticsearch not available, falling back to PostgreSQL:', error.message);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.warn('Elasticsearch not available, falling back to PostgreSQL:', errorMessage);
       this.elasticsearchEnabled = false;
     }
   }
@@ -615,6 +622,65 @@ export class DatabaseStorage implements IStorage {
     }
   }
   
+  async getMoviesBySection(section: string, page: number, limit: number): Promise<{ data: Movie[], total: number }> {
+    const offset = (page - 1) * limit;
+    
+    // Query movies by section field first
+    const data = await db.select()
+      .from(movies)
+      .where(eq(movies.section, section))
+      .orderBy(desc(movies.modifiedAt))
+      .limit(limit)
+      .offset(offset);
+    
+    // Count total movies in this section
+    const [{ count }] = await db.select({ count: sql<number>`count(*)` })
+      .from(movies)
+      .where(eq(movies.section, section));
+    
+    // If anime section is requested but no movies found, fall back to type-based search
+    if (section === 'anime' && data.length === 0) {
+      // Search for movies with type exactly 'hoathinh' (Vietnamese for animation/anime)
+      const animeConditions = sql`(
+        ${movies.type} = 'hoathinh'
+      )`;
+      
+      const animeData = await db.select()
+        .from(movies)
+        .where(animeConditions)
+        .orderBy(desc(movies.modifiedAt))
+        .limit(limit)
+        .offset(offset);
+        
+      const [{ animeCount }] = await db.select({ animeCount: sql<number>`count(*)` })
+        .from(movies)
+        .where(animeConditions);
+      
+      return { data: animeData, total: animeCount || 0 };
+    }
+    
+    return { data, total: count || 0 };
+  }
+
+  async getRecommendedMovies(page: number, limit: number): Promise<{ data: Movie[], total: number }> {
+    const offset = (page - 1) * limit;
+    
+    // Query movies that are marked as recommended
+    const data = await db.select()
+      .from(movies)
+      .where(eq(movies.isRecommended, true))
+      .orderBy(desc(movies.modifiedAt))
+      .limit(limit)
+      .offset(offset);
+      
+    // Count total recommended movies
+    const [{ count }] = await db.select({ count: sql<number>`count(*)` })
+      .from(movies)
+      .where(eq(movies.isRecommended, true));
+    
+    return { data, total: count || 0 };
+  }
+
   // Episode methods
   async getEpisodesByMovieSlug(movieSlug: string): Promise<Episode[]> {
     const episodesList = await db.select()
@@ -1249,7 +1315,35 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Add search and category methods
-  async searchMovies(query: string, _normalizedQuery: string, page: number, limit: number, sortBy?: string, filters?: {section?: string, isRecommended?: boolean, type?: string}): Promise<{ data: Movie[], total: number }> {
+  async searchMovies(query: string, _normalizedQuery: string, page: number, limit: number, sortBy?: string, filters?: {section?: string, isRecommended?: boolean, type?: string}): Promise<{ items: Movie[], total: number, pagination: { totalItems: number, totalPages: number, currentPage: number, totalItemsPerPage: number } }> {
+    // Use Elasticsearch if available
+    if (this.elasticsearchEnabled && this.elasticsearchService) {
+      try {
+        const searchResults = await this.elasticsearchService.searchMovies(query, {
+          page,
+          limit,
+          sortBy,
+          filters
+        });
+        
+        return {
+          items: searchResults.data || [],
+          total: searchResults.total,
+          pagination: {
+            totalItems: searchResults.total,
+            totalPages: Math.ceil(searchResults.total / limit),
+            currentPage: page,
+            totalItemsPerPage: limit
+          }
+        };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.warn('Elasticsearch search failed, falling back to PostgreSQL:', errorMessage);
+        // Fall through to PostgreSQL search
+      }
+    }
+    
+    // PostgreSQL fallback search
     const offset = (page - 1) * limit;
 
     // Convert query to lowercase for case-insensitive search
@@ -1265,7 +1359,8 @@ export class DatabaseStorage implements IStorage {
     )`;
 
     let conditions = searchConditions;
-      // Add filters if specified
+      
+    // Add filters if specified
     if (filters?.section) {
       conditions = sql`${conditions} AND ${movies.section} = ${filters.section}`;
     }
@@ -1306,7 +1401,18 @@ export class DatabaseStorage implements IStorage {
       .from(movies)
       .where(conditions);
 
-    return { data, total: count || 0 };
+    const total = count || 0;
+
+    return { 
+      items: data, 
+      total,
+      pagination: {
+        totalItems: total,
+        totalPages: Math.ceil(total / limit),
+        currentPage: page,
+        totalItemsPerPage: limit
+      }
+    };
   }
 
   async getMoviesByCategory(categorySlug: string, page: number, limit: number, sortBy?: string): Promise<{ data: Movie[], total: number }> {
@@ -1354,64 +1460,6 @@ export class DatabaseStorage implements IStorage {
         WHERE country->>'slug' = ${countrySlug}
       )`);
 
-    return { data, total: count || 0 };
-  }
-
-  async getMoviesBySection(section: string, page: number, limit: number): Promise<{ data: Movie[], total: number }> {
-    const offset = (page - 1) * limit;
-    
-    // Query movies by section field first
-    const data = await db.select()
-      .from(movies)
-      .where(eq(movies.section, section))
-      .orderBy(desc(movies.modifiedAt))
-      .limit(limit)
-      .offset(offset);
-    
-    // Count total movies in this section
-    const [{ count }] = await db.select({ count: sql<number>`count(*)` })
-      .from(movies)
-      .where(eq(movies.section, section));
-    
-    // If anime section is requested but no movies found, fall back to type-based search
-    if (section === 'anime' && data.length === 0) {
-      // Search for movies with type exactly 'hoathinh' (Vietnamese for animation/anime)
-      const animeConditions = sql`(
-        ${movies.type} = 'hoathinh'
-      )`;
-      
-      const animeData = await db.select()
-        .from(movies)
-        .where(animeConditions)
-        .orderBy(desc(movies.modifiedAt))
-        .limit(limit)
-        .offset(offset);
-        
-      const [{ animeCount }] = await db.select({ animeCount: sql<number>`count(*)` })
-        .from(movies)
-        .where(animeConditions);
-      
-      return { data: animeData, total: animeCount || 0 };
-    }
-    
-    return { data, total: count || 0 };
-  }
-
-  async getRecommendedMovies(page: number, limit: number): Promise<{ data: Movie[], total: number }> {
-    const offset = (page - 1) * limit;
-    
-    // Query movies that are marked as recommended
-    const data = await db.select()
-      .from(movies)
-      .where(eq(movies.isRecommended, true))
-      .orderBy(desc(movies.modifiedAt))
-      .limit(limit)
-      .offset(offset);
-      // Count total recommended movies
-    const [{ count }] = await db.select({ count: sql<number>`count(*)` })
-      .from(movies)
-      .where(eq(movies.isRecommended, true));
-    
     return { data, total: count || 0 };
   }
 
@@ -1515,392 +1563,39 @@ export class DatabaseStorage implements IStorage {
     return this.getCache(this.getCacheKey('movieCategory', categorySlug, page));
   }
 
-  // Enhanced search method with Elasticsearch integration
-  async searchMovies(
-    query: string,
-    options: {
-      page?: number;
-      limit?: number;
-      section?: string;
-      type?: string;
-      isRecommended?: boolean;
-      yearRange?: [number, number];
-      categories?: string[];
-      countries?: string[];
-      sortBy?: string;
-      fuzzy?: boolean;
-    } = {}
-  ): Promise<{ data: Movie[]; total: number; page: number; limit: number }> {
-    const { page = 1, limit = 20, ...filters } = options;
-
-    // Try Elasticsearch first if available
-    if (this.elasticsearchEnabled && this.elasticsearchService) {
-      try {
-        const result = await this.elasticsearchService.searchMovies(query, {
-          page,
-          limit,
-          filters: {
-            section: filters.section,
-            type: filters.type,
-            isRecommended: filters.isRecommended,
-            year: filters.yearRange,
-            categories: filters.categories,
-            countries: filters.countries
-          },
-          sortBy: filters.sortBy,
-          fuzzy: filters.fuzzy
-        });
-
-        return {
-          data: result.data,
-          total: result.total,
-          page,
-          limit
-        };
-      } catch (error) {
-        console.error('Elasticsearch search failed, falling back to PostgreSQL:', error);
-        // Fall through to PostgreSQL search
-      }
-    }
-
-    // Fallback to existing PostgreSQL search
-    return this.fallbackSearch(query, options);
+  isElasticsearchEnabled(): boolean {
+    return this.elasticsearchEnabled;
   }
 
-  // Keep existing search as fallback
-  private async fallbackSearch(
-    query: string,
-    options: any
-  ): Promise<{ data: Movie[]; total: number; page: number; limit: number }> {
-    // ...existing searchMovies implementation...
-    const { page = 1, limit = 20, section, type, isRecommended, yearRange, categories, countries, sortBy } = options;
-    const offset = (page - 1) * limit;
-
-    let whereConditions: string[] = [];
-    let params: any[] = [];
-    let paramIndex = 1;
-
-    // Build search conditions (existing logic)
-    if (query && query.trim()) {
-      const searchQuery = `%${query.trim().toLowerCase()}%`;
-      whereConditions.push(`(
-        LOWER(m.name) LIKE $${paramIndex} OR 
-        LOWER(m."originName") LIKE $${paramIndex + 1} OR
-        LOWER(m.description) LIKE $${paramIndex + 2} OR
-        LOWER(m.actors) LIKE $${paramIndex + 3} OR
-        LOWER(m.directors) LIKE $${paramIndex + 4}
-      )`);
-      params.push(searchQuery, searchQuery, searchQuery, searchQuery, searchQuery);
-      paramIndex += 5;
-    }
-
-    if (section) {
-      whereConditions.push(`m.section = $${paramIndex}`);
-      params.push(section);
-      paramIndex++;
-    }
-
-    if (type) {
-      whereConditions.push(`m.type = $${paramIndex}`);
-      params.push(type);
-      paramIndex++;
-    }
-
-    if (isRecommended !== undefined) {
-      whereConditions.push(`m."isRecommended" = $${paramIndex}`);
-      params.push(isRecommended);
-      paramIndex++;
-    }
-
-    if (yearRange && yearRange.length === 2) {
-      whereConditions.push(`m.year BETWEEN $${paramIndex} AND $${paramIndex + 1}`);
-      params.push(yearRange[0], yearRange[1]);
-      paramIndex += 2;
-    }
-
-    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
-
-    let orderBy = 'ORDER BY m."modifiedAt" DESC';
-    if (sortBy === 'name') {
-      orderBy = 'ORDER BY m.name ASC';
-    } else if (sortBy === 'year') {
-      orderBy = 'ORDER BY m.year DESC, m."modifiedAt" DESC';
-    } else if (sortBy === 'view') {
-      orderBy = 'ORDER BY m.view DESC, m."modifiedAt" DESC';
-    } else if (sortBy === 'created') {
-      orderBy = 'ORDER BY m."createdAt" DESC';
-    }
-
-    const countSql = `
-      SELECT COUNT(*) as total
-      FROM movies m
-      ${whereClause}
-    `;
-
-    const dataSql = `
-      SELECT 
-        m.*,
-        COALESCE(
-          json_agg(
-            DISTINCT jsonb_build_object(
-              'id', c.id,
-              'name', c.name,
-              'slug', c.slug
-            )
-          ) FILTER (WHERE c.id IS NOT NULL), 
-          '[]'::json
-        ) as categories,
-        COALESCE(
-          json_agg(
-            DISTINCT jsonb_build_object(
-              'id', co.id,
-              'name', co.name,
-              'slug', co.slug
-            )
-          ) FILTER (WHERE co.id IS NOT NULL), 
-          '[]'::json
-        ) as countries
-      FROM movies m
-      LEFT JOIN movie_categories mc ON m.slug = mc."movieSlug"
-      LEFT JOIN categories c ON mc."categoryId" = c.id
-      LEFT JOIN movie_countries mco ON m.slug = mco."movieSlug"
-      LEFT JOIN countries co ON mco."countryId" = co.id
-      ${whereClause}
-      GROUP BY m.slug
-      ${orderBy}
-      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
-    `;
-
-    const [countResult, dataResult] = await Promise.all([
-      this.db.query(countSql, params),
-      this.db.query(dataSql, [...params, limit, offset])
-    ]);
-
-    const total = parseInt(countResult.rows[0].total);
-    const movies = dataResult.rows.map(this.mapMovieRow);
-
-    return { data: movies, total, page, limit };
-  }
-
-  // Enhanced autocomplete with Elasticsearch
-  async getSearchSuggestions(query: string, limit: number = 8): Promise<string[]> {
-    if (this.elasticsearchEnabled && this.elasticsearchService) {
-      try {
-        return await this.elasticsearchService.getSuggestions(query, limit);
-      } catch (error) {
-        console.error('Elasticsearch suggestions failed:', error);
-      }
-    }
-
-    // Fallback to simple PostgreSQL suggestions
-    if (!query || query.trim() === '') return [];
-
-    const searchQuery = `${query.trim().toLowerCase()}%`;
-    const sql = `
-      SELECT DISTINCT name
-      FROM movies
-      WHERE LOWER(name) LIKE $1
-      ORDER BY name
-      LIMIT $2
-    `;
-
-    const result = await this.db.query(sql, [searchQuery, limit]);
-    return result.rows.map(row => row.name);
-  }
-
-  // Enhanced category and country queries with Elasticsearch
-  async getMoviesByCategory(
-    categorySlug: string,
-    page: number = 1,
-    limit: number = 20,
-    sortBy: string = 'modified'
-  ): Promise<{ data: Movie[]; total: number; page: number; limit: number }> {
-    if (this.elasticsearchEnabled && this.elasticsearchService) {
-      try {
-        const result = await this.elasticsearchService.getMoviesByCategory(categorySlug, {
-          page,
-          limit,
-          sortBy
-        });
-
-        return {
-          data: result.data,
-          total: result.total,
-          page,
-          limit
-        };
-      } catch (error) {
-        console.error('Elasticsearch category search failed:', error);
-      }
-    }
-
-    // Fallback to existing PostgreSQL implementation
-    return this.getMoviesByCategoryFallback(categorySlug, page, limit, sortBy);
-  }
-
-  async getMoviesByCountry(
-    countrySlug: string,
-    page: number = 1,
-    limit: number = 20,
-    sortBy: string = 'modified'
-  ): Promise<{ data: Movie[]; total: number; page: number; limit: number }> {
-    if (this.elasticsearchEnabled && this.elasticsearchService) {
-      try {
-        const result = await this.elasticsearchService.getMoviesByCountry(countrySlug, {
-          page,
-          limit,
-          sortBy
-        });
-
-        return {
-          data: result.data,
-          total: result.total,
-          page,
-          limit
-        };
-      } catch (error) {
-        console.error('Elasticsearch country search failed:', error);
-      }
-    }
-
-    // Fallback to existing PostgreSQL implementation
-    return this.getMoviesByCountryFallback(countrySlug, page, limit, sortBy);
-  }
-
-  // Override movie creation/update methods to sync with Elasticsearch
-  async createMovie(movieData: Omit<Movie, 'createdAt' | 'modifiedAt'>): Promise<Movie> {
-    const movie = await this.createMovieOriginal(movieData);
+  async getMoviesModifiedSince(date: Date): Promise<Movie[]> {
+    const moviesData = await db.select()
+      .from(movies)
+      .where(sql`${movies.modifiedAt} > ${date}`)
+      .orderBy(desc(movies.modifiedAt));
     
-    // Sync with Elasticsearch
-    if (this.elasticsearchEnabled && this.dataSyncService) {
-      try {
-        await this.dataSyncService.handleDataChange('movie', 'create', movie);
-      } catch (error) {
-        console.error('Failed to sync movie creation with Elasticsearch:', error);
-      }
-    }
-
-    return movie;
-  }
-
-  async updateMovie(slug: string, movieData: Partial<Movie>): Promise<Movie | null> {
-    const movie = await this.updateMovieOriginal(slug, movieData);
-    
-    // Sync with Elasticsearch
-    if (movie && this.elasticsearchEnabled && this.dataSyncService) {
-      try {
-        await this.dataSyncService.handleDataChange('movie', 'update', movie);
-      } catch (error) {
-        console.error('Failed to sync movie update with Elasticsearch:', error);
-      }
-    }
-
-    return movie;
-  }
-
-  async deleteMovie(slug: string): Promise<boolean> {
-    const success = await this.deleteMovieOriginal(slug);
-    
-    // Sync with Elasticsearch
-    if (success && this.elasticsearchEnabled && this.dataSyncService) {
-      try {
-        await this.dataSyncService.handleDataChange('movie', 'delete', { slug });
-      } catch (error) {
-        console.error('Failed to sync movie deletion with Elasticsearch:', error);
-      }
-    }
-
-    return success;
-  }
-
-  // Helper methods for storage operations that need to exist
-  async getMoviesModifiedSince(since: Date): Promise<Movie[]> {
-    const sql = `
-      SELECT 
-        m.*,
-        COALESCE(
-          json_agg(
-            DISTINCT jsonb_build_object(
-              'id', c.id,
-              'name', c.name,
-              'slug', c.slug
-            )
-          ) FILTER (WHERE c.id IS NOT NULL), 
-          '[]'::json
-        ) as categories,
-        COALESCE(
-          json_agg(
-            DISTINCT jsonb_build_object(
-              'id', co.id,
-              'name', co.name,
-              'slug', co.slug
-            )
-          ) FILTER (WHERE co.id IS NOT NULL), 
-          '[]'::json
-        ) as countries
-      FROM movies m
-      LEFT JOIN movie_categories mc ON m.slug = mc."movieSlug"
-      LEFT JOIN categories c ON mc."categoryId" = c.id
-      LEFT JOIN movie_countries mco ON m.slug = mco."movieSlug"
-      LEFT JOIN countries co ON mco."countryId" = co.id
-      WHERE m."modifiedAt" > $1
-      GROUP BY m.slug
-      ORDER BY m."modifiedAt" DESC
-    `;
-
-    const result = await this.db.query(sql, [since]);
-    return result.rows.map(this.mapMovieRow);
+    return moviesData;
   }
 
   async getAllMovieSlugs(): Promise<string[]> {
-    const sql = 'SELECT slug FROM movies ORDER BY slug';
-    const result = await this.db.query(sql);
-    return result.rows.map(row => row.slug);
+    const result = await db.select({ slug: movies.slug })
+      .from(movies)
+      .orderBy(movies.slug);
+    
+    return result.map(row => row.slug);
   }
 
   async getMovieCount(): Promise<number> {
-    const sql = 'SELECT COUNT(*) as total FROM movies';
-    const result = await this.db.query(sql);
-    return parseInt(result.rows[0].total);
+    const [{ count }] = await db.select({ count: sql<number>`count(*)` })
+      .from(movies);
+    
+    return count || 0;
   }
 
   async getEpisodeCount(): Promise<number> {
-    const sql = 'SELECT COUNT(*) as total FROM episodes';
-    const result = await this.db.query(sql);
-    return parseInt(result.rows[0].total);
-  }
-
-  // Elasticsearch management methods
-  async getElasticsearchHealth(): Promise<any> {
-    if (this.elasticsearchService) {
-      return await this.elasticsearchService.getHealth();
-    }
-    return { error: 'Elasticsearch not available' };
-  }
-
-  async triggerFullSync(): Promise<any> {
-    if (this.dataSyncService) {
-      return await this.dataSyncService.fullSync();
-    }
-    throw new Error('Data sync service not available');
-  }
-
-  async getSyncStatus(): Promise<any> {
-    if (this.dataSyncService) {
-      return await this.dataSyncService.getSyncStatus();
-    }
-    return { error: 'Data sync service not available' };
-  }
-
-  async validateSync(): Promise<any> {
-    if (this.dataSyncService) {
-      return await this.dataSyncService.validateSync();
-    }
-    throw new Error('Data sync service not available');
-  }
-
-  isElasticsearchEnabled(): boolean {
-    return this.elasticsearchEnabled;
+    const [{ count }] = await db.select({ count: sql<number>`count(*)` })
+      .from(episodes);
+    
+    return count || 0;
   }
 }
 

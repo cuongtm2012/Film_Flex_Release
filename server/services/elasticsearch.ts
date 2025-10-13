@@ -15,7 +15,11 @@ export interface ElasticsearchConfig {
 export interface SearchResult {
   data: Movie[];
   total: number;
+  page?: number;
+  limit?: number;
+  totalPages?: number;
   aggregations?: any;
+  error?: string;
 }
 
 export interface SearchOptions {
@@ -45,7 +49,7 @@ export class ElasticsearchService {
   async initialize(): Promise<void> {
     try {
       // Check if Elasticsearch is available
-      const health = await this.client.ping();
+      await this.client.ping();
       console.log('Elasticsearch connection established');
 
       // Create indexes if they don't exist
@@ -194,6 +198,30 @@ export class ElasticsearchService {
         await this.client.indices.create({
           index: this.episodeIndex,
           body: {
+            settings: {
+              analysis: {
+                analyzer: {
+                  movie_analyzer: {
+                    type: 'custom',
+                    tokenizer: 'standard',
+                    filter: ['lowercase', 'asciifolding', 'stop']
+                  },
+                  autocomplete_analyzer: {
+                    type: 'custom',
+                    tokenizer: 'edge_ngram_tokenizer',
+                    filter: ['lowercase', 'asciifolding']
+                  }
+                },
+                tokenizer: {
+                  edge_ngram_tokenizer: {
+                    type: 'edge_ngram',
+                    min_gram: 2,
+                    max_gram: 20,
+                    token_chars: ['letter', 'digit']
+                  }
+                }
+              }
+            },
             mappings: {
               properties: {
                 slug: { type: 'keyword' },
@@ -330,40 +358,26 @@ export class ElasticsearchService {
   }
 
   async searchMovies(query: string, options: SearchOptions = {}): Promise<SearchResult> {
-    const {
-      page = 1,
-      limit = 20,
-      filters = {},
-      sortBy = 'relevance',
-      fuzzy = true
-    } = options;
-
-    const from = (page - 1) * limit;
-
     try {
+      const { page = 1, limit = 20, sortBy = 'relevance', filters } = options;
+      const fuzzy = options.fuzzy ?? true;
+      
+      const from = (page - 1) * limit;
+      
       const searchBody: any = {
+        from,
+        size: limit,
         query: {
           bool: {
             must: [],
             filter: []
-          }
-        },
-        from,
-        size: limit,
-        highlight: {
-          fields: {
-            name: {},
-            originName: {},
-            description: {},
-            'actors': {},
-            'directors': {}
           }
         }
       };
 
       // Build search query
       if (query && query.trim()) {
-        const searchQueries = [
+        const shouldQueries = [
           {
             multi_match: {
               query: query,
@@ -379,112 +393,229 @@ export class ElasticsearchService {
               type: 'best_fields',
               fuzziness: fuzzy ? 'AUTO' : 0
             }
+          },
+          // Add exact match boost for better relevance
+          {
+            term: {
+              'name.keyword': {
+                value: query,
+                boost: 5
+              }
+            }
           }
         ];
 
-        // Add exact match boost for better relevance
-        searchQueries.push({
-          term: {
-            'name.keyword': {
-              value: query,
-              boost: 5
-            }
+        searchBody.query.bool.must.push({
+          bool: {
+            should: shouldQueries,
+            minimum_should_match: 1
           }
         });
-
-        searchBody.query.bool.should = searchQueries;
-        searchBody.query.bool.minimum_should_match = 1;
       } else {
-        searchBody.query = { match_all: {} };
+        searchBody.query.bool.must.push({ match_all: {} });
       }
 
-      // Apply filters
-      if (filters.section) {
-        searchBody.query.bool.filter.push({
-          term: { section: filters.section }
-        });
-      }
-
-      if (filters.type) {
-        searchBody.query.bool.filter.push({
-          term: { type: filters.type }
-        });
-      }
-
-      if (filters.isRecommended !== undefined) {
-        searchBody.query.bool.filter.push({
-          term: { isRecommended: filters.isRecommended }
-        });
-      }
-
-      if (filters.year && filters.year.length === 2) {
-        searchBody.query.bool.filter.push({
-          range: {
-            year: {
-              gte: filters.year[0],
-              lte: filters.year[1]
+      // Add filters
+      if (filters) {
+        if (filters.section) {
+          searchBody.query.bool.filter.push({ term: { section: filters.section } });
+        }
+        if (filters.type) {
+          searchBody.query.bool.filter.push({ term: { type: filters.type } });
+        }
+        if (filters.isRecommended !== undefined) {
+          searchBody.query.bool.filter.push({ term: { isRecommended: filters.isRecommended } });
+        }
+        if (filters.year && filters.year.length === 2) {
+          searchBody.query.bool.filter.push({
+            range: {
+              year: {
+                gte: filters.year[0],
+                lte: filters.year[1]
+              }
             }
-          }
-        });
-      }
-
-      if (filters.categories && filters.categories.length > 0) {
-        searchBody.query.bool.filter.push({
-          nested: {
-            path: 'categories',
-            query: {
-              terms: { 'categories.slug': filters.categories }
+          });
+        }
+        if (filters.categories && filters.categories.length > 0) {
+          searchBody.query.bool.filter.push({
+            nested: {
+              path: 'categories',
+              query: {
+                terms: { 'categories.slug': filters.categories }
+              }
             }
-          }
-        });
-      }
-
-      if (filters.countries && filters.countries.length > 0) {
-        searchBody.query.bool.filter.push({
-          nested: {
-            path: 'countries',
-            query: {
-              terms: { 'countries.slug': filters.countries }
+          });
+        }
+        if (filters.countries && filters.countries.length > 0) {
+          searchBody.query.bool.filter.push({
+            nested: {
+              path: 'countries',
+              query: {
+                terms: { 'countries.slug': filters.countries }
+              }
             }
-          }
-        });
+          });
+        }
       }
 
-      // Apply sorting
-      if (sortBy === 'name') {
-        searchBody.sort = [{ 'name.keyword': { order: 'asc' } }];
-      } else if (sortBy === 'year') {
-        searchBody.sort = [{ year: { order: 'desc' } }, { _score: { order: 'desc' } }];
-      } else if (sortBy === 'view') {
-        searchBody.sort = [{ view: { order: 'desc' } }, { _score: { order: 'desc' } }];
-      } else if (sortBy === 'created') {
-        searchBody.sort = [{ createdAt: { order: 'desc' } }, { _score: { order: 'desc' } }];
-      } else {
-        // Default relevance sorting
-        searchBody.sort = [{ _score: { order: 'desc' } }, { modifiedAt: { order: 'desc' } }];
+      // Add sorting
+      if (sortBy === 'year') {
+        searchBody.sort = [{ year: { order: 'desc' } }];
+      } else if (sortBy === 'rating') {
+        searchBody.sort = [{ imdbRating: { order: 'desc' } }];
+      } else if (sortBy === 'views') {
+        searchBody.sort = [{ view: { order: 'desc' } }];
       }
+      // For relevance, we rely on Elasticsearch's default scoring
 
-      const response = await this.client.search({
+      const searchResponse = await this.client.search({
         index: this.movieIndex,
         body: searchBody
       });
 
-      const movies = response.hits.hits.map((hit: any) => ({
-        ...hit._source,
-        _score: hit._score,
-        _highlights: hit.highlight
+      const movies = searchResponse.hits.hits.map((hit: any) => ({
+        id: hit._id,
+        ...hit._source
       }));
+
+      const totalHits = typeof searchResponse.hits.total === 'object' 
+        ? searchResponse.hits.total.value 
+        : searchResponse.hits.total;
+      
+      const total = totalHits || 0;
 
       return {
         data: movies,
-        total: typeof response.hits.total === 'object' 
-          ? response.hits.total.value 
-          : response.hits.total || 0,
-        aggregations: response.aggregations
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
       };
     } catch (error) {
       console.error('Elasticsearch search error:', error);
-      throw error;
+      return { 
+        error: error instanceof Error ? error.message : 'Unknown search error',
+        data: [],
+        total: 0,
+        page: 1,
+        limit: 20,
+        totalPages: 0
+      };
+    }
+  }
+
+  async search(query: string, options: SearchOptions = {}): Promise<SearchResult> {
+    try {
+      const { page = 1, limit = 20, sortBy = 'relevance' } = options;
+      
+      // Use the destructured values to avoid unused variable error
+      const searchParams = {
+        index: this.movieIndex,
+        body: {
+          query: {
+            multi_match: {
+              query,
+              fields: ['title^3', 'description^2', 'genres', 'tags'],
+              fuzziness: 'AUTO'
+            }
+          },
+          size: limit,
+          from: (page - 1) * limit,
+          sort: this.getSortConfig(sortBy)
+        }
+      };
+
+      const response = await this.client.search(searchParams);
+      
+      return {
+        results: response.body.hits.hits.map((hit: any) => ({
+          id: hit._id,
+          score: hit._score,
+          ...hit._source
+        })),
+        total: response.body.hits.total.value || 0,
+        page,
+        limit,
+        totalPages: Math.ceil((response.body.hits.total.value || 0) / limit)
+      };
+    } catch (error) {
+      console.error('Elasticsearch search error:', error);
+      return { 
+        error: error instanceof Error ? error.message : 'Unknown search error',
+        results: [],
+        total: 0,
+        page: 1,
+        limit: 20,
+        totalPages: 0
+      };
+    }
+  }
+
+  async getMovieById(id: string): Promise<any> {
+    try {
+      const searchResponse = await this.client.get({
+        index: this.movieIndex,
+        id: id
+      });
+      
+      const source = searchResponse._source as Record<string, any>;
+      return { id: searchResponse._id, ...source };
+    } catch (error) {
+      console.error('Elasticsearch get error:', error);
+      return { error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  }
+
+  async getRecommendations(options: { limit?: number } = {}): Promise<SearchResult> {
+    const { limit = 20 } = options;
+    
+    try {
+      const searchResponse = await this.client.search({
+        index: this.movieIndex,
+        body: {
+          size: limit,
+          query: {
+            bool: {
+              filter: [
+                { term: { isRecommended: true } }
+              ]
+            }
+          },
+          sort: [
+            { _score: { order: 'desc' } },
+            { view: { order: 'desc' } }
+          ]
+        }
+      });
+
+      const movies = searchResponse.hits.hits.map((hit: any) => ({
+        id: hit._id,
+        ...hit._source
+      }));
+
+      const totalHits = typeof searchResponse.hits.total === 'object' 
+        ? searchResponse.hits.total.value 
+        : searchResponse.hits.total;
+      
+      const total = totalHits || 0;
+
+      return {
+        data: movies,
+        total,
+        page: 1,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      };
+    } catch (error) {
+      console.error('Elasticsearch recommendations error:', error);
+      return { 
+        error: error instanceof Error ? error.message : 'Unknown recommendations error',
+        data: [],
+        total: 0,
+        page: 1,
+        limit: 20,
+        totalPages: 0
+      };
     }
   }
 
