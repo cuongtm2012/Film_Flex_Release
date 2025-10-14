@@ -54,6 +54,10 @@ DEPLOYMENT_MODE=""
 DEPLOY_DATABASE=false
 DEPLOY_APP=false
 MODE_NAME=""
+INCLUDE_ELASTICSEARCH=false
+SYNC_ELASTICSEARCH=false
+FORCE_DEPLOYMENT=false
+SKIP_NGINX=false
 
 # Nginx configuration paths
 NGINX_SOURCE_DIR="$SCRIPT_DIR/../../nginx"
@@ -102,6 +106,119 @@ setup_deployment_logging() {
     fi
     
     log_deployment "FilmFlex $MODE_NAME started"
+}
+
+# Show help information
+show_help() {
+    echo "Usage: $0 [OPTIONS]"
+    echo ""
+    echo "Options:"
+    echo "  --app-only       Deploy only the application (connect to existing database)"
+    echo "  --full           Deploy both application and database"
+    echo "  --with-elasticsearch  Include Elasticsearch service in deployment"
+    echo "  --sync-elasticsearch  Force Elasticsearch data sync after deployment"
+    echo "  --force          Force deployment even if checks fail"
+    echo "  --skip-nginx     Skip Nginx configuration"
+    echo "  -h, --help       Show this help message"
+    echo ""
+    echo "Examples:"
+    echo "  $0 --app-only    # Deploy app only (recommended)"
+    echo "  $0 --full        # Deploy everything"
+    echo "  $0 --app-only --with-elasticsearch  # Deploy app with Elasticsearch"
+    echo "  $0 --full --sync-elasticsearch      # Full deploy with ES sync"
+}
+
+# Parse command line arguments
+parse_arguments() {
+    # Set default if no arguments provided
+    if [ $# -eq 0 ]; then
+        DEPLOYMENT_MODE="app-only"
+        DEPLOY_APP=true
+        MODE_NAME="App-Only Deployment"
+        print_mode "No arguments provided - defaulting to app-only deployment"
+        return 0
+    fi
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --app-only)
+                DEPLOYMENT_MODE="app-only"
+                DEPLOY_APP=true
+                MODE_NAME="App-Only Deployment"
+                shift
+                ;;
+            --full)
+                DEPLOYMENT_MODE="full"
+                DEPLOY_DATABASE=true
+                DEPLOY_APP=true
+                MODE_NAME="Full Deployment"
+                shift
+                ;;
+            --with-elasticsearch)
+                INCLUDE_ELASTICSEARCH=true
+                shift
+                ;;
+            --sync-elasticsearch)
+                SYNC_ELASTICSEARCH=true
+                INCLUDE_ELASTICSEARCH=true  # Auto-enable ES if sync is requested
+                shift
+                ;;
+            --force)
+                FORCE_DEPLOYMENT=true
+                shift
+                ;;
+            --skip-nginx)
+                SKIP_NGINX=true
+                shift
+                ;;
+            -h|--help)
+                show_help
+                exit 0
+                ;;
+            *)
+                print_error "Unknown option: $1"
+                show_help
+                exit 1
+                ;;
+        esac
+    done
+    
+    # Validate arguments
+    if [ "$DEPLOYMENT_MODE" = "" ]; then
+        print_error "No deployment mode specified"
+        show_help
+        exit 1
+    fi
+    
+    print_mode "Selected: $MODE_NAME"
+    if [ "$INCLUDE_ELASTICSEARCH" = true ]; then
+        print_info "✅ Elasticsearch integration enabled"
+    fi
+    if [ "$SYNC_ELASTICSEARCH" = true ]; then
+        print_info "✅ Elasticsearch data sync enabled"
+    fi
+    if [ "$FORCE_DEPLOYMENT" = true ]; then
+        print_warning "⚠️  Force deployment enabled"
+    fi
+}
+
+# Initialize deployment
+initialize_deployment() {
+    print_header "🔧 Initializing Deployment Environment"
+    
+    # Verify Docker is running
+    if ! docker info >/dev/null 2>&1; then
+        print_error "Docker is not running or not accessible"
+        exit 1
+    fi
+    
+    # Verify Docker Compose is available
+    if ! docker compose version >/dev/null 2>&1; then
+        print_error "Docker Compose is not available"
+        exit 1
+    fi
+    
+    print_status "✅ Docker environment verified"
 }
 
 # Pre-build application before Docker build
@@ -306,521 +423,6 @@ sync_nginx_static_files() {
     fi
 }
 
-# Create docker compose configuration
-create_docker_compose_config() {
-    print_header "📄 Creating Docker Compose Configuration"
-    
-    local compose_file="docker-compose.server.yml"
-    
-    # Remove existing compose file
-    if [ -f "$compose_file" ]; then
-        print_info "Removing existing docker-compose.server.yml"
-        rm -f "$compose_file"
-    fi
-    
-    # Determine the correct build context (project root)
-    local project_root="$(cd "$SCRIPT_DIR/../.." && pwd)"
-    print_info "Project root directory: $project_root"
-    
-    # Check if Dockerfile exists
-    if [ -f "$project_root/Dockerfile.final" ]; then
-        local dockerfile="Dockerfile.final"
-        print_info "Using Dockerfile.final for build"
-    elif [ -f "$project_root/Dockerfile" ]; then
-        local dockerfile="Dockerfile"
-        print_info "Using Dockerfile for build"
-    else
-        print_error "No Dockerfile found in project root: $project_root"
-        print_info "Available files in project root:"
-        ls -la "$project_root" | grep -E "(Dockerfile|\.dockerfile)" || print_info "No Dockerfile variants found"
-        return 1
-    fi
-    
-    # Get existing database credentials for app-only deployment
-    local db_password="filmflex123"  # default
-    local db_user="filmflex"
-    local db_name="filmflex"
-    
-    if [ "$DEPLOYMENT_MODE" = "app-only" ]; then
-        print_info "Detecting existing database credentials..."
-        
-        # Try to get actual database password from existing container
-        if docker ps | grep -q filmflex-postgres; then
-            local existing_password=$(docker exec filmflex-postgres env 2>/dev/null | grep POSTGRES_PASSWORD | cut -d= -f2)
-            local existing_user=$(docker exec filmflex-postgres env 2>/dev/null | grep POSTGRES_USER | cut -d= -f2)
-            local existing_db=$(docker exec filmflex-postgres env 2>/dev/null | grep POSTGRES_DB | cut -d= -f2)
-            
-            if [ -n "$existing_password" ]; then
-                db_password="$existing_password"
-                print_status "Detected database password: $db_password"
-            fi
-            
-            if [ -n "$existing_user" ]; then
-                db_user="$existing_user"
-                print_status "Detected database user: $db_user"
-            fi
-            
-            if [ -n "$existing_db" ]; then
-                db_name="$existing_db"
-                print_status "Detected database name: $db_name"
-            fi
-        else
-            print_warning "Database container not found, using default credentials"
-        fi
-    fi
-    
-    if [ "$DEPLOYMENT_MODE" = "app-only" ]; then
-        # App-only deployment - connect to existing database network
-        if ! get_database_network; then
-            print_error "Failed to detect database network for app-only deployment"
-            return 1
-        fi
-        
-        print_info "Creating app-only docker-compose configuration..."
-        
-        # For app-only deployment, we need to handle the network differently
-        if [ "$DATABASE_NETWORK" = "bridge" ]; then
-            # Use bridge network - no external network needed
-            cat > "$compose_file" << EOF
-version: '3.8'
-
-services:
-  filmflex-app:
-    build:
-      context: $project_root
-      dockerfile: $dockerfile
-    container_name: filmflex-app
-    ports:
-      - "5000:5000"
-    environment:
-      - NODE_ENV=production
-      - DATABASE_URL=postgresql://$db_user:$db_password@filmflex-postgres:5432/$db_name
-      - DB_HOST=filmflex-postgres
-      - DB_PORT=5432
-      - DB_NAME=$db_name
-      - DB_USER=$db_user
-      - DB_PASSWORD=$db_password
-    restart: unless-stopped
-    volumes:
-      - $project_root/logs:/app/logs
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-
-networks:
-  default:
-    driver: bridge
-EOF
-        else
-            # Use external network
-            cat > "$compose_file" << EOF
-version: '3.8'
-
-services:
-  filmflex-app:
-    build:
-      context: $project_root
-      dockerfile: $dockerfile
-    container_name: filmflex-app
-    ports:
-      - "5000:5000"
-    environment:
-      - NODE_ENV=production
-      - DATABASE_URL=postgresql://$db_user:$db_password@filmflex-postgres:5432/$db_name
-      - DB_HOST=filmflex-postgres
-      - DB_PORT=5432
-      - DB_NAME=$db_name
-      - DB_USER=$db_user
-      - DB_PASSWORD=$db_password
-    restart: unless-stopped
-    volumes:
-      - $project_root/logs:/app/logs
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-
-networks:
-  default:
-    external: true
-    name: $DATABASE_NETWORK
-EOF
-        fi
-        
-        print_status "App-only docker-compose.server.yml created with network: $DATABASE_NETWORK"
-        
-    else
-        # Full deployment - include database
-        print_info "Creating full deployment docker-compose configuration..."
-        
-        cat > "$compose_file" << EOF
-version: '3.8'
-
-services:
-  filmflex-postgres:
-    image: postgres:15-alpine
-    container_name: filmflex-postgres
-    environment:
-      POSTGRES_DB: $db_name
-      POSTGRES_USER: $db_user
-      POSTGRES_PASSWORD: $db_password
-      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - $project_root/shared:/docker-entrypoint-initdb.d
-    ports:
-      - "5432:5432"
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $db_user -d $db_name"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-
-  filmflex-app:
-    build:
-      context: $project_root
-      dockerfile: $dockerfile
-    container_name: filmflex-app
-    ports:
-      - "5000:5000"
-    environment:
-      - NODE_ENV=production
-      - DATABASE_URL=postgresql://$db_user:$db_password@filmflex-postgres:5432/$db_name
-      - DB_HOST=filmflex-postgres
-      - DB_PORT=5432
-      - DB_NAME=$db_name
-      - DB_USER=$db_user
-      - DB_PASSWORD=$db_password
-    depends_on:
-      filmflex-postgres:
-        condition: service_healthy
-    restart: unless-stopped
-    volumes:
-      - $project_root/logs:/app/logs
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-
-volumes:
-  postgres_data:
-
-networks:
-  default:
-    driver: bridge
-EOF
-        
-        print_status "Full deployment docker-compose.server.yml created"
-    fi
-    
-    # Verify compose file was created
-    if [ ! -f "$compose_file" ]; then
-        print_error "Failed to create docker-compose.server.yml"
-        return 1
-    fi
-    
-    # Validate compose file syntax
-    if ! docker compose -f "$compose_file" config >/dev/null 2>&1; then
-        print_error "Invalid docker-compose configuration"
-        print_info "Checking configuration:"
-        docker compose -f "$compose_file" config
-        return 1
-    fi
-    
-    print_status "Docker compose configuration validated successfully"
-    return 0
-}
-
-# Initialize deployment variables
-initialize_deployment() {
-    # Initialize global variables
-    LOCAL_HTTP_CODE="000"
-    API_HTTP_CODE="000"
-    MOVIE_COUNT="0"
-    SKIP_NGINX=${SKIP_NGINX:-false}
-    FORCE_DEPLOYMENT=${FORCE_DEPLOYMENT:-false}
-    DATABASE_NETWORK=""
-    
-    # Create logs directory
-    mkdir -p logs/deployment 2>/dev/null || true
-    
-    print_status "Deployment variables initialized"
-}
-
-# Parse command line arguments
-parse_arguments() {
-    while [[ $# -gt 0 ]]; do
-        case $1 in
-            --app-only)
-                DEPLOYMENT_MODE="app-only"
-                DEPLOY_APP=true
-                MODE_NAME="App-Only Deployment"
-                shift
-                ;;
-            --full|--complete)
-                DEPLOYMENT_MODE="full"
-                DEPLOY_DATABASE=true
-                DEPLOY_APP=true
-                MODE_NAME="Full Deployment"
-                shift
-                ;;
-            --force)
-                FORCE_DEPLOYMENT=true
-                shift
-                ;;
-            --skip-nginx)
-                SKIP_NGINX=true
-                shift
-                ;;
-            -h|--help)
-                show_help
-                exit 0
-                ;;
-            *)
-                print_error "Unknown option: $1"
-                show_help
-                exit 1
-                ;;
-        esac
-    done
-    
-    # Set default mode if not specified
-    if [ -z "$DEPLOYMENT_MODE" ]; then
-        DEPLOYMENT_MODE="app-only"
-        DEPLOY_APP=true
-        MODE_NAME="App-Only Deployment (default)"
-    fi
-    
-    print_mode "Deployment mode: $MODE_NAME"
-}
-
-# Show help information
-show_help() {
-    echo "Usage: $0 [OPTIONS]"
-    echo ""
-    echo "Options:"
-    echo "  --app-only       Deploy only the application (connect to existing database)"
-    echo "  --full           Deploy both application and database"
-    echo "  --force          Force deployment even if checks fail"
-    echo "  --skip-nginx     Skip Nginx configuration"
-    echo "  -h, --help       Show this help message"
-    echo ""
-    echo "Examples:"
-    echo "  $0 --app-only    # Deploy app only (recommended)"
-    echo "  $0 --full        # Deploy everything"
-}
-
-# Get database network information
-get_database_network() {
-    print_info "Detecting database network configuration..."
-    
-    # Check if postgres container exists and is running
-    if ! docker ps | grep -q filmflex-postgres; then
-        print_error "Database container 'filmflex-postgres' not found or not running"
-        return 1
-    fi
-    
-    # Get the network that the postgres container is using
-    DATABASE_NETWORK=$(docker inspect filmflex-postgres --format='{{range .NetworkSettings.Networks}}{{.NetworkMode}}{{end}}' 2>/dev/null)
-    
-    if [ -z "$DATABASE_NETWORK" ]; then
-        # Fallback: get network name directly
-        DATABASE_NETWORK=$(docker inspect filmflex-postgres --format='{{range $k, $v := .NetworkSettings.Networks}}{{$k}}{{end}}' 2>/dev/null | head -1)
-    fi
-    
-    if [ -z "$DATABASE_NETWORK" ]; then
-        print_warning "Could not detect database network, using default bridge"
-        DATABASE_NETWORK="bridge"
-    fi
-    
-    print_status "Database network detected: $DATABASE_NETWORK"
-    return 0
-}
-
-# Perform comprehensive health check
-perform_health_check() {
-    print_header "🔍 Performing Health Check"
-    
-    local max_attempts=30
-    local attempt=1
-    local health_passed=false
-    
-    print_info "Waiting for application to be ready..."
-    
-    while [ $attempt -le $max_attempts ]; do
-        print_info "Health check attempt $attempt/$max_attempts"
-        
-        # Check if container is running
-        if ! docker ps | grep -q filmflex-app; then
-            print_warning "Application container not running, checking status..."
-            docker ps -a | grep filmflex-app || print_warning "Container not found"
-            
-            # Check container logs for errors
-            print_info "Recent container logs:"
-            docker logs filmflex-app --tail 5 2>/dev/null || print_info "No logs available"
-            
-            sleep 5
-            ((attempt++))
-            continue
-        fi
-        
-        # Test HTTP endpoint
-        local http_code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/ 2>/dev/null || echo "000")
-        
-        if [ "$http_code" = "200" ]; then
-            print_status "✅ HTTP health check passed (HTTP $http_code)"
-            
-            # Test API endpoint
-            local api_code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/api/health 2>/dev/null || echo "000")
-            
-            if [ "$api_code" = "200" ]; then
-                print_status "✅ API health check passed (HTTP $api_code)"
-                health_passed=true
-                break
-            else
-                print_info "API endpoint not ready yet (HTTP $api_code)"
-            fi
-        else
-            print_info "Application not ready yet (HTTP $http_code)"
-        fi
-        
-        sleep 10
-        ((attempt++))
-    done
-    
-    if [ "$health_passed" = true ]; then
-        print_status "✅ All health checks passed"
-        return 0
-    else
-        print_error "❌ Health checks failed after $max_attempts attempts"
-        
-        # Diagnostic information
-        print_info "Diagnostic information:"
-        print_info "Container status:"
-        docker ps -a | grep filmflex
-        
-        print_info "Recent application logs:"
-        docker logs filmflex-app --tail 20 2>/dev/null || print_info "No application logs"
-        
-        return 1
-    fi
-}
-
-# Generate deployment report
-generate_deployment_report() {
-    local status="$1"
-    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-    
-    print_header "📊 Deployment Report"
-    
-    echo "=================================="
-    echo "FilmFlex Deployment Report"
-    echo "=================================="
-    echo "Status: $status"
-    echo "Timestamp: $timestamp"
-    echo "Mode: $MODE_NAME"
-    echo ""
-    
-    # Container status
-    echo "Container Status:"
-    docker ps -a --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep filmflex || echo "No FilmFlex containers found"
-    echo ""
-    
-    # Network information
-    if [ "$DEPLOYMENT_MODE" = "app-only" ]; then
-        echo "Network Configuration:"
-        echo "Database Network: $DATABASE_NETWORK"
-        echo ""
-    fi
-    
-    # Application URLs
-    echo "Access Information:"
-    echo "Local: http://localhost:5000"
-    echo "Server: http://38.54.14.154:5000"
-    echo "Domain: https://phimgg.com"
-    echo ""
-    
-    # Save report to file if possible
-    if [ -n "$DEPLOYMENT_LOG" ]; then
-        {
-            echo "=================================="
-            echo "FilmFlex Deployment Report"
-            echo "=================================="
-            echo "Status: $status"
-            echo "Timestamp: $timestamp"
-            echo "Mode: $MODE_NAME"
-        } >> "$DEPLOYMENT_LOG" 2>/dev/null || true
-    fi
-}
-
-# Final production readiness check
-final_production_check() {
-    print_header "🎯 Final Production Check"
-    
-    local checks_passed=0
-    local total_checks=4
-    
-    # Check 1: Application response
-    print_info "Checking application response..."
-    local http_code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/ 2>/dev/null || echo "000")
-    if [ "$http_code" = "200" ]; then
-        print_status "✅ Application responding (HTTP $http_code)"
-        ((checks_passed++))
-    else
-        print_error "❌ Application not responding (HTTP $http_code)"
-    fi
-    
-    # Check 2: API endpoint
-    print_info "Checking API endpoint..."
-    local api_code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/api/health 2>/dev/null || echo "000")
-    if [ "$api_code" = "200" ]; then
-        print_status "✅ API endpoint healthy (HTTP $api_code)"
-        ((checks_passed++))
-    else
-        print_error "❌ API endpoint not healthy (HTTP $api_code)"
-    fi
-    
-    # Check 3: Container health
-    print_info "Checking container health..."
-    if docker ps | grep -q "filmflex-app.*Up"; then
-        print_status "✅ Application container running"
-        ((checks_passed++))
-    else
-        print_error "❌ Application container not running properly"
-    fi
-    
-    # Check 4: Database connectivity (for app-only deployments)
-    if [ "$DEPLOYMENT_MODE" = "app-only" ]; then
-        print_info "Checking database connectivity..."
-        if docker ps | grep -q "filmflex-postgres.*(healthy)"; then
-            print_status "✅ Database container healthy"
-            ((checks_passed++))
-        else
-            print_warning "⚠️  Database container status unclear"
-            ((checks_passed++))  # Don't fail for this in app-only mode
-        fi
-    else
-        ((checks_passed++))  # Skip this check for full deployments
-    fi
-    
-    print_info "Production checks: $checks_passed/$total_checks passed"
-    
-    if [ $checks_passed -eq $total_checks ]; then
-        return 0
-    else
-        return 1
-    fi
-}
-
 # Main deployment execution
 main() {
     print_header "🚀 Starting FilmFlex Production Deployment"
@@ -834,6 +436,16 @@ main() {
     # Setup logging
     setup_deployment_logging
     
+    # Update to latest source code
+    if ! update_to_latest_commit; then
+        print_error "Failed to update to latest source code"
+        if [ "$FORCE_DEPLOYMENT" != true ]; then
+            exit 1
+        else
+            print_warning "Continuing with current code due to --force flag"
+        fi
+    fi
+    
     # Pre-build application
     if ! pre_build_application; then
         print_error "Failed to pre-build application"
@@ -844,6 +456,18 @@ main() {
     if ! create_docker_compose_config; then
         print_error "Failed to create docker compose configuration"
         exit 1
+    fi
+    
+    # Setup Elasticsearch service if requested
+    if [ "$INCLUDE_ELASTICSEARCH" = true ]; then
+        if ! setup_elasticsearch_service; then
+            print_error "Failed to setup Elasticsearch service"
+            if [ "$FORCE_DEPLOYMENT" != true ]; then
+                exit 1
+            else
+                print_warning "Continuing without Elasticsearch due to --force flag"
+            fi
+        fi
     fi
     
     # For app-only deployments, try to connect to existing database network
@@ -871,6 +495,11 @@ main() {
         if perform_health_check; then
             print_status "✅ App-only deployment completed successfully"
             
+            # Sync Elasticsearch data if requested
+            if ! sync_elasticsearch_data; then
+                print_warning "⚠️  Elasticsearch sync failed or skipped"
+            fi
+            
             # Sync static files with Nginx
             if ! sync_nginx_static_files; then
                 print_warning "⚠️  Static file synchronization failed"
@@ -884,6 +513,28 @@ main() {
                 print_status "🎉 Production deployment completed successfully!"
                 print_info "🌐 Application available at: http://38.54.14.154:5000"
                 print_info "🔗 Domain: https://phimgg.com"
+                
+                # Show deployment summary
+                echo ""
+                echo "========================================="
+                echo "🎉 DEPLOYMENT SUCCESSFUL"
+                echo "========================================="
+                echo "✅ Latest source code deployed"
+                echo "✅ Application built and started"
+                if [ "$INCLUDE_ELASTICSEARCH" = true ]; then
+                    echo "✅ Elasticsearch service configured"
+                fi
+                if [ "$SYNC_ELASTICSEARCH" = true ]; then
+                    echo "✅ Elasticsearch data synchronized"
+                fi
+                echo "✅ Health checks passed"
+                echo "✅ Static files synchronized with Nginx"
+                echo ""
+                echo "🌐 Access URLs:"
+                echo "   Local:      http://localhost:5000"
+                echo "   Production: http://38.54.14.154:5000"
+                echo "   Domain:     https://phimgg.com"
+                echo "========================================="
             else
                 print_warning "⚠️  Deployment completed but with some issues detected"
             fi
@@ -914,6 +565,11 @@ main() {
         if perform_health_check; then
             print_status "✅ Full deployment completed successfully"
             
+            # Sync Elasticsearch data if requested
+            if ! sync_elasticsearch_data; then
+                print_warning "⚠️  Elasticsearch sync failed or skipped"
+            fi
+            
             # Sync static files with Nginx
             if ! sync_nginx_static_files; then
                 print_warning "⚠️  Static file synchronization failed"
@@ -927,6 +583,31 @@ main() {
                 print_status "🎉 Production deployment completed successfully!"
                 print_info "🌐 Application available at: http://38.54.14.154:5000"
                 print_info "🔗 Domain: https://phimgg.com"
+                
+                # Show deployment summary for full deployment
+                echo ""
+                echo "========================================="
+                echo "🎉 FULL DEPLOYMENT SUCCESSFUL"
+                echo "========================================="
+                echo "✅ Latest source code deployed"
+                echo "✅ Database and application services started"
+                if [ "$INCLUDE_ELASTICSEARCH" = true ]; then
+                    echo "✅ Elasticsearch service configured"
+                fi
+                if [ "$SYNC_ELASTICSEARCH" = true ]; then
+                    echo "✅ Elasticsearch data synchronized"
+                fi
+                echo "✅ Health checks passed"
+                echo "✅ Static files synchronized with Nginx"
+                echo ""
+                echo "🌐 Access URLs:"
+                echo "   Local:      http://localhost:5000"
+                echo "   Production: http://38.54.14.154:5000"
+                echo "   Domain:     https://phimgg.com"
+                echo ""
+                echo "📊 Services Status:"
+                docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep filmflex
+                echo "========================================="
             else
                 print_warning "⚠️  Deployment completed but with some issues detected"
             fi
@@ -936,36 +617,3 @@ main() {
         fi
     fi
 }
-
-# Error handling and cleanup
-cleanup_on_error() {
-    local exit_code=$?
-    
-    if [ $exit_code -ne 0 ]; then
-        print_error "🚨 Deployment failed with exit code: $exit_code"
-        
-        print_info "Gathering failure information..."
-        
-        # Show container status
-        print_info "Container status:"
-        docker ps -a --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep filmflex || echo "No FilmFlex containers found"
-        
-        # Show recent logs
-        print_info "Recent application logs:"
-        docker logs filmflex-app --tail 10 2>/dev/null || echo "Could not retrieve app logs"
-        
-        print_info "Recent database logs:"
-        docker logs filmflex-postgres --tail 10 2>/dev/null || echo "Could not retrieve database logs"
-        
-        # Generate failure report
-        generate_deployment_report "FAILED"
-        
-        print_error "❌ Deployment failed. Check logs above for details."
-    fi
-}
-
-# Set up error handling
-trap cleanup_on_error EXIT
-
-# Run main function with all arguments
-main "$@"
