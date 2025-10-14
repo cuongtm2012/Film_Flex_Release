@@ -89,6 +89,43 @@ async function fetchMovieDetail(slug: string): Promise<MovieDetailResponse> {
 }
 
 async function searchMovies(query: string, normalizedQuery: string, page: number, limit: number, sortBy?: string, filters?: { isRecommended?: boolean, type?: string, section?: string }): Promise<MovieListResponse> {
+  // Try Elasticsearch first
+  if (storage.isElasticsearchEnabled()) {
+    try {
+      console.log(`[ELASTICSEARCH] Searching for: "${query}" with filters:`, filters);
+      const searchOptions = {
+        page,
+        limit,
+        sortBy: sortBy || 'relevance',
+        filters: {
+          section: filters?.section,
+          type: filters?.type,
+          isRecommended: filters?.isRecommended
+        }
+      };
+
+      const elasticResult = await storage.elasticsearchService?.searchMovies(query, searchOptions);
+      
+      if (elasticResult && !elasticResult.error && elasticResult.data) {
+        console.log(`[ELASTICSEARCH] Found ${elasticResult.data.length} results`);
+        return {
+          status: true,
+          items: elasticResult.data,
+          pagination: {
+            totalItems: elasticResult.total,
+            totalPages: Math.ceil(elasticResult.total / limit),
+            currentPage: page,
+            totalItemsPerPage: limit
+          }
+        };
+      }
+    } catch (error) {
+      console.warn('[ELASTICSEARCH] Search failed, falling back to PostgreSQL:', error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  // Fallback to PostgreSQL
+  console.log(`[POSTGRESQL] Fallback search for: "${query}"`);
   const movies = await storage.searchMovies(query, normalizedQuery, page, limit, sortBy, filters);
   return {
     status: true,
@@ -460,6 +497,54 @@ export function registerRoutes(app: Express): void {
     }
   }
   
+  // Add missing movies search endpoint for admin panel
+  router.get("/movies/search", async (req, res) => {
+    try {
+      const keyword = (req.query.q as string || "").trim();
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 20;
+      
+      console.log(`[SEARCH DEBUG] Searching for: "${keyword}", page: ${page}, limit: ${limit}`);
+      
+      if (!keyword) {
+        console.log('[SEARCH DEBUG] No keyword provided, returning empty results');
+        return res.json({
+          status: true,
+          items: [],
+          total: 0
+        });
+      }
+      
+      // Use the same search logic as the main search endpoint
+      const lowercaseKeyword = keyword.toLowerCase();
+      const normalizedKeyword = normalizeText(lowercaseKeyword);
+      
+      console.log(`[SEARCH DEBUG] Processed keywords - lowercase: "${lowercaseKeyword}", normalized: "${normalizedKeyword}"`);
+      
+      // Call storage.searchMovies directly to get better error handling
+      const searchResult = await storage.searchMovies(lowercaseKeyword, normalizedKeyword, page, limit);
+      
+      console.log(`[SEARCH DEBUG] Search result from storage:`, {
+        dataCount: searchResult.data?.length || 0,
+        total: searchResult.total,
+        firstItem: searchResult.data?.[0]?.name || 'None'
+      });
+      
+      res.json({
+        status: true,
+        items: searchResult.data || [],
+        total: searchResult.total || 0
+      });
+    } catch (error) {
+      console.error('[SEARCH ERROR] Movie search error:', error);
+      res.json({
+        status: true,
+        items: [],
+        total: 0
+      });
+    }
+  });
+
   // Get all recommended movies (must come before /movies/:slug route)
   router.get("/movies/recommended", async (req, res) => {
     try {      const page = parseInt(req.query.page as string) || 1;
@@ -990,42 +1075,6 @@ export function registerRoutes(app: Express): void {
           currentPage: page,
           totalItemsPerPage: limit
         }
-      });
-    }
-  });
-
-  // Add missing movies search endpoint for admin panel
-  router.get("/movies/search", async (req, res) => {
-    try {
-      const keyword = (req.query.q as string || "").trim();
-      const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 20;
-      
-      if (!keyword) {
-        return res.json({
-          status: true,
-          items: [],
-          total: 0
-        });
-      }
-      
-      // Use the same search logic as the main search endpoint
-      const lowercaseKeyword = keyword.toLowerCase();
-      const normalizedKeyword = normalizeText(lowercaseKeyword);
-      
-      const searchResults = await searchMovies(lowercaseKeyword, normalizedKeyword, page, limit);
-      
-      res.json({
-        status: true,
-        items: searchResults.items || [],
-        total: searchResults.pagination?.totalItems || 0
-      });
-    } catch (error) {
-      console.error('Movie search error:', error);
-      res.json({
-        status: true,
-        items: [],
-        total: 0
       });
     }
   });

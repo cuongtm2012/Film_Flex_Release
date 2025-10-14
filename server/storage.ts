@@ -141,13 +141,18 @@ export class DatabaseStorage implements IStorage {
   private passwordResetTokens: Map<string, { userId: number; expiresAt: Date }> = new Map();
 
   // Elasticsearch and Data Sync services
-  private elasticsearchService: ElasticsearchService | null = null;
-  private dataSyncService: DataSyncService | null = null;
+  private _elasticsearchService: ElasticsearchService | null = null;
+  private _dataSyncService: DataSyncService | null = null;
   private elasticsearchEnabled = false;
+
+  // Expose elasticsearch service for API endpoints
+  get elasticsearchService() {
+    return this._elasticsearchService;
+  }
 
   // Expose data sync service for API endpoints
   get dataSync() {
-    return this.dataSyncService;
+    return this._dataSyncService;
   }
 
   constructor() {
@@ -173,12 +178,12 @@ export class DatabaseStorage implements IStorage {
 
   private async initializeElasticsearch(): Promise<void> {
     try {
-      this.elasticsearchService = createElasticsearchService();
+      this._elasticsearchService = createElasticsearchService();
       
-      if (this.elasticsearchService) {
-        await this.elasticsearchService.initialize();
-        this.dataSyncService = createDataSyncService(this.elasticsearchService);
-        await this.dataSyncService.initialize();
+      if (this._elasticsearchService) {
+        await this._elasticsearchService.initialize();
+        this._dataSyncService = createDataSyncService(this._elasticsearchService);
+        await this._dataSyncService.initialize();
         this.elasticsearchEnabled = true;
         console.log('Elasticsearch integration enabled');
       }
@@ -1315,11 +1320,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Add search and category methods
-  async searchMovies(query: string, _normalizedQuery: string, page: number, limit: number, sortBy?: string, filters?: {section?: string, isRecommended?: boolean, type?: string}): Promise<{ items: Movie[], total: number, pagination: { totalItems: number, totalPages: number, currentPage: number, totalItemsPerPage: number } }> {
+  async searchMovies(query: string, _normalizedQuery: string, page: number, limit: number, sortBy?: string, filters?: {section?: string, isRecommended?: boolean, type?: string}): Promise<{ data: Movie[], total: number }> {
     // Use Elasticsearch if available
-    if (this.elasticsearchEnabled && this.elasticsearchService) {
+    if (this.elasticsearchEnabled && this._elasticsearchService) {
       try {
-        const searchResults = await this.elasticsearchService.searchMovies(query, {
+        const searchResults = await this._elasticsearchService.searchMovies(query, {
           page,
           limit,
           sortBy,
@@ -1327,14 +1332,8 @@ export class DatabaseStorage implements IStorage {
         });
         
         return {
-          items: searchResults.data || [],
-          total: searchResults.total,
-          pagination: {
-            totalItems: searchResults.total,
-            totalPages: Math.ceil(searchResults.total / limit),
-            currentPage: page,
-            totalItemsPerPage: limit
-          }
+          data: searchResults.data || [],
+          total: searchResults.total
         };
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
@@ -1404,14 +1403,8 @@ export class DatabaseStorage implements IStorage {
     const total = count || 0;
 
     return { 
-      items: data, 
-      total,
-      pagination: {
-        totalItems: total,
-        totalPages: Math.ceil(total / limit),
-        currentPage: page,
-        totalItemsPerPage: limit
-      }
+      data: data, 
+      total
     };
   }
 
