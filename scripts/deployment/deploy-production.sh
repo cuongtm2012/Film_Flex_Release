@@ -598,37 +598,102 @@ add_elasticsearch_to_compose() {
     fi
     
     # Use Python to properly modify the YAML structure
-    python3 << 'EOF' || {
-        print_warning "Python not available, using alternative method..."
+    if python3 -c "import yaml; print('YAML module available')" >/dev/null 2>&1; then
+        python3 << 'PYTHON_EOF'
+import yaml
+import sys
+
+try:
+    # Read the original compose file
+    with open('/tmp/docker-compose-with-es.yml', 'r') as f:
+        compose_data = yaml.safe_load(f)
+
+    # Add Elasticsearch service
+    compose_data['services']['elasticsearch'] = {
+        'image': 'docker.elastic.co/elasticsearch/elasticsearch:8.11.0',
+        'container_name': 'filmflex-elasticsearch',
+        'environment': [
+            'discovery.type=single-node',
+            'ES_JAVA_OPTS=-Xms512m -Xmx512m',
+            'xpack.security.enabled=false',
+            'xpack.security.enrollment.enabled=false'
+        ],
+        'ports': [
+            '9200:9200',
+            '9300:9300'
+        ],
+        'volumes': [
+            'elasticsearch_data:/usr/share/elasticsearch/data'
+        ],
+        'networks': [
+            'filmflex-network'
+        ],
+        'restart': 'unless-stopped',
+        'healthcheck': {
+            'test': ['CMD-SHELL', 'curl -f http://localhost:9200/_cluster/health || exit 1'],
+            'interval': '30s',
+            'timeout': '10s',
+            'retries': 5,
+            'start_period': '60s'
+        }
+    }
+
+    # Add elasticsearch_data volume
+    if 'volumes' not in compose_data:
+        compose_data['volumes'] = {}
+
+    compose_data['volumes']['elasticsearch_data'] = {
+        'driver': 'local'
+    }
+
+    # Write the updated compose file
+    with open('/tmp/docker-compose-with-es.yml', 'w') as f:
+        yaml.dump(compose_data, f, default_flow_style=False, sort_keys=False)
+
+    print("Elasticsearch service added successfully")
+except Exception as e:
+    print(f"Error: {e}")
+    sys.exit(1)
+PYTHON_EOF
         
-        # Fallback method: Add Elasticsearch service manually
+        if [ $? -ne 0 ]; then
+            print_warning "Python YAML modification failed, using fallback method..."
+            # Fallback to manual method if Python fails
+            return 1
+        fi
+    else
+        print_warning "Python not available, using fallback method..."
+        
+        # Fallback method: Add Elasticsearch service manually using sed
         local app_line=$(grep -n "^  app:" "$temp_compose" | cut -d: -f1)
         if [ -n "$app_line" ]; then
-            # Insert Elasticsearch service after the app service
-            sed -i "${app_line}a\\
-\\
-  elasticsearch:\\
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0\\
-    container_name: filmflex-elasticsearch\\
-    environment:\\
-      - discovery.type=single-node\\
-      - \"ES_JAVA_OPTS=-Xms512m -Xmx512m\"\\
-      - xpack.security.enabled=false\\
-      - xpack.security.enrollment.enabled=false\\
-    ports:\\
-      - \"9200:9200\"\\
-      - \"9300:9300\"\\
-    volumes:\\
-      - elasticsearch_data:/usr/share/elasticsearch/data\\
-    networks:\\
-      - filmflex-network\\
-    restart: unless-stopped\\
-    healthcheck:\\
-      test: [\"CMD-SHELL\", \"curl -f http://localhost:9200/_cluster/health || exit 1\"]\\
-      interval: 30s\\
-      timeout: 10s\\
-      retries: 5\\
-      start_period: 60s" "$temp_compose"
+            # Create the Elasticsearch service configuration
+            local es_config="
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: filmflex-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - \"ES_JAVA_OPTS=-Xms512m -Xmx512m\"
+      - xpack.security.enabled=false
+      - xpack.security.enrollment.enabled=false
+    ports:
+      - \"9200:9200\"
+      - \"9300:9300\"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - filmflex-network
+    restart: unless-stopped
+    healthcheck:
+      test: [\"CMD-SHELL\", \"curl -f http://localhost:9200/_cluster/health || exit 1\"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s"
+            
+            # Add the service after the app service
+            sed -i "${app_line}r /dev/stdin" "$temp_compose" <<< "$es_config"
             
             # Add elasticsearch_data volume to volumes section
             local volumes_line=$(grep -n "^volumes:" "$temp_compose" | cut -d: -f1)
@@ -637,62 +702,11 @@ add_elasticsearch_to_compose() {
   elasticsearch_data:\\
     driver: local" "$temp_compose"
             fi
+        else
+            print_error "Could not find app service in docker-compose file"
+            return 1
         fi
-        
-        return 0
-    }
-
-import yaml
-import sys
-
-# Read the original compose file
-with open('/tmp/docker-compose-with-es.yml', 'r') as f:
-    compose_data = yaml.safe_load(f)
-
-# Add Elasticsearch service
-compose_data['services']['elasticsearch'] = {
-    'image': 'docker.elastic.co/elasticsearch/elasticsearch:8.11.0',
-    'container_name': 'filmflex-elasticsearch',
-    'environment': [
-        'discovery.type=single-node',
-        'ES_JAVA_OPTS=-Xms512m -Xmx512m',
-        'xpack.security.enabled=false',
-        'xpack.security.enrollment.enabled=false'
-    ],
-    'ports': [
-        '9200:9200',
-        '9300:9300'
-    ],
-    'volumes': [
-        'elasticsearch_data:/usr/share/elasticsearch/data'
-    ],
-    'networks': [
-        'filmflex-network'
-    ],
-    'restart': 'unless-stopped',
-    'healthcheck': {
-        'test': ['CMD-SHELL', 'curl -f http://localhost:9200/_cluster/health || exit 1'],
-        'interval': '30s',
-        'timeout': '10s',
-        'retries': 5,
-        'start_period': '60s'
-    }
-}
-
-# Add elasticsearch_data volume
-if 'volumes' not in compose_data:
-    compose_data['volumes'] = {}
-
-compose_data['volumes']['elasticsearch_data'] = {
-    'driver': 'local'
-}
-
-# Write the updated compose file
-with open('/tmp/docker-compose-with-es.yml', 'w') as f:
-    yaml.dump(compose_data, f, default_flow_style=False, sort_keys=False)
-
-print("Elasticsearch service added successfully")
-EOF
+    fi
     
     # Replace original with updated version
     mv "$temp_compose" docker-compose.server.yml
