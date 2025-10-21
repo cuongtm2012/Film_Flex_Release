@@ -591,9 +591,15 @@ add_elasticsearch_to_compose() {
     # Read existing compose file and add Elasticsearch
     cat docker-compose.server.yml > "$temp_compose"
     
+    # Check if elasticsearch service already exists
+    if grep -q "elasticsearch:" "$temp_compose"; then
+        print_info "Elasticsearch service already exists in compose file"
+        return 0
+    fi
+    
     # Add Elasticsearch service before volumes section
     if grep -q "^volumes:" "$temp_compose"; then
-        # Insert before volumes
+        # Insert before volumes section
         sed -i '/^volumes:/i\
   elasticsearch:\
     image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0\
@@ -608,6 +614,8 @@ add_elasticsearch_to_compose() {
       - "9300:9300"\
     volumes:\
       - elasticsearch_data:/usr/share/elasticsearch/data\
+    networks:\
+      - filmflex-network\
     restart: unless-stopped\
     healthcheck:\
       test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]\
@@ -618,11 +626,12 @@ add_elasticsearch_to_compose() {
 \
 ' "$temp_compose"
         
-        # Add elasticsearch_data volume
+        # Add elasticsearch_data volume to the existing volumes section
         sed -i '/^volumes:/a\
-  elasticsearch_data:' "$temp_compose"
+  elasticsearch_data:\
+    driver: local' "$temp_compose"
     else
-        # Add volumes and elasticsearch sections at the end
+        # Add both services and volumes sections at the end
         cat >> "$temp_compose" << 'EOF'
 
   elasticsearch:
@@ -638,6 +647,8 @@ add_elasticsearch_to_compose() {
       - "9300:9300"
     volumes:
       - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - filmflex-network
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
@@ -648,13 +659,23 @@ add_elasticsearch_to_compose() {
 
 volumes:
   elasticsearch_data:
+    driver: local
 EOF
     fi
     
     # Replace original with updated version
     mv "$temp_compose" docker-compose.server.yml
     
-    print_status "Elasticsearch service added to docker-compose configuration"
+    # Validate the compose file
+    if docker compose -f docker-compose.server.yml config >/dev/null 2>&1; then
+        print_status "Elasticsearch service added to docker-compose configuration"
+        return 0
+    else
+        print_error "Generated docker-compose file is invalid"
+        print_info "Validation errors:"
+        docker compose -f docker-compose.server.yml config 2>&1 | head -10
+        return 1
+    fi
 }
 
 # Sync data to Elasticsearch
