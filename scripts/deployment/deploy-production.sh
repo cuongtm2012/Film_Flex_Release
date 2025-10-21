@@ -787,10 +787,18 @@ setup_elasticsearch_service() {
     
     print_info "Configuring Elasticsearch service..."
     
-    # Verify Elasticsearch configuration in compose file
-    if ! grep -q "elasticsearch:" docker-compose.server.yml; then
-        print_warning "Elasticsearch not found in compose file, adding it..."
-        add_elasticsearch_to_compose
+    # Always add Elasticsearch to compose file if it's requested
+    if ! add_elasticsearch_to_compose; then
+        print_error "Failed to add Elasticsearch to compose file"
+        return 1
+    fi
+    
+    # Validate the compose file before starting
+    print_info "Validating Docker Compose configuration..."
+    if ! docker compose -f docker-compose.server.yml config >/dev/null 2>&1; then
+        print_error "Docker Compose configuration is invalid"
+        docker compose -f docker-compose.server.yml config 2>&1 | head -10
+        return 1
     fi
     
     # Start Elasticsearch service
