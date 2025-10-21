@@ -108,6 +108,59 @@ setup_deployment_logging() {
     log_deployment "FilmFlex $MODE_NAME started"
 }
 
+# Clean up existing containers before deployment
+cleanup_existing_containers() {
+    print_header "🧹 Cleaning Up Existing Containers"
+    
+    local containers_to_cleanup=()
+    
+    # Check which containers need to be cleaned up based on deployment mode
+    if [ "$DEPLOYMENT_MODE" = "app-only" ]; then
+        containers_to_cleanup+=("filmflex-app")
+        if [ "$INCLUDE_ELASTICSEARCH" = true ]; then
+            containers_to_cleanup+=("filmflex-elasticsearch")
+        fi
+    else
+        # Full deployment - cleanup all containers
+        containers_to_cleanup+=("filmflex-app" "filmflex-postgres")
+        if [ "$INCLUDE_ELASTICSEARCH" = true ]; then
+            containers_to_cleanup+=("filmflex-elasticsearch")
+        fi
+    fi
+    
+    for container in "${containers_to_cleanup[@]}"; do
+        if docker ps -a --format "{{.Names}}" | grep -q "^${container}$"; then
+            print_info "Found existing container: $container"
+            
+            # Stop the container if it's running
+            if docker ps --format "{{.Names}}" | grep -q "^${container}$"; then
+                print_info "Stopping running container: $container"
+                if docker stop "$container" >/dev/null 2>&1; then
+                    print_status "✅ Stopped container: $container"
+                else
+                    print_warning "⚠️  Failed to stop container: $container"
+                fi
+            fi
+            
+            # Remove the container
+            print_info "Removing container: $container"
+            if docker rm "$container" >/dev/null 2>&1; then
+                print_status "✅ Removed container: $container"
+            else
+                print_warning "⚠️  Failed to remove container: $container"
+            fi
+        else
+            print_info "Container $container not found, skipping cleanup"
+        fi
+    done
+    
+    # Clean up orphaned networks if needed
+    print_info "Cleaning up unused Docker networks..."
+    docker network prune -f >/dev/null 2>&1 || true
+    
+    print_status "✅ Container cleanup completed"
+}
+
 # Show help information
 show_help() {
     echo "Usage: $0 [OPTIONS]"
@@ -904,6 +957,9 @@ main() {
     
     # Setup logging
     setup_deployment_logging
+    
+    # Clean up existing containers
+    cleanup_existing_containers
     
     # Update to latest source code
     if ! update_to_latest_commit; then
