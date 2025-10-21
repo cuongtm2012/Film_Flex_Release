@@ -879,13 +879,13 @@ main() {
         
         # Build and start only the app service
         print_header "🏗️  Building Application"
-        if ! docker compose -f docker-compose.server.yml build filmflex-app; then
+        if ! docker compose -f docker-compose.server.yml build app; then
             print_error "Failed to build application"
             exit 1
         fi
         
         print_header "🚀 Starting Application"
-        if ! docker compose -f docker-compose.server.yml up -d filmflex-app; then
+        if ! docker compose -f docker-compose.server.yml up -d app; then
             print_error "Failed to start application"
             exit 1
         fi
