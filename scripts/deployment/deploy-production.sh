@@ -108,26 +108,30 @@ setup_deployment_logging() {
     log_deployment "FilmFlex $MODE_NAME started"
 }
 
-# Clean up existing containers before deployment
+# Clean up existing containers and images before deployment
 cleanup_existing_containers() {
-    print_header "🧹 Cleaning Up Existing Containers"
+    print_header "🧹 Cleaning Up Existing Containers and Images"
     
     local containers_to_cleanup=()
+    local images_to_cleanup=()
     
     # Check which containers need to be cleaned up based on deployment mode
     if [ "$DEPLOYMENT_MODE" = "app-only" ]; then
         containers_to_cleanup+=("filmflex-app")
+        images_to_cleanup+=("filmflex-app" "cuongtm2012/filmflex-app")
         if [ "$INCLUDE_ELASTICSEARCH" = true ]; then
             containers_to_cleanup+=("filmflex-elasticsearch")
         fi
     else
         # Full deployment - cleanup all containers
         containers_to_cleanup+=("filmflex-app" "filmflex-postgres")
+        images_to_cleanup+=("filmflex-app" "cuongtm2012/filmflex-app")
         if [ "$INCLUDE_ELASTICSEARCH" = true ]; then
             containers_to_cleanup+=("filmflex-elasticsearch")
         fi
     fi
     
+    # Stop and remove containers
     for container in "${containers_to_cleanup[@]}"; do
         if docker ps -a --format "{{.Names}}" | grep -q "^${container}$"; then
             print_info "Found existing container: $container"
@@ -154,11 +158,199 @@ cleanup_existing_containers() {
         fi
     done
     
+    # Remove Docker images to force rebuild
+    print_info "Cleaning up Docker images to force fresh rebuild..."
+    for image in "${images_to_cleanup[@]}"; do
+        if docker images --format "{{.Repository}}:{{.Tag}}" | grep -q "^${image}"; then
+            print_info "Removing Docker image: $image"
+            if docker rmi "$image" --force >/dev/null 2>&1; then
+                print_status "✅ Removed Docker image: $image"
+            else
+                print_warning "⚠️  Failed to remove Docker image: $image"
+            fi
+        fi
+    done
+    
+    # Clean up build cache and unused resources
+    print_info "Cleaning up Docker build cache and unused resources..."
+    docker builder prune -f >/dev/null 2>&1 || true
+    docker system prune -f >/dev/null 2>&1 || true
+    
     # Clean up orphaned networks if needed
     print_info "Cleaning up unused Docker networks..."
     docker network prune -f >/dev/null 2>&1 || true
     
-    print_status "✅ Container cleanup completed"
+    print_status "✅ Container and image cleanup completed"
+}
+
+# Force rebuild Docker images with latest code
+force_rebuild_images() {
+    print_header "🔨 Force Rebuilding Docker Images with Latest Code"
+    
+    # Ensure we're using the latest source code
+    local project_root="$(cd "$SCRIPT_DIR/../.." && pwd)"
+    cd "$project_root" || {
+        print_error "Failed to change to project root: $project_root"
+        return 1
+    }
+    
+    # Copy the latest built application to ensure Docker gets fresh content
+    print_info "Ensuring fresh build artifacts are available for Docker..."
+    if [ ! -d "dist" ] || [ ! -f "dist/index.js" ]; then
+        print_error "Build artifacts not found. Please run pre-build first."
+        return 1
+    fi
+    
+    # Update the Dockerfile timestamp to ensure Docker sees changes
+    if [ -f "Dockerfile" ]; then
+        print_info "Updating Dockerfile modification time to force rebuild..."
+        touch Dockerfile
+    fi
+    
+    # Return to deployment directory
+    cd "$SCRIPT_DIR" || {
+        print_error "Failed to return to deployment directory"
+        return 1
+    }
+    
+    # Force rebuild with no-cache and pull latest base images
+    print_info "Force rebuilding application with --no-cache and --pull flags..."
+    
+    if [ "$DEPLOYMENT_MODE" = "app-only" ]; then
+        # Build only the app service with force rebuild
+        if ! docker compose -f docker-compose.server.yml build --no-cache --pull app; then
+            print_error "Failed to force rebuild application image"
+            return 1
+        fi
+    else
+        # Build all services with force rebuild
+        if ! docker compose -f docker-compose.server.yml build --no-cache --pull; then
+            print_error "Failed to force rebuild all images"
+            return 1
+        fi
+    fi
+    
+    print_status "✅ Docker images rebuilt with latest code"
+    return 0
+}
+
+# Verify deployed code version
+verify_deployed_code_version() {
+    print_header "🔍 Verifying Deployed Code Version"
+    
+    # Wait for application to be fully ready
+    local max_attempts=20
+    local attempt=1
+    
+    while [ $attempt -le $max_attempts ]; do
+        local app_status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/api/health 2>/dev/null || echo "000")
+        
+        if [ "$app_status" = "200" ]; then
+            print_status "✅ Application is responding"
+            break
+        fi
+        
+        print_info "Waiting for application to be ready (attempt $attempt/$max_attempts)"
+        sleep 5
+        ((attempt++))
+    done
+    
+    # Check if Elasticsearch integration is properly enabled
+    print_info "Checking Elasticsearch integration status..."
+    local es_status_response=$(curl -s "http://localhost:5000/api/elasticsearch/status" 2>/dev/null || echo "")
+    
+    if echo "$es_status_response" | grep -q '"enabled":true'; then
+        print_status "✅ Elasticsearch integration is properly enabled"
+        
+        # Show Elasticsearch status details
+        local db_movies=$(echo "$es_status_response" | grep -o '"dbMovies":"[0-9]*"' | cut -d'"' -f4)
+        local es_movies=$(echo "$es_status_response" | grep -o '"esMovies":[0-9]*' | cut -d: -f2)
+        
+        print_info "Database movies: $db_movies"
+        print_info "Elasticsearch movies: $es_movies"
+        
+        if [ "$es_movies" = "0" ] || [ "$es_movies" = "" ]; then
+            print_warning "⚠️  Elasticsearch has no data - sync may be needed"
+            return 2  # Special return code indicating sync needed
+        fi
+    else
+        print_error "❌ Elasticsearch integration is not enabled in the deployed application"
+        print_info "This indicates the old code is still running"
+        return 1
+    fi
+    
+    # Check container image info
+    print_info "Checking deployed container information..."
+    local container_image=$(docker inspect filmflex-app --format='{{.Config.Image}}' 2>/dev/null || echo "unknown")
+    local container_created=$(docker inspect filmflex-app --format='{{.Created}}' 2>/dev/null || echo "unknown")
+    
+    print_info "Container image: $container_image"
+    print_info "Container created: $container_created"
+    
+    # Check if container was created recently (within last hour)
+    if [ "$container_created" != "unknown" ]; then
+        local created_timestamp=$(date -d "$container_created" +%s 2>/dev/null || echo "0")
+        local current_timestamp=$(date +%s)
+        local age_seconds=$((current_timestamp - created_timestamp))
+        local age_minutes=$((age_seconds / 60))
+        
+        if [ $age_minutes -lt 60 ]; then
+            print_status "✅ Container is fresh (created $age_minutes minutes ago)"
+        else
+            print_warning "⚠️  Container is old (created $age_minutes minutes ago) - may be using cached image"
+        fi
+    fi
+    
+    return 0
+}
+
+# Force sync Elasticsearch data after deployment
+force_sync_elasticsearch_data() {
+    print_header "🔄 Force Syncing Data to Elasticsearch"
+    
+    # Check if Elasticsearch sync is available
+    local es_status_response=$(curl -s "http://localhost:5000/api/elasticsearch/status" 2>/dev/null || echo "")
+    
+    if ! echo "$es_status_response" | grep -q '"enabled":true'; then
+        print_error "❌ Cannot sync - Elasticsearch integration not enabled"
+        return 1
+    fi
+    
+    # Trigger full sync with retry logic
+    local max_sync_attempts=3
+    local sync_attempt=1
+    
+    while [ $sync_attempt -le $max_sync_attempts ]; do
+        print_info "Triggering Elasticsearch full sync (attempt $sync_attempt/$max_sync_attempts)..."
+        
+        local sync_response=$(curl -s -X POST "http://localhost:5000/api/elasticsearch/sync/full" \
+            -H "Content-Type: application/json" \
+            --max-time 300 2>/dev/null || echo "")
+        
+        if echo "$sync_response" | grep -q '"status":true'; then
+            print_status "✅ Elasticsearch full sync completed successfully"
+            
+            # Show sync results
+            if echo "$sync_response" | grep -q '"movies"'; then
+                local movies_synced=$(echo "$sync_response" | grep -o '"movies":[0-9]*' | cut -d: -f2)
+                local episodes_synced=$(echo "$sync_response" | grep -o '"episodes":[0-9]*' | cut -d: -f2)
+                print_info "Movies synced: $movies_synced"
+                print_info "Episodes synced: $episodes_synced"
+                
+                if [ "$movies_synced" -gt 0 ]; then
+                    print_status "✅ Data successfully synced to Elasticsearch"
+                    return 0
+                fi
+            fi
+        fi
+        
+        print_warning "⚠️  Sync attempt $sync_attempt failed, waiting before retry..."
+        sleep 10
+        ((sync_attempt++))
+    done
+    
+    print_error "❌ Failed to sync data to Elasticsearch after $max_sync_attempts attempts"
+    return 1
 }
 
 # Show help information
@@ -958,7 +1150,7 @@ main() {
     # Setup logging
     setup_deployment_logging
     
-    # Clean up existing containers
+    # Clean up existing containers and images
     cleanup_existing_containers
     
     # Update to latest source code
@@ -974,6 +1166,12 @@ main() {
     # Pre-build application
     if ! pre_build_application; then
         print_error "Failed to pre-build application"
+        exit 1
+    fi
+    
+    # Force rebuild Docker images
+    if ! force_rebuild_images; then
+        print_error "Failed to force rebuild Docker images"
         exit 1
     fi
     
