@@ -1218,9 +1218,27 @@ main() {
         if perform_health_check; then
             print_status "✅ App-only deployment completed successfully"
             
+            # Verify deployed code version
+            local verification_result=0
+            verify_deployed_code_version
+            verification_result=$?
+            
+            if [ $verification_result -eq 1 ]; then
+                print_error "❌ Code verification failed - old code is still running"
+                exit 1
+            elif [ $verification_result -eq 2 ]; then
+                print_warning "⚠️  Elasticsearch needs data sync"
+                # Force sync if needed
+                if ! force_sync_elasticsearch_data; then
+                    print_warning "⚠️  Failed to sync Elasticsearch data"
+                fi
+            fi
+            
             # Sync Elasticsearch data if requested
-            if ! sync_elasticsearch_data; then
-                print_warning "⚠️  Elasticsearch sync failed or skipped"
+            if [ "$SYNC_ELASTICSEARCH" = true ] && [ $verification_result -ne 2 ]; then
+                if ! force_sync_elasticsearch_data; then
+                    print_warning "⚠️  Elasticsearch sync failed or skipped"
+                fi
             fi
             
             # Sync static files with Nginx
