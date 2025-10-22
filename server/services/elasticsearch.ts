@@ -792,9 +792,17 @@ export class ElasticsearchService {
 // Factory function to create Elasticsearch service
 export function createElasticsearchService(): ElasticsearchService | null {
   try {
+    // Check for Elasticsearch configuration
+    const elasticsearchNode = process.env.ELASTICSEARCH_NODE || process.env.ELASTICSEARCH_URL || 'http://localhost:9200';
+    
     const config: ElasticsearchConfig = {
-      node: process.env.ELASTICSEARCH_NODE || process.env.ELASTICSEARCH_URL || 'http://localhost:9200',
+      node: elasticsearchNode,
     };
+
+    console.log('🔍 Creating Elasticsearch service with configuration:');
+    console.log(`   Node: ${config.node}`);
+    console.log(`   ELASTICSEARCH_NODE: ${process.env.ELASTICSEARCH_NODE || 'not set'}`);
+    console.log(`   ELASTICSEARCH_ENABLED: ${process.env.ELASTICSEARCH_ENABLED || 'not set'}`);
 
     // Add authentication if provided
     if (process.env.ELASTICSEARCH_USERNAME && process.env.ELASTICSEARCH_PASSWORD) {
@@ -802,6 +810,7 @@ export function createElasticsearchService(): ElasticsearchService | null {
         username: process.env.ELASTICSEARCH_USERNAME,
         password: process.env.ELASTICSEARCH_PASSWORD
       };
+      console.log('   Authentication: enabled');
     }
 
     // Add TLS config for cloud deployments
@@ -809,6 +818,7 @@ export function createElasticsearchService(): ElasticsearchService | null {
       config.tls = {
         rejectUnauthorized: false
       };
+      console.log('   TLS: enabled for cloud');
     }
 
     return new ElasticsearchService(config);

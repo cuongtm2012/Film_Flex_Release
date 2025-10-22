@@ -34,7 +34,7 @@ services:
       DATABASE_URL: postgresql://filmflex:filmflex2024@postgres:5432/filmflex
       
       # Elasticsearch Configuration
-      ELASTICSEARCH_NODE: http://elasticsearch:9200
+      ELASTICSEARCH_NODE: http://filmflex-elasticsearch:9200
       ELASTICSEARCH_ENABLED: "true"
       
       # Application Configuration
@@ -63,6 +63,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      filmflex-elasticsearch:
+        condition: service_healthy
     volumes:
       - app_logs:/app/logs
       # Mount the scripts directory so Docker can access import scripts
@@ -75,6 +77,30 @@ services:
       retries: 3
       start_period: 40s
 
+  # Elasticsearch Service
+  filmflex-elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: filmflex-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - xpack.security.enabled=false
+      - xpack.security.enrollment.enabled=false
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - filmflex-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
 networks:
   filmflex-network:
     driver: bridge
@@ -83,4 +109,6 @@ volumes:
   postgres_data:
     driver: local
   app_logs:
+    driver: local
+  elasticsearch_data:
     driver: local
