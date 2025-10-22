@@ -793,7 +793,7 @@ export class ElasticsearchService {
 export function createElasticsearchService(): ElasticsearchService | null {
   try {
     const config: ElasticsearchConfig = {
-      node: process.env.ELASTICSEARCH_URL || 'http://localhost:9200',
+      node: process.env.ELASTICSEARCH_NODE || process.env.ELASTICSEARCH_URL || 'http://localhost:9200',
     };
 
     // Add authentication if provided
