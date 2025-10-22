@@ -1206,14 +1206,10 @@ main() {
     if [ "$DEPLOYMENT_MODE" = "app-only" ]; then
         print_info "App-only deployment detected - attempting to connect to existing database network"
         
-        # Build and start only the app service
-        print_header "🏗️  Building Application"
-        if ! docker compose -f docker-compose.server.yml build app; then
-            print_error "Failed to build application"
-            exit 1
-        fi
-        
+        # Skip building since force_rebuild_images already completed successfully
         print_header "🚀 Starting Application"
+        print_info "Docker images already rebuilt successfully - starting application directly"
+        
         if ! docker compose -f docker-compose.server.yml up -d app; then
             print_error "Failed to start application"
             exit 1
