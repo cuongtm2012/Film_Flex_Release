@@ -207,23 +207,17 @@ force_rebuild_images() {
         touch Dockerfile
     fi
     
-    # Return to deployment directory
-    cd "$SCRIPT_DIR" || {
-        print_error "Failed to return to deployment directory"
-        return 1
-    }
-    
     # Force rebuild with no-cache and pull latest base images
-    print_info "Force rebuilding application with --no-cache and --pull flags..."
+    print_info "Force rebuilding application with --no-cache and --pull flags from project root..."
     
     if [ "$DEPLOYMENT_MODE" = "app-only" ]; then
-        # Build only the app service with force rebuild
+        # Build only the app service with force rebuild from project root
         if ! docker compose -f docker-compose.server.yml build --no-cache --pull app; then
             print_error "Failed to force rebuild application image"
             return 1
         fi
     else
-        # Build all services with force rebuild
+        # Build all services with force rebuild from project root
         if ! docker compose -f docker-compose.server.yml build --no-cache --pull; then
             print_error "Failed to force rebuild all images"
             return 1
@@ -231,6 +225,13 @@ force_rebuild_images() {
     fi
     
     print_status "✅ Docker images rebuilt with latest code"
+    
+    # Return to deployment directory
+    cd "$SCRIPT_DIR" || {
+        print_error "Failed to return to deployment directory"
+        return 1
+    }
+    
     return 0
 }
 
