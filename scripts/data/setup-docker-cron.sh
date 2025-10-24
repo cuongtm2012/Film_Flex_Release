@@ -288,13 +288,13 @@ PATH=/usr/local/bin:/usr/bin:/bin:/sbin:/usr/sbin
 SHELL=/bin/bash
 
 # Run Docker movie import twice daily at 6 AM and 6 PM (3 pages)
-0 6,18 * * 0-5 $USER $CRON_WRAPPER node scripts/data/import-movies-docker.cjs --max-pages=3 > $LOG_DIR/docker-import-\$(date +\\%Y\\%m\\%d\\%H\\%M\\%S).log 2>&1
+0 6,18 * * 1-5 $USER $CRON_WRAPPER node scripts/data/import-movies-docker.cjs --max-pages=3 >> $LOG_DIR/docker-daily-import.log 2>&1
 
 # Run Docker deep scan every Saturday at 6 AM (10 pages)
-0 6 * * 6 $USER $CRON_WRAPPER node scripts/data/import-movies-docker.cjs --deep-scan --max-pages=10 > $LOG_DIR/docker-deep-import-\$(date +\\%Y\\%m\\%d\\%H\\%M\\%S).log 2>&1
+0 6 * * 6 $USER $CRON_WRAPPER node scripts/data/import-movies-docker.cjs --deep-scan --max-pages=10 >> $LOG_DIR/docker-weekly-import.log 2>&1
 
-# Run comprehensive Docker import monthly (first Sunday at 1 AM)
-0 1 1-7 * 0 $USER $CRON_WRAPPER bash scripts/data/import-all-movies-resumable.sh > $LOG_DIR/docker-full-import-\$(date +\\%Y\\%m\\%d\\%H\\%M\\%S).log 2>&1
+# Run comprehensive Docker import monthly (first Sunday at 1 AM) 
+0 1 1-7 * 0 $USER $CRON_WRAPPER bash scripts/data/import-all-movies-resumable-docker.sh >> $LOG_DIR/docker-monthly-import.log 2>&1
 
 # Cleanup old logs (keep last 30 days)
 0 0 * * * $USER find $LOG_DIR -name "*.log" -type f -mtime +30 -delete
