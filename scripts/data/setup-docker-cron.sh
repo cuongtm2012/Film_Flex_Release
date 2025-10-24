@@ -230,9 +230,34 @@ fi
 
 echo "[$DATE] Containers verified as running" >&2
 
-# Run the command inside the app container
+# Run the command inside the app container - Enhanced with multiple methods
 echo "[$DATE] Executing in Docker: $*" >&2
-exec docker compose -f "$COMPOSE_FILE" exec -T app "$@"
+
+# Method 1: Try docker-compose exec with working directory
+if docker compose -f "$COMPOSE_FILE" exec -T app sh -c "cd /app && $*" 2>/dev/null; then
+    echo "[$DATE] SUCCESS: Command executed via docker-compose" >&2
+    exit 0
+fi
+
+# Method 2: Try direct docker exec with working directory
+if docker exec filmflex-app sh -c "cd /app && $*" 2>/dev/null; then
+    echo "[$DATE] SUCCESS: Command executed via docker exec" >&2
+    exit 0
+fi
+
+# Method 3: Try without working directory change
+if docker exec filmflex-app sh -c "$*" 2>/dev/null; then
+    echo "[$DATE] SUCCESS: Command executed directly" >&2
+    exit 0
+fi
+
+# All methods failed - provide detailed error info
+echo "[$DATE] ERROR: All execution methods failed" >&2
+echo "[$DATE] Container status:" >&2
+docker ps | grep filmflex-app >&2
+echo "[$DATE] Available containers:" >&2
+docker ps --format "table {{.Names}}\t{{.Status}}" >&2
+exit 1
 DOCKER_WRAPPER_EOF
 
 chmod +x "$CRON_WRAPPER"

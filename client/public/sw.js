@@ -163,12 +163,22 @@ self.addEventListener('fetch', (event) => {
           const networkResponse = await safeFetch(request, { timeout: 8000 });
           
           if (networkResponse.ok) {
+            // Clone response before any potential consumption
+            let responseToCache = null;
+            try {
+              responseToCache = networkResponse.clone();
+            } catch (cloneError) {
+              swError(`Failed to clone response for ${url}:`, cloneError);
+            }
+            
             // Cache successful responses (but don't wait for it)
-            if (request.destination !== 'document') {
+            if (request.destination !== 'document' && responseToCache) {
               caches.open(CACHE_NAME).then(cache => {
-                cache.put(request, networkResponse.clone()).catch(err => {
+                cache.put(request, responseToCache).catch(err => {
                   swError(`Failed to cache ${url}:`, err);
                 });
+              }).catch(err => {
+                swError(`Failed to open cache for ${url}:`, err);
               });
             }
             
@@ -321,6 +331,8 @@ self.addEventListener('error', (event) => {
 // Unhandled rejection handler
 self.addEventListener('unhandledrejection', (event) => {
   swError('Service Worker unhandled rejection:', event.reason);
+  // Prevent default logging to avoid duplicate console errors
+  event.preventDefault();
 });
 
 swLog(`Service Worker loaded - ${CACHE_NAME}`);
