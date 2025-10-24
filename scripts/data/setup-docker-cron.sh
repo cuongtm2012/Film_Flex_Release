@@ -82,12 +82,28 @@ if [ "$DIAGNOSTIC_MODE" = true ]; then
         echo "Docker containers status:"
         docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep -E "(filmflex|postgres)" || echo "No PhimGG containers found"
         
-        # Test Docker database connection
+        # Test Docker database connection with multiple methods
         echo -e "\n${BLUE}Testing Docker PostgreSQL connection...${NC}"
-        if docker compose -f "$APP_DIR/$DOCKER_COMPOSE_FILE" exec postgres psql -U filmflex -d filmflex -c "SELECT COUNT(*) FROM movies;" 2>/dev/null; then
-            echo -e "${GREEN}✓ Docker PostgreSQL connection successful${NC}"
+        
+        # Method 1: Docker compose exec
+        if docker compose -f "$APP_DIR/$DOCKER_COMPOSE_FILE" exec -T postgres psql -U filmflex -d filmflex -c "SELECT COUNT(*) FROM movies;" 2>/dev/null; then
+            echo -e "${GREEN}✓ Docker PostgreSQL connection successful (via docker-compose)${NC}"
+        # Method 2: Direct docker exec
+        elif docker exec filmflex-postgres psql -U filmflex -d filmflex -c "SELECT COUNT(*) FROM movies;" 2>/dev/null; then
+            echo -e "${GREEN}✓ Docker PostgreSQL connection successful (via docker exec)${NC}"
+        # Method 3: Test basic connection
+        elif docker exec filmflex-postgres psql -U filmflex -d filmflex -c "SELECT 1;" 2>/dev/null; then
+            echo -e "${YELLOW}⚠ PostgreSQL connected but movies table may not exist${NC}"
+        # Method 4: Test if PostgreSQL is running
+        elif docker exec filmflex-postgres pg_isready -U filmflex 2>/dev/null; then
+            echo -e "${YELLOW}⚠ PostgreSQL is ready but database 'filmflex' may not exist${NC}"
         else
             echo -e "${RED}✗ Cannot connect to Docker PostgreSQL${NC}"
+            echo -e "${BLUE}Debugging information:${NC}"
+            echo "Container logs (last 10 lines):"
+            docker logs filmflex-postgres --tail 10 2>/dev/null || echo "Cannot access container logs"
+            echo "Container inspect:"
+            docker inspect filmflex-postgres --format '{{.State.Status}}' 2>/dev/null || echo "Cannot inspect container"
         fi
     else
         echo -e "${RED}Docker not installed${NC}"
