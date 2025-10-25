@@ -6,46 +6,74 @@
 echo "🔄 ELASTICSEARCH DATA RECOVERY"
 echo "=============================="
 
+# Function to check status
+check_success() {
+    if [ $? -eq 0 ]; then
+        echo "✅ $1"
+        return 0
+    else
+        echo "❌ $1"
+        return 1
+    fi
+}
+
 # Check Elasticsearch health
 echo "1. 🔍 Checking Elasticsearch status..."
-if curl -s http://localhost:9200/_cluster/health | grep -q "yellow\|green"; then
+ES_RESPONSE=$(curl -s http://localhost:9200/_cluster/health 2>/dev/null)
+if echo "$ES_RESPONSE" | grep -q "yellow\|green"; then
     echo "✅ Elasticsearch is running"
 else
-    echo "❌ Elasticsearch not ready, waiting..."
+    echo "❌ Elasticsearch not ready - Response: $ES_RESPONSE"
+    echo "Waiting 10 seconds and retrying..."
     sleep 10
+    if ! curl -s http://localhost:9200/_cluster/health | grep -q "yellow\|green"; then
+        echo "❌ Elasticsearch still not ready - check container logs"
+        docker logs filmflex-elasticsearch --tail=10
+    fi
 fi
 
 # Check PostgreSQL data
 echo "2. 📊 Checking PostgreSQL data..."
-MOVIE_COUNT=$(docker exec filmflex-postgres psql -U filmflex -d filmflex -t -c "SELECT COUNT(*) FROM movies;" 2>/dev/null | tr -d ' ' || echo "0")
+MOVIE_COUNT=$(docker exec filmflex-postgres psql -U filmflex -d filmflex -t -c "SELECT COUNT(*) FROM movies;" 2>/dev/null | tr -d ' \n' | grep -o '[0-9]*' || echo "0")
 echo "Movies in PostgreSQL: $MOVIE_COUNT"
 
-if [ "$MOVIE_COUNT" -gt 0 ]; then
-    echo "✅ PostgreSQL data found"
+if [ "$MOVIE_COUNT" -gt 0 ] 2>/dev/null; then
+    echo "✅ PostgreSQL data found ($MOVIE_COUNT movies)"
 else
-    echo "❌ No PostgreSQL data found - need to run imports first"
+    echo "❌ No PostgreSQL data found (count: '$MOVIE_COUNT')"
+    echo "💡 Need to run movie import first:"
+    echo "   bash scripts/deployment/cron-docker-wrapper.sh node scripts/data/import-movies-docker.cjs --max-pages=1"
     exit 1
 fi
 
-# Check if app has reindex capability
-echo "3. 🔧 Attempting reindex via app..."
+# Try reindex via app API
+echo "3. 🔧 Attempting reindex via app API..."
 
 # Method 1: Try reindex endpoint
-if curl -s -X POST http://localhost:5000/api/search/reindex 2>/dev/null | grep -q "success"; then
-    echo "✅ Reindex via API successful"
+echo "Trying /api/search/reindex..."
+API_RESULT=$(curl -s -X POST http://localhost:5000/api/search/reindex 2>/dev/null)
+if echo "$API_RESULT" | grep -q "success\|completed\|reindex"; then
+    echo "✅ Reindex via API successful - Response: $API_RESULT"
     exit 0
+else
+    echo "❌ API reindex failed - Response: $API_RESULT"
 fi
 
 # Method 2: Try admin reindex
-if curl -s -X POST http://localhost:5000/api/admin/reindex 2>/dev/null | grep -q "success"; then
-    echo "✅ Admin reindex successful" 
+echo "Trying /api/admin/reindex..."
+ADMIN_RESULT=$(curl -s -X POST http://localhost:5000/api/admin/reindex 2>/dev/null)
+if echo "$ADMIN_RESULT" | grep -q "success\|completed\|reindex"; then
+    echo "✅ Admin reindex successful - Response: $ADMIN_RESULT"
     exit 0
+else
+    echo "❌ Admin reindex failed - Response: $ADMIN_RESULT"
 fi
 
 # Method 3: Manual reindex using Node.js
 echo "4. 🔄 Manual reindex from PostgreSQL..."
-docker exec filmflex-app sh -c "cd /app && cat > temp_reindex.js << 'EOF'
-const { drizzle } = require('drizzle-orm/node-postgres');
+
+# Create reindex script
+cat > /tmp/temp_reindex.js << 'EOF'
 const { Client } = require('pg');
 
 async function reindexMovies() {
@@ -66,11 +94,12 @@ async function reindexMovies() {
     
     // Get all movies
     const result = await client.query('SELECT * FROM movies LIMIT 100');
-    console.log(\`Found \${result.rows.length} movies to reindex\`);
+    console.log(`Found ${result.rows.length} movies to reindex`);
     
     // Simple Elasticsearch indexing
     for (const movie of result.rows) {
       try {
+        const fetch = require('node-fetch');
         const response = await fetch('http://filmflex-elasticsearch:9200/movies/_doc/' + movie.id, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -85,10 +114,10 @@ async function reindexMovies() {
         });
         
         if (response.ok) {
-          console.log(\`Indexed: \${movie.title}\`);
+          console.log(`Indexed: ${movie.title}`);
         }
       } catch (err) {
-        console.log(\`Error indexing \${movie.title}: \${err.message}\`);
+        console.log(`Error indexing ${movie.title}: ${err.message}`);
       }
     }
     
@@ -103,7 +132,9 @@ async function reindexMovies() {
 reindexMovies();
 EOF
 
-node temp_reindex.js && rm temp_reindex.js"
+# Run the reindex script
+docker exec filmflex-app sh -c "cd /app && node /tmp/temp_reindex.js"
+rm -f /tmp/temp_reindex.js
 
 # Check results
 echo "5. 📊 Checking reindex results..."
