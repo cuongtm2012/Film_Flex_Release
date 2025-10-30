@@ -82,12 +82,28 @@ if [ "$DIAGNOSTIC_MODE" = true ]; then
         echo "Docker containers status:"
         docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep -E "(filmflex|postgres)" || echo "No PhimGG containers found"
         
-        # Test Docker database connection
+        # Test Docker database connection with multiple methods
         echo -e "\n${BLUE}Testing Docker PostgreSQL connection...${NC}"
-        if docker compose -f "$APP_DIR/$DOCKER_COMPOSE_FILE" exec postgres psql -U filmflex -d filmflex -c "SELECT COUNT(*) FROM movies;" 2>/dev/null; then
-            echo -e "${GREEN}✓ Docker PostgreSQL connection successful${NC}"
+        
+        # Method 1: Docker compose exec
+        if docker compose -f "$APP_DIR/$DOCKER_COMPOSE_FILE" exec -T postgres psql -U filmflex -d filmflex -c "SELECT COUNT(*) FROM movies;" 2>/dev/null; then
+            echo -e "${GREEN}✓ Docker PostgreSQL connection successful (via docker-compose)${NC}"
+        # Method 2: Direct docker exec
+        elif docker exec filmflex-postgres psql -U filmflex -d filmflex -c "SELECT COUNT(*) FROM movies;" 2>/dev/null; then
+            echo -e "${GREEN}✓ Docker PostgreSQL connection successful (via docker exec)${NC}"
+        # Method 3: Test basic connection
+        elif docker exec filmflex-postgres psql -U filmflex -d filmflex -c "SELECT 1;" 2>/dev/null; then
+            echo -e "${YELLOW}⚠ PostgreSQL connected but movies table may not exist${NC}"
+        # Method 4: Test if PostgreSQL is running
+        elif docker exec filmflex-postgres pg_isready -U filmflex 2>/dev/null; then
+            echo -e "${YELLOW}⚠ PostgreSQL is ready but database 'filmflex' may not exist${NC}"
         else
             echo -e "${RED}✗ Cannot connect to Docker PostgreSQL${NC}"
+            echo -e "${BLUE}Debugging information:${NC}"
+            echo "Container logs (last 10 lines):"
+            docker logs filmflex-postgres --tail 10 2>/dev/null || echo "Cannot access container logs"
+            echo "Container inspect:"
+            docker inspect filmflex-postgres --format '{{.State.Status}}' 2>/dev/null || echo "Cannot inspect container"
         fi
     else
         echo -e "${RED}Docker not installed${NC}"
@@ -230,9 +246,34 @@ fi
 
 echo "[$DATE] Containers verified as running" >&2
 
-# Run the command inside the app container
+# Run the command inside the app container - Enhanced with multiple methods
 echo "[$DATE] Executing in Docker: $*" >&2
-exec docker compose -f "$COMPOSE_FILE" exec -T app "$@"
+
+# Method 1: Try docker-compose exec with working directory
+if docker compose -f "$COMPOSE_FILE" exec -T app sh -c "cd /app && $*" 2>/dev/null; then
+    echo "[$DATE] SUCCESS: Command executed via docker-compose" >&2
+    exit 0
+fi
+
+# Method 2: Try direct docker exec with working directory
+if docker exec filmflex-app sh -c "cd /app && $*" 2>/dev/null; then
+    echo "[$DATE] SUCCESS: Command executed via docker exec" >&2
+    exit 0
+fi
+
+# Method 3: Try without working directory change
+if docker exec filmflex-app sh -c "$*" 2>/dev/null; then
+    echo "[$DATE] SUCCESS: Command executed directly" >&2
+    exit 0
+fi
+
+# All methods failed - provide detailed error info
+echo "[$DATE] ERROR: All execution methods failed" >&2
+echo "[$DATE] Container status:" >&2
+docker ps | grep filmflex-app >&2
+echo "[$DATE] Available containers:" >&2
+docker ps --format "table {{.Names}}\t{{.Status}}" >&2
+exit 1
 DOCKER_WRAPPER_EOF
 
 chmod +x "$CRON_WRAPPER"
@@ -247,13 +288,13 @@ PATH=/usr/local/bin:/usr/bin:/bin:/sbin:/usr/sbin
 SHELL=/bin/bash
 
 # Run Docker movie import twice daily at 6 AM and 6 PM (3 pages)
-0 6,18 * * 0-5 $USER $CRON_WRAPPER node scripts/data/import-movies-docker.cjs --max-pages=3 > $LOG_DIR/docker-import-\$(date +\\%Y\\%m\\%d\\%H\\%M\\%S).log 2>&1
+0 6,18 * * 1-5 $USER $CRON_WRAPPER node scripts/data/import-movies-docker.cjs --max-pages=3 >> $LOG_DIR/docker-daily-import.log 2>&1
 
 # Run Docker deep scan every Saturday at 6 AM (10 pages)
-0 6 * * 6 $USER $CRON_WRAPPER node scripts/data/import-movies-docker.cjs --deep-scan --max-pages=10 > $LOG_DIR/docker-deep-import-\$(date +\\%Y\\%m\\%d\\%H\\%M\\%S).log 2>&1
+0 6 * * 6 $USER $CRON_WRAPPER node scripts/data/import-movies-docker.cjs --deep-scan --max-pages=10 >> $LOG_DIR/docker-weekly-import.log 2>&1
 
-# Run comprehensive Docker import monthly (first Sunday at 1 AM)
-0 1 1-7 * 0 $USER $CRON_WRAPPER bash scripts/data/import-all-movies-resumable.sh > $LOG_DIR/docker-full-import-\$(date +\\%Y\\%m\\%d\\%H\\%M\\%S).log 2>&1
+# Run comprehensive Docker import monthly (first Sunday at 1 AM) 
+0 1 1-7 * 0 $USER $CRON_WRAPPER bash scripts/data/import-all-movies-resumable-docker.sh >> $LOG_DIR/docker-monthly-import.log 2>&1
 
 # Cleanup old logs (keep last 30 days)
 0 0 * * * $USER find $LOG_DIR -name "*.log" -type f -mtime +30 -delete

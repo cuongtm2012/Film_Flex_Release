@@ -1,7 +1,8 @@
 #!/bin/bash
 
-# PhimGG Complete Movie Import Script with Resume Capability
-# This script starts a full import using the Node.js script and can resume from where it left off
+# PhimGG Complete Movie Import Script - DOCKER DATABASE ONLY
+# This script imports movie data into Docker PostgreSQL database
+# Automatically detects if running inside Docker container or on host
 
 # Set up trap to handle interruptions
 trap 'save_progress; echo -e "\n${YELLOW}Import interrupted. To resume, run the script again and select 'resume'.${NC}"; exit 0' INT TERM
@@ -13,12 +14,25 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Define variables
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-APP_DIR="$( cd "$SCRIPT_DIR/../.." && pwd )"
-LOG_DIR="${APP_DIR}/log"
-IMPORT_LOG="${LOG_DIR}/complete-node-import.log"
-SCRIPT_NAME="import-movies-sql.cjs"
+# Auto-detect environment and set paths accordingly
+if [ -d "/app" ] && [ -f "/app/package.json" ]; then
+    # Running inside Docker container
+    ENVIRONMENT="docker"
+    SCRIPT_DIR="/app/scripts/data"
+    APP_DIR="/app"
+    LOG_DIR="/app/log"
+    IMPORT_LOG="${LOG_DIR}/complete-docker-import.log"
+else
+    # Running on host (will use Docker database)
+    ENVIRONMENT="host"
+    SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+    APP_DIR="$( cd "$SCRIPT_DIR/../.." && pwd )"
+    LOG_DIR="${APP_DIR}/log"
+    IMPORT_LOG="${LOG_DIR}/complete-docker-import.log"
+fi
+
+# Always use Docker import script
+SCRIPT_NAME="import-movies-docker.cjs"
 API_BASE_URL="https://phimapi.com"
 MOVIE_LIST_ENDPOINT="/danh-sach/phim-moi-cap-nhat"
 TOTAL_PAGES=2256
@@ -26,9 +40,9 @@ BATCH_SIZE=100
 BREAK_MINUTES=60
 DELAY_BETWEEN_PAGES=3  # seconds
 
-# Progress tracking files
-PROGRESS_FILE="${SCRIPT_DIR}/complete_import_progress.txt"
-DETAILED_PROGRESS_FILE="${SCRIPT_DIR}/import_detailed_progress.txt"
+# Progress tracking files - environment specific
+PROGRESS_FILE="${SCRIPT_DIR}/docker_import_progress.txt"
+DETAILED_PROGRESS_FILE="${SCRIPT_DIR}/docker_detailed_progress.txt"
 
 # Make sure log directory exists
 mkdir -p "$LOG_DIR"
@@ -36,9 +50,16 @@ mkdir -p "$LOG_DIR"
 # Print banner
 echo -e "${BLUE}"
 echo "======================================================"
-echo "  PhimGG Complete Database Import Script (Resumable)"
+echo "  PhimGG Docker Database Import Script (Resumable)"
 echo "======================================================"
 echo -e "${NC}"
+
+echo -e "${GREEN}Environment detected: ${BLUE}$ENVIRONMENT${NC}"
+if [ "$ENVIRONMENT" = "docker" ]; then
+    echo -e "${GREEN}Running inside Docker container${NC}"
+else
+    echo -e "${GREEN}Running on host - targeting Docker database${NC}"
+fi
 
 # Calculate the number of batches needed
 TOTAL_BATCHES=$(( (TOTAL_PAGES + BATCH_SIZE - 1) / BATCH_SIZE ))
@@ -133,8 +154,15 @@ process_page() {
   fi
     echo -e "${BLUE}Processing page $page${NC}"
   
-  # Build the command using environment variables
-  local cmd="node \"$APP_DIR/scripts/data/${SCRIPT_NAME}\" --single-page --page-num=$page --page-size=10"
+  # Build the command based on environment
+  local cmd
+  if [ "$ENVIRONMENT" = "docker" ]; then
+    # Running inside Docker container
+    cmd="node scripts/data/${SCRIPT_NAME} --single-page --page-num=$page --page-size=10"
+  else
+    # Running on host - use full path
+    cmd="node \"$APP_DIR/scripts/data/${SCRIPT_NAME}\" --single-page --page-num=$page --page-size=10"
+  fi
   
   # Add force import flag if needed
   if [ "$force_import" = "true" ]; then
@@ -172,6 +200,18 @@ countdown() {
 }
 
 # ======= MAIN SCRIPT =======
+
+# Display configuration
+echo -e "${GREEN}Import Configuration:${NC}"
+echo -e "Environment: ${BLUE}$ENVIRONMENT${NC}"
+echo -e "Total pages to process: ${BLUE}$TOTAL_PAGES${NC}"
+echo -e "Batch size: ${BLUE}$BATCH_SIZE${NC}"
+echo -e "Total batches: ${BLUE}$TOTAL_BATCHES${NC}"
+echo -e "Approximate movies: ${BLUE}$APPROX_MOVIES${NC}"
+echo -e "Script: ${BLUE}$SCRIPT_NAME${NC} (Docker database only)"
+echo -e "Break time between batches: ${BLUE}$BREAK_MINUTES minutes${NC}"
+echo -e "App directory: ${BLUE}$APP_DIR${NC}"
+echo ""
 
 # Make sure npm packages are installed
 if ! command -v node &> /dev/null; then
