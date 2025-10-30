@@ -603,6 +603,12 @@ sync_nginx_static_files() {
     local nginx_static_dir="/var/www/filmflex"
     local temp_dist_dir="/tmp/filmflex-dist-$(date +%s)"
     
+    # Check if container is running
+    if ! docker ps --format "{{.Names}}" | grep -q "^filmflex-app$"; then
+        print_error "Container filmflex-app is not running"
+        return 1
+    fi
+    
     # Check if nginx static directory exists
     if [ ! -d "$nginx_static_dir" ]; then
         print_info "Creating Nginx static directory: $nginx_static_dir"
@@ -619,6 +625,15 @@ sync_nginx_static_files() {
         return 1
     fi
     
+    # Verify extracted files
+    if [ ! -d "$temp_dist_dir/public" ]; then
+        print_error "Expected public directory not found in extracted files"
+        print_info "Contents of extracted directory:"
+        ls -la "$temp_dist_dir" 2>/dev/null || true
+        rm -rf "$temp_dist_dir"
+        return 1
+    fi
+    
     # Backup existing static files if they exist
     if [ -d "$nginx_static_dir/dist" ]; then
         local backup_dir="$nginx_static_dir/dist.backup.$(date +%Y%m%d_%H%M%S)"
@@ -630,23 +645,31 @@ sync_nginx_static_files() {
     
     # Copy new static files to Nginx directory
     print_info "Copying new static files to Nginx directory..."
-    if ! cp -r "$temp_dist_dir" "$nginx_static_dir/dist"; then
-        print_error "Failed to copy static files to Nginx directory"
+    if ! mv "$temp_dist_dir" "$nginx_static_dir/dist"; then
+        print_error "Failed to move static files to Nginx directory"
+        # Try to restore backup if move failed
+        if [ -d "$backup_dir" ]; then
+            print_info "Attempting to restore backup..."
+            mv "$backup_dir" "$nginx_static_dir/dist" 2>/dev/null || true
+        fi
         return 1
     fi
     
     # Set proper permissions
     print_info "Setting proper permissions on static files..."
-    chown -R www-data:www-data "$nginx_static_dir" 2>/dev/null || true
-    chmod -R 755 "$nginx_static_dir" 2>/dev/null || true
+    chown -R www-data:www-data "$nginx_static_dir/dist" 2>/dev/null || true
+    chmod -R 755 "$nginx_static_dir/dist" 2>/dev/null || true
     
-    # Clean up temporary directory
-    rm -rf "$temp_dist_dir"
+    # Verify the public directory structure
+    if [ ! -d "$nginx_static_dir/dist/public" ]; then
+        print_error "Public directory not found after copy"
+        return 1
+    fi
     
     # Reload Nginx to ensure it picks up any changes
     print_info "Reloading Nginx configuration..."
     if command -v systemctl >/dev/null 2>&1; then
-        if ! systemctl reload nginx; then
+        if ! systemctl reload nginx 2>/dev/null; then
             print_warning "Failed to reload Nginx via systemctl, trying alternative..."
             nginx -s reload 2>/dev/null || print_warning "Failed to reload Nginx"
         fi
@@ -654,17 +677,26 @@ sync_nginx_static_files() {
         nginx -s reload 2>/dev/null || print_warning "Failed to reload Nginx"
     fi
     
-    # Verify static files were copied correctly
-    if [ -f "$nginx_static_dir/dist/index.html" ] || [ -f "$nginx_static_dir/dist/public/index.html" ]; then
+    # Verify static files were copied correctly - check the public directory
+    if [ -f "$nginx_static_dir/dist/public/index.html" ]; then
         print_status "✅ Static files synchronized successfully"
         
         # Show some info about what was synced
         local static_size=$(du -sh "$nginx_static_dir/dist" 2>/dev/null | cut -f1)
+        local file_count=$(find "$nginx_static_dir/dist/public" -type f 2>/dev/null | wc -l)
         print_info "Static files size: $static_size"
+        print_info "Number of files: $file_count"
+        
+        # Show file dates to confirm it's the latest
+        local index_date=$(stat -c %y "$nginx_static_dir/dist/public/index.html" 2>/dev/null || stat -f "%Sm" "$nginx_static_dir/dist/public/index.html" 2>/dev/null || echo "unknown")
+        print_info "Index.html date: $index_date"
         
         return 0
     else
         print_error "❌ Static file synchronization verification failed"
+        print_info "Expected file not found: $nginx_static_dir/dist/public/index.html"
+        print_info "Directory structure:"
+        ls -la "$nginx_static_dir/dist/" 2>/dev/null || true
         return 1
     fi
 }
