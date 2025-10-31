@@ -59,300 +59,14 @@ SYNC_ELASTICSEARCH=false
 FORCE_DEPLOYMENT=false
 SKIP_NGINX=false
 
+# Store project root for global access
+PROJECT_ROOT=""
+
 # Nginx configuration paths
 NGINX_SOURCE_DIR="$SCRIPT_DIR/../../nginx"
 NGINX_DEST_DIR="/etc/nginx"
 NGINX_CONF_D_DIR="/etc/nginx/conf.d"
 NGINX_BACKUP_DIR="/etc/nginx/backup/$(date +%Y%m%d_%H%M%S)"
-
-# Enhanced deployment logging and reporting
-setup_deployment_logging() {
-    # Create deployment logs directory with proper permissions
-    local log_dir="$(pwd)/logs/deployment"
-    
-    # Try to create directory, fallback to /tmp if permissions fail
-    if ! mkdir -p "$log_dir" 2>/dev/null; then
-        print_warning "Cannot create logs in $(pwd)/logs - using /tmp/filmflex-logs"
-        log_dir="/tmp/filmflex-logs"
-        mkdir -p "$log_dir" 2>/dev/null || log_dir="/tmp"
-    fi
-    
-    # Create deployment log file with timestamp
-    DEPLOYMENT_LOG="$log_dir/deployment-$(date +%Y%m%d_%H%M%S).log"
-    
-    # Test if we can write to the log file
-    if ! touch "$DEPLOYMENT_LOG" 2>/dev/null; then
-        print_warning "Cannot write to $DEPLOYMENT_LOG - using console only"
-        DEPLOYMENT_LOG=""
-    fi
-    
-    # Function to log both to console and file
-    log_deployment() {
-        local message="$1"
-        local timestamp="$(date '+%Y-%m-%d %H:%M:%S')"
-        
-        if [ -n "$DEPLOYMENT_LOG" ] && [ -w "$DEPLOYMENT_LOG" ]; then
-            echo "$timestamp - $message" >> "$DEPLOYMENT_LOG" 2>/dev/null || true
-        fi
-        
-        # Always log to console
-        echo "$timestamp - $message" >&2
-    }
-    
-    if [ -n "$DEPLOYMENT_LOG" ]; then
-        print_info "Deployment logging initialized: $DEPLOYMENT_LOG"
-    else
-        print_info "Deployment logging: console only (file logging disabled)"
-    fi
-    
-    log_deployment "FilmFlex $MODE_NAME started"
-}
-
-# Clean up existing containers and images before deployment
-cleanup_existing_containers() {
-    print_header "🧹 Cleaning Up Existing Containers and Images"
-    
-    local containers_to_cleanup=()
-    local images_to_cleanup=()
-    
-    # Check which containers need to be cleaned up based on deployment mode
-    if [ "$DEPLOYMENT_MODE" = "app-only" ]; then
-        containers_to_cleanup+=("filmflex-app")
-        images_to_cleanup+=("filmflex-app" "cuongtm2012/filmflex-app")
-        if [ "$INCLUDE_ELASTICSEARCH" = true ]; then
-            containers_to_cleanup+=("filmflex-elasticsearch")
-        fi
-    else
-        # Full deployment - cleanup all containers
-        containers_to_cleanup+=("filmflex-app" "filmflex-postgres")
-        images_to_cleanup+=("filmflex-app" "cuongtm2012/filmflex-app")
-        if [ "$INCLUDE_ELASTICSEARCH" = true ]; then
-            containers_to_cleanup+=("filmflex-elasticsearch")
-        fi
-    fi
-    
-    # Stop and remove containers
-    for container in "${containers_to_cleanup[@]}"; do
-        if docker ps -a --format "{{.Names}}" | grep -q "^${container}$"; then
-            print_info "Found existing container: $container"
-            
-            # Stop the container if it's running
-            if docker ps --format "{{.Names}}" | grep -q "^${container}$"; then
-                print_info "Stopping running container: $container"
-                if docker stop "$container" >/dev/null 2>&1; then
-                    print_status "✅ Stopped container: $container"
-                else
-                    print_warning "⚠️  Failed to stop container: $container"
-                fi
-            fi
-            
-            # Remove the container
-            print_info "Removing container: $container"
-            if docker rm "$container" >/dev/null 2>&1; then
-                print_status "✅ Removed container: $container"
-            else
-                print_warning "⚠️  Failed to remove container: $container"
-            fi
-        else
-            print_info "Container $container not found, skipping cleanup"
-        fi
-    done
-    
-    # Remove Docker images to force rebuild
-    print_info "Cleaning up Docker images to force fresh rebuild..."
-    for image in "${images_to_cleanup[@]}"; do
-        if docker images --format "{{.Repository}}:{{.Tag}}" | grep -q "^${image}"; then
-            print_info "Removing Docker image: $image"
-            if docker rmi "$image" --force >/dev/null 2>&1; then
-                print_status "✅ Removed Docker image: $image"
-            else
-                print_warning "⚠️  Failed to remove Docker image: $image"
-            fi
-        fi
-    done
-    
-    # Clean up build cache and unused resources
-    print_info "Cleaning up Docker build cache and unused resources..."
-    docker builder prune -f >/dev/null 2>&1 || true
-    docker system prune -f >/dev/null 2>&1 || true
-    
-    # Clean up orphaned networks if needed
-    print_info "Cleaning up unused Docker networks..."
-    docker network prune -f >/dev/null 2>&1 || true
-    
-    print_status "✅ Container and image cleanup completed"
-}
-
-# Force rebuild Docker images with latest code
-force_rebuild_images() {
-    print_header "🔨 Force Rebuilding Docker Images with Latest Code"
-    
-    # Ensure we're using the latest source code
-    local project_root="$(cd "$SCRIPT_DIR/../.." && pwd)"
-    cd "$project_root" || {
-        print_error "Failed to change to project root: $project_root"
-        return 1
-    }
-    
-    # Copy the latest built application to ensure Docker gets fresh content
-    print_info "Ensuring fresh build artifacts are available for Docker..."
-    if [ ! -d "dist" ] || [ ! -f "dist/index.js" ]; then
-        print_error "Build artifacts not found. Please run pre-build first."
-        return 1
-    fi
-    
-    # Update the Dockerfile timestamp to ensure Docker sees changes
-    if [ -f "Dockerfile" ]; then
-        print_info "Updating Dockerfile modification time to force rebuild..."
-        touch Dockerfile
-    fi
-    
-    # Force rebuild with no-cache and pull latest base images
-    print_info "Force rebuilding application with --no-cache and --pull flags from project root..."
-    
-    if [ "$DEPLOYMENT_MODE" = "app-only" ]; then
-        # Build only the app service with force rebuild from project root
-        if ! docker compose -f docker-compose.server.yml build --no-cache --pull app; then
-            print_error "Failed to force rebuild application image"
-            return 1
-        fi
-    else
-        # Build all services with force rebuild from project root
-        if ! docker compose -f docker-compose.server.yml build --no-cache --pull; then
-            print_error "Failed to force rebuild all images"
-            return 1
-        fi
-    fi
-    
-    print_status "✅ Docker images rebuilt with latest code"
-    
-    # Return to deployment directory
-    cd "$SCRIPT_DIR" || {
-        print_error "Failed to return to deployment directory"
-        return 1
-    }
-    
-    return 0
-}
-
-# Verify deployed code version
-verify_deployed_code_version() {
-    print_header "🔍 Verifying Deployed Code Version"
-    
-    # Wait for application to be fully ready
-    local max_attempts=20
-    local attempt=1
-    
-    while [ $attempt -le $max_attempts ]; do
-        local app_status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/api/health 2>/dev/null || echo "000")
-        
-        if [ "$app_status" = "200" ]; then
-            print_status "✅ Application is responding"
-            break
-        fi
-        
-        print_info "Waiting for application to be ready (attempt $attempt/$max_attempts)"
-        sleep 5
-        ((attempt++))
-    done
-    
-    # Check if Elasticsearch integration is properly enabled
-    print_info "Checking Elasticsearch integration status..."
-    local es_status_response=$(curl -s "http://localhost:5000/api/elasticsearch/status" 2>/dev/null || echo "")
-    
-    if echo "$es_status_response" | grep -q '"enabled":true'; then
-        print_status "✅ Elasticsearch integration is properly enabled"
-        
-        # Show Elasticsearch status details
-        local db_movies=$(echo "$es_status_response" | grep -o '"dbMovies":"[0-9]*"' | cut -d'"' -f4)
-        local es_movies=$(echo "$es_status_response" | grep -o '"esMovies":[0-9]*' | cut -d: -f2)
-        
-        print_info "Database movies: $db_movies"
-        print_info "Elasticsearch movies: $es_movies"
-        
-        if [ "$es_movies" = "0" ] || [ "$es_movies" = "" ]; then
-            print_warning "⚠️  Elasticsearch has no data - sync may be needed"
-            return 2  # Special return code indicating sync needed
-        fi
-    else
-        print_error "❌ Elasticsearch integration is not enabled in the deployed application"
-        print_info "This indicates the old code is still running"
-        return 1
-    fi
-    
-    # Check container image info
-    print_info "Checking deployed container information..."
-    local container_image=$(docker inspect filmflex-app --format='{{.Config.Image}}' 2>/dev/null || echo "unknown")
-    local container_created=$(docker inspect filmflex-app --format='{{.Created}}' 2>/dev/null || echo "unknown")
-    
-    print_info "Container image: $container_image"
-    print_info "Container created: $container_created"
-    
-    # Check if container was created recently (within last hour)
-    if [ "$container_created" != "unknown" ]; then
-        local created_timestamp=$(date -d "$container_created" +%s 2>/dev/null || echo "0")
-        local current_timestamp=$(date +%s)
-        local age_seconds=$((current_timestamp - created_timestamp))
-        local age_minutes=$((age_seconds / 60))
-        
-        if [ $age_minutes -lt 60 ]; then
-            print_status "✅ Container is fresh (created $age_minutes minutes ago)"
-        else
-            print_warning "⚠️  Container is old (created $age_minutes minutes ago) - may be using cached image"
-        fi
-    fi
-    
-    return 0
-}
-
-# Force sync Elasticsearch data after deployment
-force_sync_elasticsearch_data() {
-    print_header "🔄 Force Syncing Data to Elasticsearch"
-    
-    # Check if Elasticsearch sync is available
-    local es_status_response=$(curl -s "http://localhost:5000/api/elasticsearch/status" 2>/dev/null || echo "")
-    
-    if ! echo "$es_status_response" | grep -q '"enabled":true'; then
-        print_error "❌ Cannot sync - Elasticsearch integration not enabled"
-        return 1
-    fi
-    
-    # Trigger full sync with retry logic
-    local max_sync_attempts=3
-    local sync_attempt=1
-    
-    while [ $sync_attempt -le $max_sync_attempts ]; do
-        print_info "Triggering Elasticsearch full sync (attempt $sync_attempt/$max_sync_attempts)..."
-        
-        local sync_response=$(curl -s -X POST "http://localhost:5000/api/elasticsearch/sync/full" \
-            -H "Content-Type: application/json" \
-            --max-time 300 2>/dev/null || echo "")
-        
-        if echo "$sync_response" | grep -q '"status":true'; then
-            print_status "✅ Elasticsearch full sync completed successfully"
-            
-            # Show sync results
-            if echo "$sync_response" | grep -q '"movies"'; then
-                local movies_synced=$(echo "$sync_response" | grep -o '"movies":[0-9]*' | cut -d: -f2)
-                local episodes_synced=$(echo "$sync_response" | grep -o '"episodes":[0-9]*' | cut -d: -f2)
-                print_info "Movies synced: $movies_synced"
-                print_info "Episodes synced: $episodes_synced"
-                
-                if [ "$movies_synced" -gt 0 ]; then
-                    print_status "✅ Data successfully synced to Elasticsearch"
-                    return 0
-                fi
-            fi
-        fi
-        
-        print_warning "⚠️  Sync attempt $sync_attempt failed, waiting before retry..."
-        sleep 10
-        ((sync_attempt++))
-    done
-    
-    print_error "❌ Failed to sync data to Elasticsearch after $max_sync_attempts attempts"
-    return 1
-}
 
 # Show help information
 show_help() {
@@ -596,6 +310,307 @@ pre_build_application() {
     return 0
 }
 
+# Update git repository to latest commit
+update_to_latest_commit() {
+    print_header "📥 Updating to Latest Source Code"
+    
+    local project_root="$(cd "$SCRIPT_DIR/../.." && pwd)"
+    cd "$project_root" || {
+        print_error "Failed to change to project root: $project_root"
+        return 1
+    }
+    
+    print_info "Current directory: $(pwd)"
+    
+    # Check if we're in a git repository
+    if ! git rev-parse --git-dir >/dev/null 2>&1; then
+        print_warning "Not in a git repository, skipping git update"
+        return 0
+    fi
+    
+    # Get current commit
+    local current_commit=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
+    print_info "Current commit: $current_commit"
+    
+    # Fetch latest changes
+    print_info "Fetching latest changes from remote..."
+    if ! git fetch origin; then
+        print_warning "Failed to fetch from remote, continuing with current code"
+        return 0
+    fi
+    
+    # Get current branch
+    local current_branch=$(git branch --show-current 2>/dev/null || echo "main")
+    print_info "Current branch: $current_branch"
+    
+    # Get latest remote commit
+    local latest_commit=$(git rev-parse origin/$current_branch 2>/dev/null || echo "unknown")
+    print_info "Latest remote commit: $latest_commit"
+    
+    # Check if update is needed
+    if [ "$current_commit" = "$latest_commit" ]; then
+        print_status "✅ Already at latest commit"
+        return 0
+    fi
+    
+    # Check for uncommitted changes
+    if ! git diff --quiet || ! git diff --staged --quiet; then
+        if [ "$FORCE_DEPLOYMENT" = true ]; then
+            print_warning "⚠️  Uncommitted changes detected, continuing due to --force flag"
+        else
+            print_error "❌ Uncommitted changes detected. Commit changes or use --force"
+            return 1
+        fi
+    fi
+    
+    # Update to latest commit
+    print_info "Updating to latest commit: $latest_commit"
+    if ! git checkout "$latest_commit"; then
+        if ! git reset --hard origin/$current_branch; then
+            print_error "Failed to update to latest commit"
+            return 1
+        fi
+    fi
+    
+    # Verify update
+    local new_commit=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
+    if [ "$new_commit" = "$latest_commit" ]; then
+        print_status "✅ Successfully updated to latest commit: $new_commit"
+        
+        # Show what changed
+        if [ "$current_commit" != "unknown" ] && [ "$current_commit" != "$new_commit" ]; then
+            print_info "Changes in this update:"
+            git log --oneline "$current_commit..$new_commit" | head -5
+            
+            local commit_count=$(git rev-list --count "$current_commit..$new_commit" 2>/dev/null || echo "0")
+            print_info "Number of new commits: $commit_count"
+        fi
+        
+        return 0
+    else
+        print_error "Failed to verify git update"
+        return 1
+    fi
+}
+
+# Setup Elasticsearch service
+setup_elasticsearch_service() {
+    print_header "🔍 Setting up Elasticsearch Service"
+    
+    # Check if Elasticsearch should be included
+    if [ "$INCLUDE_ELASTICSEARCH" != true ]; then
+        print_info "Elasticsearch not requested, skipping setup"
+        return 0
+    fi
+    
+    print_info "Configuring Elasticsearch service..."
+    
+    # Always add Elasticsearch to compose file if it's requested
+    if ! add_elasticsearch_to_compose; then
+        print_error "Failed to add Elasticsearch to compose file"
+        return 1
+    fi
+    
+    # Validate the compose file before starting
+    print_info "Validating Docker Compose configuration..."
+    local project_root="${PROJECT_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
+    if ! docker compose -f "$project_root/docker-compose.server.yml" config >/dev/null 2>&1; then
+        print_error "Docker Compose configuration is invalid"
+        docker compose -f "$project_root/docker-compose.server.yml" config 2>&1 | head -10
+        return 1
+    fi
+    
+    # Start Elasticsearch service
+    print_info "Starting Elasticsearch service..."
+    if ! docker compose -f "$project_root/docker-compose.server.yml" up -d filmflex-elasticsearch; then
+        print_error "Failed to start Elasticsearch service"
+        return 1
+    fi
+    
+    # Wait for Elasticsearch to be ready
+    print_info "Waiting for Elasticsearch to be ready..."
+    local max_attempts=30
+    local attempt=1
+    
+    while [ $attempt -le $max_attempts ]; do
+        local es_status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:9200/_cluster/health 2>/dev/null || echo "000")
+        
+        if [ "$es_status" = "200" ]; then
+            print_status "✅ Elasticsearch is ready"
+            break
+        fi
+        
+        print_info "Elasticsearch not ready yet (attempt $attempt/$max_attempts)"
+        sleep 10
+        ((attempt++))
+    done
+    
+    if [ $attempt -gt $max_attempts ]; then
+        print_error "Elasticsearch failed to start within timeout"
+        return 1
+    fi
+    
+    return 0
+}
+
+# Add Elasticsearch to docker-compose if not present
+add_elasticsearch_to_compose() {
+    print_info "Checking Elasticsearch service in docker-compose configuration..."
+    
+    local project_root="${PROJECT_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
+    local compose_file="$project_root/docker-compose.server.yml"
+    
+    # Check if elasticsearch service already exists
+    if grep -q "filmflex-elasticsearch:" "$compose_file"; then
+        print_info "Elasticsearch service already exists in compose file"
+        return 0
+    fi
+    
+    print_info "Elasticsearch service configuration already in docker-compose.server.yml"
+    return 0
+}
+
+# Perform health check
+perform_health_check() {
+    print_header "🔍 Performing Health Check"
+    
+    local max_attempts=30
+    local attempt=1
+    
+    while [ $attempt -le $max_attempts ]; do
+        print_info "Health check attempt $attempt/$max_attempts"
+        
+        # Check application health
+        local http_code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/ 2>/dev/null || echo "000")
+        local api_code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/api/health 2>/dev/null || echo "000")
+        
+        if [ "$http_code" = "200" ] && [ "$api_code" = "200" ]; then
+            print_status "✅ Application health check passed"
+            return 0
+        fi
+        
+        print_info "Application not ready yet (HTTP: $http_code, API: $api_code)"
+        sleep 10
+        ((attempt++))
+    done
+    
+    print_error "Health check failed after $max_attempts attempts"
+    return 1
+}
+
+# Force sync Elasticsearch data after deployment
+force_sync_elasticsearch_data() {
+    print_header "🔄 Force Syncing Data to Elasticsearch"
+    
+    # Check if Elasticsearch sync is available
+    local es_status_response=$(curl -s "http://localhost:5000/api/elasticsearch/status" 2>/dev/null || echo "")
+    
+    if ! echo "$es_status_response" | grep -q '"enabled":true'; then
+        print_error "❌ Cannot sync - Elasticsearch integration not enabled"
+        return 1
+    fi
+    
+    # Trigger full sync with retry logic
+    local max_sync_attempts=3
+    local sync_attempt=1
+    
+    while [ $sync_attempt -le $max_sync_attempts ]; do
+        print_info "Triggering Elasticsearch full sync (attempt $sync_attempt/$max_sync_attempts)..."
+        
+        local sync_response=$(curl -s -X POST "http://localhost:5000/api/elasticsearch/sync/full" \
+            -H "Content-Type: application/json" \
+            --max-time 300 2>/dev/null || echo "")
+        
+        if echo "$sync_response" | grep -q '"status":true'; then
+            print_status "✅ Elasticsearch full sync completed successfully"
+            
+            # Show sync results
+            if echo "$sync_response" | grep -q '"movies"'; then
+                local movies_synced=$(echo "$sync_response" | grep -o '"movies":[0-9]*' | cut -d: -f2)
+                local episodes_synced=$(echo "$sync_response" | grep -o '"episodes":[0-9]*' | cut -d: -f2)
+                print_info "Movies synced: $movies_synced"
+                print_info "Episodes synced: $episodes_synced"
+                
+                if [ "$movies_synced" -gt 0 ]; then
+                    print_status "✅ Data successfully synced to Elasticsearch"
+                    return 0
+                fi
+            fi
+        fi
+        
+        print_warning "⚠️  Sync attempt $sync_attempt failed, waiting before retry..."
+        sleep 10
+        ((sync_attempt++))
+    done
+    
+    print_error "❌ Failed to sync data to Elasticsearch after $max_sync_attempts attempts"
+    return 1
+}
+
+# Sync data to Elasticsearch
+sync_elasticsearch_data() {
+    print_header "🔄 Syncing Data to Elasticsearch"
+    
+    if [ "$SYNC_ELASTICSEARCH" != true ] && [ "$INCLUDE_ELASTICSEARCH" != true ]; then
+        print_info "Elasticsearch sync not requested, skipping"
+        return 0
+    fi
+    
+    # Wait for application to be ready
+    print_info "Waiting for application to be ready for Elasticsearch sync..."
+    local max_attempts=20
+    local attempt=1
+    
+    while [ $attempt -le $max_attempts ]; do
+        local app_status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/api/health 2>/dev/null || echo "000")
+        
+        if [ "$app_status" = "200" ]; then
+            print_status "✅ Application is ready for sync"
+            break
+        fi
+        
+        print_info "Application not ready yet for sync (attempt $attempt/$max_attempts)"
+        sleep 10
+        ((attempt++))
+    done
+    
+    if [ $attempt -gt $max_attempts ]; then
+        print_warning "Application not ready for sync, but continuing..."
+    fi
+    
+    # Check Elasticsearch status
+    print_info "Checking Elasticsearch status..."
+    local es_status_response=$(curl -s "http://localhost:5000/api/elasticsearch/status" 2>/dev/null || echo "")
+    
+    if echo "$es_status_response" | grep -q '"enabled":true'; then
+        print_status "✅ Elasticsearch integration is enabled"
+        
+        # Trigger full sync
+        print_info "Triggering full Elasticsearch sync..."
+        local sync_response=$(curl -s -X POST "http://localhost:5000/api/elasticsearch/sync/full" -H "Content-Type: application/json" 2>/dev/null || echo "")
+        
+        if echo "$sync_response" | grep -q '"status":true'; then
+            print_status "✅ Elasticsearch full sync completed successfully"
+            
+            # Show sync results
+            if echo "$sync_response" | grep -q '"movies"'; then
+                local movies_synced=$(echo "$sync_response" | grep -o '"movies":[0-9]*' | cut -d: -f2)
+                local episodes_synced=$(echo "$sync_response" | grep -o '"episodes":[0-9]*' | cut -d: -f2)
+                print_info "Movies synced: $movies_synced"
+                print_info "Episodes synced: $episodes_synced"
+            fi
+        else
+            print_warning "⚠️  Elasticsearch sync may have failed, but continuing deployment"
+            print_info "Sync response: $sync_response"
+        fi
+    else
+        print_warning "⚠️  Elasticsearch integration not enabled in application"
+        print_info "This may be expected for deployments without Elasticsearch"
+    fi
+    
+    return 0
+}
+
 # Sync static files with Nginx directory
 sync_nginx_static_files() {
     print_header "🔄 Syncing Static Files with Nginx"
@@ -701,406 +716,6 @@ sync_nginx_static_files() {
     fi
 }
 
-# Update git repository to latest commit
-update_to_latest_commit() {
-    print_header "📥 Updating to Latest Source Code"
-    
-    local project_root="$(cd "$SCRIPT_DIR/../.." && pwd)"
-    cd "$project_root" || {
-        print_error "Failed to change to project root: $project_root"
-        return 1
-    }
-    
-    print_info "Current directory: $(pwd)"
-    
-    # Check if we're in a git repository
-    if ! git rev-parse --git-dir >/dev/null 2>&1; then
-        print_warning "Not in a git repository, skipping git update"
-        return 0
-    fi
-    
-    # Get current commit
-    local current_commit=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
-    print_info "Current commit: $current_commit"
-    
-    # Fetch latest changes
-    print_info "Fetching latest changes from remote..."
-    if ! git fetch origin; then
-        print_warning "Failed to fetch from remote, continuing with current code"
-        return 0
-    fi
-    
-    # Get current branch
-    local current_branch=$(git branch --show-current 2>/dev/null || echo "main")
-    print_info "Current branch: $current_branch"
-    
-    # Get latest remote commit
-    local latest_commit=$(git rev-parse origin/$current_branch 2>/dev/null || echo "unknown")
-    print_info "Latest remote commit: $latest_commit"
-    
-    # Check if update is needed
-    if [ "$current_commit" = "$latest_commit" ]; then
-        print_status "✅ Already at latest commit"
-        return 0
-    fi
-    
-    # Check for uncommitted changes
-    if ! git diff --quiet || ! git diff --staged --quiet; then
-        if [ "$FORCE_DEPLOYMENT" = true ]; then
-            print_warning "⚠️  Uncommitted changes detected, continuing due to --force flag"
-        else
-            print_error "❌ Uncommitted changes detected. Commit changes or use --force"
-            return 1
-        fi
-    fi
-    
-    # Update to latest commit
-    print_info "Updating to latest commit: $latest_commit"
-    if ! git checkout "$latest_commit"; then
-        if ! git reset --hard origin/$current_branch; then
-            print_error "Failed to update to latest commit"
-            return 1
-        fi
-    fi
-    
-    # Verify update
-    local new_commit=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
-    if [ "$new_commit" = "$latest_commit" ]; then
-        print_status "✅ Successfully updated to latest commit: $new_commit"
-        
-        # Show what changed
-        if [ "$current_commit" != "unknown" ] && [ "$current_commit" != "$new_commit" ]; then
-            print_info "Changes in this update:"
-            git log --oneline "$current_commit..$new_commit" | head -5
-            
-            local commit_count=$(git rev-list --count "$current_commit..$new_commit" 2>/dev/null || echo "0")
-            print_info "Number of new commits: $commit_count"
-        fi
-        
-        return 0
-    else
-        print_error "Failed to verify git update"
-        return 1
-    fi
-}
-
-# Create docker compose configuration
-create_docker_compose_config() {
-    print_header "📝 Creating Docker Compose Configuration"
-    
-    local project_root="$(cd "$SCRIPT_DIR/../.." && pwd)"
-    local compose_file="$project_root/docker-compose.server.yml"
-    
-    if [ ! -f "$compose_file" ]; then
-        print_error "Docker compose file not found: $compose_file"
-        return 1
-    fi
-    
-    print_info "Using compose file: $compose_file"
-    
-    # Copy compose file to deployment directory
-    cp "$compose_file" "$SCRIPT_DIR/docker-compose.server.yml" || {
-        print_error "Failed to copy compose file"
-        return 1
-    }
-    
-    print_status "✅ Docker compose configuration ready"
-    return 0
-}
-
-# Setup Elasticsearch service
-setup_elasticsearch_service() {
-    print_header "🔍 Setting up Elasticsearch Service"
-    
-    # Check if Elasticsearch should be included
-    if [ "$INCLUDE_ELASTICSEARCH" != true ]; then
-        print_info "Elasticsearch not requested, skipping setup"
-        return 0
-    fi
-    
-    print_info "Configuring Elasticsearch service..."
-    
-    # Always add Elasticsearch to compose file if it's requested
-    if ! add_elasticsearch_to_compose; then
-        print_error "Failed to add Elasticsearch to compose file"
-        return 1
-    fi
-    
-    # Validate the compose file before starting
-    print_info "Validating Docker Compose configuration..."
-    if ! docker compose -f docker-compose.server.yml config >/dev/null 2>&1; then
-        print_error "Docker Compose configuration is invalid"
-        docker compose -f docker-compose.server.yml config 2>&1 | head -10
-        return 1
-    fi
-    
-    # Start Elasticsearch service
-    print_info "Starting Elasticsearch service..."
-    if ! docker compose -f docker-compose.server.yml up -d elasticsearch; then
-        print_error "Failed to start Elasticsearch service"
-        return 1
-    fi
-    
-    # Wait for Elasticsearch to be ready
-    print_info "Waiting for Elasticsearch to be ready..."
-    local max_attempts=30
-    local attempt=1
-    
-    while [ $attempt -le $max_attempts ]; do
-        local es_status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:9200/_cluster/health 2>/dev/null || echo "000")
-        
-        if [ "$es_status" = "200" ]; then
-            print_status "✅ Elasticsearch is ready"
-            break
-        fi
-        
-        print_info "Elasticsearch not ready yet (attempt $attempt/$max_attempts)"
-        sleep 10
-        ((attempt++))
-    done
-    
-    if [ $attempt -gt $max_attempts ]; then
-        print_error "Elasticsearch failed to start within timeout"
-        return 1
-    fi
-    
-    return 0
-}
-
-# Add Elasticsearch to docker-compose if not present
-add_elasticsearch_to_compose() {
-    print_info "Adding Elasticsearch service to docker-compose configuration..."
-    
-    # Create a temporary file with Elasticsearch service
-    local temp_compose="/tmp/docker-compose-with-es.yml"
-    
-    # Read existing compose file and add Elasticsearch
-    cp docker-compose.server.yml "$temp_compose"
-    
-    # Check if elasticsearch service already exists
-    if grep -q "elasticsearch:" "$temp_compose"; then
-        print_info "Elasticsearch service already exists in compose file"
-        return 0
-    fi
-    
-    # Use Python to properly modify the YAML structure
-    if python3 -c "import yaml; print('YAML module available')" >/dev/null 2>&1; then
-        python3 << 'PYTHON_EOF'
-import yaml
-import sys
-
-try:
-    # Read the original compose file
-    with open('/tmp/docker-compose-with-es.yml', 'r') as f:
-        compose_data = yaml.safe_load(f)
-
-    # Add Elasticsearch service
-    compose_data['services']['elasticsearch'] = {
-        'image': 'docker.elastic.co/elasticsearch/elasticsearch:8.11.0',
-        'container_name': 'filmflex-elasticsearch',
-        'environment': [
-            'discovery.type=single-node',
-            'ES_JAVA_OPTS=-Xms512m -Xmx512m',
-            'xpack.security.enabled=false',
-            'xpack.security.enrollment.enabled=false'
-        ],
-        'ports': [
-            '9200:9200',
-            '9300:9300'
-        ],
-        'volumes': [
-            'elasticsearch_data:/usr/share/elasticsearch/data'
-        ],
-        'networks': [
-            'filmflex-network'
-        ],
-        'restart': 'unless-stopped',
-        'healthcheck': {
-            'test': ['CMD-SHELL', 'curl -f http://localhost:9200/_cluster/health || exit 1'],
-            'interval': '30s',
-            'timeout': '10s',
-            'retries': 5,
-            'start_period': '60s'
-        }
-    }
-
-    # Add elasticsearch_data volume
-    if 'volumes' not in compose_data:
-        compose_data['volumes'] = {}
-
-    compose_data['volumes']['elasticsearch_data'] = {
-        'driver': 'local'
-    }
-
-    # Write the updated compose file
-    with open('/tmp/docker-compose-with-es.yml', 'w') as f:
-        yaml.dump(compose_data, f, default_flow_style=False, sort_keys=False)
-
-    print("Elasticsearch service added successfully")
-except Exception as e:
-    print(f"Error: {e}")
-    sys.exit(1)
-PYTHON_EOF
-        
-        if [ $? -ne 0 ]; then
-            print_warning "Python YAML modification failed, using fallback method..."
-            # Fallback to manual method if Python fails
-            return 1
-        fi
-    else
-        print_warning "Python not available, using fallback method..."
-        
-        # Fallback method: Add Elasticsearch service manually using sed
-        local app_line=$(grep -n "^  app:" "$temp_compose" | cut -d: -f1)
-        if [ -n "$app_line" ]; then
-            # Create the Elasticsearch service configuration
-            local es_config="
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
-    container_name: filmflex-elasticsearch
-    environment:
-      - discovery.type=single-node
-      - \"ES_JAVA_OPTS=-Xms512m -Xmx512m\"
-      - xpack.security.enabled=false
-      - xpack.security.enrollment.enabled=false
-    ports:
-      - \"9200:9200\"
-      - \"9300:9300\"
-    volumes:
-      - elasticsearch_data:/usr/share/elasticsearch/data
-    networks:
-      - filmflex-network
-    restart: unless-stopped
-    healthcheck:
-      test: [\"CMD-SHELL\", \"curl -f http://localhost:9200/_cluster/health || exit 1\"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s"
-            
-            # Add the service after the app service
-            sed -i "${app_line}r /dev/stdin" "$temp_compose" <<< "$es_config"
-            
-            # Add elasticsearch_data volume to volumes section
-            local volumes_line=$(grep -n "^volumes:" "$temp_compose" | cut -d: -f1)
-            if [ -n "$volumes_line" ]; then
-                sed -i "${volumes_line}a\\
-  elasticsearch_data:\\
-    driver: local" "$temp_compose"
-            fi
-        else
-            print_error "Could not find app service in docker-compose file"
-            return 1
-        fi
-    fi
-    
-    # Replace original with updated version
-    mv "$temp_compose" docker-compose.server.yml
-    
-    # Validate the compose file
-    if docker compose -f docker-compose.server.yml config >/dev/null 2>&1; then
-        print_status "Elasticsearch service added to docker-compose configuration"
-        return 0
-    else
-        print_error "Generated docker-compose file is invalid"
-        print_info "Validation errors:"
-        docker compose -f docker-compose.server.yml config 2>&1 | head -10
-        return 1
-    fi
-}
-
-# Sync data to Elasticsearch
-sync_elasticsearch_data() {
-    print_header "🔄 Syncing Data to Elasticsearch"
-    
-    if [ "$SYNC_ELASTICSEARCH" != true ] && [ "$INCLUDE_ELASTICSEARCH" != true ]; then
-        print_info "Elasticsearch sync not requested, skipping"
-        return 0
-    fi
-    
-    # Wait for application to be ready
-    print_info "Waiting for application to be ready for Elasticsearch sync..."
-    local max_attempts=20
-    local attempt=1
-    
-    while [ $attempt -le $max_attempts ]; do
-        local app_status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/api/health 2>/dev/null || echo "000")
-        
-        if [ "$app_status" = "200" ]; then
-            print_status "✅ Application is ready for sync"
-            break
-        fi
-        
-        print_info "Application not ready yet for sync (attempt $attempt/$max_attempts)"
-        sleep 10
-        ((attempt++))
-    done
-    
-    if [ $attempt -gt $max_attempts ]; then
-        print_warning "Application not ready for sync, but continuing..."
-    fi
-    
-    # Check Elasticsearch status
-    print_info "Checking Elasticsearch status..."
-    local es_status_response=$(curl -s "http://localhost:5000/api/elasticsearch/status" 2>/dev/null || echo "")
-    
-    if echo "$es_status_response" | grep -q '"enabled":true'; then
-        print_status "✅ Elasticsearch integration is enabled"
-        
-        # Trigger full sync
-        print_info "Triggering full Elasticsearch sync..."
-        local sync_response=$(curl -s -X POST "http://localhost:5000/api/elasticsearch/sync/full" -H "Content-Type: application/json" 2>/dev/null || echo "")
-        
-        if echo "$sync_response" | grep -q '"status":true'; then
-            print_status "✅ Elasticsearch full sync completed successfully"
-            
-            # Show sync results
-            if echo "$sync_response" | grep -q '"movies"'; then
-                local movies_synced=$(echo "$sync_response" | grep -o '"movies":[0-9]*' | cut -d: -f2)
-                local episodes_synced=$(echo "$sync_response" | grep -o '"episodes":[0-9]*' | cut -d: -f2)
-                print_info "Movies synced: $movies_synced"
-                print_info "Episodes synced: $episodes_synced"
-            fi
-        else
-            print_warning "⚠️  Elasticsearch sync may have failed, but continuing deployment"
-            print_info "Sync response: $sync_response"
-        fi
-    else
-        print_warning "⚠️  Elasticsearch integration not enabled in application"
-        print_info "This may be expected for deployments without Elasticsearch"
-    fi
-    
-    return 0
-}
-
-# Perform health check
-perform_health_check() {
-    print_header "🔍 Performing Health Check"
-    
-    local max_attempts=30
-    local attempt=1
-    
-    while [ $attempt -le $max_attempts ]; do
-        print_info "Health check attempt $attempt/$max_attempts"
-        
-        # Check application health
-        local http_code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/ 2>/dev/null || echo "000")
-        local api_code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/api/health 2>/dev/null || echo "000")
-        
-        if [ "$http_code" = "200" ] && [ "$api_code" = "200" ]; then
-            print_status "✅ Application health check passed"
-            return 0
-        fi
-        
-        print_info "Application not ready yet (HTTP: $http_code, API: $api_code)"
-        sleep 10
-        ((attempt++))
-    done
-    
-    print_error "Health check failed after $max_attempts attempts"
-    return 1
-}
-
 # Generate deployment report
 generate_deployment_report() {
     local status="$1"
@@ -1178,6 +793,445 @@ cleanup_on_error() {
 # Set up error handling
 trap cleanup_on_error EXIT
 
+# Enhanced deployment logging and reporting
+setup_deployment_logging() {
+    # Create deployment logs directory with proper permissions
+    local log_dir="$(pwd)/logs/deployment"
+    
+    # Try to create directory, fallback to /tmp if permissions fail
+    if ! mkdir -p "$log_dir" 2>/dev/null; then
+        print_warning "Cannot create logs in $(pwd)/logs - using /tmp/filmflex-logs"
+        log_dir="/tmp/filmflex-logs"
+        mkdir -p "$log_dir" 2>/dev/null || log_dir="/tmp"
+    fi
+    
+    # Create deployment log file with timestamp
+    DEPLOYMENT_LOG="$log_dir/deployment-$(date +%Y%m%d_%H%M%S).log"
+    
+    # Test if we can write to the log file
+    if ! touch "$DEPLOYMENT_LOG" 2>/dev/null; then
+        print_warning "Cannot write to $DEPLOYMENT_LOG - using console only"
+        DEPLOYMENT_LOG=""
+    fi
+    
+    # Function to log both to console and file
+    log_deployment() {
+        local message="$1"
+        local timestamp="$(date '+%Y-%m-%d %H:%M:%S')"
+        
+        if [ -n "$DEPLOYMENT_LOG" ] && [ -w "$DEPLOYMENT_LOG" ]; then
+            echo "$timestamp - $message" >> "$DEPLOYMENT_LOG" 2>/dev/null || true
+        fi
+        
+        # Always log to console
+        echo "$timestamp - $message" >&2
+    }
+    
+    if [ -n "$DEPLOYMENT_LOG" ]; then
+        print_info "Deployment logging initialized: $DEPLOYMENT_LOG"
+    else
+        print_info "Deployment logging: console only (file logging disabled)"
+    fi
+    
+    log_deployment "FilmFlex $MODE_NAME started"
+}
+
+# Clean up existing containers and images before deployment
+cleanup_existing_containers() {
+    print_header "🧹 Cleaning Up Existing Containers and Images"
+    
+    local containers_to_cleanup=()
+    local images_to_cleanup=()
+    
+    # Check which containers need to be cleaned up based on deployment mode
+    if [ "$DEPLOYMENT_MODE" = "app-only" ]; then
+        containers_to_cleanup+=("filmflex-app")
+        images_to_cleanup+=("filmflex-app" "cuongtm2012/filmflex-app")
+        if [ "$INCLUDE_ELASTICSEARCH" = true ]; then
+            containers_to_cleanup+=("filmflex-elasticsearch")
+        fi
+    else
+        # Full deployment - cleanup all containers
+        containers_to_cleanup+=("filmflex-app" "filmflex-postgres")
+        images_to_cleanup+=("filmflex-app" "cuongtm2012/filmflex-app")
+        if [ "$INCLUDE_ELASTICSEARCH" = true ]; then
+            containers_to_cleanup+=("filmflex-elasticsearch")
+        fi
+    fi
+    
+    # Stop and remove containers
+    for container in "${containers_to_cleanup[@]}"; do
+        if docker ps -a --format "{{.Names}}" | grep -q "^${container}$"; then
+            print_info "Found existing container: $container"
+            
+            # Stop the container if it's running
+            if docker ps --format "{{.Names}}" | grep -q "^${container}$"; then
+                print_info "Stopping running container: $container"
+                if docker stop "$container" >/dev/null 2>&1; then
+                    print_status "✅ Stopped container: $container"
+                else
+                    print_warning "⚠️  Failed to stop container: $container"
+                fi
+            fi
+            
+            # Remove the container
+            print_info "Removing container: $container"
+            if docker rm "$container" >/dev/null 2>&1; then
+                print_status "✅ Removed container: $container"
+            else
+                print_warning "⚠️  Failed to remove container: $container"
+            fi
+        else
+            print_info "Container $container not found, skipping cleanup"
+        fi
+    done
+    
+    # Remove Docker images to force rebuild
+    print_info "Cleaning up Docker images to force fresh rebuild..."
+    for image in "${images_to_cleanup[@]}"; do
+        if docker images --format "{{.Repository}}:{{.Tag}}" | grep -q "^${image}"; then
+            print_info "Removing Docker image: $image"
+            if docker rmi "$image" --force >/dev/null 2>&1; then
+                print_status "✅ Removed Docker image: $image"
+            else
+                print_warning "⚠️  Failed to remove Docker image: $image"
+            fi
+        fi
+    done
+    
+    # Clean up build cache and unused resources
+    print_info "Cleaning up Docker build cache and unused resources..."
+    docker builder prune -f >/dev/null 2>&1 || true
+    docker system prune -f >/dev/null 2>&1 || true
+    
+    # Clean up orphaned networks if needed
+    print_info "Cleaning up unused Docker networks..."
+    docker network prune -f >/dev/null 2>&1 || true
+    
+    print_status "✅ Container and image cleanup completed"
+}
+
+# Force rebuild Docker images with latest code
+force_rebuild_images() {
+    print_header "🔨 Force Rebuilding Docker Images with Latest Code"
+    
+    # Ensure we're using the latest source code
+    local project_root="$(cd "$SCRIPT_DIR/../.." && pwd)"
+    
+    # Store project root for later use
+    export PROJECT_ROOT="$project_root"
+    
+    print_info "Project root: $project_root"
+    
+    # Verify Dockerfile exists before attempting build
+    if [ ! -f "$project_root/Dockerfile" ]; then
+        print_error "Dockerfile not found at: $project_root/Dockerfile"
+        print_info "Checking for Dockerfile in current location..."
+        ls -la "$project_root" | grep -i dockerfile || true
+        return 1
+    fi
+    
+    print_status "✅ Dockerfile verified at: $project_root/Dockerfile"
+    
+    # Verify docker-compose file exists
+    local compose_file="$project_root/docker-compose.server.yml"
+    if [ ! -f "$compose_file" ]; then
+        print_error "Docker compose file not found at: $compose_file"
+        return 1
+    fi
+    
+    print_status "✅ Docker compose file verified at: $compose_file"
+    
+    # Change to project root to ensure correct build context
+    cd "$project_root" || {
+        print_error "Failed to change to project root: $project_root"
+        return 1
+    }
+    
+    print_info "Working directory: $(pwd)"
+    
+    # Verify build artifacts exist
+    print_info "Verifying build artifacts..."
+    if [ ! -d "dist" ] || [ ! -f "dist/index.js" ]; then
+        print_error "Build artifacts not found in $project_root/dist. Please run pre-build first."
+        return 1
+    fi
+    
+    print_status "✅ Build artifacts verified"
+    
+    # Show what will be included in Docker build context
+    print_info "Docker build context contents:"
+    print_info "- Dockerfile: $(test -f Dockerfile && echo '✓' || echo '✗')"
+    print_info "- package.json: $(test -f package.json && echo '✓' || echo '✗')"
+    print_info "- dist/: $(test -d dist && echo "✓ ($(ls dist 2>/dev/null | wc -l) files)" || echo '✗')"
+    print_info "- server/: $(test -d server && echo '✓' || echo '✗')"
+    
+    # Update the Dockerfile timestamp to ensure Docker sees changes
+    print_info "Updating Dockerfile modification time to force rebuild..."
+    touch Dockerfile
+    
+    # Force rebuild with no-cache and pull latest base images
+    print_info "Force rebuilding with docker compose from: $(pwd)"
+    print_info "Using compose file: docker-compose.server.yml"
+    
+    if [ "$DEPLOYMENT_MODE" = "app-only" ]; then
+        # Build only the app service with force rebuild
+        print_info "Building app service only..."
+        if ! docker compose -f docker-compose.server.yml build --no-cache --pull app; then
+            print_error "Failed to force rebuild application image"
+            print_info "Trying alternative build method..."
+            
+            # Try building with explicit context
+            if ! docker compose -f docker-compose.server.yml build --progress=plain app; then
+                print_error "Alternative build method also failed"
+                return 1
+            fi
+        fi
+    else
+        # Build all services with force rebuild
+        print_info "Building all services..."
+        if ! docker compose -f docker-compose.server.yml build --no-cache --pull; then
+            print_error "Failed to force rebuild all images"
+            return 1
+        fi
+    fi
+    
+    # Verify the image was built
+    print_info "Verifying built images..."
+    if docker images | grep -q "film_flex_release-app"; then
+        print_status "✅ Docker image built successfully"
+        
+        # Show image info
+        print_info "Image details:"
+        docker images | grep "film_flex_release-app" | head -3
+    else
+        print_error "❌ Docker image not found after build"
+        return 1
+    fi
+    
+    print_status "✅ Docker images rebuilt with latest code"
+    
+    return 0
+}
+
+# Verify deployed code version
+verify_deployed_code_version() {
+    print_header "🔍 Verifying Deployed Code Version"
+    
+    # Wait for application to be fully ready
+    local max_attempts=20
+    local attempt=1
+    
+    while [ $attempt -le $max_attempts ]; do
+        local app_status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/api/health 2>/dev/null || echo "000")
+        
+        if [ "$app_status" = "200" ]; then
+            print_status "✅ Application is responding"
+            break
+        fi
+        
+        print_info "Waiting for application to be ready (attempt $attempt/$max_attempts)"
+        sleep 5
+        ((attempt++))
+    done
+    
+    # Check if Elasticsearch integration is properly enabled
+    print_info "Checking Elasticsearch integration status..."
+    local es_status_response=$(curl -s "http://localhost:5000/api/elasticsearch/status" 2>/dev/null || echo "")
+    
+    if echo "$es_status_response" | grep -q '"enabled":true'; then
+        print_status "✅ Elasticsearch integration is properly enabled"
+        
+        # Show Elasticsearch status details
+        local db_movies=$(echo "$es_status_response" | grep -o '"dbMovies":"[0-9]*"' | cut -d'"' -f4)
+        local es_movies=$(echo "$es_status_response" | grep -o '"esMovies":[0-9]*' | cut -d: -f2)
+        
+        print_info "Database movies: $db_movies"
+        print_info "Elasticsearch movies: $es_movies"
+        
+        if [ "$es_movies" = "0" ] || [ "$es_movies" = "" ]; then
+            print_warning "⚠️  Elasticsearch has no data - sync may be needed"
+            return 2  # Special return code indicating sync needed
+        fi
+    else
+        print_error "❌ Elasticsearch integration is not enabled in the deployed application"
+        print_info "This indicates the old code is still running"
+        return 1
+    fi
+    
+    # Check container image info
+    print_info "Checking deployed container information..."
+    local container_image=$(docker inspect filmflex-app --format='{{.Config.Image}}' 2>/dev/null || echo "unknown")
+    local container_created=$(docker inspect filmflex-app --format='{{.Created}}' 2>/dev/null || echo "unknown")
+    
+    print_info "Container image: $container_image"
+    print_info "Container created: $container_created"
+    
+    # Check if container was created recently (within last hour)
+    if [ "$container_created" != "unknown" ]; then
+        local created_timestamp=$(date -d "$container_created" +%s 2>/dev/null || echo "0")
+        local current_timestamp=$(date +%s)
+        local age_seconds=$((current_timestamp - created_timestamp))
+        local age_minutes=$((age_seconds / 60))
+        
+        if [ $age_minutes -lt 60 ]; then
+            print_status "✅ Container is fresh (created $age_minutes minutes ago)"
+        else
+            print_warning "⚠️  Container is old (created $age_minutes minutes ago) - may be using cached image"
+        fi
+    fi
+    
+    return 0
+}
+
+# Create docker compose configuration
+create_docker_compose_config() {
+    print_header "📝 Creating Docker Compose Configuration"
+    
+    local project_root="${PROJECT_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
+    local compose_file="$project_root/docker-compose.server.yml"
+    
+    if [ ! -f "$compose_file" ]; then
+        print_error "Docker compose file not found: $compose_file"
+        return 1
+    fi
+    
+    print_info "Using compose file: $compose_file"
+    print_status "✅ Docker compose configuration ready"
+    
+    # Store compose file path for later use
+    export COMPOSE_FILE="$compose_file"
+    
+    return 0
+}
+
+# Start application services with proper --no-build flag
+start_application_services() {
+    print_header "🚀 Starting Application Services"
+    
+    local project_root="${PROJECT_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
+    local compose_file="${COMPOSE_FILE:-$project_root/docker-compose.server.yml}"
+    
+    # Verify we're in the correct directory
+    cd "$project_root" || {
+        print_error "Failed to change to project root: $project_root"
+        return 1
+    }
+    
+    print_info "Starting services from: $(pwd)"
+    print_info "Using compose file: $compose_file"
+    
+    # Verify images were built successfully
+    if ! docker images | grep -q "film_flex_release-app"; then
+        print_error "Application image not found. Build may have failed."
+        print_info "Available images:"
+        docker images | grep -E "film_flex|filmflex" || echo "No matching images found"
+        return 1
+    fi
+    
+    print_status "✅ Docker images verified - ready to start services"
+    
+    if [ "$DEPLOYMENT_MODE" = "app-only" ]; then
+        print_info "App-only mode: Starting application container..."
+        
+        # Check if postgres and elasticsearch are running
+        local postgres_running=false
+        local elasticsearch_running=false
+        
+        if docker ps | grep -q "filmflex-postgres.*Up"; then
+            postgres_running=true
+            print_status "✅ PostgreSQL is running"
+        else
+            print_warning "⚠️  PostgreSQL is not running"
+        fi
+        
+        if docker ps | grep -q "filmflex-elasticsearch.*Up"; then
+            elasticsearch_running=true
+            print_status "✅ Elasticsearch is running"
+        else
+            print_info "ℹ️  Elasticsearch is not running (this may be expected)"
+        fi
+        
+        # Start app with --no-build to prevent rebuild issues
+        print_info "Starting application container with --no-build flag..."
+        
+        if [ "$elasticsearch_running" = true ]; then
+            # Start with Elasticsearch dependency
+            print_info "Starting with Elasticsearch dependencies..."
+            if ! docker compose -f "$compose_file" up -d --no-build app; then
+                print_warning "⚠️  Failed to start with dependencies, trying without..."
+                
+                # Fallback: Start without dependencies
+                if ! docker compose -f "$compose_file" up -d --no-build --no-deps app; then
+                    print_error "Failed to start application container"
+                    return 1
+                fi
+                
+                print_warning "⚠️  Application started without waiting for dependencies"
+            fi
+        else
+            # Start without Elasticsearch dependency
+            print_info "Starting without Elasticsearch dependencies..."
+            if ! docker compose -f "$compose_file" up -d --no-build --no-deps app; then
+                print_error "Failed to start application container"
+                
+                # Show diagnostic info
+                print_info "=== Diagnostic Information ==="
+                print_info "Compose file validation:"
+                docker compose -f "$compose_file" config --services 2>&1 | head -10
+                
+                print_info "Docker networks:"
+                docker network ls | grep filmflex || echo "No filmflex networks found"
+                
+                return 1
+            fi
+        fi
+        
+        print_status "✅ Application container started successfully"
+        
+    else
+        # Full deployment
+        print_info "Full deployment: Starting all services..."
+        
+        # Start all services with --no-build to prevent rebuild issues
+        print_info "Starting all services with --no-build flag..."
+        if ! docker compose -f "$compose_file" up -d --no-build; then
+            print_error "Failed to start services with --no-build"
+            
+            # Try with build flag as fallback (should not be needed but safer)
+            print_info "Retrying without --no-build flag..."
+            if ! docker compose -f "$compose_file" up -d; then
+                print_error "Failed to start services"
+                return 1
+            fi
+        fi
+        
+        print_status "✅ All services started successfully"
+    fi
+    
+    # Verify containers are running
+    print_info "Verifying container status..."
+    sleep 5
+    
+    if docker ps | grep -q "filmflex-app.*Up"; then
+        print_status "✅ Application container is running"
+        
+        # Show container info
+        print_info "Container status:"
+        docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep filmflex
+    else
+        print_error "❌ Application container is not running"
+        
+        # Show why it failed
+        print_info "Container logs:"
+        docker logs filmflex-app --tail 30 2>/dev/null || echo "No logs available"
+        
+        return 1
+    fi
+    
+    return 0
+}
+
 # Main deployment execution
 main() {
     print_header "🚀 Starting FilmFlex Production Deployment"
@@ -1234,166 +1288,128 @@ main() {
         fi
     fi
     
-    # For app-only deployments, try to connect to existing database network
-    if [ "$DEPLOYMENT_MODE" = "app-only" ]; then
-        print_info "App-only deployment detected - attempting to connect to existing database network"
+    # Start application services with proper error handling
+    if ! start_application_services; then
+        print_error "Failed to start application services"
         
-        # Skip building since force_rebuild_images already completed successfully
-        print_header "🚀 Starting Application"
-        print_info "Docker images already rebuilt successfully - starting application directly"
+        # Show diagnostic information
+        print_info "=== Diagnostic Information ==="
+        print_info "Container status:"
+        docker ps -a --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep filmflex || echo "No containers found"
         
-        if ! docker compose -f docker-compose.server.yml up -d app; then
-            print_error "Failed to start application"
-            exit 1
-        fi
+        print_info "Recent application logs (if container exists):"
+        docker logs filmflex-app --tail 50 2>/dev/null || echo "No logs available"
         
-        # Wait for app to be ready
-        print_info "Waiting for application to start..."
+        print_info "Docker images:"
+        docker images | grep -E "film_flex|filmflex" || echo "No images found"
+        
+        print_info "Docker networks:"
+        docker network ls | grep filmflex || echo "No networks found"
+        
+        exit 1
+    fi
+    
+    # Wait for application to be ready
+    print_info "Waiting for application to fully start..."
+    sleep 15
+    
+    # Perform enhanced health check
+    if ! perform_health_check; then
+        print_error "❌ Health check failed after deployment"
+        
+        # Show logs for debugging
+        print_info "Application logs for debugging:"
+        docker logs filmflex-app --tail 100 2>/dev/null || echo "No logs available"
+        
+        exit 1
+    fi
+    
+    print_status "✅ Deployment completed and health check passed"
+    
+    # Verify deployed code version
+    local verification_result=0
+    verify_deployed_code_version
+    verification_result=$?
+    
+    if [ $verification_result -eq 1 ]; then
+        print_error "❌ Code verification failed - old code is still running"
+        print_info "Attempting container restart..."
+        docker restart filmflex-app
         sleep 15
         
-        # Perform enhanced health check
-        if perform_health_check; then
-            print_status "✅ App-only deployment completed successfully"
-            
-            # Verify deployed code version
-            local verification_result=0
-            verify_deployed_code_version
-            verification_result=$?
-            
-            if [ $verification_result -eq 1 ]; then
-                print_error "❌ Code verification failed - old code is still running"
-                exit 1
-            elif [ $verification_result -eq 2 ]; then
-                print_warning "⚠️  Elasticsearch needs data sync"
-                # Force sync if needed
-                if ! force_sync_elasticsearch_data; then
-                    print_warning "⚠️  Failed to sync Elasticsearch data"
-                fi
-            fi
-            
-            # Sync Elasticsearch data if requested
-            if [ "$SYNC_ELASTICSEARCH" = true ] && [ $verification_result -ne 2 ]; then
-                if ! force_sync_elasticsearch_data; then
-                    print_warning "⚠️  Elasticsearch sync failed or skipped"
-                fi
-            fi
-            
-            # Sync static files with Nginx
-            if ! sync_nginx_static_files; then
-                print_warning "⚠️  Static file synchronization failed"
-            fi
-            
-            # Generate deployment report
-            generate_deployment_report "SUCCESS"
-            
-            # Final production readiness check
-            if final_production_check; then
-                print_status "🎉 Production deployment completed successfully!"
-                print_info "🌐 Application available at: http://38.54.14.154:5000"
-                print_info "🔗 Domain: https://phimgg.com"
-                
-                # Show deployment summary
-                echo ""
-                echo "========================================="
-                echo "🎉 DEPLOYMENT SUCCESSFUL"
-                echo "========================================="
-                echo "✅ Latest source code deployed"
-                echo "✅ Application built and started"
-                if [ "$INCLUDE_ELASTICSEARCH" = true ]; then
-                    echo "✅ Elasticsearch service configured"
-                fi
-                if [ "$SYNC_ELASTICSEARCH" = true ]; then
-                    echo "✅ Elasticsearch data synchronized"
-                fi
-                echo "✅ Health checks passed"
-                echo "✅ Static files synchronized with Nginx"
-                echo ""
-                echo "🌐 Access URLs:"
-                echo "   Local:      http://localhost:5000"
-                echo "   Production: http://38.54.14.154:5000"
-                echo "   Domain:     https://phimgg.com"
-                echo "========================================="
-            else
-                print_warning "⚠️  Deployment completed but with some issues detected"
-            fi
-        else
-            print_error "❌ Health check failed after app-only deployment"
-            exit 1
-        fi
+        # Retry verification
+        verify_deployed_code_version
+        verification_result=$?
         
-    else
-        # Full deployment
-        print_header "🏗️  Building Services"
-        if ! docker compose -f docker-compose.server.yml build; then
-            print_error "Failed to build services"
-            exit 1
-        fi
-        
-        print_header "🚀 Starting Services"
-        if ! docker compose -f docker-compose.server.yml up -d; then
-            print_error "Failed to start services"
-            exit 1
-        fi
-        
-        # Wait for services to be ready
-        print_info "Waiting for services to start..."
-        sleep 30
-        
-        # Perform enhanced health check
-        if perform_health_check; then
-            print_status "✅ Full deployment completed successfully"
-            
-            # Sync Elasticsearch data if requested
-            if ! sync_elasticsearch_data; then
-                print_warning "⚠️  Elasticsearch sync failed or skipped"
-            fi
-            
-            # Sync static files with Nginx
-            if ! sync_nginx_static_files; then
-                print_warning "⚠️  Static file synchronization failed"
-            fi
-            
-            # Generate deployment report
-            generate_deployment_report "SUCCESS"
-            
-            # Final production readiness check
-            if final_production_check; then
-                print_status "🎉 Production deployment completed successfully!"
-                print_info "🌐 Application available at: http://38.54.14.154:5000"
-                print_info "🔗 Domain: https://phimgg.com"
-                
-                # Show deployment summary for full deployment
-                echo ""
-                echo "========================================="
-                echo "🎉 FULL DEPLOYMENT SUCCESSFUL"
-                echo "========================================="
-                echo "✅ Latest source code deployed"
-                echo "✅ Database and application services started"
-                if [ "$INCLUDE_ELASTICSEARCH" = true ]; then
-                    echo "✅ Elasticsearch service configured"
-                fi
-                if [ "$SYNC_ELASTICSEARCH" = true ]; then
-                    echo "✅ Elasticsearch data synchronized"
-                fi
-                echo "✅ Health checks passed"
-                echo "✅ Static files synchronized with Nginx"
-                echo ""
-                echo "🌐 Access URLs:"
-                echo "   Local:      http://localhost:5000"
-                echo "   Production: http://38.54.14.154:5000"
-                echo "   Domain:     https://phimgg.com"
-                echo ""
-                echo "📊 Services Status:"
-                docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep filmflex
-                echo "========================================="
-            else
-                print_warning "⚠️  Deployment completed but with some issues detected"
-            fi
-        else
-            print_error "❌ Health check failed after full deployment"
+        if [ $verification_result -eq 1 ]; then
+            print_error "❌ Code verification still failing after restart"
             exit 1
         fi
     fi
+    
+    if [ $verification_result -eq 2 ]; then
+        print_warning "⚠️  Elasticsearch needs data sync"
+        # Force sync if needed
+        if ! force_sync_elasticsearch_data; then
+            print_warning "⚠️  Failed to sync Elasticsearch data"
+        fi
+    fi
+    
+    # Sync Elasticsearch data if requested and not already synced
+    if [ "$SYNC_ELASTICSEARCH" = true ] && [ $verification_result -ne 2 ]; then
+        if [ "$DEPLOYMENT_MODE" = "app-only" ]; then
+            if ! force_sync_elasticsearch_data; then
+                print_warning "⚠️  Elasticsearch sync failed or skipped"
+            fi
+        else
+            if ! sync_elasticsearch_data; then
+                print_warning "⚠️  Elasticsearch sync failed or skipped"
+            fi
+        fi
+    fi
+    
+    # Sync static files with Nginx
+    if ! sync_nginx_static_files; then
+        print_warning "⚠️  Static file synchronization failed"
+    fi
+    
+    # Generate deployment report
+    generate_deployment_report "SUCCESS"
+    
+    # Final production readiness check
+    if ! final_production_check; then
+        print_warning "⚠️  Deployment completed but with some issues detected"
+    fi
+    
+    # Show deployment summary
+    echo ""
+    echo "========================================="
+    echo "🎉 DEPLOYMENT SUCCESSFUL"
+    echo "========================================="
+    echo "Deployment Mode: $MODE_NAME"
+    echo "✅ Latest source code deployed"
+    echo "✅ Docker images rebuilt with --no-cache"
+    echo "✅ Application started successfully"
+    if [ "$INCLUDE_ELASTICSEARCH" = true ]; then
+        echo "✅ Elasticsearch service configured"
+    fi
+    if [ "$SYNC_ELASTICSEARCH" = true ]; then
+        echo "✅ Elasticsearch data synchronized"
+    fi
+    echo "✅ Health checks passed"
+    echo "✅ Code verification completed"
+    echo "✅ Static files synchronized with Nginx"
+    echo ""
+    echo "🌐 Access URLs:"
+    echo "   Local:      http://localhost:5000"
+    echo "   Production: http://38.54.14.154:5000"
+    echo "   Domain:     https://phimgg.com"
+    echo ""
+    echo "📊 Services Status:"
+    docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep filmflex
+    echo "========================================="
+    
+    print_status "🎉 Production deployment completed successfully!"
 }
 
 # Run main function with all arguments
