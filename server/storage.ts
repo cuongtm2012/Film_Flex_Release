@@ -454,7 +454,20 @@ export class DatabaseStorage implements IStorage {
       
       switch (sortBy) {
         case 'latest':
-          // Sort by modifiedAt (database insert time) DESC - newest first
+          // FIXED: Sort by year DESC (newest release year first), then by modifiedAt
+          const yearA = typeof a.year === 'number' && a.year > 1900 && a.year <= currentYear ? a.year : 0;
+          const yearB = typeof b.year === 'number' && b.year > 1900 && b.year <= currentYear ? b.year : 0;
+          
+          // If years are different, sort by year descending (newest first)
+          if (yearA !== yearB) {
+            // Handle movies without valid year (push them to the end)
+            if (yearA === 0 && yearB !== 0) return 1;
+            if (yearB === 0 && yearA !== 0) return -1;
+            
+            return yearB - yearA; // Newest year first
+          }
+          
+          // If years are the same, sort by modifiedAt (database insert time) descending
           return new Date(b.modifiedAt).getTime() - new Date(a.modifiedAt).getTime();
           
         case 'popular':
