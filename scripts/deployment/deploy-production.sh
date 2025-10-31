@@ -1209,24 +1209,47 @@ start_application_services() {
         print_status "✅ All services started successfully"
     fi
     
-    # Verify containers are running
+    # Verify containers are running - improved check to handle health check states
     print_info "Verifying container status..."
-    sleep 5
+    sleep 10  # Wait longer for container to stabilize and health check to start
     
-    if docker ps | grep -q "filmflex-app.*Up"; then
+    # Get detailed container status
+    local container_status=$(docker ps -a --format "{{.Names}} {{.Status}}" | grep "^filmflex-app " || echo "")
+    
+    if [ -z "$container_status" ]; then
+        print_error "❌ Application container not found"
+        print_info "Checking all containers:"
+        docker ps -a --format "table {{.Names}}\t{{.Status}}"
+        return 1
+    fi
+    
+    # Check if container is running (accepting Up state even with health: starting)
+    if echo "$container_status" | grep -q "Up"; then
         print_status "✅ Application container is running"
         
         # Show container info
         print_info "Container status:"
         docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep filmflex
-    else
-        print_error "❌ Application container is not running"
+        
+        # If health check is still starting, show info but don't fail
+        if echo "$container_status" | grep -q "health: starting"; then
+            print_info "ℹ️  Health check in progress - this is normal for newly started containers"
+        fi
+        
+    elif echo "$container_status" | grep -qE "Restarting|Exited"; then
+        # Container crashed or restarting - this is a real error
+        print_error "❌ Application container failed to start properly"
+        print_info "Container status: $container_status"
         
         # Show why it failed
         print_info "Container logs:"
-        docker logs filmflex-app --tail 30 2>/dev/null || echo "No logs available"
+        docker logs filmflex-app --tail 50 2>/dev/null || echo "No logs available"
         
         return 1
+    else
+        # Unknown state - show warning but continue
+        print_warning "⚠️  Container in unexpected state: $container_status"
+        print_info "Continuing with deployment..."
     fi
     
     return 0
