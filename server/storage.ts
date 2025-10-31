@@ -454,16 +454,7 @@ export class DatabaseStorage implements IStorage {
       
       switch (sortBy) {
         case 'latest':
-          // Sort by year first, then by modifiedAt
-          const yearA = typeof a.year === 'number' && a.year > 1900 && a.year <= currentYear ? a.year : 0;
-          const yearB = typeof b.year === 'number' && b.year > 1900 && b.year <= currentYear ? b.year : 0;
-          
-          if (yearA !== yearB) {
-            if (yearA === 0 && yearB !== 0) return 1;
-            if (yearB === 0 && yearA !== 0) return -1;
-            return yearB - yearA;
-          }
-          
+          // Sort by modifiedAt (database insert time) DESC - newest first
           return new Date(b.modifiedAt).getTime() - new Date(a.modifiedAt).getTime();
           
         case 'popular':

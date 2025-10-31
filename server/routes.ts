@@ -408,7 +408,28 @@ export function registerRoutes(app: Express): void {
       // Get query parameters
       const page = parseInt(req.query.page as string) || 1;
       const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
-      const sortBy = req.query.sortBy as string; // Add sortBy parameter
+      
+      // Validate sortBy parameter - only allow specific values
+      const sortByParam = req.query.sortBy as string;
+      const validSortOptions = ['latest', 'popular', 'rating', 'year'];
+      const sortBy = sortByParam && validSortOptions.includes(sortByParam) 
+        ? sortByParam 
+        : 'latest'; // Default to 'latest'
+
+      // Validate page and limit are positive integers
+      if (page < 1) {
+        return res.status(400).json({ 
+          status: false, 
+          message: "Page number must be greater than 0" 
+        });
+      }
+
+      if (limit < 1) {
+        return res.status(400).json({ 
+          status: false, 
+          message: "Limit must be greater than 0" 
+        });
+      }
 
       // Build filters object
       const filters: any = {};
@@ -430,7 +451,11 @@ export function registerRoutes(app: Express): void {
         }
       });
     } catch (error) {
-      res.status(500).json({ status: false, message: "Unable to fetch movies at this time" });
+      console.error('[API ERROR] Failed to fetch movies:', error);
+      res.status(500).json({ 
+        status: false, 
+        message: "Unable to fetch movies at this time" 
+      });
     }
   });
   
