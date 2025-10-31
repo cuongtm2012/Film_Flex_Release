@@ -290,93 +290,7 @@ async function processAndSaveMovies(items, pool) {
         continue;
       }
 
-      // Check if movie already exists in database
-      if (!TEST_MODE) {
-        const existingMovie = await pool.query('SELECT slug FROM movies WHERE slug = $1', [item.slug]);
-        
-        if (existingMovie.rows.length > 0 && !FORCE_IMPORT) {
-          // Update existing movie if needed
-          const movieDetail = await fetchMovieDetail(item.slug);
-          
-          if (movieDetail && movieDetail.movie) {
-            const movie = convertToMovieModel(movieDetail);
-            
-            // Update movie record
-            try {
-              const updateColumns = Object.keys(movie).map((key, index) => `${key} = $${index + 1}`).join(', ');
-              const updateValues = Object.values(movie);
-              
-              const updateQuery = {
-                text: `UPDATE movies SET ${updateColumns} WHERE slug = $${updateValues.length + 1}`,
-                values: [...updateValues, item.slug]
-              };
-              
-              await pool.query(updateQuery);
-              console.log(`${logPrefix} Updated existing movie '${movieDetail.movie.name || item.slug}'`);
-              
-              // Update episodes if needed
-              if (movieDetail.episodes && Array.isArray(movieDetail.episodes)) {
-                try {
-                  // Delete existing episodes
-                  const deleteEpisodesQuery = {
-                    text: 'DELETE FROM episodes WHERE movie_slug = $1',
-                    values: [item.slug]
-                  };
-                  
-                  await pool.query(deleteEpisodesQuery);
-                  console.log(`${logPrefix} Deleted existing episodes for movie '${item.slug}'`);
-                } catch (deleteError) {
-                  console.error(`${logPrefix} Error deleting existing episodes for movie ${item.slug}:`, deleteError.message);
-                  errors.push({ slug: item.slug, error: deleteError.message });
-                }
-                
-                // Convert and save episodes
-                const { episodes } = convertToEpisodeModels(movieDetail, null);
-                let episodesCount = 0;
-                
-                for (const episode of episodes) {
-                  try {
-                    // Create columns and values for episode insert
-                    const episodeColumns = Object.keys(episode).join(', ');
-                    const episodePlaceholders = Object.keys(episode).map((_, index) => `$${index + 1}`).join(', ');
-                    const episodeValues = Object.values(episode);
-                    
-                    const insertEpisodeQuery = {
-                      text: `INSERT INTO episodes (${episodeColumns}) 
-                             VALUES (${episodePlaceholders})
-                             ON CONFLICT (slug) DO UPDATE SET
-                             name = EXCLUDED.name,
-                             link_embed = EXCLUDED.link_embed,
-                             link_m3u8 = EXCLUDED.link_m3u8,
-                             filename = EXCLUDED.filename`,
-                      values: episodeValues
-                    };
-                    
-                    await pool.query(insertEpisodeQuery);
-                    episodesCount++;
-                  } catch (episodeError) {
-                    console.error(`${logPrefix} Error saving episode for movie ${item.slug}:`, episodeError.message);
-                    errors.push({ slug: item.slug, error: episodeError.message });
-                  }
-                }
-                
-                console.log(`${logPrefix} Saved ${episodesCount} episodes for movie '${movieDetail.movie.name || item.slug}'`);
-              }
-            } catch (updateError) {
-              console.error(`${logPrefix} Error updating movie ${item.slug}:`, updateError.message);
-              errors.push({ slug: item.slug, error: updateError.message });
-              failedCount++;
-              continue;
-            }
-          }
-          
-          skippedCount++;
-          processedSlugs.add(item.slug);
-          continue;
-        }
-      }
-      
-      // Fetch and save new movie
+      // Fetch movie details first
       const movieDetail = await fetchMovieDetail(item.slug);
       
       if (!movieDetail || !movieDetail.movie) {
@@ -385,19 +299,111 @@ async function processAndSaveMovies(items, pool) {
         failedCount++;
         continue;
       }
+
+      // Check if movie already exists in database
+      if (!TEST_MODE) {
+        // Check by both movie_id and slug to prevent duplicate key violations
+        const existingMovie = await pool.query(
+          'SELECT slug, movie_id FROM movies WHERE slug = $1 OR movie_id = $2', 
+          [item.slug, movieDetail.movie._id]
+        );
+        
+        if (existingMovie.rows.length > 0 && !FORCE_IMPORT) {
+          // Movie exists - update it
+          const movie = convertToMovieModel(movieDetail);
+          
+          // Update movie record
+          try {
+            const updateColumns = Object.keys(movie).map((key, index) => `${key} = $${index + 1}`).join(', ');
+            const updateValues = Object.values(movie);
+            
+            const updateQuery = {
+              text: `UPDATE movies SET ${updateColumns} WHERE slug = $${updateValues.length + 1} OR movie_id = $${updateValues.length + 2}`,
+              values: [...updateValues, item.slug, movieDetail.movie._id]
+            };
+            
+            await pool.query(updateQuery);
+            console.log(`${logPrefix} Updated existing movie '${movieDetail.movie.name || item.slug}'`);
+            
+            // Update episodes if needed
+            if (movieDetail.episodes && Array.isArray(movieDetail.episodes)) {
+              try {
+                // Delete existing episodes
+                const deleteEpisodesQuery = {
+                  text: 'DELETE FROM episodes WHERE movie_slug = $1',
+                  values: [item.slug]
+                };
+                
+                await pool.query(deleteEpisodesQuery);
+                console.log(`${logPrefix} Deleted existing episodes for movie '${item.slug}'`);
+              } catch (deleteError) {
+                console.error(`${logPrefix} Error deleting existing episodes for movie ${item.slug}:`, deleteError.message);
+                errors.push({ slug: item.slug, error: deleteError.message });
+              }
+              
+              // Convert and save episodes
+              const { episodes } = convertToEpisodeModels(movieDetail, null);
+              let episodesCount = 0;
+              
+              for (const episode of episodes) {
+                try {
+                  // Create columns and values for episode insert
+                  const episodeColumns = Object.keys(episode).join(', ');
+                  const episodePlaceholders = Object.keys(episode).map((_, index) => `$${index + 1}`).join(', ');
+                  const episodeValues = Object.values(episode);
+                  
+                  const insertEpisodeQuery = {
+                    text: `INSERT INTO episodes (${episodeColumns}) 
+                           VALUES (${episodePlaceholders})
+                           ON CONFLICT (slug) DO UPDATE SET
+                           name = EXCLUDED.name,
+                           link_embed = EXCLUDED.link_embed,
+                           link_m3u8 = EXCLUDED.link_m3u8,
+                           filename = EXCLUDED.filename`,
+                    values: episodeValues
+                  };
+                  
+                  await pool.query(insertEpisodeQuery);
+                  episodesCount++;
+                } catch (episodeError) {
+                  console.error(`${logPrefix} Error saving episode for movie ${item.slug}:`, episodeError.message);
+                  errors.push({ slug: item.slug, error: episodeError.message });
+                }
+              }
+              
+              console.log(`${logPrefix} Saved ${episodesCount} episodes for movie '${movieDetail.movie.name || item.slug}'`);
+            }
+          } catch (updateError) {
+            console.error(`${logPrefix} Error updating movie ${item.slug}:`, updateError.message);
+            errors.push({ slug: item.slug, error: updateError.message });
+            failedCount++;
+            continue;
+          }
+          
+          skippedCount++;
+          processedSlugs.add(item.slug);
+          continue;
+        }
+      }
       
+      // Insert new movie
       if (!TEST_MODE) {
         // Convert to model and save
         const movie = convertToMovieModel(movieDetail);
         
         try {
-          // Create SQL insert query for movie
+          // Create SQL insert query with ON CONFLICT to handle duplicates gracefully
           const columns = Object.keys(movie).join(', ');
           const placeholders = Object.keys(movie).map((_, index) => `$${index + 1}`).join(', ');
           const values = Object.values(movie);
+          const updateSet = Object.keys(movie)
+            .filter(key => key !== 'movie_id' && key !== 'slug') // Don't update primary keys
+            .map(key => `${key} = EXCLUDED.${key}`)
+            .join(', ');
           
           const insertQuery = {
-            text: `INSERT INTO movies (${columns}) VALUES (${placeholders})`,
+            text: `INSERT INTO movies (${columns}) VALUES (${placeholders})
+                   ON CONFLICT (movie_id) DO UPDATE SET ${updateSet}`,
             values: values
           };
           
