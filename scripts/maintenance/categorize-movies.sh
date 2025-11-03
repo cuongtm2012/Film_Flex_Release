@@ -295,9 +295,7 @@ categorize_popular_tv() {
             m.section
         FROM movies m
         WHERE (
-            m.type IN ('series', 'tvshows', 'tv_series') OR
-            m.episode_total IS NOT NULL OR
-            m.episode_current IS NOT NULL
+            m.type IN ('series', 'tvshows', 'tv_series')
         )
         AND m.type != 'hoathinh'
         AND (m.section IS NULL OR m.section NOT IN ('trending_now', 'latest_movies', 'top_rated'))
