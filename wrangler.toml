@@ -19,5 +19,7 @@ CLIENT_URL = "https://phimgg.com"
 # Routes configuration
 routes = [
   { pattern = "phimgg.com/api/auth/*", zone_name = "phimgg.com" },
-  { pattern = "phimgg.com/api/email/*", zone_name = "phimgg.com" }
+  { pattern = "www.phimgg.com/api/auth/*", zone_name = "phimgg.com" },
+  { pattern = "phimgg.com/api/email/*", zone_name = "phimgg.com" },
+  { pattern = "www.phimgg.com/api/email/*", zone_name = "phimgg.com" }
 ]
