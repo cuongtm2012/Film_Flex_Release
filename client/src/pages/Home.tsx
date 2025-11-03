@@ -32,6 +32,7 @@ function TvSeriesSection({ title, movies }: { title: string; movies: MovieListRe
       return isTV;
     }).slice(0, 30); // Limit to 30 items
   }, [movies]);
+  
   const scroll = (direction: 'left' | 'right') => {
     if (!scrollContainerRef.current) return;
 
@@ -78,7 +79,12 @@ function TvSeriesSection({ title, movies }: { title: string; movies: MovieListRe
           <div className="container mx-auto px-4 overflow-hidden">
             <div 
               ref={scrollContainerRef}
-              className="flex gap-4 overflow-x-auto scrollbar-hide -mx-4 px-4"
+              className="flex gap-4 overflow-x-auto overflow-y-hidden scrollbar-hide -mx-4 px-4 scroll-smooth"
+              style={{ 
+                scrollbarWidth: 'none',
+                msOverflowStyle: 'none',
+                WebkitOverflowScrolling: 'touch'
+              }}
             >
               {tvSeries.map((movie) => (
                 <div key={movie.slug} className="flex-none w-[200px]">
@@ -111,6 +117,7 @@ function AnimeSection({ title, movies }: { title: string; movies: MovieListRespo
       return true;
     }).slice(0, 30); // Limit to 30 items
   }, [movies]);
+  
   const scroll = (direction: 'left' | 'right') => {
     if (!scrollContainerRef.current) return;
 
@@ -156,7 +163,12 @@ function AnimeSection({ title, movies }: { title: string; movies: MovieListRespo
             {animeContent.length > 0 ? (
               <div 
                 ref={scrollContainerRef}
-                className="flex gap-4 overflow-x-auto scrollbar-hide -mx-4 px-4"
+                className="flex gap-4 overflow-x-auto overflow-y-hidden scrollbar-hide -mx-4 px-4 scroll-smooth"
+                style={{ 
+                  scrollbarWidth: 'none',
+                  msOverflowStyle: 'none',
+                  WebkitOverflowScrolling: 'touch'
+                }}
               >
                 {animeContent.map((movie) => (
                   <div key={movie.slug} className="flex-none w-[200px]">

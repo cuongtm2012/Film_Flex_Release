@@ -1810,7 +1810,37 @@ export function registerRoutes(app: Express): void {
       });
     } catch (error) {
       res.status(500).json({ status: false, message: "Unable to fetch movies at this time" });
-    }  });
+    }
+  });
+
+  // Alias route for backwards compatibility (without 's')
+  router.get("/movies/section/:section", async (req, res) => {
+    try {
+      const { section } = req.params;
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 10;
+
+      // Validate section name using proper type check
+      if (!Object.values(Section).includes(section as any)) {
+        return res.status(400).json({ status: false, message: "Invalid section" });
+      }
+
+      const result = await storage.getMoviesBySection(section, page, limit);
+      
+      res.json({
+        status: true,
+        items: result.data,
+        pagination: {
+          totalItems: result.total,
+          totalPages: Math.ceil(result.total / limit),
+          currentPage: page,
+          totalItemsPerPage: limit
+        }
+      });
+    } catch (error) {
+      res.status(500).json({ status: false, message: "Unable to fetch movies at this time" });
+    }
+  });
 
   // Streaming proxy endpoint for better video delivery
   router.get("/stream/proxy", async (req, res) => {
