@@ -47,11 +47,12 @@ export const config: Config = {
   googleClientSecret: process.env.GOOGLE_CLIENT_SECRET,
   facebookAppId: process.env.FACEBOOK_APP_ID,
   facebookAppSecret: process.env.FACEBOOK_APP_SECRET,
-  // Cloudflare Worker settings
-  useCloudflareOAuth: process.env.USE_CLOUDFLARE_OAUTH === 'true' || nodeEnv === 'production',
+  // Cloudflare Worker settings - ONLY enable if explicitly set to 'true'
+  // Removed auto-enable in production to allow local OAuth strategies
+  useCloudflareOAuth: process.env.USE_CLOUDFLARE_OAUTH === 'true',
   cloudflareWorkerUrl: process.env.CLOUDFLARE_WORKER_URL || 'https://phimgg.com',
-  // Email service settings
-  useCloudflareEmail: process.env.USE_CLOUDFLARE_EMAIL === 'true' || nodeEnv === 'production',
+  // Email service settings - ONLY enable if explicitly set to 'true'
+  useCloudflareEmail: process.env.USE_CLOUDFLARE_EMAIL === 'true',
   sendgridApiKey: process.env.SENDGRID_API_KEY,
   fromEmail: process.env.FROM_EMAIL || 'noreply@filmflex.com',
   fromName: process.env.FROM_NAME || 'PhimGG'

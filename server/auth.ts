@@ -136,6 +136,41 @@ export function setupAuth(app: Express): void {
   app.use(passport.initialize());
   app.use(passport.session());
   
+  // ALWAYS initialize Local Strategy for username/password login
+  // This ensures admin and regular users can login with credentials
+  // regardless of Cloudflare OAuth configuration
+  passport.use(
+    new LocalStrategy(async (username: string, password: string, done) => {
+      try {
+        const user = await storage.getUserByUsername(username);        
+        if (!user) {
+          return done(null, false, { message: "We couldn't find an account with that username. Please check your username or create a new account." });
+        }
+
+        // Check if user has a password (for OAuth users)
+        if (!user.password) {
+          return done(null, false, { message: "Please sign in with Google" });
+        }
+
+        const passwordsMatch = await comparePasswords(password, user.password);
+        if (!passwordsMatch) {
+          return done(null, false, { message: "The password you entered is incorrect. Please try again or reset your password." });
+        }
+
+        // Log the activity
+        await logUserActivity(user.id, "login", null, null, null);
+
+        // Omit password before passing to done
+        const { password: _, ...userWithoutPassword } = user;
+        return done(null, userWithoutPassword);
+      } catch (error) {
+        return done(error);
+      }
+    })
+  );
+  
+  console.log('✅ Local authentication strategy initialized');
+  
   // Check if we should use Cloudflare Worker for OAuth
   if (config.useCloudflareOAuth) {
     console.log('☁️  OAuth handled by Cloudflare Worker - Local OAuth strategies disabled');
@@ -174,35 +209,7 @@ export function setupAuth(app: Express): void {
     
   } else {
     // Use local OAuth strategies (development mode)
-    passport.use(
-      new LocalStrategy(async (username: string, password: string, done) => {
-        try {
-          const user = await storage.getUserByUsername(username);        
-          if (!user) {
-            return done(null, false, { message: "We couldn't find an account with that username. Please check your username or create a new account." });
-          }
-
-          // Check if user has a password (for OAuth users)
-          if (!user.password) {
-            return done(null, false, { message: "Please sign in with Google" });
-          }
-
-          const passwordsMatch = await comparePasswords(password, user.password);
-          if (!passwordsMatch) {
-            return done(null, false, { message: "The password you entered is incorrect. Please try again or reset your password." });
-          }
-
-          // Log the activity
-          await logUserActivity(user.id, "login", null, null, null);
-
-          // Omit password before passing to done
-          const { password: _, ...userWithoutPassword } = user;
-          return done(null, userWithoutPassword);
-        } catch (error) {
-          return done(error);
-        }
-      })
-    );
+    console.log('🔑 Using local OAuth strategies');
     
     // Google OAuth Strategy
     if (config.googleClientId && config.googleClientSecret) {
