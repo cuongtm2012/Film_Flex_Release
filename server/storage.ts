@@ -647,17 +647,22 @@ export class DatabaseStorage implements IStorage {
       .from(movies)
       .where(eq(movies.section, section));
     
-    // If anime section is requested but no movies found, fall back to type-based search
+    // If anime section is requested but no movies found, fall back to type/category-based search
     if (section === 'anime' && data.length === 0) {
-      // Search for movies with type exactly 'hoathinh' (Vietnamese for animation/anime)
+      // Search for movies with:
+      // 1. type = 'hoathinh' (Vietnamese for animation/anime)
+      // 2. OR categories containing 'anime' or 'hoạt hình'
       const animeConditions = sql`(
-        ${movies.type} = 'hoathinh'
+        ${movies.type} = 'hoathinh' OR
+        ${movies.categories}::text ILIKE '%anime%' OR
+        ${movies.categories}::text ILIKE '%hoạt hình%' OR
+        ${movies.categories}::text ILIKE '%hoat hinh%'
       )`;
       
       const animeData = await db.select()
         .from(movies)
         .where(animeConditions)
-        .orderBy(desc(movies.modifiedAt))
+        .orderBy(desc(movies.year), desc(movies.modifiedAt))
         .limit(limit)
         .offset(offset);
         
