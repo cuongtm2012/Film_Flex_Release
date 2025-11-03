@@ -8,9 +8,14 @@ import { log } from "./utils.js";
 import { config } from './config.js';
 import { pool } from './db.js';
 import { setupAuth } from './auth.js';
+import { securityHeaders, corsHeaders, cacheHeaders, securityLogger } from './middleware/security.js';
 
 const app = express();
 const server = http.createServer(app);
+
+// Apply security headers FIRST - before any other middleware
+app.use(securityLogger);
+app.use(securityHeaders);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
@@ -96,19 +101,9 @@ app.use(cors({
   optionsSuccessStatus: 200 // Some legacy browsers (IE11, various SmartTVs) choke on 204
 }));
 
+// Remove duplicate cache control and security headers since they're now in middleware
 // Additional headers for video streaming support
 app.use((req, res, next) => {
-  // Cache control headers for different file types
-  if (req.path.match(/\.(js|css)$/)) {
-    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-  } else if (req.path.match(/\.(png|jpg|jpeg|gif|svg|ico|webp)$/)) {
-    res.setHeader('Cache-Control', 'public, max-age=86400');
-  } else if (req.path.match(/\.html$/)) {
-    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
-  }
-  
   // Allow all origins for media files
   if (req.path.match(/\.(m3u8|ts|mp4|webm|ogg)$/)) {
     res.header('Access-Control-Allow-Origin', '*');
@@ -117,12 +112,11 @@ app.use((req, res, next) => {
     res.header('Accept-Ranges', 'bytes');
   }
   
-  // Set headers for iframe embedding
-  res.header('X-Frame-Options', 'SAMEORIGIN');
-  res.header('X-Content-Type-Options', 'nosniff');
-  
   next();
 });
+
+// Apply cache headers middleware
+app.use(cacheHeaders);
 
 // Serve files from public directory first for direct player access
 app.use(express.static(path.join(process.cwd(), 'public')));
