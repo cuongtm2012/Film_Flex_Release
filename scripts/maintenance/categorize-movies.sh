@@ -273,20 +273,27 @@ categorize_popular_tv() {
     UPDATE movies SET section = NULL WHERE section = 'popular_tv';
     
     -- Categorize popular TV series (series type + high views + ratings)
-    WITH popular_tv_series AS (
-        SELECT DISTINCT ON (m.slug)
+    -- Only keep the latest season/part for multi-season series
+    WITH series_base_names AS (
+        -- Extract base name by removing season/part patterns
+        SELECT 
             m.id,
             m.slug,
+            m.name,
+            m.year,
+            -- Remove patterns like (Phần 1), (Season 1), (Mùa 1), etc.
+            REGEXP_REPLACE(
+                m.name, 
+                '\\s*\\((Phần|Season|Mùa|Part)\\s*[0-9]+\\)\\s*$', 
+                '', 
+                'i'
+            ) as base_name,
             COALESCE(m.view, 0) as view_count,
-            COALESCE(SUM(CASE WHEN mr.reaction_type = 'like' THEN 1 ELSE 0 END), 0) as likes,
-            COALESCE(SUM(CASE WHEN mr.reaction_type = 'dislike' THEN 1 ELSE 0 END), 0) as dislikes,
-            (
-                COALESCE(m.view, 0) * 0.5 + 
-                (COALESCE(SUM(CASE WHEN mr.reaction_type = 'like' THEN 1 ELSE 0 END), 0) - 
-                 COALESCE(SUM(CASE WHEN mr.reaction_type = 'dislike' THEN 1 ELSE 0 END), 0)) * 0.5
-            ) as popularity_score
+            m.type,
+            m.episode_total,
+            m.episode_current,
+            m.section
         FROM movies m
-        LEFT JOIN movie_reactions mr ON m.slug = mr.movie_slug
         WHERE (
             m.type IN ('series', 'tvshows', 'tv_series') OR
             m.episode_total IS NOT NULL OR
@@ -294,18 +301,51 @@ categorize_popular_tv() {
         )
         AND m.type != 'hoathinh'
         AND (m.section IS NULL OR m.section NOT IN ('trending_now', 'latest_movies', 'top_rated'))
-        GROUP BY m.id, m.slug
-        ORDER BY m.slug, popularity_score DESC
+    ),
+    series_with_reactions AS (
+        -- Add reaction counts
+        SELECT 
+            sbn.id,
+            sbn.slug,
+            sbn.name,
+            sbn.base_name,
+            sbn.year,
+            sbn.view_count,
+            COALESCE(SUM(CASE WHEN mr.reaction_type = 'like' THEN 1 ELSE 0 END), 0) as likes,
+            COALESCE(SUM(CASE WHEN mr.reaction_type = 'dislike' THEN 1 ELSE 0 END), 0) as dislikes,
+            (
+                sbn.view_count * 0.5 + 
+                (COALESCE(SUM(CASE WHEN mr.reaction_type = 'like' THEN 1 ELSE 0 END), 0) - 
+                 COALESCE(SUM(CASE WHEN mr.reaction_type = 'dislike' THEN 1 ELSE 0 END), 0)) * 0.5
+            ) as popularity_score
+        FROM series_base_names sbn
+        LEFT JOIN movie_reactions mr ON sbn.slug = mr.movie_slug
+        GROUP BY sbn.id, sbn.slug, sbn.name, sbn.base_name, sbn.year, sbn.view_count
+    ),
+    latest_seasons_only AS (
+        -- For each base_name, only keep the latest year (newest season)
+        SELECT DISTINCT ON (base_name)
+            id,
+            slug,
+            popularity_score
+        FROM series_with_reactions
+        ORDER BY base_name, year DESC NULLS LAST, popularity_score DESC
+    ),
+    top_popular_tv AS (
+        -- Select top N by popularity score
+        SELECT id, slug
+        FROM latest_seasons_only
+        ORDER BY popularity_score DESC
         LIMIT ${POPULAR_TV_LIMIT}
     )
     UPDATE movies m
     SET section = 'popular_tv', modified_at = NOW()
-    FROM popular_tv_series pts
-    WHERE m.id = pts.id;
+    FROM top_popular_tv tpt
+    WHERE m.id = tpt.id;
     "
     
     local count=$(execute_sql "${sql}" | grep -c "^" || echo "0")
-    log_success "Categorized ${count} movies as POPULAR TV"
+    log_success "Categorized ${count} movies as POPULAR TV (unique series only)"
 }
 
 ################################################################################
