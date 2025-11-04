@@ -105,49 +105,7 @@ const TVShowsPage = () => {
     return isTV && hasMultipleEpisodes(movie);
   }) || [];
 
-  const isLoadingData = isLoading || fallbackLoading;  // Debug logging to help troubleshoot any data issues
-  useEffect(() => {
-    if (sourceData?.items) {
-      console.log(`TV Shows Page: Found ${sourceData.items.length} total items`);
-      
-      // Count different types for debugging
-      const tvTypeCount = sourceData.items.filter(movie => {
-        const type = String(movie?.type || '').toLowerCase();
-        return type === 'tv' || type === 'series' || type === 'tv series';
-      }).length;
-      
-      console.log(`TV Shows Page: ${tvTypeCount} items with TV/series type`);
-      console.log(`TV Shows Page: After multi-episode filtering: ${tvShows.length} TV shows`);
-        // Log some examples for debugging
-      if (tvShows.length > 0) {
-        console.log('Sample TV shows:', tvShows.slice(0, 3).map(show => ({
-          name: show.name,
-          type: show.type,
-          episode_current: (show as any).episode_current || (show as any).episodeCurrent,
-          episode_total: (show as any).episode_total || (show as any).episodeTotal,
-          status: (show as any).status
-        })));
-      }
-      
-      // Log examples of filtered out TV content
-      const filteredOut = sourceData.items.filter(movie => {
-        const type = String(movie?.type || '').toLowerCase();
-        const isTV = type === 'tv' || type === 'series' || type === 'tv series';
-        return isTV && !hasMultipleEpisodes(movie);
-      });
-      
-      if (filteredOut.length > 0) {
-        console.log(`Filtered out ${filteredOut.length} single-episode TV content:`, 
-          filteredOut.slice(0, 2).map(show => ({
-            name: show.name,
-            type: show.type,
-            episode_current: (show as any).episode_current || (show as any).episodeCurrent,
-            episode_total: (show as any).episode_total || (show as any).episodeTotal
-          }))
-        );
-      }
-    }
-  }, [sourceData, tvShows, hasMultipleEpisodes]);
+  const isLoadingData = isLoading || fallbackLoading;
 
   if (isLoadingData) {
     return (

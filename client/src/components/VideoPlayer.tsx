@@ -3,6 +3,7 @@ import { Loader2, ExternalLink } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
+import { logger } from "@/lib/logger";
 
 interface VideoPlayerProps {
   embedUrl: string;
@@ -50,9 +51,8 @@ export default function VideoPlayer({
             try {
               const decodedUrl = decodeURIComponent(urlParam[1]);
               setDirectStreamUrl(decodedUrl);
-              console.log("Direct stream URL extracted:", decodedUrl);
             } catch (e) {
-              console.error("Error decoding URL:", e);
+              logger.error("Error decoding URL:", e);
               setDirectStreamUrl(urlParam[1]);
             }
           }
@@ -68,15 +68,14 @@ export default function VideoPlayer({
           try {
             const decodedUrl = decodeURIComponent(urlParam[1]);
             setDirectStreamUrl(decodedUrl);
-            console.log("Direct stream URL extracted:", decodedUrl);
           } catch (e) {
-            console.error("Error decoding URL:", e);
+            logger.error("Error decoding URL:", e);
             setDirectStreamUrl(urlParam[1]);
           }
         }
       }
     } catch (error) {
-      console.error("Error processing embed URL:", error);
+      logger.error("Error processing embed URL:", error);
       
       // If we encountered an error, just use the raw URL
       setCleanSrc(embedUrl);
@@ -167,7 +166,6 @@ export default function VideoPlayer({
       try {
         // Open direct-player.html with URL parameter
         const directPlayerUrl = `/direct-player.html?stream=${encodeURIComponent(directStreamUrl)}`;
-        console.log("Opening direct player with URL:", directPlayerUrl);
         window.open(directPlayerUrl, '_blank');
         
         toast({
@@ -175,7 +173,7 @@ export default function VideoPlayer({
           description: "The stream should start playing in a new tab.",
         });
       } catch (error) {
-        console.error("Error opening direct player:", error);
+        logger.error("Error opening direct player:", error);
         
         toast({
           title: "Error opening direct player",

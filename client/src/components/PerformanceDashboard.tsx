@@ -16,6 +16,7 @@ import {
   AlertTriangle,
   CheckCircle
 } from 'lucide-react';
+import { logger } from '@/lib/logger';
 
 interface CacheInfo {
   name: string;
@@ -98,7 +99,7 @@ const PerformanceDashboard: React.FC = () => {
 
   const loadPerformanceData = async () => {
     if (!window.filmflexCache) {
-      console.warn('FilmFlex cache system not available');
+      logger.warn('FilmFlex cache system not available');
       return;
     }
 
@@ -108,7 +109,7 @@ const PerformanceDashboard: React.FC = () => {
       setReport(data);
       setLastUpdate(new Date());
     } catch (error) {
-      console.error('Failed to load performance data:', error);
+      logger.error('Failed to load performance data:', error);
     } finally {
       setLoading(false);
     }
@@ -120,7 +121,7 @@ const PerformanceDashboard: React.FC = () => {
     try {
       await window.filmflexCache.clearAll();
     } catch (error) {
-      console.error('Failed to clear cache:', error);
+      logger.error('Failed to clear cache:', error);
     }
   };
 
@@ -131,7 +132,7 @@ const PerformanceDashboard: React.FC = () => {
       await window.filmflexCache.forceUpdate();
       await loadPerformanceData();
     } catch (error) {
-      console.error('Failed to force update:', error);
+      logger.error('Failed to force update:', error);
     }
   };
 

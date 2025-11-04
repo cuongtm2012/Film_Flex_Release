@@ -52,7 +52,6 @@ const ContactPage = () => {
   const onSubmit = async (data: FormValues) => {
     setIsSubmitting(true);
     // In a real app, this would submit to an API
-    console.log("Form data:", data);
     
     // Simulate API call
     setTimeout(() => {

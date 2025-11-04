@@ -1,11 +1,12 @@
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
+import { logger } from "./lib/logger";
 
 // Enhanced error handling for blank page debugging
 window.addEventListener('error', (event) => {
-  console.error('🚨 Global Error:', event.error);
-  console.error('🚨 Error Details:', {
+  logger.error('🚨 Global Error:', event.error);
+  logger.error('🚨 Error Details:', {
     message: event.message,
     filename: event.filename,
     lineno: event.lineno,
@@ -15,8 +16,8 @@ window.addEventListener('error', (event) => {
 });
 
 window.addEventListener('unhandledrejection', (event) => {
-  console.error('🚨 Unhandled Promise Rejection:', event.reason);
-  console.error('🚨 Rejection Details:', event);
+  logger.error('🚨 Unhandled Promise Rejection:', event.reason);
+  logger.error('🚨 Rejection Details:', event);
 });
 
 // App initialization with error handling
@@ -26,12 +27,12 @@ try {
     throw new Error('Root element not found - HTML may not be loading correctly');
   }
   
-  console.log('✅ Root element found, initializing React app...');
+  logger.log('✅ Root element found, initializing React app...');
   const root = createRoot(rootElement);
   root.render(<App />);
-  console.log('✅ React app rendered successfully');
+  logger.log('✅ React app rendered successfully');
 } catch (error) {
-  console.error('🚨 Fatal error during app initialization:', error);
+  logger.error('🚨 Fatal error during app initialization:', error);
   
   // Fallback error display
   const rootElement = document.getElementById("root");

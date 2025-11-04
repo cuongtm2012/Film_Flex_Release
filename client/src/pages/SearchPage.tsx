@@ -53,7 +53,6 @@ export default function SearchPage() {
     queryFn: async () => {
       let url = `/api/search?q=${encodeURIComponent(searchTerm)}&page=${currentPage}`;
       
-      console.log("Fetching search results from:", url);
       const response = await fetch(url);
       if (!response.ok) {
         throw new Error("Failed to fetch search results");

@@ -16,6 +16,7 @@ import {
   Check
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { logger } from "@/lib/logger";
 
 interface ShareDialogProps {
   isOpen: boolean;
@@ -29,18 +30,16 @@ export default function ShareDialog({ isOpen, onClose, title, url }: ShareDialog
   const { toast } = useToast();
 
   const copyToClipboard = async () => {
-    console.log("Copy to clipboard clicked"); // Debug log
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);
-      console.log("Successfully copied to clipboard"); // Debug log
       toast({
         title: "Link copied!",
         description: "Movie link has been copied to clipboard",
       });
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      console.error("Failed to copy:", err); // Debug log
+      logger.error("Failed to copy:", err);
       toast({
         title: "Failed to copy",
         description: "Please copy the link manually",
@@ -146,7 +145,7 @@ export default function ShareDialog({ isOpen, onClose, title, url }: ShareDialog
                     title: `${title} - PhimGG`,
                     text: `Check out "${title}" on PhimGG!`,
                     url: url,
-                  }).catch(console.error);
+                  }).catch((error) => logger.error("Share failed:", error));
                 }}
                 className="w-full"
                 variant="outline"

@@ -1,4 +1,5 @@
 import React from 'react';
+import { logger } from '@/lib/logger';
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -24,9 +25,9 @@ class ErrorBoundary extends React.Component<
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('🚨 React Error Boundary Caught Error:', error);
-    console.error('🚨 Error Info:', errorInfo);
-    console.error('🚨 Component Stack:', errorInfo.componentStack);
+    logger.error('🚨 React Error Boundary Caught Error:', error);
+    logger.error('🚨 Error Info:', errorInfo);
+    logger.error('🚨 Component Stack:', errorInfo.componentStack);
     
     this.setState({
       hasError: true,
@@ -37,7 +38,7 @@ class ErrorBoundary extends React.Component<
     // Log to external service in production
     if (process.env.NODE_ENV === 'production') {
       // You can add error reporting service here
-      console.error('Production error logged:', { error, errorInfo });
+      logger.error('Production error logged:', { error, errorInfo });
     }
   }
 

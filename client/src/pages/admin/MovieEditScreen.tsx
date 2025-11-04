@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { logger } from "@/lib/logger";
 
 // Define Section type and options
 type SectionOption = {
@@ -85,7 +86,7 @@ export default function MovieEditScreen() {
         setMovieData(movieData);
         setSection(movieData.section || "");
       } catch (error) {
-        console.error("Error fetching movie data:", error);
+        logger.error("Error fetching movie data:", error);
         toast.error("Failed to load movie data");
       } finally {
         setIsLoading(false);
@@ -162,7 +163,7 @@ export default function MovieEditScreen() {
 
       window.location.href = '/admin?tab=content-management';
     } catch (error) {
-      console.error("Error saving changes:", error);
+      logger.error("Error saving changes:", error);
       toast.error(error instanceof Error ? error.message : "Failed to save changes");
     }
   };

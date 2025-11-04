@@ -49,7 +49,9 @@ const ShareModal: React.FC<ShareModalProps> = ({
         break;
       case 'native':
         if (navigator.share) {
-          navigator.share(shareData).catch(console.error);
+          navigator.share(shareData).catch(() => {
+            // Silently handle share cancellation
+          });
           return;
         }
         break;

@@ -94,7 +94,6 @@ export function useWatchlist() {
   const toggleWatched = useMutation({
     mutationFn: async ({ movieSlug, isWatched }: { movieSlug: string, isWatched: boolean }) => {
       // This would be implemented with a real API endpoint
-      console.log(`Marking ${movieSlug} as ${isWatched ? 'watched' : 'unwatched'}`);
       return { success: true };
     },
     onSuccess: (_, { isWatched }) => {

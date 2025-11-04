@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Play, Star, ListVideo } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import LazyImage from "./LazyImage";
+import { logger } from "@/lib/logger";
 
 interface RecommendedMovieCardProps {
   movie: MovieListItem & {
@@ -130,7 +131,7 @@ export default function RecommendedMovieCard({ movie, size = "medium" }: Recomme
                     showSpinner={true}
                     errorFallback="https://via.placeholder.com/300x450?text=No+Image"
                     onError={() => {
-                      console.log(`Failed to load image for recommended movie: ${movie.name}`);
+                      logger.error(`Failed to load image for recommended movie: ${movie.name}`);
                     }}
                   />{/* Episode Badge - Top Left (Hidden by default, shown on hover) */}
                   {shouldShowEpisodeBadge && (

@@ -279,50 +279,7 @@ export default function Home() {
   }, [recommendedMovies]);
 
   // ALL useEffect hooks grouped together - ALWAYS run in same order
-  React.useEffect(() => {
-    // Debug logs for sections
-    if (popularTvSeries) {
-      console.log('Popular TV Series data:', popularTvSeries);
-      console.log('Number of TV items:', popularTvSeries.items?.length || 0);
-    }
-    if (tvSeriesError) {
-      console.error('Error fetching popular TV series:', tvSeriesError);
-    }
-  }, [popularTvSeries, tvSeriesError]);
-
-  React.useEffect(() => {
-    // Anime debug logs
-    if (animeMovies) {
-      console.log('Anime data:', animeMovies);
-      console.log('Number of anime items:', animeMovies.items?.length || 0);
-    }
-    if (animeError) {
-      console.error('Error fetching anime:', animeError);
-    }
-  }, [animeMovies, animeError]);
-
-  React.useEffect(() => {
-    // China movies debug logs
-    if (chinaMovies) {
-      console.log('China movies data:', chinaMovies);
-      console.log('Number of China movies:', chinaMovies.items?.length || 0);
-    }
-    if (chinaError) {
-      console.error('Error fetching China movies:', chinaError);
-    }
-  }, [chinaMovies, chinaError]);
-
-  React.useEffect(() => {
-    // Korean movies debug logs
-    if (koreanMovies) {
-      console.log('Korean movies data:', koreanMovies);
-      console.log('Number of Korean movies:', koreanMovies.items?.length || 0);
-    }
-    if (koreanError) {
-      console.error('Error fetching Korean movies:', koreanError);
-    }
-  }, [koreanMovies, koreanError]);
-
+  // Removed debug console logs for production
 
   // Loading state check - AFTER all hooks
   if (trendingLoading || latestLoading || topRatedLoading || tvSeriesLoading || recommendedLoading || animeLoading || chinaLoading || koreanLoading) {

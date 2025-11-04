@@ -4,6 +4,7 @@ import { useLocation } from "wouter";
 import { MovieListResponse } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
+import { logger } from "@/lib/logger";
 import { 
   Dialog, 
   DialogContent,
@@ -137,7 +138,7 @@ export default function AdminPage() {  const { user } = useAuth();
       const randomStr = Math.random().toString(36).substring(2, 10);
       const url = `/api/movies/${slug}?_t=${timestamp}&r=${randomStr}&clear_cache=true`;
       
-      console.log(`Fetching movie details from: ${url}`);
+      logger.log(`Fetching movie details from: ${url}`);
       const response = await fetch(url, {
         cache: 'no-store', // Tell browser to never use cache 
         headers: {
@@ -161,7 +162,7 @@ export default function AdminPage() {  const { user } = useAuth();
         throw new Error("Invalid or missing movie data");
       }
       
-      console.log("Raw movie data from API:", movieData);
+      logger.log("Raw movie data from API:", movieData);
       
       // Ensure we have proper default values for section and isRecommended
       const formattedMovie = {
@@ -172,8 +173,8 @@ export default function AdminPage() {  const { user } = useAuth();
         isRecommended: movieData.isRecommended === true 
       };
       
-      console.log("Fetched movie data:", movieData);
-      console.log("Formatted movie for editing:", {
+      logger.log("Fetched movie data:", movieData);
+      logger.log("Formatted movie for editing:", {
         section: formattedMovie.section,
         isRecommended: formattedMovie.isRecommended
       });
@@ -182,7 +183,7 @@ export default function AdminPage() {  const { user } = useAuth();
 
       setIsLoadingMovieDetails(false);
     } catch (error) {
-      console.error("Error fetching movie details:", error);      toast({
+      logger.error("Error fetching movie details:", error);      toast({
         variant: "destructive",
         title: "Error",
         description: `Error fetching movie details: ${error instanceof Error ? error.message : 'Unknown error'}`
@@ -246,7 +247,7 @@ export default function AdminPage() {  const { user } = useAuth();
       setFullScreenEdit(false);
       
     } catch (error) {
-      console.error('Error updating movie:', error);
+      logger.error('Error updating movie:', error);
       toast({
         variant: "destructive",
         title: "An error occurred",
@@ -298,17 +299,17 @@ export default function AdminPage() {  const { user } = useAuth();
           typeFilter === "all") {
         
         url = `/api/admin/movies?${params.toString()}`;
-        console.log(`Fetching all movies from admin endpoint: ${url}`);
+        logger.log(`Fetching all movies from admin endpoint: ${url}`);
       } else if (searchQuery.trim()) {
         // If search query exists, use full-text search across multiple fields
         params.append("q", searchQuery.trim());
         params.append("fields", "name,origin_name,content,description,actor,director,category,country");
         url = `/api/search?${params.toString()}`;
-        console.log(`Searching movies with filters: ${url}`);
+        logger.log(`Searching movies with filters: ${url}`);
       } else {
         // Use admin endpoint with filters for content management
         url = `/api/admin/movies?${params.toString()}`;
-        console.log(`Fetching filtered movies from admin endpoint: ${url}`);
+        logger.log(`Fetching filtered movies from admin endpoint: ${url}`);
       }
       
       const response = await fetch(url);

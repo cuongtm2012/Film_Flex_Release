@@ -70,7 +70,6 @@ export default function SettingsPage() {
   // Handle password change form submission
   const onPasswordSubmit = (data: PasswordFormValues) => {
     // In a real app, this would call an API to change the password
-    console.log("Password change data:", data);
     
     // Show success message
     toast({
@@ -85,7 +84,6 @@ export default function SettingsPage() {
   // Handle notification settings submission
   const onNotificationSubmit = (data: NotificationFormValues) => {
     // In a real app, this would call an API to update notification settings
-    console.log("Notification settings:", data);
     
     // Show success message
     toast({

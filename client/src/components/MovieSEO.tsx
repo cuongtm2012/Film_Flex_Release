@@ -1,5 +1,6 @@
 import { Helmet } from 'react-helmet-async';
 import { MovieDetailResponse } from '@shared/schema';
+import { logger } from '@/lib/logger';
 
 interface MovieSEOProps {
   movie: MovieDetailResponse['movie'];
@@ -100,7 +101,7 @@ export function MovieSEO({ movie, slug }: MovieSEOProps) {
       </Helmet>
     );
   } catch (error) {
-    console.error('MovieSEO: Error generating SEO data', error);
+    logger.error('MovieSEO: Error generating SEO data', error);
     return null;
   }
 }

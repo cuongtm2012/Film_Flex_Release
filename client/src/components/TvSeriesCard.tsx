@@ -4,6 +4,7 @@ import { Play, Star, ListVideo } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
 import { Badge } from '@/components/ui/badge';
+import { logger } from '@/lib/logger';
 import LazyImage from './LazyImage';
 
 interface Category {
@@ -151,8 +152,15 @@ export default function TvSeriesCard({ movie, className }: TvSeriesCardProps) {
                 threshold={0.1}
                 showSpinner={true}
                 errorFallback="/placeholder-poster.jpg"
-                onError={() => {
-                  console.log(`Failed to load image for TV series: ${movie.name}`);
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  if (target.src !== '/placeholder-poster.jpg') {
+                    target.src = '/placeholder-poster.jpg';
+                  } else {
+                    // If fallback also fails, don't try again
+                    target.onerror = null;
+                  }
+                  logger.error(`Failed to load image for TV series: ${movie.name}`);
                 }}
               />
             </div>

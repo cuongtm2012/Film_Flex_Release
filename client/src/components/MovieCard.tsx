@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Play, Star, ListVideo } from "lucide-react";
 import { MovieListItem } from "@shared/schema";
 import LazyImage from "./LazyImage";
+import { logger } from "@/lib/logger";
 
 interface MovieCardProps {
   movie: MovieListItem & {
@@ -141,8 +142,15 @@ export default function MovieCard({ movie }: MovieCardProps) {
             rootMargin="75px"
             threshold={0.1}
             showSpinner={true}
-            onError={() => {
-              console.log(`Failed to load image for movie: ${movie.name}`);
+            onError={(e) => {
+              const target = e.target as HTMLImageElement;
+              if (target.src !== "https://via.placeholder.com/300x450?text=No+Image") {
+                target.src = "https://via.placeholder.com/300x450?text=No+Image";
+              } else {
+                // If fallback also fails, don't try again
+                target.onerror = null;
+              }
+              logger.error(`Failed to load image for movie: ${movie.name}`);
             }}
           />
 

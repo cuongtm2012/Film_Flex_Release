@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult, DroppableProvided, DraggableProvided } from 'react-beautiful-dnd';
 import { Search, X, Save, Plus } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { logger } from '@/lib/logger';
 
 interface FeaturedSection {
   id: number;
@@ -47,7 +48,7 @@ export default function FeaturedSectionsScreen() {
       setSections(data);
     } catch (error) {
       toast.error('Failed to load featured sections');
-      console.error('Error fetching sections:', error);
+      logger.error('Error fetching sections:', error);
     }
   };
 
@@ -59,7 +60,7 @@ export default function FeaturedSectionsScreen() {
       setMovies(data);
     } catch (error) {
       toast.error('Failed to load section movies');
-      console.error('Error fetching section movies:', error);
+      logger.error('Error fetching section movies:', error);
     }
   };
 
@@ -77,7 +78,7 @@ export default function FeaturedSectionsScreen() {
       setSearchResults(data.items || []);
     } catch (error) {
       toast.error('Search failed');
-      console.error('Search error:', error);
+      logger.error('Search error:', error);
     } finally {
       setIsSearching(false);
     }
@@ -127,7 +128,7 @@ export default function FeaturedSectionsScreen() {
       toast.success('Changes saved successfully');
     } catch (error) {
       toast.error('Failed to save changes');
-      console.error('Save error:', error);
+      logger.error('Save error:', error);
     } finally {
       setIsSaving(false);
     }
@@ -256,4 +257,4 @@ export default function FeaturedSectionsScreen() {
       </div>
     </div>
   );
-} 
+}

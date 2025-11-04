@@ -43,6 +43,7 @@ import CareersPage from "@/pages/CareersPage";
 import PressPage from "@/pages/PressPage";
 import BlogPage from "@/pages/BlogPage";
 import PartnersPage from "@/pages/PartnersPage";
+import { logger } from "@/lib/logger";
 
 // Enhanced debugging utilities
 const DEBUG_MODE = process.env.NODE_ENV === 'development' || localStorage.getItem('filmflex-debug') === 'true';
@@ -50,7 +51,7 @@ const DEBUG_MODE = process.env.NODE_ENV === 'development' || localStorage.getIte
 // Debug logging function
 const debugLog = (message: string, data?: any) => {
   if (DEBUG_MODE) {
-    console.log(`🔍 PhimGG Debug: ${message}`, data || '');
+    logger.log(`🔍 PhimGG Debug: ${message}`, data || '');
   }
 };
 
@@ -354,7 +355,7 @@ function App() {
             hasSeenSplash: localStorage.getItem('filmflex-splash-seen'),
             localStorage: Object.keys(localStorage)
           };
-          console.log('Splash Status:', status);
+          logger.log('Splash Status:', status);
           return status;
         },
         getAppInfo: () => ({
@@ -366,9 +367,9 @@ function App() {
         })
       };
       
-      console.log('🔧 Debug utilities available at window.filmflexDebug');
-      console.log('🎬 To test splash screen: window.filmflexDebug.showSplash()');
-      console.log('📊 Check splash status: window.filmflexDebug.checkSplashStatus()');
+      logger.log('🔧 Debug utilities available at window.filmflexDebug');
+      logger.log('🎬 To test splash screen: window.filmflexDebug.showSplash()');
+      logger.log('📊 Check splash status: window.filmflexDebug.checkSplashStatus()');
     }
     
     return () => debugLog('App component unmounted');
