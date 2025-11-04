@@ -430,10 +430,10 @@ export class DatabaseStorage implements IStorage {
       conditions.push(eq(movies.section, filters.section));
     }
 
-    // Use a simpler approach: get all matching movies with DISTINCT ON to eliminate duplicates
-    // This query gets unique movies by slug, selecting the most recent one based on modifiedAt
     const baseConditions = conditions.length > 0 ? and(...conditions) : undefined;
-    
+
+    // Get unique movies by slug using a simpler approach
+    // Use DISTINCT ON (slug) but order by modified_at DESC within each slug group
     const uniqueMoviesQuery = sql`
       SELECT DISTINCT ON (slug) 
         id, movie_id, slug, name, origin_name, poster_url, thumb_url, year, type, quality, 
@@ -444,35 +444,31 @@ export class DatabaseStorage implements IStorage {
       ORDER BY slug, modified_at DESC
     `;
 
-    // Execute the query to get all unique movies
+    // Execute the query to get unique movies
     const uniqueMoviesResult = await db.execute(uniqueMoviesQuery);
     const allUniqueMovies = uniqueMoviesResult.rows as Movie[];
 
-    // Now apply sorting to the unique movies in memory
+    // Now sort in memory based on the sortBy parameter
+    // This is where we fix the ordering issue
+    const currentYear = new Date().getFullYear();
+    
     const sortedMovies = allUniqueMovies.sort((a, b) => {
-      const currentYear = new Date().getFullYear();
-      
       switch (sortBy) {
         case 'latest':
-          // FIXED: Sort by year DESC (newest release year first), then by modifiedAt
-          const yearA = typeof a.year === 'number' && a.year > 1900 && a.year <= currentYear ? a.year : 0;
-          const yearB = typeof b.year === 'number' && b.year > 1900 && b.year <= currentYear ? b.year : 0;
+          // Sort by modifiedAt DESC (most recently added to database first)
+          const modifiedA = new Date(a.modifiedAt || 0).getTime();
+          const modifiedB = new Date(b.modifiedAt || 0).getTime();
           
-          // If years are different, sort by year descending (newest first)
-          if (yearA !== yearB) {
-            // Handle movies without valid year (push them to the end)
-            if (yearA === 0 && yearB !== 0) return 1;
-            if (yearB === 0 && yearA !== 0) return -1;
-            
-            return yearB - yearA; // Newest year first
+          // If modifiedAt is the same, use ID as tiebreaker (higher ID = more recent)
+          if (modifiedA === modifiedB) {
+            return (b.id || 0) - (a.id || 0);
           }
           
-          // If years are the same, sort by modifiedAt (database insert time) descending
-          return new Date(b.modifiedAt).getTime() - new Date(a.modifiedAt).getTime();
+          return modifiedB - modifiedA;
           
         case 'popular':
         case 'rating':
-          // Sort by view count, then by modifiedAt
+          // Sort by view count DESC, then by modifiedAt DESC
           const viewA = a.view || 0;
           const viewB = b.view || 0;
           
@@ -480,20 +476,54 @@ export class DatabaseStorage implements IStorage {
             return viewB - viewA;
           }
           
-          return new Date(b.modifiedAt).getTime() - new Date(a.modifiedAt).getTime();
+          const modA = new Date(a.modifiedAt || 0).getTime();
+          const modB = new Date(b.modifiedAt || 0).getTime();
+          
+          if (modA === modB) {
+            return (b.id || 0) - (a.id || 0);
+          }
+          
+          return modB - modA;
           
         case 'year':
-          // Sort by year only
-          const movieYearA = typeof a.year === 'number' && a.year > 1900 && a.year <= currentYear ? a.year : 0;
-          const movieYearB = typeof b.year === 'number' && b.year > 1900 && b.year <= currentYear ? b.year : 0;
+          // Sort by release year DESC (newest movies first)
+          const yearA = typeof a.year === 'number' && a.year > 1900 && a.year <= currentYear ? a.year : 0;
+          const yearB = typeof b.year === 'number' && b.year > 1900 && b.year <= currentYear ? b.year : 0;
           
-          if (movieYearA === 0 && movieYearB !== 0) return 1;
-          if (movieYearB === 0 && movieYearA !== 0) return -1;
+          // Movies without valid year go to the end
+          if (yearA === 0 && yearB !== 0) return 1;
+          if (yearB === 0 && yearA !== 0) return -1;
           
-          return movieYearB - movieYearA;
+          // Both have no year, sort by modifiedAt
+          if (yearA === 0 && yearB === 0) {
+            const mA = new Date(a.modifiedAt || 0).getTime();
+            const mB = new Date(b.modifiedAt || 0).getTime();
+            if (mA === mB) {
+              return (b.id || 0) - (a.id || 0);
+            }
+            return mB - mA;
+          }
+          
+          // Sort by year descending
+          if (yearA !== yearB) {
+            return yearB - yearA;
+          }
+          
+          // If same year, sort by modifiedAt then ID
+          const myA = new Date(a.modifiedAt || 0).getTime();
+          const myB = new Date(b.modifiedAt || 0).getTime();
+          if (myA === myB) {
+            return (b.id || 0) - (a.id || 0);
+          }
+          return myB - myA;
           
         default:
-          return new Date(b.modifiedAt).getTime() - new Date(a.modifiedAt).getTime();
+          const defModA = new Date(a.modifiedAt || 0).getTime();
+          const defModB = new Date(b.modifiedAt || 0).getTime();
+          if (defModA === defModB) {
+            return (b.id || 0) - (a.id || 0);
+          }
+          return defModB - defModA;
       }
     });
 
@@ -706,7 +736,7 @@ export class DatabaseStorage implements IStorage {
       // Extract episode numbers from episode names
       const getEpisodeNumber = (name: string): number => {
         // Look for patterns like "Episode 1", "Ep 1", "Tập 1", etc.
-        const match = name.match(/(?:episode|ep|tập|tap)\s*(\d+)/i);
+        const match = name.match(/(?:episode|ep|tập)\s*(\d+)/i);
         if (match) {
           return parseInt(match[1], 10);
         }
