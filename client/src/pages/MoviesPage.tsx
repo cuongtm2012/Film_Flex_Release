@@ -8,7 +8,20 @@ import { Loader2 } from "lucide-react";
 export default function MoviesPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [sortBy, setSortBy] = useState("latest");
+  const [filterYear, setFilterYear] = useState<string>("");
   const [limit] = useState(48);
+
+  // Fetch available years for filter
+  const { data: yearsData } = useQuery<{ status: boolean; years: number[] }>({
+    queryKey: ["/api/movies/available-years"],
+    queryFn: async () => {
+      const response = await fetch("/api/movies/available-years");
+      if (!response.ok) {
+        throw new Error("Failed to fetch available years");
+      }
+      return response.json();
+    },
+  });
 
   // Fetch movie list with pagination and sorting
   const {
@@ -18,7 +31,7 @@ export default function MoviesPage() {
   } = useQuery<MovieListResponse>({
     queryKey: [
       "/api/movies",
-      { page: currentPage, sortBy: sortBy, limit },
+      { page: currentPage, sortBy: sortBy, year: filterYear, limit },
     ],
     queryFn: async () => {
       const params = new URLSearchParams({
@@ -26,6 +39,10 @@ export default function MoviesPage() {
         sortBy: sortBy,
         limit: limit.toString(),
       });
+      
+      if (filterYear) {
+        params.append("year", filterYear);
+      }
       
       const response = await fetch(`/api/movies?${params}`);
       if (!response.ok) {
@@ -44,6 +61,12 @@ export default function MoviesPage() {
   // Handle sort change
   const handleSortChange = (value: string) => {
     setSortBy(value);
+    setCurrentPage(1);
+  };
+
+  // Handle year filter change
+  const handleYearChange = (value: string) => {
+    setFilterYear(value);
     setCurrentPage(1);
   };
 
@@ -92,6 +115,9 @@ export default function MoviesPage() {
         onSortChange={handleSortChange}
         currentSort={sortBy}
         isLoading={isLoading}
+        availableYears={yearsData?.years || []}
+        currentYear={filterYear}
+        onYearChange={handleYearChange}
       />
     </div>
   );

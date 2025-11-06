@@ -58,7 +58,7 @@ export interface IStorage {
   removePermissionFromRole(roleId: number, permissionId: number): Promise<void>;
   getPermissionsByRole(roleId: number): Promise<Permission[]>;
   getRolesByPermission(permissionId: number): Promise<Role[]>;  // Movie methods
-  getMovies(page: number, limit: number, sortBy?: string, filters?: {isRecommended?: boolean, type?: string, section?: string}): Promise<{ data: Movie[], total: number }>;
+  getMovies(page: number, limit: number, sortBy?: string, filters?: {isRecommended?: boolean, type?: string, section?: string, year?: number}): Promise<{ data: Movie[], total: number }>;
   getMovieBySlug(slug: string): Promise<Movie | undefined>;
   getMovieByMovieId(movieId: string): Promise<Movie | undefined>;
   saveMovie(movie: InsertMovie): Promise<Movie>;
@@ -67,6 +67,7 @@ export interface IStorage {
   getMoviesByCategory(categorySlug: string, page: number, limit: number, sortBy?: string): Promise<{ data: Movie[], total: number }>;
   getMoviesByCountry(countrySlug: string, page: number, limit: number, sortBy?: string): Promise<{ data: Movie[], total: number }>;
   getMoviesBySection(section: string, page: number, limit: number): Promise<{ data: Movie[], total: number }>;
+  getAvailableYears(): Promise<number[]>;
   updateMovieBySlug(slug: string, updateData: Partial<Movie>): Promise<Movie | undefined>;
   getRecommendedMovies(page: number, limit: number): Promise<{ data: Movie[], total: number }>;
   
@@ -415,7 +416,7 @@ export class DatabaseStorage implements IStorage {
     return result.map(r => r.role);
   }
   // Movie methods
-  async getMovies(page: number, limit: number, sortBy: string = 'latest', filters?: {isRecommended?: boolean, type?: string, section?: string}): Promise<{ data: Movie[], total: number }> {
+  async getMovies(page: number, limit: number, sortBy: string = 'latest', filters?: {isRecommended?: boolean, type?: string, section?: string, year?: number}): Promise<{ data: Movie[], total: number }> {
     const offset = (page - 1) * limit;
     
     // Build filter conditions
@@ -428,6 +429,9 @@ export class DatabaseStorage implements IStorage {
     }
     if (filters?.section) {
       conditions.push(eq(movies.section, filters.section));
+    }
+    if (filters?.year !== undefined) {
+      conditions.push(eq(movies.year, filters.year));
     }
 
     const baseConditions = conditions.length > 0 ? and(...conditions) : undefined;
@@ -1621,6 +1625,16 @@ export class DatabaseStorage implements IStorage {
       .from(movies);
     
     return count || 0;
+  }
+
+  async getAvailableYears(): Promise<number[]> {
+    const result = await db.select({ year: movies.year })
+      .from(movies)
+      .where(sql`${movies.year} IS NOT NULL AND ${movies.year} > 1900`)
+      .groupBy(movies.year)
+      .orderBy(desc(movies.year));
+    
+    return result.map(row => row.year).filter((year): year is number => year !== null);
   }
 
   async getEpisodeCount(): Promise<number> {

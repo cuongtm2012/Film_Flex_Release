@@ -40,6 +40,9 @@ interface MovieGridProps {
   onSortChange?: (sortBy: string) => void;
   currentSort?: string;
   isLoading?: boolean;
+  availableYears?: number[];
+  currentYear?: string;
+  onYearChange?: (year: string) => void;
 }
 
 export default function MovieGrid({
@@ -53,12 +56,22 @@ export default function MovieGrid({
   onSortChange,
   currentSort = "latest",
   isLoading = false,
+  availableYears = [],
+  currentYear = "",
+  onYearChange,
 }: MovieGridProps) {
   const [isSortSheetOpen, setIsSortSheetOpen] = useState(false);
   
   const handleSortSelection = (value: string) => {
     if (onSortChange) {
       onSortChange(value);
+    }
+  };
+
+  const handleYearSelection = (value: string) => {
+    if (onYearChange) {
+      // Convert "all" back to empty string for the API
+      onYearChange(value === "all" ? "" : value);
     }
   };
   
@@ -154,6 +167,29 @@ export default function MovieGrid({
     </div>
   );
 
+  // Desktop Year Filter Dropdown
+  const DesktopYearFilter = onYearChange && availableYears.length > 0 && (
+    <div className="hidden md:flex items-center gap-2">
+      <span className="text-muted-foreground text-sm">Year:</span>
+      <Select
+        value={currentYear || "all"}
+        onValueChange={handleYearSelection}
+      >
+        <SelectTrigger className="bg-muted text-white w-[140px]">
+          <SelectValue placeholder="All Years" />
+        </SelectTrigger>
+        <SelectContent className="max-h-[300px]">
+          <SelectItem value="all">All Years</SelectItem>
+          {availableYears.map(year => (
+            <SelectItem key={year} value={year.toString()}>
+              {year}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+
   // Mobile Sort Trigger Button
   const MobileSortTrigger = onSortChange && (
     <Button 
@@ -173,10 +209,31 @@ export default function MovieGrid({
         <h2 className="text-2xl font-bold hidden md:block">{title}</h2>
         <h2 className="text-xl font-bold md:hidden">{title}</h2>
         
-        {DesktopSortDropdown}
-        {MobileSortTrigger}
+        <div className="flex items-center gap-3">
+          {DesktopYearFilter}
+          {DesktopSortDropdown}
+          {MobileSortTrigger}
+        </div>
         {SortSheet}
       </div>
+
+      {/* Active Filters Display */}
+      {currentYear && currentYear !== "all" && (
+        <div className="flex items-center gap-2 mb-4 flex-wrap">
+          <span className="text-sm text-muted-foreground">Active filters:</span>
+          <div className="flex items-center gap-2 bg-primary/20 text-primary px-3 py-1 rounded-full text-sm">
+            <CalendarDays className="h-4 w-4" />
+            <span>Year: {currentYear}</span>
+            <button
+              onClick={() => handleYearSelection("all")}
+              className="ml-1 hover:text-primary-foreground"
+              aria-label="Clear year filter"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
 
       {movies.length === 0 ? (
         <div className="text-center py-20">

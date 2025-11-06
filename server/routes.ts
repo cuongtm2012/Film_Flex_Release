@@ -436,6 +436,12 @@ export function registerRoutes(app: Express): void {
       if (req.query.is_recommended === 'true') filters.isRecommended = true;
       if (req.query.type) filters.type = req.query.type;
       if (req.query.section) filters.section = req.query.section;
+      if (req.query.year) {
+        const yearValue = parseInt(req.query.year as string);
+        if (!isNaN(yearValue) && yearValue > 1900 && yearValue <= new Date().getFullYear() + 1) {
+          filters.year = yearValue;
+        }
+      }
 
       // Pass sortBy parameter to storage.getMovies
       const result = await storage.getMovies(page, limit, sortBy, filters);
@@ -455,6 +461,23 @@ export function registerRoutes(app: Express): void {
       res.status(500).json({ 
         status: false, 
         message: "Unable to fetch movies at this time" 
+      });
+    }
+  });
+
+  // Get available years for filter
+  router.get("/movies/available-years", async (req, res) => {
+    try {
+      const years = await storage.getAvailableYears();
+      res.json({
+        status: true,
+        years
+      });
+    } catch (error) {
+      console.error('[API ERROR] Failed to fetch available years:', error);
+      res.status(500).json({ 
+        status: false, 
+        message: "Unable to fetch available years at this time" 
       });
     }
   });
