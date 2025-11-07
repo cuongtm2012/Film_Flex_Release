@@ -194,4 +194,64 @@
     transform: translateY(-3px);
     box-shadow: 0 10px 15px -3px rgba(var(--primary-rgb), 0.3);
   }
+
+  /* Mobile Bottom Navigation Styles */
+  .safe-area-inset-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* Mobile filter tabs */
+  @media (max-width: 768px) {
+    /* Smooth horizontal scroll for filter tabs */
+    .overflow-x-auto {
+      scroll-behavior: smooth;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* Active filter tab pulse effect */
+    @keyframes tabPulse {
+      0% { box-shadow: 0 0 0 0 rgba(var(--primary-rgb), 0.4); }
+      70% { box-shadow: 0 0 0 6px rgba(var(--primary-rgb), 0); }
+      100% { box-shadow: 0 0 0 0 rgba(var(--primary-rgb), 0); }
+    }
+
+    /* Mobile card improvements */
+    .movie-card {
+      @apply rounded-lg;
+    }
+
+    /* Reduce hover effect on touch devices */
+    .movie-card:active {
+      @apply transform scale-[1.02];
+    }
+
+    /* Better touch targets for mobile */
+    button, a {
+      min-height: 44px;
+      min-width: 44px;
+    }
+  }
+
+  /* Compact badge styles for mobile */
+  @media (max-width: 640px) {
+    .movie-card .badge-compact {
+      @apply text-[10px] px-1.5 py-0.5;
+    }
+  }
+}
+
+@layer utilities {
+  /* Safe area utilities for notched devices */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .mb-safe {
+    margin-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* Touch-friendly spacing */
+  .touch-spacing {
+    @apply p-3 md:p-4;
+  }
 }

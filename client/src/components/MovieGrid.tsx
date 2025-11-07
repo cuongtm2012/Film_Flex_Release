@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import MovieCard from "./MovieCard";
 import Pagination from "./Pagination";
 import { MovieListItem } from "@shared/schema";
@@ -15,19 +15,10 @@ import {
   Flame, 
   ThumbsUp, 
   CalendarDays, 
-  SlidersHorizontal
+  ArrowUp
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetClose,
-  SheetFooter
-} from "@/components/ui/sheet";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 
 interface MovieGridProps {
   title?: string;
@@ -38,11 +29,11 @@ interface MovieGridProps {
   itemsPerPage?: number;
   onPageChange: (page: number) => void;
   onSortChange?: (sortBy: string) => void;
-  currentSort?: string;
-  isLoading?: boolean;
-  availableYears?: number[];
-  currentYear?: string;
   onYearChange?: (year: string) => void;
+  currentSort?: string;
+  currentYear?: string;
+  availableYears?: number[];
+  isLoading?: boolean;
 }
 
 export default function MovieGrid({
@@ -54,33 +45,45 @@ export default function MovieGrid({
   itemsPerPage = 50,
   onPageChange,
   onSortChange,
-  currentSort = "latest",
-  isLoading = false,
-  availableYears = [],
-  currentYear = "",
   onYearChange,
+  currentSort = "latest",
+  currentYear = "",
+  availableYears = [],
+  isLoading = false,
 }: MovieGridProps) {
-  const [isSortSheetOpen, setIsSortSheetOpen] = useState(false);
-  
-  const handleSortSelection = (value: string) => {
-    if (onSortChange) {
-      onSortChange(value);
-    }
-  };
-
-  const handleYearSelection = (value: string) => {
-    if (onYearChange) {
-      // Convert "all" back to empty string for the API
-      onYearChange(value === "all" ? "" : value);
-    }
-  };
+  const [showBackToTop, setShowBackToTop] = useState(false);
   
   // Map sort options to display names and icons
   const sortOptions = [
-    { value: "latest", label: "Latest Added", icon: <ArrowDownAZ className="h-5 w-5" /> },
-    { value: "popular", label: "Most Popular", icon: <Flame className="h-5 w-5" /> },
-    { value: "rating", label: "Highest Rated", icon: <ThumbsUp className="h-5 w-5" /> }
+    { value: "latest", label: "Latest", icon: <ArrowDownAZ className="h-4 w-4" /> },
+    { value: "popular", label: "Popular", icon: <Flame className="h-4 w-4" /> },
+    { value: "rating", label: "Top Rated", icon: <ThumbsUp className="h-4 w-4" /> },
+    { value: "year", label: "By Year", icon: <CalendarDays className="h-4 w-4" /> }
   ];
+
+  // Generate year options for horizontal scroll
+  const currentYearNum = new Date().getFullYear();
+  const yearOptions = [
+    { value: "", label: "All" },
+    ...availableYears.slice(0, 15).map(year => ({
+      value: year.toString(),
+      label: year.toString()
+    }))
+  ];
+
+  // Handle scroll to show/hide back to top button
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowBackToTop(window.scrollY > 400);
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   if (isLoading) {
     return (
@@ -106,101 +109,107 @@ export default function MovieGrid({
     );
   }
 
-  // Get the current sort display name
-  const currentSortOption = sortOptions.find(opt => opt.value === currentSort);
-  
-  // Mobile Sort Sheet
-  const SortSheet = onSortChange && (
-    <Sheet open={isSortSheetOpen} onOpenChange={setIsSortSheetOpen}>
-      <SheetContent side="bottom" className="max-h-[70vh] rounded-t-3xl">
-        <SheetHeader className="mb-4">
-          <SheetTitle className="text-center">Sort Movies</SheetTitle>
-        </SheetHeader>
-        
-        <RadioGroup 
-          value={currentSort} 
-          onValueChange={handleSortSelection}
-          className="grid gap-4"
-        >
-          {sortOptions.map(option => (
-            <div key={option.value} className="flex items-center space-x-2 border border-gray-700 p-4 rounded-lg">
-              <RadioGroupItem value={option.value} id={option.value} />
-              <Label htmlFor={option.value} className="flex-1 flex justify-between items-center cursor-pointer">
-                <span className="text-base">{option.label}</span>
-                {option.icon}
-              </Label>
-            </div>
-          ))}
-        </RadioGroup>
-        
-        <SheetFooter className="mt-6">
-          <SheetClose asChild>
-            <Button className="w-full">Apply Sort</Button>
-          </SheetClose>
-        </SheetFooter>
-      </SheetContent>
-    </Sheet>
-  );
-
-  // Desktop Sort Dropdown
-  const DesktopSortDropdown = onSortChange && (
-    <div className="hidden md:flex items-center gap-2">
-      <span className="text-muted-foreground text-sm">Sort by:</span>
-      <Select
-        value={currentSort}
-        onValueChange={handleSortSelection}
-      >
-        <SelectTrigger className="bg-muted text-white w-[180px]">
-          <SelectValue placeholder="Sort by" />
-        </SelectTrigger>
-        <SelectContent>
-          {sortOptions.map(option => (
-            <SelectItem key={option.value} value={option.value} className="flex items-center gap-2">
-              <div className="flex items-center gap-2">
-                {option.icon}
-                <span>{option.label}</span>
-              </div>
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+  // Desktop Filters (unchanged)
+  const DesktopFilters = (
+    <div className="hidden md:flex items-center gap-4">
+      {onYearChange && availableYears.length > 0 && (
+        <div className="flex items-center gap-2">
+          <span className="text-muted-foreground text-sm">Year:</span>
+          <Select
+            value={currentYear}
+            onValueChange={onYearChange}
+          >
+            <SelectTrigger className="bg-muted text-white w-[140px]">
+              <SelectValue placeholder="All Years" />
+            </SelectTrigger>
+            <SelectContent className="max-h-[300px]">
+              <SelectItem value="">All Years</SelectItem>
+              {availableYears.map(year => (
+                <SelectItem key={year} value={year.toString()}>
+                  {year}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+      
+      {onSortChange && (
+        <div className="flex items-center gap-2">
+          <span className="text-muted-foreground text-sm">Sort by:</span>
+          <Select
+            value={currentSort}
+            onValueChange={onSortChange}
+          >
+            <SelectTrigger className="bg-muted text-white w-[180px]">
+              <SelectValue placeholder="Sort by" />
+            </SelectTrigger>
+            <SelectContent>
+              {sortOptions.map(option => (
+                <SelectItem key={option.value} value={option.value} className="flex items-center gap-2">
+                  <div className="flex items-center gap-2">
+                    {option.icon}
+                    <span>{option.label}</span>
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
     </div>
   );
 
-  // Desktop Year Filter Dropdown
-  const DesktopYearFilter = onYearChange && availableYears.length > 0 && (
-    <div className="hidden md:flex items-center gap-2">
-      <span className="text-muted-foreground text-sm">Year:</span>
-      <Select
-        value={currentYear || "all"}
-        onValueChange={handleYearSelection}
-      >
-        <SelectTrigger className="bg-muted text-white w-[140px]">
-          <SelectValue placeholder="All Years" />
-        </SelectTrigger>
-        <SelectContent className="max-h-[300px]">
-          <SelectItem value="all">All Years</SelectItem>
-          {availableYears.map(year => (
-            <SelectItem key={year} value={year.toString()}>
-              {year}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
-  );
+  // Mobile Horizontal Scrollable Filters
+  const MobileFilters = (onSortChange || onYearChange) && (
+    <div className="md:hidden space-y-3">
+      {/* Sort Options - Horizontal Scroll */}
+      {onSortChange && (
+        <div className="space-y-2">
+          <h3 className="text-xs font-medium text-muted-foreground px-1">Sort By</h3>
+          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+            {sortOptions.map((option) => (
+              <button
+                key={option.value}
+                onClick={() => onSortChange(option.value)}
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2 rounded-full whitespace-nowrap transition-all shrink-0",
+                  currentSort === option.value
+                    ? "bg-primary text-primary-foreground shadow-lg scale-105"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80"
+                )}
+              >
+                {option.icon}
+                <span className="text-sm font-medium">{option.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
-  // Mobile Sort Trigger Button
-  const MobileSortTrigger = onSortChange && (
-    <Button 
-      variant="outline" 
-      size="sm" 
-      onClick={() => setIsSortSheetOpen(true)}
-      className="md:hidden flex items-center gap-2 h-10 px-3 py-2 rounded-full border border-gray-600"
-    >
-      <SlidersHorizontal className="h-4 w-4" />
-      <span className="text-sm font-medium">Sort: {currentSortOption?.label}</span>
-    </Button>
+      {/* Year Filter - Horizontal Scroll */}
+      {onYearChange && yearOptions.length > 1 && (
+        <div className="space-y-2">
+          <h3 className="text-xs font-medium text-muted-foreground px-1">Filter by Year</h3>
+          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+            {yearOptions.map((option) => (
+              <button
+                key={option.value}
+                onClick={() => onYearChange(option.value)}
+                className={cn(
+                  "px-4 py-2 rounded-full whitespace-nowrap transition-all shrink-0 text-sm font-medium",
+                  currentYear === option.value
+                    ? "bg-primary text-primary-foreground shadow-lg scale-105"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80"
+                )}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   );
 
   return (
@@ -209,31 +218,11 @@ export default function MovieGrid({
         <h2 className="text-2xl font-bold hidden md:block">{title}</h2>
         <h2 className="text-xl font-bold md:hidden">{title}</h2>
         
-        <div className="flex items-center gap-3">
-          {DesktopYearFilter}
-          {DesktopSortDropdown}
-          {MobileSortTrigger}
-        </div>
-        {SortSheet}
+        {DesktopFilters}
       </div>
 
-      {/* Active Filters Display */}
-      {currentYear && currentYear !== "all" && (
-        <div className="flex items-center gap-2 mb-4 flex-wrap">
-          <span className="text-sm text-muted-foreground">Active filters:</span>
-          <div className="flex items-center gap-2 bg-primary/20 text-primary px-3 py-1 rounded-full text-sm">
-            <CalendarDays className="h-4 w-4" />
-            <span>Year: {currentYear}</span>
-            <button
-              onClick={() => handleYearSelection("all")}
-              className="ml-1 hover:text-primary-foreground"
-              aria-label="Clear year filter"
-            >
-              ×
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Mobile Filters */}
+      {MobileFilters}
 
       {movies.length === 0 ? (
         <div className="text-center py-20">
@@ -242,7 +231,7 @@ export default function MovieGrid({
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 mt-6">
             {movies.map((movie) => (
               <div key={movie._id || movie.slug}>
                 <MovieCard movie={movie} />
@@ -268,6 +257,18 @@ export default function MovieGrid({
             onPageChange={onPageChange}
           />
         </>
+      )}
+
+      {/* Back to Top Button */}
+      {showBackToTop && (
+        <Button
+          onClick={scrollToTop}
+          className="fixed bottom-20 md:bottom-8 right-4 md:right-8 z-50 rounded-full w-12 h-12 shadow-lg hover:shadow-xl transition-all"
+          size="icon"
+          aria-label="Back to top"
+        >
+          <ArrowUp className="h-5 w-5" />
+        </Button>
       )}
     </section>
   );

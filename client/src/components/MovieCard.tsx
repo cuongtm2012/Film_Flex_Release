@@ -1,7 +1,7 @@
 import { Link } from "wouter";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Badge } from "@/components/ui/badge";
-import { Play, Star, ListVideo } from "lucide-react";
+import { Play, Star, Calendar, Tv2 } from "lucide-react";
 import { MovieListItem } from "@shared/schema";
 import LazyImage from "./LazyImage";
 import { logger } from "@/lib/logger";
@@ -85,19 +85,19 @@ export default function MovieCard({ movie }: MovieCardProps) {
   
   const shouldShowEpisodeBadge = 
     episodeInfo.total && episodeInfo.total > 1 && !isFullSingleMovie;
-      // Determine badge text
+      // Determine badge text - More compact for mobile
   const getBadgeText = () => {
     if (episodeInfo.isCompleted) {
-      return `Ep ${episodeInfo.total}`;
+      return `${episodeInfo.total}`;
     } else if (episodeInfo.current && episodeInfo.total) {
       return `${episodeInfo.current}/${episodeInfo.total}`;
     } else if (episodeInfo.total) {
-      return `Ep ${episodeInfo.total}`;
+      return `${episodeInfo.total}`;
     }
     return '';
   };
 
-  // Status badge logic - hide "Completed" for single-episode movies
+  // Status badge logic - Compact icons/badges for mobile
   const getStatusBadgeInfo = () => {
     const status = movie.status?.toLowerCase();
     
@@ -115,16 +115,17 @@ export default function MovieCard({ movie }: MovieCardProps) {
         return null;
       }
       
-      return { text: 'Completed', variant: 'success' as const };
+      // Use checkmark icon for completed status
+      return { text: '✓', variant: 'success' as const, tooltip: 'Completed' };
     }
     
     switch (status) {
       case 'ongoing':
-        return { text: 'Ongoing', variant: 'warning' as const };
+        return { text: '▶', variant: 'warning' as const, tooltip: 'Ongoing' };
       case 'upcoming':
-        return { text: 'Upcoming', variant: 'secondary' as const };
+        return { text: '⏳', variant: 'secondary' as const, tooltip: 'Upcoming' };
       case 'canceled':
-        return { text: 'Canceled', variant: 'destructive' as const };
+        return { text: '✕', variant: 'destructive' as const, tooltip: 'Canceled' };
       default:
         return null;
     }
@@ -134,7 +135,8 @@ export default function MovieCard({ movie }: MovieCardProps) {
 
   return (
     <Link href={`/movie/${movie.slug}`}>
-      <div className="movie-card group relative rounded-lg overflow-hidden cursor-pointer">        <AspectRatio ratio={2/3}>
+      <div className="movie-card group relative rounded-lg overflow-hidden cursor-pointer">        
+        <AspectRatio ratio={2/3}>
           <LazyImage
             src={movie.posterUrl || movie.thumbUrl || movie.poster_url || movie.thumb_url || "https://via.placeholder.com/300x450?text=No+Image"}
             alt={movie.name}
@@ -142,69 +144,68 @@ export default function MovieCard({ movie }: MovieCardProps) {
             rootMargin="75px"
             threshold={0.1}
             showSpinner={true}
-            onError={(e) => {
-              const target = e.target as HTMLImageElement;
-              if (target.src !== "https://via.placeholder.com/300x450?text=No+Image") {
-                target.src = "https://via.placeholder.com/300x450?text=No+Image";
-              } else {
-                // If fallback also fails, don't try again
-                target.onerror = null;
-              }
+            onError={() => {
               logger.error(`Failed to load image for movie: ${movie.name}`);
             }}
+            errorFallback="https://via.placeholder.com/300x450?text=No+Image"
           />
 
-          {/* Episode Badge - Top Left */}
+          {/* Ultra Compact Year Badge - Top Right */}
+          <Badge 
+            variant="outline" 
+            className="absolute top-1.5 right-1.5 bg-black/90 text-white border-white/20 text-[10px] sm:text-xs z-10 px-1.5 py-0.5 flex items-center gap-0.5 sm:gap-1"
+          >
+            <Calendar className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+            <span className="hidden sm:inline">{year}</span>
+            <span className="sm:hidden">{year.slice(-2)}</span>
+          </Badge>
+
+          {/* Ultra Compact Episode Badge with Icon - Top Left */}
           {shouldShowEpisodeBadge && (
             <Badge 
               variant="secondary" 
-              className="absolute top-2 left-2 bg-blue-600/90 hover:bg-blue-600 text-white z-10 flex items-center gap-1 text-xs font-medium shadow-lg"
+              className="absolute top-1.5 left-1.5 bg-blue-600/95 hover:bg-blue-600 text-white z-10 text-[10px] sm:text-xs font-bold shadow-lg px-1.5 py-0.5 flex items-center gap-0.5"
             >
-              <ListVideo size={12} />
-              <span className="truncate">{getBadgeText()}</span>
+              <Tv2 className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+              <span>{getBadgeText()}</span>
             </Badge>
           )}
 
-          {/* Status Badge - Below Episode Badge on Left */}
+          {/* Compact Status Icon Badge - Below Episode Badge */}
           {statusBadgeInfo && (
             <Badge 
               variant={statusBadgeInfo.variant}
-              className={`absolute left-2 z-10 text-xs font-medium shadow-lg ${shouldShowEpisodeBadge ? 'top-11' : 'top-2'}`}
+              className={`absolute left-1.5 z-10 text-xs sm:text-sm font-bold shadow-lg px-1.5 py-0.5 ${shouldShowEpisodeBadge ? 'top-8 sm:top-9' : 'top-1.5'}`}
+              title={statusBadgeInfo.tooltip}
             >
               {statusBadgeInfo.text}
             </Badge>
           )}
-
-          {/* Year Badge - Top Right Corner */}
-          <Badge 
-            variant="outline" 
-            className="absolute top-2 right-2 bg-black/70 text-white border-white/20 text-xs z-10"
-          >
-            {year}
-          </Badge>
           
-          {/* Hover Overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center pb-4">
-            <div className="text-center text-white px-4">
-              <div className="flex items-center justify-center mb-2">
-                <Play className="h-8 w-8 text-white bg-primary rounded-full p-2" fill="white" />
+          {/* Enhanced Hover Overlay - Optimized for mobile */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center pb-3 sm:pb-4">
+            <div className="text-center text-white px-2 sm:px-4 w-full">
+              <div className="flex items-center justify-center mb-1.5 sm:mb-2">
+                <Play className="h-6 w-6 sm:h-8 sm:w-8 text-white bg-primary rounded-full p-1.5 sm:p-2" fill="white" />
               </div>
-              <p className="text-sm font-medium mb-1">{movie.name}</p>
-              <div className="flex items-center justify-center space-x-3 text-xs">
-                <span>{typeFormatted}</span>
+              <p className="text-xs sm:text-sm font-medium mb-1 line-clamp-2 px-1">{movie.name}</p>
+              <div className="flex items-center justify-center space-x-2 sm:space-x-3 text-xs">
+                <span className="hidden sm:inline">{typeFormatted}</span>
                 {displayRating && (
-                  <>
-                    <span>•</span>
-                    <div className="flex items-center">
-                      <Star className="h-3 w-3 text-yellow-500 mr-1" fill="currentColor" />
-                      <span>{displayRating}</span>
-                    </div>
-                  </>
+                  <div className="flex items-center">
+                    <Star className="h-3 w-3 text-yellow-500 mr-0.5 sm:mr-1" fill="currentColor" />
+                    <span>{displayRating}</span>
+                  </div>
                 )}
               </div>
             </div>
           </div>
         </AspectRatio>
+
+        {/* Compact Title Below Image - Mobile Only */}
+        <div className="mt-1.5 sm:mt-2 md:hidden">
+          <p className="text-[11px] sm:text-xs font-medium line-clamp-2 text-foreground/90 leading-tight">{movie.name}</p>
+        </div>
       </div>
     </Link>
   );

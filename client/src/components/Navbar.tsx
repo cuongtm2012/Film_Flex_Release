@@ -19,8 +19,14 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { ChevronDown, LogOut, User, Settings, BookmarkPlus, Clock, Search, ChevronRight, Menu, Home, Film, Newspaper } from "lucide-react";
+import { ChevronDown, LogOut, User, Settings, BookmarkPlus, Clock, Search, ChevronRight, Menu, Home, Film, Newspaper, HelpCircle, Info, Scale } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useQuery } from "@tanstack/react-query";
@@ -39,12 +45,61 @@ export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [location] = useLocation();
   const [, navigate] = useLocation();
   const isMobile = useIsMobile();
   const { user, logoutMutation } = useAuth();
   const { toast } = useToast();
   const searchBoxRef = useRef<HTMLDivElement>(null);
   const debouncedSearch = useDebounce(search, 400);
+
+  const handleLinkClick = () => {
+    setOpen(false);
+  };
+
+  // Footer sections data for mobile menu
+  const footerSections = [
+    {
+      title: "Browse",
+      icon: Film,
+      items: [
+        { label: "Movies", href: "/movies" },
+        { label: "TV Shows", href: "/tv-shows" },
+        { label: "Trending", href: "/trending" },
+        { label: "New Releases", href: "/new-releases" },
+      ]
+    },
+    {
+      title: "Help",
+      icon: HelpCircle,
+      items: [
+        { label: "FAQ", href: "/faq" },
+        { label: "Support", href: "/support" },
+        { label: "Contact Us", href: "/contact" },
+      ]
+    },
+    {
+      title: "About",
+      icon: Info,
+      items: [
+        { label: "About Us", href: "/about" },
+        { label: "Careers", href: "/careers" },
+        { label: "Press", href: "/press" },
+        { label: "Blog", href: "/blog" },
+      ]
+    },
+    {
+      title: "Legal",
+      icon: Scale,
+      items: [
+        { label: "Terms of Service", href: "/terms" },
+        { label: "Privacy Policy", href: "/privacy" },
+        { label: "Cookie Policy", href: "/cookies" },
+        { label: "Disclaimers", href: "/disclaimers" },
+      ]
+    }
+  ];
 
   useEffect(() => {
     const handleScroll = () => {
@@ -179,6 +234,151 @@ export default function Navbar() {
                         <span className="font-medium">My List</span>
                       </Link>
                     )}
+
+                    {/* Divider */}
+                    <div className="border-t border-gray-800 my-4"></div>
+
+                    {/* Footer Sections in Mobile Menu */}
+                    <Accordion type="single" collapsible className="w-full">
+                      {/* Browse Section */}
+                      <AccordionItem value="browse" className="border-gray-800">
+                        <AccordionTrigger className="text-white hover:text-primary p-3 hover:no-underline">
+                          <div className="flex items-center space-x-3">
+                            <Film className="h-5 w-5" />
+                            <span className="font-medium">Browse</span>
+                          </div>
+                        </AccordionTrigger>
+                        <AccordionContent className="pl-11 space-y-2 pb-2">
+                          <Link 
+                            to="/movies" 
+                            className="block text-muted-foreground hover:text-white transition py-2"
+                            onClick={() => setIsMobileMenuOpen(false)}
+                          >
+                            Movies
+                          </Link>
+                          <Link 
+                            to="/movies?type=series" 
+                            className="block text-muted-foreground hover:text-white transition py-2"
+                            onClick={() => setIsMobileMenuOpen(false)}
+                          >
+                            TV Shows
+                          </Link>
+                          <Link 
+                            to="/movies?type=hoathinh" 
+                            className="block text-muted-foreground hover:text-white transition py-2"
+                            onClick={() => setIsMobileMenuOpen(false)}
+                          >
+                            Anime
+                          </Link>
+                          <Link 
+                            to="/news" 
+                            className="block text-muted-foreground hover:text-white transition py-2"
+                            onClick={() => setIsMobileMenuOpen(false)}
+                          >
+                            New & Popular
+                          </Link>
+                        </AccordionContent>
+                      </AccordionItem>
+
+                      {/* Help Section */}
+                      <AccordionItem value="help" className="border-gray-800">
+                        <AccordionTrigger className="text-white hover:text-primary p-3 hover:no-underline">
+                          <div className="flex items-center space-x-3">
+                            <HelpCircle className="h-5 w-5" />
+                            <span className="font-medium">Help</span>
+                          </div>
+                        </AccordionTrigger>
+                        <AccordionContent className="pl-11 space-y-2 pb-2">
+                          <Link 
+                            to="/faq" 
+                            className="block text-muted-foreground hover:text-white transition py-2"
+                            onClick={() => setIsMobileMenuOpen(false)}
+                          >
+                            FAQ
+                          </Link>
+                          <Link 
+                            to="/help-center" 
+                            className="block text-muted-foreground hover:text-white transition py-2"
+                            onClick={() => setIsMobileMenuOpen(false)}
+                          >
+                            Help Center
+                          </Link>
+                          <Link 
+                            to="/contact" 
+                            className="block text-muted-foreground hover:text-white transition py-2"
+                            onClick={() => setIsMobileMenuOpen(false)}
+                          >
+                            Contact Us
+                          </Link>
+                        </AccordionContent>
+                      </AccordionItem>
+
+                      {/* About Section */}
+                      <AccordionItem value="about" className="border-gray-800">
+                        <AccordionTrigger className="text-white hover:text-primary p-3 hover:no-underline">
+                          <div className="flex items-center space-x-3">
+                            <Info className="h-5 w-5" />
+                            <span className="font-medium">About</span>
+                          </div>
+                        </AccordionTrigger>
+                        <AccordionContent className="pl-11 space-y-2 pb-2">
+                          <Link 
+                            to="/about" 
+                            className="block text-muted-foreground hover:text-white transition py-2"
+                            onClick={() => setIsMobileMenuOpen(false)}
+                          >
+                            About Us
+                          </Link>
+                          <Link 
+                            to="/careers" 
+                            className="block text-muted-foreground hover:text-white transition py-2"
+                            onClick={() => setIsMobileMenuOpen(false)}
+                          >
+                            Careers
+                          </Link>
+                          <Link 
+                            to="/press" 
+                            className="block text-muted-foreground hover:text-white transition py-2"
+                            onClick={() => setIsMobileMenuOpen(false)}
+                          >
+                            Press
+                          </Link>
+                        </AccordionContent>
+                      </AccordionItem>
+
+                      {/* Legal Section */}
+                      <AccordionItem value="legal" className="border-b-0">
+                        <AccordionTrigger className="text-white hover:text-primary p-3 hover:no-underline">
+                          <div className="flex items-center space-x-3">
+                            <Scale className="h-5 w-5" />
+                            <span className="font-medium">Legal</span>
+                          </div>
+                        </AccordionTrigger>
+                        <AccordionContent className="pl-11 space-y-2 pb-2">
+                          <Link 
+                            to="/terms" 
+                            className="block text-muted-foreground hover:text-white transition py-2"
+                            onClick={() => setIsMobileMenuOpen(false)}
+                          >
+                            Terms of Service
+                          </Link>
+                          <Link 
+                            to="/privacy" 
+                            className="block text-muted-foreground hover:text-white transition py-2"
+                            onClick={() => setIsMobileMenuOpen(false)}
+                          >
+                            Privacy Policy
+                          </Link>
+                          <Link 
+                            to="/cookies" 
+                            className="block text-muted-foreground hover:text-white transition py-2"
+                            onClick={() => setIsMobileMenuOpen(false)}
+                          >
+                            Cookie Preferences
+                          </Link>
+                        </AccordionContent>
+                      </AccordionItem>
+                    </Accordion>
                   </nav>
                 </SheetContent>
               </Sheet>
