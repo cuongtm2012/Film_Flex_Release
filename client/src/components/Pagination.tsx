@@ -1,4 +1,3 @@
-import React from "react";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -56,22 +55,22 @@ export default function Pagination({ currentPage, totalPages, onPageChange }: Pa
   const visiblePages = getPageNumbers();
   
   return (
-    <div className="flex justify-center mt-10 gap-2">
+    <div className="flex justify-center items-center mt-6 md:mt-10 gap-1.5 md:gap-2 flex-wrap px-2">
       <Button
         variant="outline"
         size="icon"
-        className="w-10 h-10 rounded-full"
+        className="w-9 h-9 md:w-10 md:h-10 rounded-full shrink-0"
         onClick={() => onPageChange(Math.max(1, currentPage - 1))}
         disabled={currentPage === 1}
       >
-        <ChevronLeft className="h-4 w-4" />
+        <ChevronLeft className="h-3.5 w-3.5 md:h-4 md:w-4" />
       </Button>
       
       {visiblePages.map((page, index) => {
         // If page is a string, it's an ellipsis
         if (typeof page === "string") {
           return (
-            <span key={page} className="w-10 h-10 flex items-center justify-center text-muted-foreground">
+            <span key={page} className="w-8 h-9 md:w-10 md:h-10 flex items-center justify-center text-muted-foreground text-sm">
               ...
             </span>
           );
@@ -82,7 +81,7 @@ export default function Pagination({ currentPage, totalPages, onPageChange }: Pa
           <Button
             key={index}
             variant={currentPage === page ? "default" : "outline"}
-            className={`w-10 h-10 rounded-full ${
+            className={`w-9 h-9 md:w-10 md:h-10 rounded-full text-sm shrink-0 ${
               currentPage === page ? "bg-primary hover:bg-primary/90" : ""
             }`}
             onClick={() => onPageChange(page)}
@@ -95,11 +94,11 @@ export default function Pagination({ currentPage, totalPages, onPageChange }: Pa
       <Button
         variant="outline"
         size="icon"
-        className="w-10 h-10 rounded-full"
+        className="w-9 h-9 md:w-10 md:h-10 rounded-full shrink-0"
         onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
         disabled={currentPage === totalPages}
       >
-        <ChevronRight className="h-4 w-4" />
+        <ChevronRight className="h-3.5 w-3.5 md:h-4 md:w-4" />
       </Button>
     </div>
   );

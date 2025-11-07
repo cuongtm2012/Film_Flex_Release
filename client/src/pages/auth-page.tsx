@@ -19,6 +19,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
+import { ArrowLeft, Home } from "lucide-react";
 
 const loginSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters"),
@@ -123,7 +124,19 @@ export default function AuthPage() {
 
   return (
     <div className="flex h-screen">
-      <div className="flex flex-col justify-center w-full lg:w-1/2 p-6">
+      <div className="flex flex-col justify-center w-full lg:w-1/2 p-6 relative">
+        {/* Back to Home Button */}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => navigate("/")}
+          className="absolute top-4 left-4 md:top-6 md:left-6 flex items-center gap-2 text-muted-foreground hover:text-white transition-colors group"
+        >
+          <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
+          <span className="hidden sm:inline">Back to Home</span>
+          <Home className="h-4 w-4 sm:hidden" />
+        </Button>
+
         <div className="mx-auto w-full max-w-md">
           <Tabs
             defaultValue="login"

@@ -26,7 +26,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { ChevronDown, LogOut, User, Settings, BookmarkPlus, Clock, Search, ChevronRight, Menu, Home, Film, Newspaper, HelpCircle, Info, Scale } from "lucide-react";
+import { ChevronDown, LogOut, User, Settings, BookmarkPlus, Clock, Search, ChevronRight, Menu, Home, Film, Newspaper, HelpCircle, Info, Scale, UserCircle, Bell } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useQuery } from "@tanstack/react-query";
@@ -40,13 +40,16 @@ interface SearchSuggestion {
   type: string;
 }
 
-export default function Navbar() {
+interface NavbarProps {
+  isMobileMenuOpen?: boolean;
+  setIsMobileMenuOpen?: (open: boolean) => void;
+}
+
+export default function Navbar({ isMobileMenuOpen: externalMobileMenuOpen, setIsMobileMenuOpen: externalSetMobileMenuOpen }: NavbarProps = {}) {
   const [search, setSearch] = useState("");
   const [isScrolled, setIsScrolled] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [open, setOpen] = useState(false);
-  const [location] = useLocation();
+  const [internalMobileMenuOpen, setInternalMobileMenuOpen] = useState(false);
   const [, navigate] = useLocation();
   const isMobile = useIsMobile();
   const { user, logoutMutation } = useAuth();
@@ -54,52 +57,9 @@ export default function Navbar() {
   const searchBoxRef = useRef<HTMLDivElement>(null);
   const debouncedSearch = useDebounce(search, 400);
 
-  const handleLinkClick = () => {
-    setOpen(false);
-  };
-
-  // Footer sections data for mobile menu
-  const footerSections = [
-    {
-      title: "Browse",
-      icon: Film,
-      items: [
-        { label: "Movies", href: "/movies" },
-        { label: "TV Shows", href: "/tv-shows" },
-        { label: "Trending", href: "/trending" },
-        { label: "New Releases", href: "/new-releases" },
-      ]
-    },
-    {
-      title: "Help",
-      icon: HelpCircle,
-      items: [
-        { label: "FAQ", href: "/faq" },
-        { label: "Support", href: "/support" },
-        { label: "Contact Us", href: "/contact" },
-      ]
-    },
-    {
-      title: "About",
-      icon: Info,
-      items: [
-        { label: "About Us", href: "/about" },
-        { label: "Careers", href: "/careers" },
-        { label: "Press", href: "/press" },
-        { label: "Blog", href: "/blog" },
-      ]
-    },
-    {
-      title: "Legal",
-      icon: Scale,
-      items: [
-        { label: "Terms of Service", href: "/terms" },
-        { label: "Privacy Policy", href: "/privacy" },
-        { label: "Cookie Policy", href: "/cookies" },
-        { label: "Disclaimers", href: "/disclaimers" },
-      ]
-    }
-  ];
+  // Use external state if provided, otherwise use internal state
+  const isMobileMenuOpen = externalMobileMenuOpen !== undefined ? externalMobileMenuOpen : internalMobileMenuOpen;
+  const setIsMobileMenuOpen = externalSetMobileMenuOpen || setInternalMobileMenuOpen;
 
   useEffect(() => {
     const handleScroll = () => {
@@ -233,6 +193,61 @@ export default function Navbar() {
                         <BookmarkPlus className="h-5 w-5" />
                         <span className="font-medium">My List</span>
                       </Link>
+                    )}
+
+                    {/* Account Section */}
+                    <div className="border-t border-gray-800 my-4"></div>
+                    <div className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      Account
+                    </div>
+                    {user ? (
+                      <>
+                        <Link 
+                          to="/profile" 
+                          className="flex items-center space-x-3 text-muted-foreground hover:text-white transition p-3 rounded-lg hover:bg-white/5"
+                          onClick={() => setIsMobileMenuOpen(false)}
+                        >
+                          <UserCircle className="h-5 w-5" />
+                          <span className="font-medium">Profile</span>
+                        </Link>
+                        <Link 
+                          to="/settings" 
+                          className="flex items-center space-x-3 text-muted-foreground hover:text-white transition p-3 rounded-lg hover:bg-white/5"
+                          onClick={() => setIsMobileMenuOpen(false)}
+                        >
+                          <Settings className="h-5 w-5" />
+                          <span className="font-medium">Settings</span>
+                        </Link>
+                        <button 
+                          onClick={() => {
+                            handleLogout();
+                            setIsMobileMenuOpen(false);
+                          }}
+                          className="flex items-center space-x-3 text-red-500 hover:text-red-400 transition p-3 rounded-lg hover:bg-white/5 w-full text-left"
+                        >
+                          <LogOut className="h-5 w-5" />
+                          <span className="font-medium">Log out</span>
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <Link 
+                          to="/auth?mode=login" 
+                          className="flex items-center space-x-3 text-muted-foreground hover:text-white transition p-3 rounded-lg hover:bg-white/5"
+                          onClick={() => setIsMobileMenuOpen(false)}
+                        >
+                          <User className="h-5 w-5" />
+                          <span className="font-medium">Sign In</span>
+                        </Link>
+                        <Link 
+                          to="/auth?mode=register" 
+                          className="flex items-center space-x-3 text-primary hover:text-primary/80 transition p-3 rounded-lg hover:bg-white/5"
+                          onClick={() => setIsMobileMenuOpen(false)}
+                        >
+                          <UserCircle className="h-5 w-5" />
+                          <span className="font-medium">Sign Up</span>
+                        </Link>
+                      </>
                     )}
 
                     {/* Divider */}
@@ -514,79 +529,95 @@ export default function Navbar() {
               )}
             </div>
 
-            {/* User Menu */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="flex items-center text-white">
-                  <Avatar data-testid="user-avatar" className="user-avatar h-8 w-8">
-                    <AvatarFallback>
-                      {user ? user.username.substring(0, 2).toUpperCase() : "GU"}
-                    </AvatarFallback>
-                  </Avatar>
-                  <ChevronDown className={`ml-2 h-4 w-4 ${isMobile ? 'hidden' : ''}`} />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {user ? (
-                  <>
-                    <DropdownMenuLabel>
-                      {user.username}
-                      {user.role === 'admin' && (
-                        <span className="ml-2 text-xs bg-primary/20 text-primary px-1.5 py-0.5 rounded">Admin</span>
-                      )}
-                    </DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem>
-                      <Link to="/profile" className="w-full flex items-center">
-                        <User className="mr-2 h-4 w-4" />
-                        Profile
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      <Link to="/my-list" className="w-full flex items-center">
-                        <BookmarkPlus className="mr-2 h-4 w-4" />
-                        My List
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      <Link to="/history" className="w-full flex items-center">
-                        <Clock className="mr-2 h-4 w-4" />
-                        Watch History
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      <Link to="/settings" className="w-full flex items-center">
-                        <Settings className="mr-2 h-4 w-4" />
-                        Settings
-                      </Link>
-                    </DropdownMenuItem>
-                    {user.role === 'admin' && (
+            {/* Notification Bell */}
+            <Link to="/notifications">
+              <Button 
+                variant="ghost" 
+                size="icon"
+                className="relative text-white hover:bg-white/10"
+                aria-label="Notifications"
+              >
+                <Bell className="h-5 w-5" />
+                {/* Notification badge - uncomment when you have unread notifications */}
+                {/* <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span> */}
+              </Button>
+            </Link>
+
+            {/* User Menu - Desktop Only */}
+            {!isMobile && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="flex items-center text-white">
+                    <Avatar data-testid="user-avatar" className="user-avatar h-8 w-8">
+                      <AvatarFallback>
+                        {user ? user.username.substring(0, 2).toUpperCase() : "GU"}
+                      </AvatarFallback>
+                    </Avatar>
+                    <ChevronDown className="ml-2 h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {user ? (
+                    <>
+                      <DropdownMenuLabel>
+                        {user.username}
+                        {user.role === 'admin' && (
+                          <span className="ml-2 text-xs bg-primary/20 text-primary px-1.5 py-0.5 rounded">Admin</span>
+                        )}
+                      </DropdownMenuLabel>
+                      <DropdownMenuSeparator />
                       <DropdownMenuItem>
-                        <Link to="/admin" className="w-full flex items-center">
-                          <span className="mr-2 h-4 w-4 flex items-center justify-center">⚙️</span>
-                          Admin Panel
+                        <Link to="/profile" className="w-full flex items-center">
+                          <User className="mr-2 h-4 w-4" />
+                          Profile
                         </Link>
                       </DropdownMenuItem>
-                    )}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem data-testid="logout" onClick={handleLogout} className="logout-button text-red-500 cursor-pointer">
-                      <LogOut className="mr-2 h-4 w-4" />
-                      Log out
-                    </DropdownMenuItem>
-                  </>
-                ) : (
-                  <>
-                    <DropdownMenuLabel>Account</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem>
-                      <Link to="/auth" className="w-full flex items-center">
-                        Sign In / Register
-                      </Link>
-                    </DropdownMenuItem>
-                  </>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
+                      <DropdownMenuItem>
+                        <Link to="/my-list" className="w-full flex items-center">
+                          <BookmarkPlus className="mr-2 h-4 w-4" />
+                          My List
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem>
+                        <Link to="/history" className="w-full flex items-center">
+                          <Clock className="mr-2 h-4 w-4" />
+                          Watch History
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem>
+                        <Link to="/settings" className="w-full flex items-center">
+                          <Settings className="mr-2 h-4 w-4" />
+                          Settings
+                        </Link>
+                      </DropdownMenuItem>
+                      {user.role === 'admin' && (
+                        <DropdownMenuItem>
+                          <Link to="/admin" className="w-full flex items-center">
+                            <span className="mr-2 h-4 w-4 flex items-center justify-center">⚙️</span>
+                            Admin Panel
+                          </Link>
+                        </DropdownMenuItem>
+                      )}
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem data-testid="logout" onClick={handleLogout} className="logout-button text-red-500 cursor-pointer">
+                        <LogOut className="mr-2 h-4 w-4" />
+                        Log out
+                      </DropdownMenuItem>
+                    </>
+                  ) : (
+                    <>
+                      <DropdownMenuLabel>Account</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem>
+                        <Link to="/auth" className="w-full flex items-center">
+                          Sign In / Register
+                        </Link>
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
         </div>
       </div>

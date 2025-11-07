@@ -115,7 +115,7 @@ const FooterSection = ({ title, children }: FooterSectionProps) => {
   );
 };
 
-const Footer = () => {
+const Footer = ({ onOpenMobileMenu }: { onOpenMobileMenu?: () => void }) => {
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [location, setLocation] = useLocation();
 
@@ -333,13 +333,23 @@ const Footer = () => {
               <span className="text-[10px] mt-1 font-medium">Top</span>
             </button>
           ) : (
-            <Link href="/account">
-              <div className={`flex flex-col items-center justify-center h-full cursor-pointer transition-all relative ${location === '/account' ? 'text-primary' : 'text-gray-400 hover:text-gray-300'}`}>
-                {location === '/account' && <div className="absolute top-0 left-1/2 -translate-x-1/2 w-12 h-1 bg-primary rounded-b-full" />}
-                <User className={`h-5 w-5 ${location === '/account' ? 'fill-current' : ''}`} />
-                <span className="text-[10px] mt-1 font-medium">Account</span>
-              </div>
-            </Link>
+            // If a callback is provided, call it to open the shared mobile left-sheet (Menu / Account).
+            // Otherwise fall back to navigating to /account so behavior remains unchanged.
+            <div
+              role="button"
+              onClick={() => {
+                if (onOpenMobileMenu) {
+                  onOpenMobileMenu();
+                } else {
+                  setLocation('/account');
+                }
+              }}
+              className={`flex flex-col items-center justify-center h-full cursor-pointer transition-all relative ${location === '/account' ? 'text-primary' : 'text-gray-400 hover:text-gray-300'}`}
+            >
+              {location === '/account' && <div className="absolute top-0 left-1/2 -translate-x-1/2 w-12 h-1 bg-primary rounded-b-full" />}
+              <User className={`h-5 w-5 ${location === '/account' ? 'fill-current' : ''}`} />
+              <span className="text-[10px] mt-1 font-medium">Account</span>
+            </div>
           )}
         </div>
       </nav>

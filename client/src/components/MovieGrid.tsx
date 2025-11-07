@@ -62,9 +62,8 @@ export default function MovieGrid({
   ];
 
   // Generate year options for horizontal scroll
-  const currentYearNum = new Date().getFullYear();
   const yearOptions = [
-    { value: "", label: "All" },
+    { value: "all", label: "All" },
     ...availableYears.slice(0, 15).map(year => ({
       value: year.toString(),
       label: year.toString()
@@ -87,13 +86,13 @@ export default function MovieGrid({
 
   if (isLoading) {
     return (
-      <section className="py-4 container mx-auto px-4">
-        <div className="flex items-center justify-between mb-6">
-          <div className="h-8 w-64 bg-gray-700 rounded animate-pulse"></div>
-          <div className="h-10 w-40 bg-gray-700 rounded animate-pulse"></div>
+      <section className="py-2 md:py-4">
+        <div className="flex items-center justify-between mb-4 md:mb-6">
+          <div className="h-6 md:h-8 w-48 md:w-64 bg-gray-700 rounded animate-pulse"></div>
+          <div className="h-9 md:h-10 w-32 md:w-40 bg-gray-700 rounded animate-pulse"></div>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 md:gap-4">
           {[...Array(12)].map((_, index) => (
             <div
               key={index}
@@ -102,8 +101,8 @@ export default function MovieGrid({
           ))}
         </div>
 
-        <div className="flex justify-center mt-10">
-          <div className="h-10 w-64 bg-gray-700 rounded animate-pulse"></div>
+        <div className="flex justify-center mt-6 md:mt-10">
+          <div className="h-9 md:h-10 w-48 md:w-64 bg-gray-700 rounded animate-pulse"></div>
         </div>
       </section>
     );
@@ -123,7 +122,7 @@ export default function MovieGrid({
               <SelectValue placeholder="All Years" />
             </SelectTrigger>
             <SelectContent className="max-h-[300px]">
-              <SelectItem value="">All Years</SelectItem>
+              <SelectItem value="all">All Years</SelectItem>
               {availableYears.map(year => (
                 <SelectItem key={year} value={year.toString()}>
                   {year}
@@ -213,10 +212,10 @@ export default function MovieGrid({
   );
 
   return (
-    <section className="py-4 container mx-auto px-4">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold hidden md:block">{title}</h2>
-        <h2 className="text-xl font-bold md:hidden">{title}</h2>
+    <section className="py-2 md:py-4">
+      <div className="flex items-center justify-between mb-4 md:mb-6">
+        <h2 className="text-xl md:text-2xl font-bold hidden md:block">{title}</h2>
+        <h2 className="text-lg md:text-xl font-bold md:hidden">{title}</h2>
         
         {DesktopFilters}
       </div>
@@ -225,13 +224,13 @@ export default function MovieGrid({
       {MobileFilters}
 
       {movies.length === 0 ? (
-        <div className="text-center py-20">
-          <h3 className="text-xl font-medium text-muted-foreground">No movies found</h3>
-          <p className="text-muted-foreground mt-2">Try changing your search criteria</p>
+        <div className="text-center py-12 md:py-20">
+          <h3 className="text-lg md:text-xl font-medium text-muted-foreground">No movies found</h3>
+          <p className="text-sm md:text-base text-muted-foreground mt-2">Try changing your search criteria</p>
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 mt-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 md:gap-4 mt-4 md:mt-6">
             {movies.map((movie) => (
               <div key={movie._id || movie.slug}>
                 <MovieCard movie={movie} />
@@ -239,14 +238,14 @@ export default function MovieGrid({
             ))}
           </div>
 
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mt-6 mb-2 text-sm text-muted-foreground">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mt-4 md:mt-6 mb-2 text-xs md:text-sm text-muted-foreground px-1">
             <div className="flex items-center gap-1 mb-2 sm:mb-0">
-              <Info className="h-4 w-4 flex-shrink-0" />
-              <span>
+              <Info className="h-3.5 w-3.5 md:h-4 md:w-4 flex-shrink-0" />
+              <span className="text-xs md:text-sm">
                 Showing {movies.length > 0 ? ((currentPage - 1) * itemsPerPage) + 1 : 0} - {Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems} items
               </span>
             </div>
-            <div>
+            <div className="text-xs md:text-sm">
               <span>Page {currentPage} of {totalPages}</span>
             </div>
           </div>
@@ -263,11 +262,11 @@ export default function MovieGrid({
       {showBackToTop && (
         <Button
           onClick={scrollToTop}
-          className="fixed bottom-20 md:bottom-8 right-4 md:right-8 z-50 rounded-full w-12 h-12 shadow-lg hover:shadow-xl transition-all"
+          className="fixed bottom-24 md:bottom-8 right-4 md:right-8 z-50 rounded-full w-11 h-11 md:w-12 md:h-12 shadow-lg hover:shadow-xl transition-all"
           size="icon"
           aria-label="Back to top"
         >
-          <ArrowUp className="h-5 w-5" />
+          <ArrowUp className="h-4 w-4 md:h-5 md:w-5" />
         </Button>
       )}
     </section>

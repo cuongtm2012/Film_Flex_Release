@@ -20,6 +20,8 @@ import Layout from "@/components/Layout";
 import { ThemeProvider } from "@/components/ui/theme-provider";
 import { AuthProvider } from "@/hooks/use-auth";
 import { ProtectedRoute } from "@/lib/protected-route";
+import { Redirect } from "wouter";
+import { useAuth } from "@/hooks/use-auth";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import SplashScreen from "@/components/SplashScreen";
 
@@ -27,6 +29,7 @@ import MoviesPage from "@/pages/MoviesPage";
 import NewsPage from "@/pages/NewsPage";
 import MyListPage from "@/pages/MyListPage";
 import ProfileSettingsPage from "@/pages/ProfileSettingsPage";
+import NotificationsPage from "@/pages/NotificationsPage";
 
 // Footer-linked pages
 import AboutPage from "@/pages/AboutPage";
@@ -173,6 +176,14 @@ function Router() {
             </MainLayout>
           </ErrorBoundary>
         </Route>
+
+        <Route path="/notifications">
+          <ErrorBoundary>
+            <MainLayout>
+              <NotificationsPage />
+            </MainLayout>
+          </ErrorBoundary>
+        </Route>
         
         <Route path="/admin">
           <ErrorBoundary>
@@ -293,6 +304,36 @@ function Router() {
               <PartnersPage />
             </MainLayout>
           </ErrorBoundary>
+        </Route>
+
+        {/* Legacy /account route: redirect to auth when logged out or profile when logged in */}
+        <Route path="/account">
+          {() => {
+            const { user, isLoading } = useAuth();
+
+            if (isLoading) {
+              return (
+                <ErrorBoundary>
+                  <MainLayout>
+                    <div className="flex items-center justify-center min-h-screen">
+                      <svg className="animate-spin h-8 w-8 text-primary" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                      </svg>
+                    </div>
+                  </MainLayout>
+                </ErrorBoundary>
+              );
+            }
+
+            return (
+              <ErrorBoundary>
+                <MainLayout>
+                  {user ? <Redirect to="/profile" /> : <Redirect to="/auth" />}
+                </MainLayout>
+              </ErrorBoundary>
+            );
+          }}
         </Route>
         
         <Route>
