@@ -26,7 +26,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { ChevronDown, LogOut, User, Settings, BookmarkPlus, Clock, Search, ChevronRight, Menu, Home, Film, Newspaper, HelpCircle, Info, Scale, UserCircle, Bell } from "lucide-react";
+import { ChevronDown, LogOut, User, Settings, BookmarkPlus, Clock, Search, ChevronRight, Menu, Home, Film, Newspaper, HelpCircle, Info, Scale, UserCircle, Bell, Shield } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useQuery } from "@tanstack/react-query";
@@ -210,14 +210,31 @@ export default function Navbar({ isMobileMenuOpen: externalMobileMenuOpen, setIs
                           <UserCircle className="h-5 w-5" />
                           <span className="font-medium">Profile</span>
                         </Link>
-                        <Link 
-                          to="/settings" 
-                          className="flex items-center space-x-3 text-muted-foreground hover:text-white transition p-3 rounded-lg hover:bg-white/5"
-                          onClick={() => setIsMobileMenuOpen(false)}
-                        >
-                          <Settings className="h-5 w-5" />
-                          <span className="font-medium">Settings</span>
-                        </Link>
+                        
+                        {/* Only show Settings for non-admin users */}
+                        {user.role !== 'admin' && (
+                          <Link 
+                            to="/settings" 
+                            className="flex items-center space-x-3 text-muted-foreground hover:text-white transition p-3 rounded-lg hover:bg-white/5"
+                            onClick={() => setIsMobileMenuOpen(false)}
+                          >
+                            <Settings className="h-5 w-5" />
+                            <span className="font-medium">Settings</span>
+                          </Link>
+                        )}
+                        
+                        {/* Show Admin Panel for admin users */}
+                        {user.role === 'admin' && (
+                          <Link 
+                            to="/admin" 
+                            className="flex items-center space-x-3 text-primary hover:text-primary/80 transition p-3 rounded-lg hover:bg-white/5"
+                            onClick={() => setIsMobileMenuOpen(false)}
+                          >
+                            <Shield className="h-5 w-5" />
+                            <span className="font-medium">Admin Panel</span>
+                          </Link>
+                        )}
+                        
                         <button 
                           onClick={() => {
                             handleLogout();
@@ -584,20 +601,27 @@ export default function Navbar({ isMobileMenuOpen: externalMobileMenuOpen, setIs
                           Watch History
                         </Link>
                       </DropdownMenuItem>
-                      <DropdownMenuItem>
-                        <Link to="/settings" className="w-full flex items-center">
-                          <Settings className="mr-2 h-4 w-4" />
-                          Settings
-                        </Link>
-                      </DropdownMenuItem>
+                      
+                      {/* Only show Settings for non-admin users */}
+                      {user.role !== 'admin' && (
+                        <DropdownMenuItem>
+                          <Link to="/settings" className="w-full flex items-center">
+                            <Settings className="mr-2 h-4 w-4" />
+                            Settings
+                          </Link>
+                        </DropdownMenuItem>
+                      )}
+                      
+                      {/* Show Admin Panel for admin users */}
                       {user.role === 'admin' && (
                         <DropdownMenuItem>
                           <Link to="/admin" className="w-full flex items-center">
-                            <span className="mr-2 h-4 w-4 flex items-center justify-center">⚙️</span>
+                            <Shield className="mr-2 h-4 w-4" />
                             Admin Panel
                           </Link>
                         </DropdownMenuItem>
                       )}
+                      
                       <DropdownMenuSeparator />
                       <DropdownMenuItem data-testid="logout" onClick={handleLogout} className="logout-button text-red-500 cursor-pointer">
                         <LogOut className="mr-2 h-4 w-4" />

@@ -709,25 +709,11 @@ export default function AdminPage() {  const { user } = useAuth();
                         Email Settings
                       </Button>
                       <Button
-                        variant={systemSettingsTab === "security" ? "default" : "ghost"}
-                        className="rounded-b-none"
-                        onClick={() => setSystemSettingsTab("security")}
-                      >
-                        Security
-                      </Button>
-                      <Button
                         variant={systemSettingsTab === "analytics" ? "default" : "ghost"}
                         className="rounded-b-none"
                         onClick={() => setSystemSettingsTab("analytics")}
                       >
                         Analytics & API Keys
-                      </Button>
-                      <Button
-                        variant={systemSettingsTab === "session" ? "default" : "ghost"}
-                        className="rounded-b-none"
-                        onClick={() => setSystemSettingsTab("session")}
-                      >
-                        Session & Other
                       </Button>
                       <Button
                         variant={systemSettingsTab === "sso" ? "default" : "ghost"}
@@ -978,48 +964,6 @@ export default function AdminPage() {  const { user } = useAuth();
                             placeholder="Enter the from name for emails"
                             defaultValue="PhimGG Support"
                           />
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Security Tab */}
-                    {systemSettingsTab === "security" && (
-                      <div className="space-y-4">
-                        <h3 className="text-lg font-semibold mb-4">Security</h3>
-                        <div>
-                          <Label htmlFor="recaptcha-site" className="block text-sm font-medium mb-2">
-                            reCAPTCHA Site Key
-                          </Label>
-                          <Input 
-                            id="recaptcha-site"
-                            placeholder="Enter reCAPTCHA site key"
-                            defaultValue="6Lc_aCQUAAAAA..."
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="recaptcha-secret" className="block text-sm font-medium mb-2">
-                            reCAPTCHA Secret Key
-                          </Label>
-                          <Input 
-                            id="recaptcha-secret"
-                            placeholder="Enter reCAPTCHA secret key"
-                            defaultValue="6Lc_aCQUAAAAA..."
-                            type="password"
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="maintenance-mode" className="block text-sm font-medium mb-2">
-                            Maintenance Mode
-                          </Label>
-                          <div className="flex items-center gap-2">
-                            <Switch 
-                              id="maintenance-mode"
-                              defaultChecked={false}
-                            />
-                            <span className="text-sm text-muted-foreground">
-                              Enable maintenance mode to restrict access
-                            </span>
-                          </div>
                         </div>
                       </div>
                     )}
@@ -1501,6 +1445,58 @@ export default function AdminPage() {  const { user } = useAuth();
                         rows={3}
                       />
                     </div>
+                    
+                    {/* Divider */}
+                    <div className="border-t border-gray-200 dark:border-gray-700 my-6"></div>
+                    
+                    {/* reCAPTCHA Settings (moved from System Settings) */}
+                    <div>
+                      <h3 className="text-lg font-semibold mb-4">reCAPTCHA Configuration</h3>
+                    </div>
+                    <div>
+                      <Label htmlFor="recaptcha-site" className="block text-sm font-medium mb-2">
+                        reCAPTCHA Site Key
+                      </Label>
+                      <Input 
+                        id="recaptcha-site"
+                        placeholder="Enter reCAPTCHA site key"
+                        defaultValue="6Lc_aCQUAAAAA..."
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="recaptcha-secret" className="block text-sm font-medium mb-2">
+                        reCAPTCHA Secret Key
+                      </Label>
+                      <Input 
+                        id="recaptcha-secret"
+                        placeholder="Enter reCAPTCHA secret key"
+                        defaultValue="6Lc_aCQUAAAAA..."
+                        type="password"
+                      />
+                    </div>
+                    
+                    {/* Divider */}
+                    <div className="border-t border-gray-200 dark:border-gray-700 my-6"></div>
+                    
+                    {/* Maintenance Mode (moved from System Settings) */}
+                    <div>
+                      <h3 className="text-lg font-semibold mb-4">System Access Control</h3>
+                    </div>
+                    <div>
+                      <Label htmlFor="maintenance-mode" className="block text-sm font-medium mb-2">
+                        Maintenance Mode
+                      </Label>
+                      <div className="flex items-center gap-2">
+                        <Switch 
+                          id="maintenance-mode"
+                          defaultChecked={false}
+                        />
+                        <span className="text-sm text-muted-foreground">
+                          Enable maintenance mode to restrict access
+                        </span>
+                      </div>
+                    </div>
+                    
                     <div className="flex justify-end gap-2">
                       <Button variant="default" onClick={() => {}}>
                         Save Changes
