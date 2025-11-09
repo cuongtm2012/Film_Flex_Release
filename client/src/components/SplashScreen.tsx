@@ -20,8 +20,13 @@ export default function SplashScreen({ onClose }: SplashScreenProps) {
 
   const handleGetStarted = () => {
     setIsAnimating(true);
-    // Store in localStorage to prevent showing again in this session
-    localStorage.setItem('filmflex-splash-seen', 'true');
+    
+    // Store timestamp in localStorage to prevent showing again (resets after 30 days)
+    const splashData = {
+      timestamp: Date.now(),
+      version: '1.0'
+    };
+    localStorage.setItem('filmflex-splash-seen', JSON.stringify(splashData));
     
     setTimeout(() => {
       onClose();

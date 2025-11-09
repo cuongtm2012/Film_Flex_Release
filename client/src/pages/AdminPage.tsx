@@ -5,6 +5,9 @@ import { MovieListResponse } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { logger } from "@/lib/logger";
+import AdminSidebar from "@/components/admin/AdminSidebar";
+import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
+import { Separator } from "@/components/ui/separator";
 import { 
   Dialog, 
   DialogContent,
@@ -83,13 +86,7 @@ import UserManagement from "@/components/admin/UserManagement";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import {  Users,
-  Film,
-  Settings,
-  BarChart3,
-  ShieldCheck,
-  ClipboardList,
-  AlertCircle,
+import {
   Search,
   Plus,
   RefreshCw,
@@ -99,7 +96,7 @@ import {  Users,
   ArrowUpDown,
   Edit,
   Upload,
-  Bell
+  AlertCircle
 } from "lucide-react";
 
 import { Switch } from "@/components/ui/switch";
@@ -418,91 +415,24 @@ export default function AdminPage() {  const { user } = useAuth();
   }
 
   return (
-    <div className="container mx-auto py-8 px-4">
-      <div className="flex items-center mb-8">
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          className="mr-4"
-          onClick={() => navigate("/")}
-        >
-          <ChevronLeft className="mr-2 h-4 w-4" />
-          Back to Site
-        </Button>
-        <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-      </div>
+    <SidebarProvider defaultOpen={true}>
+      <div className="flex min-h-screen w-full bg-background">
+        {/* Admin Sidebar */}
+        <AdminSidebar
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          onBackToSite={() => navigate("/")}
+        />
 
-      <div className="grid grid-cols-12 gap-6">
-        {/* Sidebar */}
-        <div className="col-span-12 md:col-span-3 lg:col-span-2">
-          <Card>
-            <CardContent className="p-4">
-              <nav className="space-y-2 mt-2">
-                <Button 
-                  variant={activeTab === "user-management" ? "default" : "ghost"} 
-                  className="w-full justify-start"
-                  onClick={() => setActiveTab("user-management")}
-                >
-                  <Users className="mr-2 h-4 w-4" />
-                  User Management
-                </Button>
-                <Button 
-                  variant={activeTab === "content-management" ? "default" : "ghost"} 
-                  className="w-full justify-start"
-                  onClick={() => setActiveTab("content-management")}
-                >
-                  <Film className="mr-2 h-4 w-4" />
-                  Content Management
-                </Button>
-                <Button 
-                  variant={activeTab === "system-settings" ? "default" : "ghost"} 
-                  className="w-full justify-start"
-                  onClick={() => setActiveTab("system-settings")}
-                >
-                  <Settings className="mr-2 h-4 w-4" />
-                  System Settings
-                </Button>
-                <Button 
-                  variant={activeTab === "analytics" ? "default" : "ghost"} 
-                  className="w-full justify-start"
-                  onClick={() => setActiveTab("analytics")}
-                >
-                  <BarChart3 className="mr-2 h-4 w-4" />
-                  Analytics
-                </Button>
-                <Button 
-                  variant={activeTab === "security" ? "default" : "ghost"} 
-                  className="w-full justify-start"
-                  onClick={() => setActiveTab("security")}
-                >
-                  <ShieldCheck className="mr-2 h-4 w-4" />
-                  Security
-                </Button>
+        {/* Main Content Area */}
+        <SidebarInset className="flex-1">
+          <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center gap-2 border-b bg-background px-4 backdrop-blur-sm">
+            <SidebarTrigger className="-ml-1" />
+            <Separator orientation="vertical" className="mr-2 h-4" />
+            <h1 className="text-2xl font-bold">Admin Dashboard</h1>
+          </header>
 
-                <Button 
-                  variant={activeTab === "notifications" ? "default" : "ghost"} 
-                  className="w-full justify-start"
-                  onClick={() => navigate("/admin/notifications")}
-                >
-                  <Bell className="mr-2 h-4 w-4" />
-                  Notifications
-                </Button>
-
-                <Button 
-                  variant={activeTab === "audit-logs" ? "default" : "ghost"} 
-                  className="w-full justify-start"
-                  onClick={() => setActiveTab("audit-logs")}
-                >
-                  <ClipboardList className="mr-2 h-4 w-4" />
-                  Audit Logs
-                </Button>
-              </nav>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Main Content */}
-        <div className="col-span-12 md:col-span-9 lg:col-span-10 space-y-6">
+          <div className="flex-1 overflow-auto p-6 space-y-6">
           {/* User Management */}
           {activeTab === "user-management" && (
             <>
@@ -1624,7 +1554,10 @@ export default function AdminPage() {  const { user } = useAuth();
               </Card>
             </>
           )}
-        </div>
+          </div>
+          {/* End of content area */}
+
+        </SidebarInset>
       </div>
 
       {/* Full Screen Edit Dialog */}
@@ -1857,7 +1790,8 @@ export default function AdminPage() {  const { user } = useAuth();
           )}
         </DialogContent>
       </Dialog>
-
-    </div>
+      {/* End of Dialog */}
+      
+    </SidebarProvider>
   );
 }

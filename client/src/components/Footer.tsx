@@ -167,11 +167,11 @@ const Footer = ({ onOpenMobileMenu }: { onOpenMobileMenu?: () => void }) => {
   return (
     <>
       <footer className="hidden md:block bg-black text-white py-8 md:py-12 mt-8 relative pb-20 md:pb-12">
-        {/* Scroll to top button - Only on desktop, mobile uses bottom nav */}
+        {/* Scroll to top button - Only on large desktop (lg+), mobile/tablet uses MovieGrid button */}
         {showScrollTop && (
           <button
             onClick={scrollToTop}
-            className="scroll-to-top-btn hidden md:flex fixed bottom-20 right-6 bg-primary text-white p-3 rounded-full shadow-lg hover:bg-primary-dark transition-all duration-300 z-50 animate-fade-in"
+            className="scroll-to-top-btn hidden lg:flex fixed bottom-20 right-6 bg-primary text-white p-3 rounded-full shadow-lg hover:bg-primary-dark transition-all duration-300 z-50 animate-fade-in"
             aria-label="Scroll to top"
           >
             <ChevronUp className="h-6 w-6" />

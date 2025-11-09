@@ -258,11 +258,11 @@ export default function MovieGrid({
         </>
       )}
 
-      {/* Back to Top Button - Hidden on md+ breakpoints to avoid duplicate with Footer scroll button */}
+      {/* Back to Top Button - Hidden on lg+ breakpoints (Footer handles it), shown on mobile/tablet */}
       {showBackToTop && (
         <Button
           onClick={scrollToTop}
-          className="md:hidden fixed bottom-24 right-4 z-50 rounded-full w-11 h-11 shadow-lg hover:shadow-xl transition-all"
+          className="lg:hidden fixed bottom-24 right-4 z-50 rounded-full w-11 h-11 shadow-lg hover:shadow-xl transition-all"
           size="icon"
           aria-label="Back to top"
         >

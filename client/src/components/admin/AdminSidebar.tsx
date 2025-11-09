@@ -1,125 +1,185 @@
-import React, { useState } from 'react';
 import { 
   Users, 
   Film, 
   Settings, 
   BarChart3, 
   ShieldCheck, 
-  ClipboardList,
+  ClipboardList, 
+  Bell,
   ChevronLeft,
-  ChevronRight
 } from 'lucide-react';
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarFooter,
+  SidebarHeader,
+} from '@/components/ui/sidebar';
+import { useAuth } from '@/hooks/use-auth';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { useLocation } from 'wouter';
 
-interface SidebarProps {
+interface AdminSidebarProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
+  onBackToSite?: () => void;
 }
 
-export default function AdminSidebar({ activeTab, onTabChange }: SidebarProps) {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+const menuItems = [
+  {
+    id: 'user-management',
+    title: 'User Management',
+    icon: Users,
+    badge: undefined,
+  },
+  {
+    id: 'content-management',
+    title: 'Content Management',
+    icon: Film,
+    badge: undefined,
+  },
+  {
+    id: 'system-settings',
+    title: 'System Settings',
+    icon: Settings,
+    badge: undefined,
+  },
+  {
+    id: 'analytics',
+    title: 'Analytics',
+    icon: BarChart3,
+    badge: undefined,
+  },
+  {
+    id: 'security',
+    title: 'Security',
+    icon: ShieldCheck,
+    badge: undefined,
+  },
+  {
+    id: 'notifications',
+    title: 'Notifications',
+    icon: Bell,
+    badge: undefined,
+  },
+  {
+    id: 'audit-logs',
+    title: 'Audit Logs',
+    icon: ClipboardList,
+    badge: undefined,
+  },
+];
 
-  const menuItems = [
-    { id: 'user-management', icon: Users, label: 'User Management' },
-    { id: 'content-management', icon: Film, label: 'Content Management' },
-    { id: 'system-settings', icon: Settings, label: 'System Settings' },
-    { id: 'analytics', icon: BarChart3, label: 'Analytics' },
-    { id: 'security', icon: ShieldCheck, label: 'Security' },
-    { id: 'audit-logs', icon: ClipboardList, label: 'Audit Logs' }
-  ];
+export default function AdminSidebar({ activeTab, onTabChange, onBackToSite }: AdminSidebarProps) {
+  const { user } = useAuth();
+  const [, navigate] = useLocation();
+
+  const handleBackToSite = () => {
+    if (onBackToSite) {
+      onBackToSite();
+    } else {
+      navigate('/');
+    }
+  };
 
   return (
-    <aside 
-      className={`
-        fixed 
-        left-0 
-        top-0 
-        h-screen 
-        transition-all 
-        duration-300 
-        ease-in-out 
-        bg-zinc-900 
-        text-white 
-        ${isCollapsed ? 'w-16' : 'w-64'}
-        p-4
-        flex
-        flex-col
-        shadow-lg
-        z-50
-      `}
-    >
-      {/* Toggle button */}
-      <button
-        onClick={() => setIsCollapsed(!isCollapsed)}
-        className="
-          absolute 
-          -right-3 
-          top-8 
-          bg-zinc-900 
-          text-white 
-          rounded-full 
-          p-1 
-          hover:bg-zinc-800 
-          transition-colors
-          shadow-md
-          z-10
-        "
-      >
-        {isCollapsed ? (
-          <ChevronRight className="w-4 h-4" />
-        ) : (
-          <ChevronLeft className="w-4 h-4" />
-        )}
-      </button>
-
-      {/* Logo or brand area */}
-      <div className={`
-        flex 
-        items-center 
-        h-16 
-        ${isCollapsed ? 'justify-center' : 'px-2'}
-      `}>
-        <span className={`
-          font-bold 
-          text-xl 
-          ${isCollapsed ? 'hidden' : 'block'}
-        `}>
-          PhimGG
-        </span>
-        {isCollapsed && (
-          <span className="font-bold text-xl">FF</span>
-        )}
-      </div>
-
-      {/* Menu Items */}
-      <nav className="flex-1 space-y-2 mt-8">
-        {menuItems.map(({ id, icon: Icon, label }) => (
-          <button
-            key={id}
-            onClick={() => onTabChange(id)}
-            className={`
-              w-full 
-              flex 
-              items-center 
-              p-3 
-              rounded-lg 
-              transition-all
-              duration-200
-              ${activeTab === id 
-                ? 'bg-white/10 text-white' 
-                : 'text-gray-300 hover:bg-white/5 hover:text-white'
-              }
-              ${isCollapsed ? 'justify-center' : 'justify-start'}
-            `}
+    <Sidebar collapsible="icon">
+      {/* Header with Logo and Back Button */}
+      <SidebarHeader>
+        <div className="px-2 py-4">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-8 h-8 rounded-md bg-gradient-to-br from-red-600 to-red-500 flex items-center justify-center flex-shrink-0">
+                <Film className="w-5 h-5 text-white" />
+              </div>
+              <div className="min-w-0 group-data-[collapsible=icon]:hidden">
+                <h2 className="text-lg font-bold truncate">Admin</h2>
+                <p className="text-xs text-muted-foreground truncate">Dashboard</p>
+              </div>
+            </div>
+          </div>
+          
+          {/* Back to Site Button */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleBackToSite}
+            className="w-full justify-start mt-3 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2"
           >
-            <Icon className={`h-5 w-5 ${!isCollapsed && 'mr-3'}`} />
-            {!isCollapsed && (
-              <span className="transition-opacity duration-200">
-                {label}
-              </span>
-            )}
-          </button>
-        ))}
-      </nav>
-    </aside>
+            <ChevronLeft className="h-4 w-4 group-data-[collapsible=icon]:mr-0 mr-2" />
+            <span className="group-data-[collapsible=icon]:hidden">Back to Site</span>
+          </Button>
+        </div>
+      </SidebarHeader>
+
+      <SidebarContent>
+        {/* Navigation Menu */}
+        <SidebarGroup>
+          <SidebarGroupLabel>Management</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {menuItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = activeTab === item.id;
+
+                return (
+                  <SidebarMenuItem key={item.id}>
+                    <SidebarMenuButton
+                      onClick={() => onTabChange(item.id)}
+                      isActive={isActive}
+                      tooltip={item.title}
+                      className="group-data-[collapsible=icon]:justify-center"
+                    >
+                      <Icon className="h-4 w-4" />
+                      <span className="flex-1">{item.title}</span>
+                      {item.badge && (
+                        <Badge 
+                          variant="destructive" 
+                          className="ml-auto group-data-[collapsible=icon]:hidden text-xs px-1.5"
+                        >
+                          {item.badge}
+                        </Badge>
+                      )}
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+
+      {/* User Footer */}
+      <SidebarFooter>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <div className="flex items-center gap-3 px-3 py-3 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2">
+              <Avatar className="w-8 h-8 flex-shrink-0">
+                <AvatarFallback className="bg-primary/10 text-primary text-sm">
+                  {user?.username?.substring(0, 2).toUpperCase() || 
+                   user?.email?.substring(0, 2).toUpperCase() || 
+                   'AD'}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0 group-data-[collapsible=icon]:hidden">
+                <p className="text-sm font-medium truncate">
+                  {user?.username || user?.email || 'Admin'}
+                </p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {user?.role || 'Administrator'}
+                </p>
+              </div>
+            </div>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
+    </Sidebar>
   );
 }

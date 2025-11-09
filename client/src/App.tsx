@@ -187,9 +187,8 @@ function Router() {
         
         <Route path="/admin">
           <ErrorBoundary>
-            <MainLayout>
-              <ProtectedRoute component={AdminPage} path="/admin" />
-            </MainLayout>
+            {/* Admin page has its own layout with Sidebar - no MainLayout/Navbar */}
+            <ProtectedRoute component={AdminPage} path="/admin" />
           </ErrorBoundary>
         </Route>
         
@@ -350,10 +349,33 @@ function Router() {
 
 function App() {
   const [showSplash, setShowSplash] = React.useState(() => {
-    // Check if splash screen has been seen in this session
-    const hasSeenSplash = localStorage.getItem('filmflex-splash-seen');
-    debugLog('Checking splash screen status', { hasSeenSplash, shouldShow: !hasSeenSplash });
-    return !hasSeenSplash;
+    // Check if splash screen has been seen before
+    const splashData = localStorage.getItem('filmflex-splash-seen');
+    
+    if (!splashData) {
+      debugLog('Splash screen: First time visit - showing splash', { splashData: null });
+      return true;
+    }
+    
+    try {
+      const { timestamp } = JSON.parse(splashData);
+      const daysSinceLastSeen = (Date.now() - timestamp) / (1000 * 60 * 60 * 24);
+      
+      // Show splash again after 30 days
+      if (daysSinceLastSeen > 30) {
+        debugLog('Splash screen: 30+ days passed - showing splash again', { daysSinceLastSeen });
+        localStorage.removeItem('filmflex-splash-seen');
+        return true;
+      }
+      
+      debugLog('Splash screen: Already seen recently - hiding', { daysSinceLastSeen });
+      return false;
+    } catch {
+      // Invalid data format, show splash
+      debugLog('Splash screen: Invalid storage data - showing splash');
+      localStorage.removeItem('filmflex-splash-seen');
+      return true;
+    }
   });
 
   React.useEffect(() => {
@@ -383,17 +405,33 @@ function App() {
         showSplash: () => {
           localStorage.removeItem('filmflex-splash-seen');
           setShowSplash(true);
-          debugLog('Force showing splash screen');
+          debugLog('Force showing splash screen (cleared timestamp)');
         },
         hideSplash: () => {
-          localStorage.setItem('filmflex-splash-seen', 'true');
+          const splashData = { timestamp: Date.now(), version: '1.0' };
+          localStorage.setItem('filmflex-splash-seen', JSON.stringify(splashData));
           setShowSplash(false);
-          debugLog('Force hiding splash screen');
+          debugLog('Force hiding splash screen (set timestamp)');
         },
         checkSplashStatus: () => {
+          const splashDataRaw = localStorage.getItem('filmflex-splash-seen');
+          let splashData = null;
+          let daysSinceLastSeen = null;
+          
+          if (splashDataRaw) {
+            try {
+              splashData = JSON.parse(splashDataRaw);
+              daysSinceLastSeen = (Date.now() - splashData.timestamp) / (1000 * 60 * 60 * 24);
+            } catch {
+              splashData = 'Invalid format';
+            }
+          }
+          
           const status = {
             showSplash,
-            hasSeenSplash: localStorage.getItem('filmflex-splash-seen'),
+            splashData,
+            daysSinceLastSeen: daysSinceLastSeen ? daysSinceLastSeen.toFixed(2) : null,
+            willShowAgainIn: daysSinceLastSeen ? (30 - daysSinceLastSeen).toFixed(2) + ' days' : 'N/A',
             localStorage: Object.keys(localStorage)
           };
           logger.log('Splash Status:', status);
@@ -417,8 +455,15 @@ function App() {
   }, [showSplash]);
 
   const handleCloseSplash = () => {
-    debugLog('Closing splash screen');
-    localStorage.setItem('filmflex-splash-seen', 'true');
+    debugLog('Closing splash screen and saving timestamp');
+    
+    // Save with timestamp for future reference
+    const splashData = {
+      timestamp: Date.now(),
+      version: '1.0'
+    };
+    
+    localStorage.setItem('filmflex-splash-seen', JSON.stringify(splashData));
     setShowSplash(false);
   };
 
