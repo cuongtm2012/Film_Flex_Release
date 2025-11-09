@@ -10,13 +10,14 @@ export function securityHeaders(req: Request, res: Response, next: NextFunction)
   // Includes all necessary domains for the application to function
   const cspDirectives = [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com https://pagead2.googlesyndication.com https://www.googletagmanager.com https://www.google-analytics.com https://challenges.cloudflare.com https://cdn.jsdelivr.net https://unpkg.com",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com https://pagead2.googlesyndication.com https://www.googletagmanager.com https://www.google-analytics.com https://challenges.cloudflare.com https://cdn.jsdelivr.net https://unpkg.com https://www.gstatic.com https://adservice.google.com",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://unpkg.com",
     "font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net",
     "img-src 'self' data: blob: https: http:",
     "media-src 'self' blob: https: http:",
-    "connect-src 'self' https://api.phimgg.com https://phimgg.com https://*.phimgg.com https://www.google-analytics.com https://cloudflareinsights.com wss: ws:",
-    "frame-src 'self' https://www.youtube.com https://player.vimeo.com https://www.facebook.com https://accounts.google.com https://challenges.cloudflare.com",
+    "connect-src 'self' https://api.phimgg.com https://phimgg.com https://*.phimgg.com https://www.google-analytics.com https://cloudflareinsights.com https://fcm.googleapis.com https://firebase.googleapis.com https://pagead2.googlesyndication.com https://googleads.g.doubleclick.net wss: ws:",
+    "frame-src 'self' https://www.youtube.com https://player.vimeo.com https://www.facebook.com https://accounts.google.com https://challenges.cloudflare.com https://googleads.g.doubleclick.net https://tpc.googlesyndication.com https://www.google.com",
+    "worker-src 'self' blob:",
     "frame-ancestors 'self' https://phimgg.com https://*.phimgg.com",
     "object-src 'none'",
     "base-uri 'self'",

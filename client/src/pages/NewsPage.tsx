@@ -320,10 +320,16 @@ export default function NewsPage() {
                       onClick={() => handleMovieClick(movie.slug)}
                     >
                       <img 
-                        src={movie.thumbUrl || '/placeholder-poster.jpg'} 
+                        src={movie.thumb_url || movie.thumbUrl || movie.poster_url || movie.posterUrl || '/placeholder-poster.jpg'} 
                         alt={movie.name} 
                         className="w-full aspect-[2/3] object-cover rounded-lg transition-transform group-hover:scale-105"
                         loading="lazy"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          if (target.src !== '/placeholder-poster.jpg') {
+                            target.src = '/placeholder-poster.jpg';
+                          }
+                        }}
                       />
                       <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-opacity flex items-center justify-center opacity-0 group-hover:opacity-100">
                         <PlayCircle className="h-12 w-12 text-white" />

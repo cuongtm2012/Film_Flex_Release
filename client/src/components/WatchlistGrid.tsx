@@ -80,7 +80,7 @@ const WatchlistGrid: React.FC<WatchlistGridProps> = ({
         <Card key={movie.slug} className="overflow-hidden flex flex-col group">
           <div className="relative cursor-pointer h-[220px]">
             <img
-              src={movie.posterUrl || movie.thumbUrl || '/default-poster.jpg'}
+              src={movie.posterUrl || movie.poster_url || movie.thumbUrl || movie.thumb_url || '/default-poster.jpg'}
               alt={movie.name || movie.title}
               className="w-full h-full object-cover transition-transform group-hover:scale-105"
               loading="lazy"

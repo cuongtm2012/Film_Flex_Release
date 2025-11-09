@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
 import { MovieListResponse } from "@shared/schema";
@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Select,
   SelectContent,
@@ -98,7 +98,8 @@ import {  Users,
   Star,
   ArrowUpDown,
   Edit,
-  Upload
+  Upload,
+  Bell
 } from "lucide-react";
 
 import { Switch } from "@/components/ui/switch";
@@ -114,6 +115,11 @@ export default function AdminPage() {  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [recommendedFilter, setRecommendedFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
+  
+  // State for system settings tabs
+  const [systemSettingsTab, setSystemSettingsTab] = useState("general");
+  const [systemSettings, setSystemSettings] = useState<Record<string, any>>({});
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
 
   // State for movie editing
   const [fullScreenEdit, setFullScreenEdit] = useState(false);
@@ -127,6 +133,72 @@ export default function AdminPage() {  const { user } = useAuth();
   
   // Add isAuthenticated variable to fix undefined error
   const isAuthenticated = !!user;
+  
+  // Fetch system settings
+  const { data: settingsData, isLoading: isLoadingSettings } = useQuery({
+    queryKey: ['/api/admin/settings'],
+    queryFn: async () => {
+      const response = await fetch('/api/admin/settings');
+      if (!response.ok) {
+        throw new Error('Failed to fetch settings');
+      }
+      const data = await response.json();
+      return data.data;
+    },
+    enabled: isAuthenticated && activeTab === 'system-settings',
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+  
+  // Update local state when settings are loaded
+  useEffect(() => {
+    if (settingsData) {
+      setSystemSettings(settingsData);
+    }
+  }, [settingsData]);
+  
+  // Function to save system settings
+  const handleSaveSettings = async () => {
+    setIsSavingSettings(true);
+    try {
+      const response = await fetch('/api/admin/settings', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(systemSettings),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to save settings');
+      }
+      
+      await response.json(); // Consume response
+      
+      toast({
+        description: "Settings saved successfully",
+      });
+      
+      // Invalidate query to refresh data
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/settings'] });
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to save settings. Please try again.",
+      });
+    } finally {
+      setIsSavingSettings(false);
+    }
+  };
+  
+  // Function to update a setting value
+  const updateSetting = (key: string, value: any) => {
+    setSystemSettings(prev => ({
+      ...prev,
+      [key]: value
+    }));
+  };
   
   // Function to fetch full movie details
   const fetchMovieDetails = async (slug: string) => {
@@ -408,6 +480,15 @@ export default function AdminPage() {  const { user } = useAuth();
                 </Button>
 
                 <Button 
+                  variant={activeTab === "notifications" ? "default" : "ghost"} 
+                  className="w-full justify-start"
+                  onClick={() => navigate("/admin/notifications")}
+                >
+                  <Bell className="mr-2 h-4 w-4" />
+                  Notifications
+                </Button>
+
+                <Button 
                   variant={activeTab === "audit-logs" ? "default" : "ghost"} 
                   className="w-full justify-start"
                   onClick={() => setActiveTab("audit-logs")}
@@ -673,414 +754,595 @@ export default function AdminPage() {  const { user } = useAuth();
                   <CardDescription>Configure system-wide settings and preferences</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="site-title" className="block text-sm font-medium mb-2">
-                        Site Title
-                      </Label>
-                      <Input 
-                        id="site-title"
-                        placeholder="Enter the site title"
-                        value="PhimGG Admin"
-                        onChange={() => {}}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="site-url" className="block text-sm font-medium mb-2">
-                        Site URL
-                      </Label>
-                      <Input 
-                        id="site-url"
-                        placeholder="Enter the site URL"
-                        value="https://admin.filmflex.com"
-                        onChange={() => {}}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="admin-email" className="block text-sm font-medium mb-2">
-                        Admin Email
-                      </Label>
-                      <Input 
-                        id="admin-email"
-                        placeholder="Enter the admin email"
-                        value="admin@filmflex.com"
-                        onChange={() => {}}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="support-email" className="block text-sm font-medium mb-2">
-                        Support Email
-                      </Label>
-                      <Input 
-                        id="support-email"
-                        placeholder="Enter the support email"
-                        value="support@filmflex.com"
-                        onChange={() => {}}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="site-description" className="block text-sm font-medium mb-2">
-                        Site Description
-                      </Label>
-                      <Textarea 
-                        id="site-description"
-                        placeholder="Enter a brief description of the site"
-                        value="A premier platform for watching and sharing films and TV shows."
-                        onChange={() => {}}
-                        rows={3}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="site-keywords" className="block text-sm font-medium mb-2">
-                        Site Keywords
-                      </Label>
-                      <Input 
-                        id="site-keywords"
-                        placeholder="Enter keywords separated by commas"
-                        value="films, movies, tv shows, streaming"
-                        onChange={() => {}}
-                      />
-                    </div>
-                    <div>
-                      <Label id="timezone-label" className="block text-sm font-medium mb-2">
-                        Timezone
-                      </Label>
-                      <Select 
-                        defaultValue="UTC"
-                        onValueChange={() => {}}
-                        aria-labelledby="timezone-label"
+                  {/* Horizontal Tabs */}
+                  <div className="border-b mb-6">
+                    <div className="flex flex-wrap gap-2 -mb-px">
+                      <Button
+                        variant={systemSettingsTab === "general" ? "default" : "ghost"}
+                        className="rounded-b-none"
+                        onClick={() => setSystemSettingsTab("general")}
                       >
-                        <SelectTrigger aria-label="timezone">
-                          <SelectValue placeholder="Select timezone" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="UTC">UTC</SelectItem>
-                          <SelectItem value="GMT">GMT</SelectItem>
-                          <SelectItem value="CET">CET</SelectItem>
-                          <SelectItem value="EST">EST</SelectItem>
-                          <SelectItem value="PST">PST</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label id="language-label" className="block text-sm font-medium mb-2">
-                        Language
-                      </Label>
-                      <Select 
-                        defaultValue="en"
-                        onValueChange={() => {}}
-                        aria-labelledby="language-label"
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select language" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="en">English</SelectItem>
-                          <SelectItem value="vi">Vietnamese</SelectItem>
-                          <SelectItem value="fr">French</SelectItem>
-                          <SelectItem value="es">Spanish</SelectItem>
-                          <SelectItem value="de">German</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label id="currency-label" className="block text-sm font-medium mb-2">
-                        Currency
-                      </Label>
-                      <Select 
-                        defaultValue="USD"
-                        onValueChange={() => {}}
-                        aria-labelledby="currency-label"
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select currency" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="USD">USD</SelectItem>
-                          <SelectItem value="EUR">EUR</SelectItem>
-                          <SelectItem value="GBP">GBP</SelectItem>
-                          <SelectItem value="JPY">JPY</SelectItem>
-                          <SelectItem value="VND">VND</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label id="payment-gateway-label" className="block text-sm font-medium mb-2">
-                        Payment Gateway
-                      </Label>
-                      <Select 
-                        defaultValue="stripe"
-                        onValueChange={() => {}}
-                        aria-labelledby="payment-gateway-label"
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select payment gateway" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="stripe">Stripe</SelectItem>
-                          <SelectItem value="paypal">PayPal</SelectItem>
-                          <SelectItem value="square">Square</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label htmlFor="site-logo" className="block text-sm font-medium mb-2">
-                        Site Logo
-                      </Label>
-                      <div className="flex items-center gap-2">
-                        <AvatarFallback className="w-12 h-12 rounded-full bg-muted">
-                          <span className="text-xl font-semibold">FL</span>
-                        </AvatarFallback>
-                        <Button variant="outline" size="sm">
-                          <Upload className="mr-2 h-4 w-4" />
-                          Upload Logo
-                        </Button>
-                      </div>
-                    </div>
-                    <div>
-                      <Label htmlFor="favicon" className="block text-sm font-medium mb-2">
-                        Favicon
-                      </Label>
-                      <div className="flex items-center gap-2">
-                        <AvatarFallback className="w-10 h-10 rounded-full bg-muted">
-                          <span className="text-xl font-semibold">F</span>
-                        </AvatarFallback>
-                        <Button variant="outline" size="sm">
-                          <Upload className="mr-2 h-4 w-4" />
-                          Upload Favicon
-                        </Button>
-                      </div>
-                    </div>
-                    <div>
-                      <Label htmlFor="email-smtp" className="block text-sm font-medium mb-2">
-                        SMTP Server
-                      </Label>
-                      <Input 
-                        id="email-smtp"
-                        placeholder="Enter SMTP server address"
-                        value="smtp.filmflex.com"
-                        onChange={() => {}}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="email-port" className="block text-sm font-medium mb-2">
-                        SMTP Port
-                      </Label>
-                      <Input 
-                        id="email-port"
-                        placeholder="Enter SMTP server port"
-                        value="587"
-                        onChange={() => {}}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="email-user" className="block text-sm font-medium mb-2">
-                        SMTP Username
-                      </Label>
-                      <Input 
-                        id="email-user"
-                        placeholder="Enter SMTP username"
-                        value="admin@filmflex.com"
-                        onChange={() => {}}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="email-pass" className="block text-sm font-medium mb-2">
-                        SMTP Password
-                      </Label>
-                      <Input 
-                        id="email-pass"
-                        placeholder="Enter SMTP password"
-                        value="********"
-                        onChange={() => {}}
-                        type="password"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="email-from" className="block text-sm font-medium mb-2">
-                        Email From Address
-                      </Label>
-                      <Input 
-                        id="email-from"
-                        placeholder="Enter the from address for emails"
-                        value="no-reply@filmflex.com"
-                        onChange={() => {}}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="email-name" className="block text-sm font-medium mb-2">
-                        Email From Name
-                      </Label>
-                      <Input 
-                        id="email-name"
-                        placeholder="Enter the from name for emails"
-                        value="PhimGG Support"
-                        onChange={() => {}}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="recaptcha-site" className="block text-sm font-medium mb-2">
-                        reCAPTCHA Site Key
-                      </Label>
-                      <Input 
-                        id="recaptcha-site"
-                        placeholder="Enter reCAPTCHA site key"
-                        value="6Lc_aCQUAAAAA..."
-                        onChange={() => {}}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="recaptcha-secret" className="block text-sm font-medium mb-2">
-                        reCAPTCHA Secret Key
-                      </Label>
-                      <Input 
-                        id="recaptcha-secret"
-                        placeholder="Enter reCAPTCHA secret key"
-                        value="6Lc_aCQUAAAAA..."
-                        onChange={() => {}}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="maintenance-mode" className="block text-sm font-medium mb-2">
-                        Maintenance Mode
-                      </Label>
-                      <Switch 
-                        id="maintenance-mode"
-                        checked={false}
-                        onCheckedChange={() => {}}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="analytics-id" className="block text-sm font-medium mb-2">
-                        Google Analytics ID
-                      </Label>
-                      <Input 
-                        id="analytics-id"
-                        placeholder="Enter Google Analytics ID"
-                        value="UA-XXXXXXXXX-X"
-                        onChange={() => {}}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="stripe-key" className="block text-sm font-medium mb-2">
-                        Stripe Publishable Key
-                      </Label>
-                      <Input 
-                        id="stripe-key"
-                        placeholder="Enter Stripe publishable key"
-                        value="pk_test_XXXXXXXXXXXXXXXX"
-                        onChange={() => {}}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="stripe-secret" className="block text-sm font-medium mb-2">
-                        Stripe Secret Key
-                      </Label>
-                      <Input 
-                        id="stripe-secret"
-                        placeholder="Enter Stripe secret key"
-                        value="sk_test_XXXXXXXXXXXXXXXX"
-                        onChange={() => {}}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="paypal-client" className="block text-sm font-medium mb-2">
-                        PayPal Client ID
-                      </Label>
-                      <Input 
-                        id="paypal-client"
-                        placeholder="Enter PayPal client ID"
-                        value="AXXXXXXXXXXXXXXXXXX"
-                        onChange={() => {}}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="paypal-secret" className="block text-sm font-medium mb-2">
-                        PayPal Secret
-                      </Label>
-                      <Input 
-                        id="paypal-secret"
-                        placeholder="Enter PayPal secret"
-                        value="XXXXXXXXXXXXXXXXX"
-                        onChange={() => {}}
-                      />
-                    </div>
-                    <div>
-                      <Label id="site-status-label" className="block text-sm font-medium mb-2">
-                        Site Status
-                      </Label>
-                      <Select 
-                        defaultValue="online"
-                        onValueChange={() => {}}
-                        aria-labelledby="site-status-label"
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select site status" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="online">Online</SelectItem>
-                          <SelectItem value="offline">Offline</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label id="admin-lockout-label" className="block text-sm font-medium mb-2">
-                        Admin Lockout Duration
-                      </Label>
-                      <Select 
-                        defaultValue="15"
-                        onValueChange={() => {}}
-                        aria-labelledby="admin-lockout-label"
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select duration" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="5">5 minutes</SelectItem>
-                          <SelectItem value="15">15 minutes</SelectItem>
-                          <SelectItem value="30">30 minutes</SelectItem>
-                          <SelectItem value="60">1 hour</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label id="session-timeout-label" className="block text-sm font-medium mb-2">
-                        Session Timeout
-                      </Label>
-                      <Select 
-                        defaultValue="30"
-                        onValueChange={() => {}}
-                        aria-labelledby="session-timeout-label"
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select timeout" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="5">5 minutes</SelectItem>
-                          <SelectItem value="15">15 minutes</SelectItem>
-                          <SelectItem value="30">30 minutes</SelectItem>
-                          <SelectItem value="60">1 hour</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label htmlFor="password-requirements" className="block text-sm font-medium mb-2">
-                        Password Requirements
-                      </Label>
-                      <Textarea 
-                        id="password-requirements"
-                        placeholder="Enter password requirements"
-                        value="Minimum 8 characters, at least 1 uppercase letter, 1 lowercase letter, 1 number, 1 special character"
-                        onChange={() => {}}
-                        rows={3}
-                      />
-                    </div>
-                    <div className="flex justify-end gap-2">
-                      <Button variant="default" onClick={() => {}}>
-                        Save Changes
+                        General Settings
                       </Button>
-                      <Button variant="outline" onClick={() => {}}>
+                      <Button
+                        variant={systemSettingsTab === "branding" ? "default" : "ghost"}
+                        className="rounded-b-none"
+                        onClick={() => setSystemSettingsTab("branding")}
+                      >
+                        Branding
+                      </Button>
+                      <Button
+                        variant={systemSettingsTab === "email" ? "default" : "ghost"}
+                        className="rounded-b-none"
+                        onClick={() => setSystemSettingsTab("email")}
+                      >
+                        Email Settings
+                      </Button>
+                      <Button
+                        variant={systemSettingsTab === "security" ? "default" : "ghost"}
+                        className="rounded-b-none"
+                        onClick={() => setSystemSettingsTab("security")}
+                      >
+                        Security
+                      </Button>
+                      <Button
+                        variant={systemSettingsTab === "analytics" ? "default" : "ghost"}
+                        className="rounded-b-none"
+                        onClick={() => setSystemSettingsTab("analytics")}
+                      >
+                        Analytics & API Keys
+                      </Button>
+                      <Button
+                        variant={systemSettingsTab === "session" ? "default" : "ghost"}
+                        className="rounded-b-none"
+                        onClick={() => setSystemSettingsTab("session")}
+                      >
+                        Session & Other
+                      </Button>
+                      <Button
+                        variant={systemSettingsTab === "sso" ? "default" : "ghost"}
+                        className="rounded-b-none"
+                        onClick={() => setSystemSettingsTab("sso")}
+                      >
+                        SSO Configuration
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Tab Content */}
+                  <div className="space-y-4">
+                    {/* General Settings Tab */}
+                    {systemSettingsTab === "general" && (
+                      <div className="space-y-4">
+                        <h3 className="text-lg font-semibold mb-4">General Settings</h3>
+                        <div>
+                          <Label htmlFor="site-title" className="block text-sm font-medium mb-2">
+                            Site Title
+                          </Label>
+                          <Input 
+                            id="site-title"
+                            placeholder="Enter the site title"
+                            defaultValue="PhimGG Admin"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="site-url" className="block text-sm font-medium mb-2">
+                            Site URL
+                          </Label>
+                          <Input 
+                            id="site-url"
+                            placeholder="Enter the site URL"
+                            defaultValue="https://admin.filmflex.com"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="admin-email" className="block text-sm font-medium mb-2">
+                            Admin Email
+                          </Label>
+                          <Input 
+                            id="admin-email"
+                            placeholder="Enter the admin email"
+                            defaultValue="admin@filmflex.com"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="support-email" className="block text-sm font-medium mb-2">
+                            Support Email
+                          </Label>
+                          <Input 
+                            id="support-email"
+                            placeholder="Enter the support email"
+                            defaultValue="support@filmflex.com"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="site-description" className="block text-sm font-medium mb-2">
+                            Site Description
+                          </Label>
+                          <Textarea 
+                            id="site-description"
+                            placeholder="Enter a brief description of the site"
+                            defaultValue="A premier platform for watching and sharing films and TV shows."
+                            rows={3}
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="site-keywords" className="block text-sm font-medium mb-2">
+                            Site Keywords
+                          </Label>
+                          <Input 
+                            id="site-keywords"
+                            placeholder="Enter keywords separated by commas"
+                            defaultValue="films, movies, tv shows, streaming"
+                          />
+                        </div>
+                        <div>
+                          <Label id="timezone-label" className="block text-sm font-medium mb-2">
+                            Timezone
+                          </Label>
+                          <Select defaultValue="UTC" aria-labelledby="timezone-label">
+                            <SelectTrigger aria-label="timezone">
+                              <SelectValue placeholder="Select timezone" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="UTC">UTC</SelectItem>
+                              <SelectItem value="GMT">GMT</SelectItem>
+                              <SelectItem value="CET">CET</SelectItem>
+                              <SelectItem value="EST">EST</SelectItem>
+                              <SelectItem value="PST">PST</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label id="language-label" className="block text-sm font-medium mb-2">
+                            Language
+                          </Label>
+                          <Select defaultValue="en" aria-labelledby="language-label">
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select language" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="en">English</SelectItem>
+                              <SelectItem value="vi">Vietnamese</SelectItem>
+                              <SelectItem value="fr">French</SelectItem>
+                              <SelectItem value="es">Spanish</SelectItem>
+                              <SelectItem value="de">German</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label id="currency-label" className="block text-sm font-medium mb-2">
+                            Currency
+                          </Label>
+                          <Select defaultValue="USD" aria-labelledby="currency-label">
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select currency" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="USD">USD</SelectItem>
+                              <SelectItem value="EUR">EUR</SelectItem>
+                              <SelectItem value="GBP">GBP</SelectItem>
+                              <SelectItem value="JPY">JPY</SelectItem>
+                              <SelectItem value="VND">VND</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label id="payment-gateway-label" className="block text-sm font-medium mb-2">
+                            Payment Gateway
+                          </Label>
+                          <Select defaultValue="stripe" aria-labelledby="payment-gateway-label">
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select payment gateway" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="stripe">Stripe</SelectItem>
+                              <SelectItem value="paypal">PayPal</SelectItem>
+                              <SelectItem value="square">Square</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Branding Tab */}
+                    {systemSettingsTab === "branding" && (
+                      <div className="space-y-4">
+                        <h3 className="text-lg font-semibold mb-4">Branding</h3>
+                        <div>
+                          <Label htmlFor="site-logo" className="block text-sm font-medium mb-2">
+                            Site Logo
+                          </Label>
+                          <div className="flex items-center gap-2">
+                            <Avatar className="w-12 h-12">
+                              <AvatarFallback className="bg-muted">
+                                <span className="text-xl font-semibold">FL</span>
+                              </AvatarFallback>
+                            </Avatar>
+                            <Button variant="outline" size="sm">
+                              <Upload className="mr-2 h-4 w-4" />
+                              Upload Logo
+                            </Button>
+                          </div>
+                        </div>
+                        <div>
+                          <Label htmlFor="favicon" className="block text-sm font-medium mb-2">
+                            Favicon
+                          </Label>
+                          <div className="flex items-center gap-2">
+                            <Avatar className="w-10 h-10">
+                              <AvatarFallback className="bg-muted">
+                                <span className="text-xl font-semibold">F</span>
+                              </AvatarFallback>
+                            </Avatar>
+                            <Button variant="outline" size="sm">
+                              <Upload className="mr-2 h-4 w-4" />
+                              Upload Favicon
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Email Settings Tab */}
+                    {systemSettingsTab === "email" && (
+                      <div className="space-y-4">
+                        <h3 className="text-lg font-semibold mb-4">Email Settings</h3>
+                        <div>
+                          <Label htmlFor="email-smtp" className="block text-sm font-medium mb-2">
+                            SMTP Server
+                          </Label>
+                          <Input 
+                            id="email-smtp"
+                            placeholder="Enter SMTP server address"
+                            defaultValue="smtp.filmflex.com"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="email-port" className="block text-sm font-medium mb-2">
+                            SMTP Port
+                          </Label>
+                          <Input 
+                            id="email-port"
+                            placeholder="Enter SMTP server port"
+                            defaultValue="587"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="email-user" className="block text-sm font-medium mb-2">
+                            SMTP Username
+                          </Label>
+                          <Input 
+                            id="email-user"
+                            placeholder="Enter SMTP username"
+                            defaultValue="admin@filmflex.com"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="email-pass" className="block text-sm font-medium mb-2">
+                            SMTP Password
+                          </Label>
+                          <Input 
+                            id="email-pass"
+                            placeholder="Enter SMTP password"
+                            defaultValue="********"
+                            type="password"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="email-from" className="block text-sm font-medium mb-2">
+                            Email From Address
+                          </Label>
+                          <Input 
+                            id="email-from"
+                            placeholder="Enter the from address for emails"
+                            defaultValue="no-reply@filmflex.com"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="email-name" className="block text-sm font-medium mb-2">
+                            Email From Name
+                          </Label>
+                          <Input 
+                            id="email-name"
+                            placeholder="Enter the from name for emails"
+                            defaultValue="PhimGG Support"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Security Tab */}
+                    {systemSettingsTab === "security" && (
+                      <div className="space-y-4">
+                        <h3 className="text-lg font-semibold mb-4">Security</h3>
+                        <div>
+                          <Label htmlFor="recaptcha-site" className="block text-sm font-medium mb-2">
+                            reCAPTCHA Site Key
+                          </Label>
+                          <Input 
+                            id="recaptcha-site"
+                            placeholder="Enter reCAPTCHA site key"
+                            defaultValue="6Lc_aCQUAAAAA..."
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="recaptcha-secret" className="block text-sm font-medium mb-2">
+                            reCAPTCHA Secret Key
+                          </Label>
+                          <Input 
+                            id="recaptcha-secret"
+                            placeholder="Enter reCAPTCHA secret key"
+                            defaultValue="6Lc_aCQUAAAAA..."
+                            type="password"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="maintenance-mode" className="block text-sm font-medium mb-2">
+                            Maintenance Mode
+                          </Label>
+                          <div className="flex items-center gap-2">
+                            <Switch 
+                              id="maintenance-mode"
+                              defaultChecked={false}
+                            />
+                            <span className="text-sm text-muted-foreground">
+                              Enable maintenance mode to restrict access
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Analytics & API Keys Tab */}
+                    {systemSettingsTab === "analytics" && (
+                      <div className="space-y-4">
+                        <h3 className="text-lg font-semibold mb-4">Analytics & API Keys</h3>
+                        <div>
+                          <Label htmlFor="analytics-id" className="block text-sm font-medium mb-2">
+                            Google Analytics ID
+                          </Label>
+                          <Input 
+                            id="analytics-id"
+                            placeholder="Enter Google Analytics ID"
+                            defaultValue="UA-XXXXXXXXX-X"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="stripe-key" className="block text-sm font-medium mb-2">
+                            Stripe Publishable Key
+                          </Label>
+                          <Input 
+                            id="stripe-key"
+                            placeholder="Enter Stripe publishable key"
+                            defaultValue="pk_test_XXXXXXXXXXXXXXXX"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="stripe-secret" className="block text-sm font-medium mb-2">
+                            Stripe Secret Key
+                          </Label>
+                          <Input 
+                            id="stripe-secret"
+                            placeholder="Enter Stripe secret key"
+                            defaultValue="sk_test_XXXXXXXXXXXXXXXX"
+                            type="password"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="paypal-client" className="block text-sm font-medium mb-2">
+                            PayPal Client ID
+                          </Label>
+                          <Input 
+                            id="paypal-client"
+                            placeholder="Enter PayPal client ID"
+                            defaultValue="AXXXXXXXXXXXXXXXXXX"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="paypal-secret" className="block text-sm font-medium mb-2">
+                            PayPal Secret
+                          </Label>
+                          <Input 
+                            id="paypal-secret"
+                            placeholder="Enter PayPal secret"
+                            defaultValue="XXXXXXXXXXXXXXXXX"
+                            type="password"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Session & Other Tab */}
+                    {systemSettingsTab === "session" && (
+                      <div className="space-y-4">
+                        <h3 className="text-lg font-semibold mb-4">Session & Other Settings</h3>
+                        <div>
+                          <Label id="site-status-label" className="block text-sm font-medium mb-2">
+                            Site Status
+                          </Label>
+                          <Select defaultValue="online" aria-labelledby="site-status-label">
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select site status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="online">Online</SelectItem>
+                              <SelectItem value="offline">Offline</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label id="admin-lockout-label" className="block text-sm font-medium mb-2">
+                            Admin Lockout Duration
+                          </Label>
+                          <Select defaultValue="15" aria-labelledby="admin-lockout-label">
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select duration" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="5">5 minutes</SelectItem>
+                              <SelectItem value="15">15 minutes</SelectItem>
+                              <SelectItem value="30">30 minutes</SelectItem>
+                              <SelectItem value="60">1 hour</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label id="session-timeout-label" className="block text-sm font-medium mb-2">
+                            Session Timeout
+                          </Label>
+                          <Select defaultValue="30" aria-labelledby="session-timeout-label">
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select timeout" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="5">5 minutes</SelectItem>
+                              <SelectItem value="15">15 minutes</SelectItem>
+                              <SelectItem value="30">30 minutes</SelectItem>
+                              <SelectItem value="60">1 hour</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label htmlFor="password-requirements" className="block text-sm font-medium mb-2">
+                            Password Requirements
+                          </Label>
+                          <Textarea 
+                            id="password-requirements"
+                            placeholder="Enter password requirements"
+                            defaultValue="Minimum 8 characters, at least 1 uppercase letter, 1 lowercase letter, 1 number, 1 special character"
+                            rows={3}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* SSO Configuration Tab */}
+                    {systemSettingsTab === "sso" && (
+                      <div className="space-y-4">
+                        <h3 className="text-lg font-semibold mb-4">SSO Configuration</h3>
+                        <p className="text-sm text-muted-foreground mb-4">
+                          Configure Single Sign-On (SSO) authentication with Google and Facebook
+                        </p>
+                        
+                        {/* Google SSO */}
+                        <div className="border rounded-lg p-4 space-y-4">
+                          <h4 className="font-semibold flex items-center gap-2">
+                            <span className="text-blue-600">Google</span> OAuth Configuration
+                          </h4>
+                          <div>
+                            <Label htmlFor="google-client-id" className="block text-sm font-medium mb-2">
+                              Google Client ID
+                            </Label>
+                            <Input 
+                              id="google-client-id"
+                              placeholder="Enter Google OAuth Client ID"
+                              value={systemSettings.googleClientId || ''}
+                              onChange={(e) => updateSetting('googleClientId', e.target.value)}
+                            />
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Get this from Google Cloud Console → APIs & Services → Credentials
+                            </p>
+                          </div>
+                          <div>
+                            <Label htmlFor="google-client-secret" className="block text-sm font-medium mb-2">
+                              Google Client Secret
+                            </Label>
+                            <Input 
+                              id="google-client-secret"
+                              placeholder="Enter Google OAuth Client Secret"
+                              value={systemSettings.googleClientSecret || ''}
+                              onChange={(e) => updateSetting('googleClientSecret', e.target.value)}
+                              type="password"
+                            />
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Keep this secret secure. Never share it publicly.
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Facebook SSO */}
+                        <div className="border rounded-lg p-4 space-y-4">
+                          <h4 className="font-semibold flex items-center gap-2">
+                            <span className="text-blue-700">Facebook</span> OAuth Configuration
+                          </h4>
+                          <div>
+                            <Label htmlFor="facebook-app-id" className="block text-sm font-medium mb-2">
+                              Facebook App ID
+                            </Label>
+                            <Input 
+                              id="facebook-app-id"
+                              placeholder="Enter Facebook App ID"
+                              value={systemSettings.facebookAppId || ''}
+                              onChange={(e) => updateSetting('facebookAppId', e.target.value)}
+                            />
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Get this from Facebook Developers → Your Apps → Settings → Basic
+                            </p>
+                          </div>
+                          <div>
+                            <Label htmlFor="facebook-app-secret" className="block text-sm font-medium mb-2">
+                              Facebook App Secret
+                            </Label>
+                            <Input 
+                              id="facebook-app-secret"
+                              placeholder="Enter Facebook App Secret"
+                              value={systemSettings.facebookAppSecret || ''}
+                              onChange={(e) => updateSetting('facebookAppSecret', e.target.value)}
+                              type="password"
+                            />
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Keep this secret secure. Never share it publicly.
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* SSO Status */}
+                        <div className="border rounded-lg p-4 space-y-4 bg-muted/20">
+                          <h4 className="font-semibold">SSO Status</h4>
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm">Google Login</span>
+                              <Switch 
+                                checked={systemSettings.googleLoginEnabled ?? true}
+                                onCheckedChange={(checked) => updateSetting('googleLoginEnabled', checked)}
+                              />
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm">Facebook Login</span>
+                              <Switch 
+                                checked={systemSettings.facebookLoginEnabled ?? true}
+                                onCheckedChange={(checked) => updateSetting('facebookLoginEnabled', checked)}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Save Buttons - Fixed at bottom */}
+                    <div className="flex justify-end gap-2 pt-6 border-t">
+                      <Button 
+                        variant="outline" 
+                        onClick={() => {
+                          // Reset to original values
+                          if (settingsData) {
+                            setSystemSettings(settingsData);
+                          }
+                          toast({
+                            description: "Changes cancelled",
+                          });
+                        }}
+                        disabled={isSavingSettings}
+                      >
                         Cancel
+                      </Button>
+                      <Button 
+                        variant="default" 
+                        onClick={handleSaveSettings}
+                        disabled={isSavingSettings || isLoadingSettings}
+                      >
+                        {isSavingSettings ? 'Saving...' : 'Save Changes'}
                       </Button>
                     </div>
                   </div>
