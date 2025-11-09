@@ -258,15 +258,15 @@ export default function MovieGrid({
         </>
       )}
 
-      {/* Back to Top Button */}
+      {/* Back to Top Button - Hidden on md+ breakpoints to avoid duplicate with Footer scroll button */}
       {showBackToTop && (
         <Button
           onClick={scrollToTop}
-          className="fixed bottom-24 md:bottom-8 right-4 md:right-8 z-50 rounded-full w-11 h-11 md:w-12 md:h-12 shadow-lg hover:shadow-xl transition-all"
+          className="md:hidden fixed bottom-24 right-4 z-50 rounded-full w-11 h-11 shadow-lg hover:shadow-xl transition-all"
           size="icon"
           aria-label="Back to top"
         >
-          <ArrowUp className="h-4 w-4 md:h-5 md:w-5" />
+          <ArrowUp className="h-4 w-4" />
         </Button>
       )}
     </section>
