@@ -16,7 +16,7 @@ export function securityHeaders(req: Request, res: Response, next: NextFunction)
     "img-src 'self' data: blob: https: http:",
     "media-src 'self' blob: https: http:",
     "connect-src 'self' https://api.phimgg.com https://phimgg.com https://*.phimgg.com https://www.google-analytics.com https://cloudflareinsights.com https://fcm.googleapis.com https://firebase.googleapis.com https://pagead2.googlesyndication.com https://googleads.g.doubleclick.net wss: ws:",
-    "frame-src 'self' https://www.youtube.com https://player.vimeo.com https://www.facebook.com https://accounts.google.com https://challenges.cloudflare.com https://googleads.g.doubleclick.net https://tpc.googlesyndication.com https://www.google.com",
+    "frame-src 'self' https://www.youtube.com https://player.vimeo.com https://www.facebook.com https://accounts.google.com https://challenges.cloudflare.com https://googleads.g.doubleclick.net https://tpc.googlesyndication.com https://www.google.com https://vip.opstream90.com https://*.opstream90.com https://opstream90.com",
     "worker-src 'self' blob:",
     "frame-ancestors 'self' https://phimgg.com https://*.phimgg.com",
     "object-src 'none'",

@@ -46,4 +46,46 @@ The `tests/` subdirectory contains scripts for running and managing tests.
 
 ### Data Scripts
 
-The `data/` subdirectory contains scripts for data management and migration. 
+The `data/` subdirectory contains scripts for data management and migration.
+
+---
+
+## Import Scripts
+
+### Ophim Movie Importer (`import-ophim-movies.ts` / `import-ophim.sh`)
+
+Import movies from Ophim API (ophim1.com) into the database.
+
+**Features:**
+- Import by page or page range
+- Auto-skip existing movies
+- Data validation before import
+- Retry logic with rate limiting
+- Detailed progress tracking and logging
+
+**Quick Start:**
+```bash
+# Import page 1
+./scripts/import-ophim.sh --page 1
+
+# Import pages 1-5
+./scripts/import-ophim.sh --start 1 --end 5
+
+# Verbose output
+./scripts/import-ophim.sh --page 1 --verbose
+```
+
+**Direct TypeScript:**
+```bash
+npx tsx scripts/import-ophim-movies.ts --page 1
+```
+
+**Options:**
+- `--page N` - Import single page
+- `--start N --end M` - Import page range
+- `--no-skip` - Re-import existing movies
+- `--validate-only` - Validate without importing
+- `--verbose` - Detailed output
+- `--rate-limit MS` - API rate limit (default: 500ms)
+
+See [`docs/OPHIM_IMPORT.md`](../docs/OPHIM_IMPORT.md) for complete documentation. 

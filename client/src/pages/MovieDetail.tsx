@@ -278,7 +278,19 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
     const episode = server.server_data.find(e => e.slug === selectedEpisode);
     return episode?.link_embed || "";
   };
-    // Find current episode list
+
+  // Find current HLS URL (m3u8)
+  const getCurrentHlsUrl = () => {
+    if (!movieDetail || !selectedServer || !selectedEpisode) return "";
+    
+    const server = movieDetail.episodes.find(s => s.server_name === selectedServer);
+    if (!server) return "";
+    
+    const episode = server.server_data.find(e => e.slug === selectedEpisode);
+    return episode?.link_m3u8 || "";
+  };
+
+  // Find current episode list
   const getCurrentEpisodeList = () => {
     if (!movieDetail || !selectedServer) return [];
     
@@ -410,7 +422,9 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
               <div className={`transition-opacity duration-500 ${isEpisodeSwitching ? 'opacity-30' : 'opacity-100'}`}>
                 <VideoPlayer 
                   embedUrl={getCurrentEmbedUrl()}
+                  hlsUrl={getCurrentHlsUrl()}
                   isLoading={isMovieLoading || !selectedEpisode}
+                  poster={movieDetail?.movie.thumb_url || movieDetail?.movie.poster_url}
                   onError={(_error) => {
                     setIsEpisodeLoading(false);
                     setIsEpisodeSwitching(false);
