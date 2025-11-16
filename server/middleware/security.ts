@@ -14,9 +14,9 @@ export function securityHeaders(req: Request, res: Response, next: NextFunction)
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://unpkg.com",
     "font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net",
     "img-src 'self' data: blob: https: http:",
-    "media-src 'self' blob: https: http:",
-    "connect-src 'self' https://api.phimgg.com https://phimgg.com https://*.phimgg.com https://www.google-analytics.com https://cloudflareinsights.com https://fcm.googleapis.com https://firebase.googleapis.com https://pagead2.googlesyndication.com https://googleads.g.doubleclick.net wss: ws:",
-    "frame-src 'self' https://www.youtube.com https://player.vimeo.com https://www.facebook.com https://accounts.google.com https://challenges.cloudflare.com https://googleads.g.doubleclick.net https://tpc.googlesyndication.com https://www.google.com",
+    "media-src 'self' blob: https: http: https://*.kkphimplayer6.com https://*.phim1280.tv https://*.phimapi.com https://*.opstream12.com https://*.opstream17.com https://*.opstream90.com",
+    "connect-src 'self' https://api.phimgg.com https://phimgg.com https://*.phimgg.com https://www.google-analytics.com https://cloudflareinsights.com https://fcm.googleapis.com https://firebase.googleapis.com https://pagead2.googlesyndication.com https://googleads.g.doubleclick.net https://*.kkphimplayer6.com https://*.phim1280.tv https://*.phimapi.com https://*.opstream12.com https://*.opstream17.com https://*.opstream90.com wss: ws:",
+    "frame-src 'self' https://www.youtube.com https://player.vimeo.com https://www.facebook.com https://accounts.google.com https://challenges.cloudflare.com https://googleads.g.doubleclick.net https://tpc.googlesyndication.com https://www.google.com https://*.opstream12.com https://*.opstream17.com https://*.opstream90.com https://player.phimapi.com https://*.phimapi.com https://*.kkphimplayer6.com https://*.phim1280.tv",
     "worker-src 'self' blob:",
     "frame-ancestors 'self' https://phimgg.com https://*.phimgg.com",
     "object-src 'none'",
@@ -27,8 +27,9 @@ export function securityHeaders(req: Request, res: Response, next: NextFunction)
 
   res.setHeader('Content-Security-Policy', cspDirectives.join('; '));
 
-  // X-Frame-Options - Prevent clickjacking
-  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  // X-Frame-Options - REMOVED to allow video player iframes from external domains
+  // CSP frame-ancestors already handles this more precisely
+  // res.setHeader('X-Frame-Options', 'SAMEORIGIN');
 
   // X-Content-Type-Options - Prevent MIME sniffing
   res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -47,9 +48,10 @@ export function securityHeaders(req: Request, res: Response, next: NextFunction)
     res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
   }
 
-  // Cross-Origin policies for better security
-  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
-  res.setHeader('Cross-Origin-Embedder-Policy', 'credentialless');
+  // Cross-Origin policies - Relaxed to allow video player iframes
+  // COEP 'credentialless' and COOP 'same-origin-allow-popups' block external iframes
+  // res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
+  // res.setHeader('Cross-Origin-Embedder-Policy', 'credentialless');
   res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
 
   next();

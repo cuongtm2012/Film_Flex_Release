@@ -1,245 +1,107 @@
-import React, { useState, useRef, useEffect } from "react";
-import { Loader2, ExternalLink } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Button } from "@/components/ui/button";
-import { toast } from "@/hooks/use-toast";
+﻿import { useState, useRef, useEffect } from "react";
+import { Loader2, AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { logger } from "@/lib/logger";
 
 interface VideoPlayerProps {
   embedUrl: string;
   isLoading?: boolean;
   onError?: (error: Error) => void;
-  autoFocus?: boolean;
-  preload?: "none" | "metadata" | "auto";
-  poster?: string;
 }
 
 export default function VideoPlayer({ 
-  embedUrl, 
+  embedUrl,
   isLoading = false, 
-  onError,
-  preload = "metadata",
-  poster
+  onError
 }: VideoPlayerProps) {
   const [isPlayerLoaded, setIsPlayerLoaded] = useState(false);
   const [cleanSrc, setCleanSrc] = useState<string>("");
-  const [directStreamUrl, setDirectStreamUrl] = useState<string>("");
-  const [useDirectPlayer, setUseDirectPlayer] = useState(false);
-  const [connectionQuality, setConnectionQuality] = useState<"slow" | "fast" | "unknown">("unknown");
-  const iframeRef = useRef<HTMLIFrameElement>(null);
-  const playerContainerRef = useRef<HTMLDivElement>(null);
-  const loadTimeout = useRef<NodeJS.Timeout | null>(null);
+  const [playerError, setPlayerError] = useState<string>("");
   
-  // Extract clean src URL from the embedUrl
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  
   useEffect(() => {
     if (!embedUrl) {
       setCleanSrc("");
-      setDirectStreamUrl("");
       return;
     }
     
     try {
-      // Check if the embedUrl is an iframe tag
+      // Extract src from iframe tag if present, otherwise use direct URL
       if (embedUrl.includes("<iframe")) {
         const srcMatch = embedUrl.match(/src="([^"]+)"/);
         if (srcMatch && srcMatch[1]) {
           setCleanSrc(srcMatch[1]);
-          
-          // Extract direct stream URL if possible
-          const urlParam = srcMatch[1].match(/url=([^&]+)/);
-          if (urlParam && urlParam[1]) {
-            try {
-              const decodedUrl = decodeURIComponent(urlParam[1]);
-              setDirectStreamUrl(decodedUrl);
-            } catch (e) {
-              logger.error("Error decoding URL:", e);
-              setDirectStreamUrl(urlParam[1]);
-            }
-          }
         } else {
           setCleanSrc(embedUrl);
         }
       } else {
         setCleanSrc(embedUrl);
-        
-        // Extract direct stream URL if possible
-        const urlParam = embedUrl.match(/url=([^&]+)/);
-        if (urlParam && urlParam[1]) {
-          try {
-            const decodedUrl = decodeURIComponent(urlParam[1]);
-            setDirectStreamUrl(decodedUrl);
-          } catch (e) {
-            logger.error("Error decoding URL:", e);
-            setDirectStreamUrl(urlParam[1]);
-          }
-        }
       }
+      
+      setIsPlayerLoaded(false);
+      setPlayerError("");
     } catch (error) {
       logger.error("Error processing embed URL:", error);
-      
-      // If we encountered an error, just use the raw URL
       setCleanSrc(embedUrl);
     }
   }, [embedUrl]);
 
-  // Set up a timeout to detect if the player is taking too long to load
-  useEffect(() => {
-    if (cleanSrc && !isPlayerLoaded) {
-      loadTimeout.current = setTimeout(() => {
-        if (!isPlayerLoaded) {
-          // Player taking too long, suggest direct stream
-          toast({
-            title: "Player loading slowly",
-            description: "You can try the direct stream option below for faster playback.",
-            duration: 10000,
-          });
-        }
-      }, 10000);
-    }
-    
-    return () => {
-      if (loadTimeout.current) {
-        clearTimeout(loadTimeout.current);
-      }
-    };
-  }, [cleanSrc, isPlayerLoaded]);
-  
-  // Detect connection quality for adaptive preloading
-  useEffect(() => {
-    if ('connection' in navigator) {
-      const connection = (navigator as any).connection;
-      if (connection) {
-        const updateConnectionInfo = () => {
-          const effectiveType = connection.effectiveType;
-          if (effectiveType === 'slow-2g' || effectiveType === '2g') {
-            setConnectionQuality("slow");
-          } else if (effectiveType === '3g' || effectiveType === '4g') {
-            setConnectionQuality("fast");
-          }
-        };
-        
-        updateConnectionInfo();
-        connection.addEventListener('change', updateConnectionInfo);
-        
-        return () => connection.removeEventListener('change', updateConnectionInfo);
-      }
-    }
-  }, []);
-  
-  // Adaptive preload strategy based on connection
-  const getAdaptivePreload = () => {
-    if (connectionQuality === "slow") return "none";
-    if (connectionQuality === "fast") return "metadata";
-    return preload;
-  };
-  
-  // Handle iframe load event
   const handleIframeLoad = () => {
     setIsPlayerLoaded(true);
-    if (loadTimeout.current) {
-      clearTimeout(loadTimeout.current);
-    }
+    logger.info("Video player loaded successfully");
   };
-  
-  // Handle iframe error
+
   const handleIframeError = () => {
+    const errorMessage = "Failed to load video player";
+    setPlayerError(errorMessage);
+    logger.error("Video player failed to load");
+    
     if (onError) {
-      onError(new Error("Failed to load video player"));
-    }
-    
-    toast({
-      title: "Player error",
-      description: "Could not load the embedded player. Try the direct stream option.",
-      variant: "destructive",
-      duration: 10000,
-    });
-    
-    // Auto switch to direct player if available
-    if (directStreamUrl) {
-      setUseDirectPlayer(true);
+      onError(new Error(errorMessage));
     }
   };
-  
-  // Handle direct play
-  const handleDirectPlay = () => {
-    if (directStreamUrl) {
-      try {
-        // Open direct-player.html with URL parameter
-        const directPlayerUrl = `/direct-player.html?stream=${encodeURIComponent(directStreamUrl)}`;
-        window.open(directPlayerUrl, '_blank');
-        
-        toast({
-          title: "Direct stream opened",
-          description: "The stream should start playing in a new tab.",
-        });
-      } catch (error) {
-        logger.error("Error opening direct player:", error);
-        
-        toast({
-          title: "Error opening direct player",
-          description: "Could not open the direct player. Check console for details.",
-          variant: "destructive"
-        });
-      }
-    } else {
-      toast({
-        title: "No direct stream available",
-        description: "Unable to extract direct stream URL from this source.",
-        variant: "destructive"
-      });
-    }
-  };
-  
-  if (isLoading) {
+
+  if (isLoading || !cleanSrc) {
     return (
-      <div className="relative aspect-video bg-black rounded-lg overflow-hidden">
-        <Skeleton className="w-full h-full" />
-        <div className="absolute inset-0 flex items-center justify-center">
-          <Loader2 className="w-12 h-12 text-primary animate-spin" />
-        </div>
+      <div className="relative aspect-video w-full bg-zinc-900 rounded-lg overflow-hidden flex items-center justify-center">
+        <Loader2 className="h-12 w-12 text-blue-500 animate-spin" />
+        <span className="ml-3 text-zinc-400">Loading player...</span>
+      </div>
+    );
+  }
+
+  if (playerError) {
+    return (
+      <div className="relative aspect-video w-full bg-zinc-900 rounded-lg overflow-hidden">
+        <Alert variant="destructive" className="m-4">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            {playerError}. Please try another server.
+          </AlertDescription>
+        </Alert>
       </div>
     );
   }
 
   return (
-    <div className="relative">
-      <div 
-        ref={playerContainerRef}
-        className="relative aspect-video bg-black rounded-lg overflow-hidden"
-      >
-        {/* Loading state */}
-        {!isPlayerLoaded && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black z-10">
-            <Loader2 className="w-12 h-12 text-primary animate-spin" />
-            {poster && (
-              <img 
-                src={poster} 
-                alt="Video poster" 
-                className="absolute inset-0 w-full h-full object-cover opacity-30"
-                loading="lazy"
-              />
-            )}
-          </div>
-        )}
-        
-        {/* Video iframe with adaptive loading */}
-        {cleanSrc && !useDirectPlayer && (
-          <iframe
-            ref={iframeRef}
-            src={cleanSrc}
-            className="w-full h-full border-0"
-            allowFullScreen
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            onLoad={handleIframeLoad}
-            onError={handleIframeError}
-            loading={connectionQuality === "slow" ? "lazy" : "eager"}
-            // Add preconnect hint for faster loading
-            {...(connectionQuality === "fast" && { 
-              'data-preconnect': 'dns-prefetch' 
-            })}
-          />
-        )}
-      </div>
+    <div className="relative aspect-video w-full bg-zinc-900 rounded-lg overflow-hidden">
+      {!isPlayerLoaded && (
+        <div className="absolute inset-0 flex items-center justify-center bg-zinc-900 z-10">
+          <Loader2 className="h-12 w-12 text-blue-500 animate-spin" />
+        </div>
+      )}
+
+      <iframe
+        ref={iframeRef}
+        src={cleanSrc}
+        className="absolute inset-0 w-full h-full border-0"
+        allowFullScreen
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        loading="eager"
+        onLoad={handleIframeLoad}
+        onError={handleIframeError}
+      />
     </div>
   );
 }

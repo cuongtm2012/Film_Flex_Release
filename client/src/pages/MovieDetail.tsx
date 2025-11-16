@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/select";
 import ServerTabs from "@/components/ServerTabs";
 import VideoPlayer from "@/components/VideoPlayer";
+import HLSVideoPlayer from "@/components/HLSVideoPlayer";
 import { CommentSection } from "@/components/CommentSection";
 import RecommendedMovieCard from "@/components/RecommendedMovieCard";
 import MovieReactions from "@/components/MovieReactions";
@@ -63,6 +64,7 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
   const [isEpisodeLoading, setIsEpisodeLoading] = useState(false);
   const [isEpisodeSwitching, setIsEpisodeSwitching] = useState(false);
   const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
+  const [playerType, setPlayerType] = useState<"embed" | "hls">("hls"); // Default to HLS for seekable timeline
   // State for content expanding (overview section)
   const [isContentExpanded, setIsContentExpanded] = useState(false);
   
@@ -278,7 +280,19 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
     const episode = server.server_data.find(e => e.slug === selectedEpisode);
     return episode?.link_embed || "";
   };
-    // Find current episode list
+
+  // Find current M3U8 URL for direct HLS playback
+  const getCurrentM3u8Url = () => {
+    if (!movieDetail || !selectedServer || !selectedEpisode) return "";
+    
+    const server = movieDetail.episodes.find(s => s.server_name === selectedServer);
+    if (!server) return "";
+    
+    const episode = server.server_data.find(e => e.slug === selectedEpisode);
+    return episode?.link_m3u8 || "";
+  };
+
+  // Find current episode list
   const getCurrentEpisodeList = () => {
     if (!movieDetail || !selectedServer) return [];
     
@@ -408,19 +422,43 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
               )}
               
               <div className={`transition-opacity duration-500 ${isEpisodeSwitching ? 'opacity-30' : 'opacity-100'}`}>
-                <VideoPlayer 
-                  embedUrl={getCurrentEmbedUrl()}
-                  isLoading={isMovieLoading || !selectedEpisode}
-                  onError={(_error) => {
-                    setIsEpisodeLoading(false);
-                    setIsEpisodeSwitching(false);
-                    toast({
-                      title: "Error",
-                      description: "Failed to load video player. Please try another server or episode.",
-                      variant: "destructive"
-                    });
-                  }}
-                />
+                {/* Player Type Toggle */}
+                <div className="absolute top-2 right-2 z-30 flex gap-1 bg-black/60 backdrop-blur-sm rounded-lg p-1">
+                  <Button
+                    variant={playerType === "hls" ? "default" : "ghost"}
+                    size="sm"
+                    className="h-7 px-3 text-xs"
+                    onClick={() => setPlayerType("hls")}
+                  >
+                    Direct Player
+                  </Button>
+                  <Button
+                    variant={playerType === "embed" ? "default" : "ghost"}
+                    size="sm"
+                    className="h-7 px-3 text-xs"
+                    onClick={() => setPlayerType("embed")}
+                  >
+                    Embed Player
+                  </Button>
+                </div>
+
+                {playerType === "hls" ? (
+                  <HLSVideoPlayer 
+                    m3u8Url={getCurrentM3u8Url()}
+                    isLoading={isMovieLoading || !selectedEpisode}
+                    autoplay={false}
+                    loop={false}
+                    subtitles={[
+                      // Add Vietnamese subtitles if available
+                      // { label: "Tiếng Việt", src: "/path/to/vi.vtt", srclang: "vi" }
+                    ]}
+                  />
+                ) : (
+                  <VideoPlayer 
+                    embedUrl={getCurrentEmbedUrl()}
+                    isLoading={isMovieLoading || !selectedEpisode}
+                  />
+                )}
               </div>
             </div>
             
