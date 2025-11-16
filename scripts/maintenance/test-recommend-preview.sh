@@ -22,7 +22,7 @@ if command -v psql &> /dev/null; then
     PSQL_CMD="psql"
 else
     # Use docker postgres container
-    PSQL_CMD="docker exec -i filmflex-db psql"
+    PSQL_CMD="docker exec -i filmflex-postgres psql"
     DB_HOST="localhost"
 fi
 
