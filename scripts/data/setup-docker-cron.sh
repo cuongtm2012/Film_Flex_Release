@@ -287,16 +287,27 @@ cat > $CRON_FILE << EOF
 PATH=/usr/local/bin:/usr/bin:/bin:/sbin:/usr/sbin
 SHELL=/bin/bash
 
-# Run Docker movie import twice daily at 6 AM and 6 PM (3 pages)
-0 6,18 * * 1-5 $USER $CRON_WRAPPER node scripts/data/import-movies-docker.cjs --max-pages=3 >> $LOG_DIR/docker-daily-import.log 2>&1
+# OPHIM SOURCE: Run 4 times daily (staggered with KKPhim)
+# Runs at: 00:00, 06:00, 12:00, 18:00 (3 pages each time)
+0 0,6,12,18 * * * $USER $CRON_WRAPPER npx tsx scripts/data/import-ophim-movies.ts --start 1 --end 3 >> $LOG_DIR/docker-ophim-import.log 2>&1
 
-# Run Docker deep scan every Saturday at 6 AM (10 pages)
-0 6 * * 6 $USER $CRON_WRAPPER node scripts/data/import-movies-docker.cjs --deep-scan --max-pages=10 >> $LOG_DIR/docker-weekly-import.log 2>&1
+# KKPHIM SOURCE: Run 4 times daily (staggered with Ophim)
+# Runs at: 03:00, 09:00, 15:00, 21:00 (3 pages each time)
+0 3,9,15,21 * * * $USER $CRON_WRAPPER node scripts/data/import-movies-docker.cjs --max-pages=3 >> $LOG_DIR/docker-kkphim-import.log 2>&1
 
-# Run comprehensive Docker import monthly (first Sunday at 1 AM) 
+# OPHIM DEEP SCAN: Weekly comprehensive scan
+# Runs every Saturday at 02:00 (10 pages)
+0 2 * * 6 $USER $CRON_WRAPPER npx tsx scripts/data/import-ophim-movies.ts --start 1 --end 10 --verbose >> $LOG_DIR/docker-ophim-weekly.log 2>&1
+
+# KKPHIM DEEP SCAN: Weekly comprehensive scan (6 hours after Ophim)
+# Runs every Saturday at 08:00 (10 pages)
+0 8 * * 6 $USER $CRON_WRAPPER node scripts/data/import-movies-docker.cjs --deep-scan --max-pages=10 >> $LOG_DIR/docker-kkphim-weekly.log 2>&1
+
+# FULL IMPORT: Monthly comprehensive import from all sources
+# Runs first Sunday of month at 01:00
 0 1 1-7 * 0 $USER $CRON_WRAPPER bash scripts/data/import-all-movies-resumable-docker.sh >> $LOG_DIR/docker-monthly-import.log 2>&1
 
-# Cleanup old logs (keep last 30 days)
+# CLEANUP: Remove old logs (keep last 30 days)
 0 0 * * * $USER find $LOG_DIR -name "*.log" -type f -mtime +30 -delete
 
 # Keep an empty line at the end of the file
@@ -346,9 +357,14 @@ fi
 # Print completion message
 echo -e "${GREEN}Docker cron jobs successfully created at $CRON_FILE${NC}"
 echo -e "${GREEN}Schedule (runs inside Docker containers):${NC}"
-echo -e "  - Daily import: 6:00 AM and 6:00 PM (3 pages) - Mon-Fri"
-echo -e "  - Weekly deep scan: Saturday 6:00 AM (10 pages)"
-echo -e "  - Monthly full refresh: First Sunday 1:00 AM"
+echo -e "${BLUE}DAILY IMPORTS (both sources - 4 times/day):${NC}"
+echo -e "  📺 Ophim:  00:00, 06:00, 12:00, 18:00 (3 pages)"
+echo -e "  📺 KKPhim: 03:00, 09:00, 15:00, 21:00 (3 pages)"
+echo -e "${BLUE}WEEKLY DEEP SCANS (Saturday - 6 hours apart):${NC}"
+echo -e "  🔍 Ophim:  02:00 (10 pages)"
+echo -e "  🔍 KKPhim: 08:00 (10 pages)"
+echo -e "${BLUE}MONTHLY FULL IMPORT:${NC}"
+echo -e "  📦 All sources: First Sunday 01:00"
 
 # Create test script
 echo -e "${BLUE}Creating Docker test script...${NC}"
@@ -360,8 +376,9 @@ echo "Testing Docker cron wrapper with import..."
 echo "This runs the import inside the Docker container"
 echo
 
-# Test with 1 page import
-$CRON_WRAPPER node scripts/data/import-movies-docker.cjs --max-pages=1
+# Test Ophim import (1 page)
+echo "Testing Ophim import script..."
+$CRON_WRAPPER npx tsx scripts/data/import-ophim-movies.ts --page 1 --verbose
 
 echo
 echo "Docker test completed. Check output above for any errors."
@@ -371,19 +388,23 @@ chmod +x $DATA_DIR/test-docker-cron.sh
 # Ask if user wants to test now
 echo
 echo -e "${YELLOW}Test the Docker import now?${NC}"
-echo -e "1) Test Docker import (1 page)"
-echo -e "2) Run Docker daily import (3 pages)"
-echo -e "3) Skip testing"
-read -p "Select an option (1-3): " -n 1 -r
+echo -e "1) Test Ophim import (1 page with TypeScript)"
+echo -e "2) Test legacy import (1 page)"
+echo -e "3) Run Ophim daily import (3 pages)"
+echo -e "4) Skip testing"
+read -p "Select an option (1-4): " -n 1 -r
 echo
 
 if [[ $REPLY =~ ^[1]$ ]]; then
-  echo -e "${GREEN}Running Docker test import...${NC}"
+  echo -e "${GREEN}Running Ophim import test...${NC}"
   bash $DATA_DIR/test-docker-cron.sh
 elif [[ $REPLY =~ ^[2]$ ]]; then
-  echo -e "${GREEN}Running Docker daily import...${NC}"
+  echo -e "${GREEN}Running legacy Docker test import...${NC}"
+  bash $CRON_WRAPPER node scripts/data/import-movies-docker.cjs --max-pages=1
+elif [[ $REPLY =~ ^[3]$ ]]; then
+  echo -e "${GREEN}Running Ophim daily import...${NC}"
   cd $APP_DIR
-  bash $CRON_WRAPPER node scripts/data/import-movies-docker.cjs --max-pages=3
+  bash $CRON_WRAPPER npx tsx scripts/data/import-ophim-movies.ts --start 1 --end 3
 else
   echo -e "${BLUE}Skipping test. You can run it manually later.${NC}"
 fi
@@ -394,10 +415,17 @@ echo -e "${GREEN}    Docker Setup Complete!${NC}"
 echo -e "${GREEN}========================================${NC}"
 echo
 echo -e "${YELLOW}📋 Quick Reference:${NC}"
-echo -e "  • Test import: bash $DATA_DIR/test-docker-cron.sh"
+echo -e "${BLUE}Ophim Import:${NC}"
+echo -e "  • Test: bash $DATA_DIR/test-docker-cron.sh"
+echo -e "  • Manual: npx tsx scripts/data/import-ophim-movies.ts --page 1 --verbose"
+echo -e "  • Logs: tail -f $LOG_DIR/docker-ophim-import.log"
+echo -e "${BLUE}KKPhim Import:${NC}"
+echo -e "  • Manual: node scripts/data/import-movies-docker.cjs --max-pages=1"
+echo -e "  • Logs: tail -f $LOG_DIR/docker-kkphim-*.log"
+echo -e "${BLUE}General:${NC}"
 echo -e "  • Check status: bash $0 status"
 echo -e "  • Diagnose: bash $0 diagnose"
-echo -e "  • View logs: tail -f $LOG_DIR/docker-*.log"
+echo -e "  • All logs: tail -f $LOG_DIR/docker-*.log"
 echo
 echo -e "${BLUE}🐳 Docker Commands:${NC}"
 echo -e "  • Check containers: docker ps"

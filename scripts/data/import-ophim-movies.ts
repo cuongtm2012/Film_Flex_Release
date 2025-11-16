@@ -3,12 +3,12 @@
  * Ophim Movie Importer Script
  * 
  * Import movies from Ophim API into database
- * Usage: npx tsx scripts/import-ophim-movies.ts --page 1
- *        npx tsx scripts/import-ophim-movies.ts --start 1 --end 5
+ * Usage: npx tsx scripts/data/import-ophim-movies.ts --page 1
+ *        npx tsx scripts/data/import-ophim-movies.ts --start 1 --end 5
  */
 
-import { db } from '../server/db';
-import { movies, episodes } from '@shared/schema';
+import { db } from '../../server/db.js';
+import { movies, episodes } from '../../shared/schema.js';
 import { eq } from 'drizzle-orm';
 import {
   fetchOphimMovieList,
@@ -16,13 +16,13 @@ import {
   retryApiCall,
   RateLimiter,
   type OphimMovieListItem,
-} from '../server/services/ophim-api';
+} from '../../server/services/ophim-api.js';
 import {
   transformOphimMovieToDbFormat,
   validateMovieData,
   validateEpisodeData,
   getMovieStats,
-} from '../server/services/ophim-transformer';
+} from '../../server/services/ophim-transformer.js';
 
 // Import configuration
 interface ImportConfig {

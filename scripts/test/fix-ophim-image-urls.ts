@@ -7,7 +7,7 @@
  * TO:   https://img.ophim.live/uploads/movies/{filename}
  */
 
-import { db } from '../server/db';
+import { db } from '../../server/db';
 import { movies } from '@shared/schema';
 import { like, sql } from 'drizzle-orm';
 
