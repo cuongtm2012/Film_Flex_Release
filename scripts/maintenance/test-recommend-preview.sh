@@ -17,6 +17,15 @@ MIN_VIEWS=1000
 MIN_YEAR=2018
 RECOMMEND_COUNT=5
 
+# PostgreSQL command (use docker if psql not available)
+if command -v psql &> /dev/null; then
+    PSQL_CMD="psql"
+else
+    # Use docker postgres container
+    PSQL_CMD="docker exec -i filmflex-db psql"
+    DB_HOST="localhost"
+fi
+
 ################################################################################
 # Test Functions
 ################################################################################
@@ -29,36 +38,51 @@ echo ""
 # Test 1: Basic connection
 echo "Test 1: Database Connection"
 echo "----------------------------"
-PGPASSWORD="${DB_PASSWORD}" psql \
-    -h "${DB_HOST}" \
-    -p "${DB_PORT}" \
-    -U "${DB_USER}" \
-    -d "${DB_NAME}" \
-    -c "SELECT version();" 2>&1 | head -1
+if [[ "${PSQL_CMD}" == "psql" ]]; then
+    PGPASSWORD="${DB_PASSWORD}" ${PSQL_CMD} \
+        -h "${DB_HOST}" \
+        -p "${DB_PORT}" \
+        -U "${DB_USER}" \
+        -d "${DB_NAME}" \
+        -c "SELECT version();" 2>&1 | head -1
+else
+    ${PSQL_CMD} -U "${DB_USER}" -d "${DB_NAME}" \
+        -c "SELECT version();" 2>&1 | head -1
+fi
 echo ""
 
 # Test 2: Count eligible movies
 echo "Test 2: Count Eligible Movies"
 echo "------------------------------"
-PGPASSWORD="${DB_PASSWORD}" psql \
-    -h "${DB_HOST}" \
-    -p "${DB_PORT}" \
-    -U "${DB_USER}" \
-    -d "${DB_NAME}" \
-    -t -A \
-    -c "SELECT COUNT(*) FROM movies WHERE COALESCE(view, 0) >= ${MIN_VIEWS} AND year >= ${MIN_YEAR};"
+if [[ "${PSQL_CMD}" == "psql" ]]; then
+    PGPASSWORD="${DB_PASSWORD}" ${PSQL_CMD} \
+        -h "${DB_HOST}" \
+        -p "${DB_PORT}" \
+        -U "${DB_USER}" \
+        -d "${DB_NAME}" \
+        -t -A \
+        -c "SELECT COUNT(*) FROM movies WHERE COALESCE(view, 0) >= ${MIN_VIEWS} AND year >= ${MIN_YEAR};"
+else
+    ${PSQL_CMD} -U "${DB_USER}" -d "${DB_NAME}" -t -A \
+        -c "SELECT COUNT(*) FROM movies WHERE COALESCE(view, 0) >= ${MIN_VIEWS} AND year >= ${MIN_YEAR};"
+fi
 echo ""
 
 # Test 3: Simple query with format
 echo "Test 3: Simple Formatted Query"
 echo "-------------------------------"
-PGPASSWORD="${DB_PASSWORD}" psql \
-    -h "${DB_HOST}" \
-    -p "${DB_PORT}" \
-    -U "${DB_USER}" \
-    -d "${DB_NAME}" \
-    -t -A -F'|' \
-    -c "SELECT name, year, type, quality, view FROM movies WHERE COALESCE(view, 0) >= ${MIN_VIEWS} AND year >= ${MIN_YEAR} ORDER BY view DESC LIMIT 3;"
+if [[ "${PSQL_CMD}" == "psql" ]]; then
+    PGPASSWORD="${DB_PASSWORD}" ${PSQL_CMD} \
+        -h "${DB_HOST}" \
+        -p "${DB_PORT}" \
+        -U "${DB_USER}" \
+        -d "${DB_NAME}" \
+        -t -A -F'|' \
+        -c "SELECT name, year, type, quality, view FROM movies WHERE COALESCE(view, 0) >= ${MIN_VIEWS} AND year >= ${MIN_YEAR} ORDER BY view DESC LIMIT 3;"
+else
+    ${PSQL_CMD} -U "${DB_USER}" -d "${DB_NAME}" -t -A -F'|' \
+        -c "SELECT name, year, type, quality, view FROM movies WHERE COALESCE(view, 0) >= ${MIN_VIEWS} AND year >= ${MIN_YEAR} ORDER BY view DESC LIMIT 3;"
+fi
 echo ""
 
 # Test 4: Preview query (simplified)
@@ -139,25 +163,35 @@ ORDER BY quality_score DESC
 LIMIT ${RECOMMEND_COUNT};
 "
 
-PGPASSWORD="${DB_PASSWORD}" psql \
-    -h "${DB_HOST}" \
-    -p "${DB_PORT}" \
-    -U "${DB_USER}" \
-    -d "${DB_NAME}" \
-    -t -A -F'|' \
-    -c "${preview_sql}"
+if [[ "${PSQL_CMD}" == "psql" ]]; then
+    PGPASSWORD="${DB_PASSWORD}" ${PSQL_CMD} \
+        -h "${DB_HOST}" \
+        -p "${DB_PORT}" \
+        -U "${DB_USER}" \
+        -d "${DB_NAME}" \
+        -t -A -F'|' \
+        -c "${preview_sql}"
+else
+    ${PSQL_CMD} -U "${DB_USER}" -d "${DB_NAME}" -t -A -F'|' \
+        -c "${preview_sql}"
+fi
 echo ""
 
 # Test 5: Parse output
 echo "Test 5: Parse Output"
 echo "--------------------"
-result=$(PGPASSWORD="${DB_PASSWORD}" psql \
-    -h "${DB_HOST}" \
-    -p "${DB_PORT}" \
-    -U "${DB_USER}" \
-    -d "${DB_NAME}" \
-    -t -A -F'|' \
-    -c "${preview_sql}" 2>&1 | grep -v "^$")
+if [[ "${PSQL_CMD}" == "psql" ]]; then
+    result=$(PGPASSWORD="${DB_PASSWORD}" ${PSQL_CMD} \
+        -h "${DB_HOST}" \
+        -p "${DB_PORT}" \
+        -U "${DB_USER}" \
+        -d "${DB_NAME}" \
+        -t -A -F'|' \
+        -c "${preview_sql}" 2>&1 | grep -v "^$")
+else
+    result=$(${PSQL_CMD} -U "${DB_USER}" -d "${DB_NAME}" -t -A -F'|' \
+        -c "${preview_sql}" 2>&1 | grep -v "^$")
+fi
 
 if [[ -n "${result}" ]]; then
     echo "Found results, parsing..."
