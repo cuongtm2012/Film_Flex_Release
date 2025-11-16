@@ -15,7 +15,22 @@ export default function SplashScreen({ onClose }: SplashScreenProps) {
     const timer = setTimeout(() => {
       setIsVisible(true);
     }, 100);
-    return () => clearTimeout(timer);
+    
+    // Auto-save to localStorage after 3 seconds (in case user closes tab)
+    // This ensures splash won't show again even if user doesn't click button
+    const autoSaveTimer = setTimeout(() => {
+      const splashData = {
+        timestamp: Date.now(),
+        version: '1.0'
+      };
+      localStorage.setItem('filmflex-splash-seen', JSON.stringify(splashData));
+      console.log('✅ Splash screen auto-saved to localStorage');
+    }, 3000);
+    
+    return () => {
+      clearTimeout(timer);
+      clearTimeout(autoSaveTimer);
+    };
   }, []);
 
   const handleGetStarted = () => {
