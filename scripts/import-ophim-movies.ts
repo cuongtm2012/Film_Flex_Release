@@ -127,10 +127,12 @@ class OphimMovieImporter {
    */
   private async importMovie(movieItem: OphimMovieListItem): Promise<void> {
     const slug = movieItem.slug;
+    const ophimUrl = `https://ophim1.com/phim/${slug}`;
     this.stats.totalMoviesProcessed++;
 
     if (this.config.verbose) {
       console.log(`\n   🎥 Processing: ${movieItem.name} (${slug})`);
+      console.log(`      Ophim URL: ${ophimUrl}`);
     } else {
       process.stdout.write('.');
     }
@@ -161,6 +163,10 @@ class OphimMovieImporter {
       // Step 3: Transform data
       const transformed = transformOphimMovieToDbFormat(movieDetail);
 
+      if (this.config.verbose) {
+        console.log(`      📊 Transformed: ${transformed.episodes.length} episodes from ${movieDetail.data.item.episodes?.length || 0} servers`);
+      }
+
       // Step 4: Validate data
       const movieValidation = validateMovieData(transformed.movie);
       if (!movieValidation.valid) {
@@ -176,19 +182,45 @@ class OphimMovieImporter {
       // Step 5: Insert movie into database
       await db.insert(movies).values(transformed.movie);
 
-      // Step 6: Insert episodes
+      // Step 6: Insert episodes with detailed logging
       let episodesInserted = 0;
       let episodesFailed = 0;
+      let episodesSkipped = 0;
       
       for (const episode of transformed.episodes) {
         const episodeValidation = validateEpisodeData(episode);
         if (episodeValidation.valid) {
-          await db.insert(episodes).values(episode);
-          this.stats.episodesImported++;
-          episodesInserted++;
+          try {
+            await db.insert(episodes).values(episode);
+            this.stats.episodesImported++;
+            episodesInserted++;
+            
+            if (this.config.verbose) {
+              console.log(`      ✅ Episode: ${episode.name} (${episode.serverName})`);
+            }
+          } catch (dbError: any) {
+            // Handle duplicate key errors gracefully
+            if (dbError.code === '23505' || dbError.message?.includes('duplicate key')) {
+              episodesSkipped++;
+              if (this.config.verbose) {
+                console.log(`      ⏭️  Episode ${episode.name} already exists, skipping`);
+              }
+            } else {
+              episodesFailed++;
+              console.error(`      ❌ Database error for episode ${episode.name}:`, dbError.message);
+            }
+          }
         } else {
           episodesFailed++;
-          console.warn(`      ⚠️  Episode validation failed: ${episodeValidation.errors.join(', ')}`);
+          if (this.config.verbose) {
+            console.warn(`      ⚠️  Episode validation failed:`);
+            console.warn(`         Name: ${episode.name || 'MISSING'}`);
+            console.warn(`         Slug: ${episode.slug || 'MISSING'}`);
+            console.warn(`         Server: ${episode.serverName || 'MISSING'}`);
+            console.warn(`         Embed: ${episode.linkEmbed ? 'YES' : 'NO'}`);
+            console.warn(`         M3U8: ${episode.linkM3u8 ? 'YES' : 'NO'}`);
+            console.warn(`         Errors: ${episodeValidation.errors.join(', ')}`);
+          }
         }
       }
 
@@ -196,7 +228,10 @@ class OphimMovieImporter {
 
       if (this.config.verbose) {
         const stats = getMovieStats(transformed);
-        console.log(`      ✅ Imported: ${episodesInserted} episodes (${stats.serverCount} servers)`);
+        console.log(`      ✅ Imported: ${episodesInserted} episodes`);
+        if (episodesSkipped > 0) {
+          console.log(`      ⏭️  Skipped: ${episodesSkipped} episodes (duplicates)`);
+        }
         if (episodesFailed > 0) {
           console.log(`      ⚠️  Failed: ${episodesFailed} episodes`);
         }

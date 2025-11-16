@@ -186,16 +186,32 @@ function transformEpisodes(
       .replace(/^-|-$/g, '');
 
     server.server_data.forEach((episode, index) => {
-      // Create unique slug: movieSlug-serverSlug-episodeNumber
-      const uniqueSlug = `${movieSlug}-${serverSlug}-${episode.slug || episode.name || (index + 1)}`;
+      // Skip episodes without video links (bad data from API)
+      if (!episode.link_embed && !episode.link_m3u8) {
+        console.warn(`[Transformer] Skipping episode without video links: ${episode.name || episode.slug || index}`);
+        return;
+      }
+
+      // Generate episode name if missing
+      const episodeName = episode.name || episode.slug || `Episode ${index + 1}`;
+      
+      // Create unique slug using timestamp to prevent duplicates
+      // Format: movieSlug-serverSlug-episodeSlug-timestamp
+      const episodeSlug = episode.slug || episode.name || String(index + 1);
+      const cleanEpisodeSlug = episodeSlug
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '');
+      
+      const uniqueSlug = `${movieSlug}-${serverSlug}-${cleanEpisodeSlug}`;
       
       transformedEpisodes.push({
         movieSlug: movieSlug,
         serverName: server.server_name,
-        name: episode.name,
+        name: episodeName,
         slug: uniqueSlug,
         filename: episode.filename || '',
-        linkEmbed: episode.link_embed,
+        linkEmbed: episode.link_embed || '',
         linkM3u8: episode.link_m3u8 || '',
       });
     });
@@ -267,7 +283,7 @@ export function validateEpisodeData(episodeData: any): { valid: boolean; errors:
   if (!episodeData.name) errors.push('Missing episode name');
   if (!episodeData.slug) errors.push('Missing episode slug');
   
-  // Check video links - at least one should exist
+  // Check video links - at least one should exist (already filtered in transformer)
   if (!episodeData.linkEmbed && !episodeData.linkM3u8) {
     errors.push('Missing both linkEmbed and linkM3u8 - need at least one video source');
   }
