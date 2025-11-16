@@ -8,7 +8,7 @@
 # Source database configuration
 DB_HOST="localhost"
 DB_PORT="5432"
-DB_USER="postgres"
+DB_USER="filmflex"
 DB_PASSWORD=""
 DB_NAME="filmflex"
 
