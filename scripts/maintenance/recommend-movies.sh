@@ -202,15 +202,15 @@ preview_recommendations() {
             m.type,
             m.quality,
             m.view,
-            m.created_at,
+            m.modified_at,
             COALESCE(SUM(CASE WHEN mr.reaction_type = 'like' THEN 1 ELSE 0 END), 0) as likes
         FROM movies m
         LEFT JOIN movie_reactions mr ON m.slug = mr.movie_slug
         WHERE m.year >= ${MIN_YEAR}
           AND m.year <= EXTRACT(YEAR FROM NOW())
           AND m.quality IN ('HD', 'FHD', 'Full HD', '4K', 'UHD')
-        GROUP BY m.id, m.slug, m.name, m.year, m.type, m.quality, m.view, m.created_at
-        ORDER BY m.created_at DESC, COALESCE(m.view, 0) DESC
+        GROUP BY m.id, m.slug, m.name, m.year, m.type, m.quality, m.view, m.modified_at
+        ORDER BY m.modified_at DESC, COALESCE(m.view, 0) DESC
         LIMIT ${TOP_CANDIDATES}
     )
     SELECT 
@@ -221,7 +221,7 @@ preview_recommendations() {
         quality,
         view,
         likes,
-        created_at
+        modified_at
     FROM top_candidates
     ORDER BY RANDOM()
     LIMIT ${RECOMMEND_COUNT};
@@ -275,13 +275,13 @@ calculate_recommendations() {
         SELECT 
             m.id,
             m.slug,
-            m.created_at,
+            m.modified_at,
             m.view
         FROM movies m
         WHERE m.year >= ${MIN_YEAR}
           AND m.year <= EXTRACT(YEAR FROM NOW())
           AND m.quality IN ('HD', 'FHD', 'Full HD', '4K', 'UHD')
-        ORDER BY m.created_at DESC, COALESCE(m.view, 0) DESC
+        ORDER BY m.modified_at DESC, COALESCE(m.view, 0) DESC
         LIMIT ${TOP_CANDIDATES}
     ),
     random_selection AS (
@@ -326,7 +326,7 @@ apply_fallback_recommendations() {
         WHERE m.is_recommended = false
           AND m.year >= (${MIN_YEAR} - 2)  -- Expand year range slightly
           AND m.quality IN ('HD', 'FHD', 'Full HD', '4K', 'UHD')
-        ORDER BY m.created_at DESC, COALESCE(m.view, 0) DESC
+        ORDER BY m.modified_at DESC, COALESCE(m.view, 0) DESC
         LIMIT (SELECT needed FROM needed_count)
     )
     UPDATE movies m
