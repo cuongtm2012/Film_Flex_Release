@@ -195,20 +195,20 @@ preview_recommendations() {
     -- New Strategy: Random 5 from top 50 newest movies with highest views
     WITH top_candidates AS (
         SELECT 
-            id,
-            slug,
-            name,
-            year,
-            type,
-            quality,
-            view,
-            created_at,
+            m.id,
+            m.slug,
+            m.name,
+            m.year,
+            m.type,
+            m.quality,
+            m.view,
+            m.created_at,
             COALESCE(SUM(CASE WHEN mr.reaction_type = 'like' THEN 1 ELSE 0 END), 0) as likes
         FROM movies m
         LEFT JOIN movie_reactions mr ON m.slug = mr.movie_slug
-        WHERE year >= ${MIN_YEAR}
-          AND year <= EXTRACT(YEAR FROM NOW())
-          AND quality IN ('HD', 'FHD', 'Full HD', '4K', 'UHD')
+        WHERE m.year >= ${MIN_YEAR}
+          AND m.year <= EXTRACT(YEAR FROM NOW())
+          AND m.quality IN ('HD', 'FHD', 'Full HD', '4K', 'UHD')
         GROUP BY m.id, m.slug, m.name, m.year, m.type, m.quality, m.view, m.created_at
         ORDER BY m.created_at DESC, COALESCE(m.view, 0) DESC
         LIMIT ${TOP_CANDIDATES}
