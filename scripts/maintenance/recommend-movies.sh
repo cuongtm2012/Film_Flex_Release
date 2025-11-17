@@ -142,7 +142,9 @@ execute_sql() {
 execute_sql_read_only() {
     local query="$1"
     
-    log_debug "Executing read-only SQL: ${query:0:100}..."
+    if [[ "${VERBOSE}" == "true" ]]; then
+        log_debug "Executing read-only query..."
+    fi
     
     if [[ "${USE_DOCKER}" == "true" ]]; then
         echo "${query}" | ${PSQL_CMD} -U "${DB_USER}" -d "${DB_NAME}" -t -A -F'|' 2>&1 | grep -v "^$"
@@ -347,6 +349,12 @@ apply_fallback_recommendations() {
 generate_statistics() {
     log_info "Generating recommendation statistics..."
     
+    # Skip statistics in dry-run mode since no data was actually changed
+    if [[ "${DRY_RUN}" == "true" ]]; then
+        log_info "  [Skipped in dry-run mode]"
+        return 0
+    fi
+    
     local sql="
     SELECT 
         COUNT(*) as total_recommended,
@@ -358,19 +366,27 @@ generate_statistics() {
     WHERE is_recommended = true;
     "
     
-    log_info "Recommendation Statistics:"
+    log_info ""
     execute_sql "${sql}" | while IFS='|' read -r total avg max old new; do
-        log_info "  Total Recommended: ${total}"
-        log_info "  Average Views: ${avg}"
-        log_info "  Max Views: ${max}"
-        log_info "  Year Range: ${old} - ${new}"
+        log_info "  ✓ Total Recommended: ${total}"
+        log_info "  ✓ Average Views: ${avg}"
+        log_info "  ✓ Max Views: ${max}"
+        log_info "  ✓ Year Range: ${old} - ${new}"
     done
+    log_info ""
 }
 
 generate_report() {
     log_info "Generating recommendation report..."
     
     local report_file="${LOG_DIR}/recommendation_report_${TIMESTAMP}.txt"
+    
+    # Skip full report generation in dry-run mode
+    if [[ "${DRY_RUN}" == "true" ]]; then
+        echo "Dry-run mode - No changes made to database" > "${report_file}"
+        log_success "Report saved: ${report_file}"
+        return 0
+    fi
     
     cat > "${report_file}" << EOF
 ================================================================================
@@ -382,15 +398,15 @@ Database: ${DB_NAME}@${DB_HOST}:${DB_PORT}
 
 Configuration:
   - Recommend Count: ${RECOMMEND_COUNT}
-  - Min Views: ${MIN_VIEWS}
   - Min Year: ${MIN_YEAR}
-  - Max Per Genre: ${MAX_PER_GENRE}
+  - Top Candidates Pool: ${TOP_CANDIDATES}
+  - Strategy: Random selection from newest + popular movies
 
 Selection Criteria:
-  - Quality Score = (views × 0.4) + (likes × 0.3) + (quality_weight × 0.2) + (year_weight × 0.1)
-  - Genre Diversity: Max ${MAX_PER_GENRE} movies per genre
-  - Content Mix: 60% movies, 40% TV series
-  - Recency Bonus: Newer content (${MIN_YEAR}+) preferred
+  - Year: ${MIN_YEAR}+ (recent content)
+  - Quality: HD, FHD, Full HD, 4K, UHD only
+  - Sort: By modified_at DESC, view DESC
+  - Selection: Random ${RECOMMEND_COUNT} from top ${TOP_CANDIDATES}
 
 --------------------------------------------------------------------------------
 Recommended Movies
@@ -455,7 +471,7 @@ EOF
     
     execute_sql "${type_sql}" >> "${report_file}"
     
-    log_success "Report generated: ${report_file}"
+    log_success "Report saved: ${report_file}"
 }
 
 ################################################################################
@@ -537,11 +553,14 @@ main() {
     log_info "=========================================="
     log_info "Timestamp: $(date '+%Y-%m-%d %H:%M:%S')"
     log_info "Database: ${DB_NAME}@${DB_HOST}:${DB_PORT}"
-    log_info "Dry Run: ${DRY_RUN}"
-    log_info "Recommend Count: ${RECOMMEND_COUNT}"
-    log_info "Min Views: ${MIN_VIEWS}"
-    log_info "Min Year: ${MIN_YEAR}"
+    log_info "Strategy: Random ${RECOMMEND_COUNT} from top ${TOP_CANDIDATES} (${MIN_YEAR}+)"
+    if [[ "${DRY_RUN}" == "true" ]]; then
+        log_info "Mode: DRY RUN (preview only)"
+    else
+        log_info "Mode: LIVE (will update database)"
+    fi
     log_info "=========================================="
+    log_info ""
     
     # In dry-run mode, preview recommendations first
     if [[ "${DRY_RUN}" == "true" ]]; then
@@ -561,10 +580,18 @@ main() {
     generate_statistics
     generate_report
     
+    log_info ""
     log_info "=========================================="
     log_success "Movie Recommendations Complete!"
-    log_info "Recommended Movies: ${RECOMMEND_COUNT}"
-    log_info "Log file: ${LOG_FILE}"
+    log_info "=========================================="
+    if [[ "${DRY_RUN}" == "true" ]]; then
+        log_info "✓ Preview: ${RECOMMEND_COUNT} movies selected"
+        log_info "✓ No changes made (dry-run mode)"
+    else
+        log_info "✓ Updated: ${RECOMMEND_COUNT} movies recommended"
+        log_info "✓ Database updated successfully"
+    fi
+    log_info "✓ Log file: ${LOG_FILE}"
     log_info "=========================================="
 }
 

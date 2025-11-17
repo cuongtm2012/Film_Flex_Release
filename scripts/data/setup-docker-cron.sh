@@ -303,6 +303,10 @@ SHELL=/bin/bash
 # Runs every Saturday at 08:00 (10 pages)
 0 8 * * 6 $USER $CRON_WRAPPER node scripts/data/import-movies-docker.cjs --deep-scan --max-pages=10 >> $LOG_DIR/docker-kkphim-weekly.log 2>&1
 
+# RECOMMEND MOVIES: Daily recommendation update
+# Runs every day at 05:00 (5 AM) to refresh hero carousel
+0 5 * * * $USER $CRON_WRAPPER bash scripts/maintenance/recommend-movies.sh >> $LOG_DIR/docker-recommend-movies.log 2>&1
+
 # FULL IMPORT: Monthly comprehensive import from all sources
 # Runs first Sunday of month at 01:00
 0 1 1-7 * 0 $USER $CRON_WRAPPER bash scripts/data/import-all-movies-resumable-docker.sh >> $LOG_DIR/docker-monthly-import.log 2>&1
@@ -363,6 +367,8 @@ echo -e "  📺 KKPhim: 03:00, 09:00, 15:00, 21:00 (3 pages)"
 echo -e "${BLUE}WEEKLY DEEP SCANS (Saturday - 6 hours apart):${NC}"
 echo -e "  🔍 Ophim:  02:00 (10 pages)"
 echo -e "  🔍 KKPhim: 08:00 (10 pages)"
+echo -e "${BLUE}DAILY RECOMMEND MOVIES:${NC}"
+echo -e "  🎬 Every day: 05:00 (refresh hero carousel)"
 echo -e "${BLUE}MONTHLY FULL IMPORT:${NC}"
 echo -e "  📦 All sources: First Sunday 01:00"
 
@@ -391,8 +397,9 @@ echo -e "${YELLOW}Test the Docker import now?${NC}"
 echo -e "1) Test Ophim import (1 page with TypeScript)"
 echo -e "2) Test legacy import (1 page)"
 echo -e "3) Run Ophim daily import (3 pages)"
-echo -e "4) Skip testing"
-read -p "Select an option (1-4): " -n 1 -r
+echo -e "4) Test recommend movies script"
+echo -e "5) Skip testing"
+read -p "Select an option (1-5): " -n 1 -r
 echo
 
 if [[ $REPLY =~ ^[1]$ ]]; then
@@ -405,6 +412,10 @@ elif [[ $REPLY =~ ^[3]$ ]]; then
   echo -e "${GREEN}Running Ophim daily import...${NC}"
   cd $APP_DIR
   bash $CRON_WRAPPER npx tsx scripts/data/import-ophim-movies.ts --start 1 --end 3
+elif [[ $REPLY =~ ^[4]$ ]]; then
+  echo -e "${GREEN}Testing recommend movies script...${NC}"
+  cd $APP_DIR
+  bash $CRON_WRAPPER bash scripts/maintenance/recommend-movies.sh --dry-run --verbose
 else
   echo -e "${BLUE}Skipping test. You can run it manually later.${NC}"
 fi
