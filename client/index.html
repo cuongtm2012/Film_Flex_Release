@@ -630,11 +630,17 @@
       });
       
       window.addEventListener('unhandledrejection', (event) => {
-        console.error('🚨 Unhandled Promise Rejection:', event.reason);
+        // Only log in development
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+          console.error('🚨 Unhandled Promise Rejection:', event.reason);
+        }
       });
       
-      console.log('🔧 Enhanced cache management loaded. Use filmflexCache.info() to see cache status');
-      console.log('🔧 Available commands: filmflexCache.clearAll(), filmflexCache.forceUpdate(), filmflexCache.enableDebug()');
+      // Only show cache management info in development
+      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        console.log('🔧 Enhanced cache management loaded. Use filmflexCache.info() to see cache status');
+        console.log('🔧 Available commands: filmflexCache.clearAll(), filmflexCache.forceUpdate(), filmflexCache.enableDebug()');
+      }
     </script>
   </body>
 </html>

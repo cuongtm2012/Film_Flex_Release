@@ -24,7 +24,10 @@ export default function SplashScreen({ onClose }: SplashScreenProps) {
         version: '1.0'
       };
       localStorage.setItem('filmflex-splash-seen', JSON.stringify(splashData));
-      console.log('✅ Splash screen auto-saved to localStorage');
+      // Only log in development
+      if (import.meta.env.DEV) {
+        console.log('✅ Splash screen auto-saved to localStorage');
+      }
     }, 3000);
     
     return () => {

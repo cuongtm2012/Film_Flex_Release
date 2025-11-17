@@ -3,15 +3,19 @@
 const CACHE_VERSION = 'v3';
 const BUILD_TIME = Date.now(); // This will be updated during build
 const CACHE_NAME = `filmflex-${CACHE_VERSION}-${BUILD_TIME}`;
-const DEBUG_MODE = true; // Enable detailed logging
+const DEBUG_MODE = false; // Disable logging in production
 
-// Enhanced logging
+// Enhanced logging - only in debug mode
 const swLog = (message, data = '') => {
-  console.log(`🔧 SW [${CACHE_NAME}]: ${message}`, data);
+  if (DEBUG_MODE) {
+    console.log(`🔧 SW [${CACHE_NAME}]: ${message}`, data);
+  }
 };
 
 const swError = (message, error = '') => {
-  console.error(`🚨 SW [${CACHE_NAME}]: ${message}`, error);
+  if (DEBUG_MODE) {
+    console.error(`🚨 SW [${CACHE_NAME}]: ${message}`, error);
+  }
 };
 
 // Critical assets that must always work
