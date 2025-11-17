@@ -13,8 +13,8 @@ DB_PASSWORD=""
 DB_NAME="filmflex"
 
 # Configuration
-MIN_VIEWS=1000
-MIN_YEAR=2018
+MIN_VIEWS=100      # Minimum views to be considered (lowered from 1000)
+MIN_YEAR=2020      # Prefer movies from this year onwards
 RECOMMEND_COUNT=5
 
 # PostgreSQL command (use docker if psql not available)
@@ -65,6 +65,76 @@ if [[ "${PSQL_CMD}" == "psql" ]]; then
 else
     ${PSQL_CMD} -U "${DB_USER}" -d "${DB_NAME}" -t -A \
         -c "SELECT COUNT(*) FROM movies WHERE COALESCE(view, 0) >= ${MIN_VIEWS} AND year >= ${MIN_YEAR};"
+fi
+echo ""
+
+# Test 2.1: Database Statistics
+echo "Test 2.1: Database Statistics"
+echo "------------------------------"
+echo "Total movies in database:"
+if [[ "${PSQL_CMD}" == "psql" ]]; then
+    PGPASSWORD="${DB_PASSWORD}" ${PSQL_CMD} \
+        -h "${DB_HOST}" \
+        -p "${DB_PORT}" \
+        -U "${DB_USER}" \
+        -d "${DB_NAME}" \
+        -t -A \
+        -c "SELECT COUNT(*) FROM movies;"
+else
+    ${PSQL_CMD} -U "${DB_USER}" -d "${DB_NAME}" -t -A \
+        -c "SELECT COUNT(*) FROM movies;"
+fi
+
+echo ""
+echo "Movies by view count ranges:"
+if [[ "${PSQL_CMD}" == "psql" ]]; then
+    PGPASSWORD="${DB_PASSWORD}" ${PSQL_CMD} \
+        -h "${DB_HOST}" \
+        -p "${DB_PORT}" \
+        -U "${DB_USER}" \
+        -d "${DB_NAME}" \
+        -c "SELECT 
+            CASE 
+                WHEN COALESCE(view, 0) = 0 THEN '0 views'
+                WHEN COALESCE(view, 0) < 100 THEN '1-99 views'
+                WHEN COALESCE(view, 0) < 500 THEN '100-499 views'
+                WHEN COALESCE(view, 0) < 1000 THEN '500-999 views'
+                WHEN COALESCE(view, 0) < 5000 THEN '1000-4999 views'
+                ELSE '5000+ views'
+            END as view_range,
+            COUNT(*) as count
+        FROM movies
+        GROUP BY view_range
+        ORDER BY MIN(COALESCE(view, 0));"
+else
+    ${PSQL_CMD} -U "${DB_USER}" -d "${DB_NAME}" \
+        -c "SELECT 
+            CASE 
+                WHEN COALESCE(view, 0) = 0 THEN '0 views'
+                WHEN COALESCE(view, 0) < 100 THEN '1-99 views'
+                WHEN COALESCE(view, 0) < 500 THEN '100-499 views'
+                WHEN COALESCE(view, 0) < 1000 THEN '500-999 views'
+                WHEN COALESCE(view, 0) < 5000 THEN '1000-4999 views'
+                ELSE '5000+ views'
+            END as view_range,
+            COUNT(*) as count
+        FROM movies
+        GROUP BY view_range
+        ORDER BY MIN(COALESCE(view, 0));"
+fi
+
+echo ""
+echo "Movies by year:"
+if [[ "${PSQL_CMD}" == "psql" ]]; then
+    PGPASSWORD="${DB_PASSWORD}" ${PSQL_CMD} \
+        -h "${DB_HOST}" \
+        -p "${DB_PORT}" \
+        -U "${DB_USER}" \
+        -d "${DB_NAME}" \
+        -c "SELECT year, COUNT(*) as count FROM movies WHERE year IS NOT NULL GROUP BY year ORDER BY year DESC LIMIT 10;"
+else
+    ${PSQL_CMD} -U "${DB_USER}" -d "${DB_NAME}" \
+        -c "SELECT year, COUNT(*) as count FROM movies WHERE year IS NOT NULL GROUP BY year ORDER BY year DESC LIMIT 10;"
 fi
 echo ""
 
