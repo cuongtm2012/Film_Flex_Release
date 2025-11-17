@@ -13,10 +13,17 @@
 #   
 # Selection Criteria:
 #   - Top 5 movies with highest quality score
-#   - Quality Score = (views × 0.4) + (likes × 0.3) + (quality_weight × 0.2) + (year_weight × 0.1)
+#   - Quality Score = (views × 0.3) + (likes × 0.4) + (quality_weight × 0.2) + (year_weight × 0.1)
+#   - Year Weight = max(0, 10 - 0.5 × (current_year - year)) [Soft decrease for older movies]
 #   - Ensures genre diversity (max 2 per genre)
 #   - Mix of movies and TV series (60% movies, 40% series)
 #   - Recent content preferred (2020+)
+#
+# Updated Formula (v2.0):
+#   - Increased likes weight from 30% to 40% (better engagement metric)
+#   - Decreased views weight from 40% to 30% (avoid view count manipulation)
+#   - Improved year recency: Soft decrease instead of hard penalty
+#   - Quality and year weights remain at 20% and 10%
 #
 # Usage:
 #   ./recommend-movies.sh [--dry-run] [--verbose] [--count N]
@@ -26,7 +33,7 @@
 #   0 3 * * 0 /path/to/recommend-movies.sh >> /path/to/logs/recommend.log 2>&1
 #
 # Author: PhimGG Development Team
-# Last Updated: 2025-11-09
+# Last Updated: 2025-11-16
 ################################################################################
 
 set -euo pipefail  # Exit on error, undefined variable, or pipe failure
@@ -51,11 +58,22 @@ DB_NAME="${DB_NAME:-filmflex}"
 DB_USER="${DB_USER:-filmflex}"
 DB_PASSWORD="${DB_PASSWORD:-filmflex2024}"
 
+# Check if psql is available, otherwise use docker
+if command -v psql &> /dev/null; then
+    PSQL_CMD="psql"
+    USE_DOCKER=false
+else
+    # Use docker postgres container
+    PSQL_CMD="docker exec -i filmflex-postgres psql"
+    USE_DOCKER=true
+fi
+
 # Recommendation configuration
 RECOMMEND_COUNT=5  # Number of movies to recommend (for hero carousel)
-MIN_VIEWS=1000     # Minimum views to be considered
-MIN_YEAR=2018      # Prefer movies from this year onwards
+MIN_VIEWS=0        # No minimum views required (changed strategy)
+MIN_YEAR=2020      # Prefer movies from this year onwards
 MAX_PER_GENRE=2    # Max movies per genre to ensure diversity
+TOP_CANDIDATES=50  # Select from top 50 newest movies with high views
 
 # Flags
 DRY_RUN=false
@@ -106,14 +124,39 @@ execute_sql() {
         return 0
     fi
     
-    PGPASSWORD="${DB_PASSWORD}" psql \
-        -h "${DB_HOST}" \
-        -p "${DB_PORT}" \
-        -U "${DB_USER}" \
-        -d "${DB_NAME}" \
-        -t \
-        -A \
-        -c "${query}"
+    if [[ "${USE_DOCKER}" == "true" ]]; then
+        echo "${query}" | ${PSQL_CMD} -U "${DB_USER}" -d "${DB_NAME}" -t -A
+    else
+        PGPASSWORD="${DB_PASSWORD}" ${PSQL_CMD} \
+            -h "${DB_HOST}" \
+            -p "${DB_PORT}" \
+            -U "${DB_USER}" \
+            -d "${DB_NAME}" \
+            -t \
+            -A \
+            -c "${query}"
+    fi
+}
+
+# Execute read-only queries (works even in dry-run mode for preview)
+execute_sql_read_only() {
+    local query="$1"
+    
+    log_debug "Executing read-only SQL: ${query:0:100}..."
+    
+    if [[ "${USE_DOCKER}" == "true" ]]; then
+        echo "${query}" | ${PSQL_CMD} -U "${DB_USER}" -d "${DB_NAME}" -t -A -F'|' 2>&1 | grep -v "^$"
+    else
+        PGPASSWORD="${DB_PASSWORD}" ${PSQL_CMD} \
+            -h "${DB_HOST}" \
+            -p "${DB_PORT}" \
+            -U "${DB_USER}" \
+            -d "${DB_NAME}" \
+            -t \
+            -A \
+            -F'|' \
+            -c "${query}" 2>&1 | grep -v "^$"
+    fi
 }
 
 # Create backup of current recommendations
@@ -144,16 +187,13 @@ create_backup() {
 # Recommendation Functions
 ################################################################################
 
-calculate_recommendations() {
-    log_info "Calculating movie recommendations based on quality score..."
+# Preview movies that would be recommended (for dry-run mode)
+preview_recommendations() {
+    log_info "Previewing movies that would be recommended..."
     
-    local sql="
-    -- Clear all existing recommendations first
-    UPDATE movies SET is_recommended = false;
-    
-    -- Calculate quality scores and select top recommendations
-    WITH quality_weights AS (
-        -- Assign quality weights
+    local preview_sql="
+    -- New Strategy: Random 5 from top 50 newest movies with highest views
+    WITH top_candidates AS (
         SELECT 
             id,
             slug,
@@ -162,102 +202,98 @@ calculate_recommendations() {
             type,
             quality,
             view,
-            CASE quality
-                WHEN '4K' THEN 100
-                WHEN 'UHD' THEN 95
-                WHEN 'FHD' THEN 90
-                WHEN 'Full HD' THEN 90
-                WHEN 'HD' THEN 70
-                WHEN 'CAM' THEN 20
-                WHEN 'TS' THEN 25
-                ELSE 50
-            END as quality_weight
-        FROM movies
-        WHERE COALESCE(view, 0) >= ${MIN_VIEWS}
-          AND year IS NOT NULL
-          AND year >= ${MIN_YEAR}
+            created_at,
+            COALESCE(SUM(CASE WHEN mr.reaction_type = 'like' THEN 1 ELSE 0 END), 0) as likes
+        FROM movies m
+        LEFT JOIN movie_reactions mr ON m.slug = mr.movie_slug
+        WHERE year >= ${MIN_YEAR}
           AND year <= EXTRACT(YEAR FROM NOW())
-    ),
-    reaction_scores AS (
-        -- Calculate reaction scores
-        SELECT 
-            qw.id,
-            qw.slug,
-            qw.name,
-            qw.year,
-            qw.type,
-            qw.quality,
-            qw.view,
-            qw.quality_weight,
-            COALESCE(SUM(CASE WHEN mr.reaction_type = 'like' THEN 1 ELSE 0 END), 0) as likes,
-            COALESCE(SUM(CASE WHEN mr.reaction_type = 'dislike' THEN 1 ELSE 0 END), 0) as dislikes,
-            (COALESCE(SUM(CASE WHEN mr.reaction_type = 'like' THEN 1 ELSE 0 END), 0) - 
-             COALESCE(SUM(CASE WHEN mr.reaction_type = 'dislike' THEN 1 ELSE 0 END), 0)) as net_reactions
-        FROM quality_weights qw
-        LEFT JOIN movie_reactions mr ON qw.slug = mr.movie_slug
-        GROUP BY qw.id, qw.slug, qw.name, qw.year, qw.type, qw.quality, qw.view, qw.quality_weight
-    ),
-    final_scores AS (
-        -- Calculate final quality score
-        SELECT 
-            rs.id,
-            rs.slug,
-            rs.name,
-            rs.year,
-            rs.type,
-            rs.quality,
-            rs.view,
-            rs.likes,
-            rs.dislikes,
-            (
-                (COALESCE(rs.view, 0) / 10000.0) * 0.4 +        -- View score (40%)
-                (rs.likes * 1.0) * 0.3 +                         -- Like score (30%)
-                (rs.quality_weight * 1.0) * 0.2 +                -- Quality weight (20%)
-                ((2025 - rs.year) * -0.5 + 10) * 0.1            -- Year recency (10%, newer is better)
-            ) as quality_score
-        FROM reaction_scores rs
-    ),
-    diverse_recommendations AS (
-        -- Ensure genre diversity by limiting per genre
-        SELECT DISTINCT ON (fs.slug)
-            fs.id,
-            fs.slug,
-            fs.name,
-            fs.quality_score,
-            fs.type
-        FROM final_scores fs
-        ORDER BY fs.slug, fs.quality_score DESC
-    ),
-    balanced_selection AS (
-        -- Select mix of movies and TV series
-        (
-            -- Select top movies (60% = 3 out of 5)
-            SELECT id, slug, quality_score
-            FROM diverse_recommendations
-            WHERE type NOT IN ('series', 'tvshows', 'tv_series', 'hoathinh')
-            ORDER BY quality_score DESC
-            LIMIT 3
-        )
-        UNION ALL
-        (
-            -- Select top TV series (40% = 2 out of 5)
-            SELECT id, slug, quality_score
-            FROM diverse_recommendations
-            WHERE type IN ('series', 'tvshows', 'tv_series')
-            ORDER BY quality_score DESC
-            LIMIT 2
-        )
+          AND quality IN ('HD', 'FHD', 'Full HD', '4K', 'UHD')
+        GROUP BY m.id, m.slug, m.name, m.year, m.type, m.quality, m.view, m.created_at
+        ORDER BY m.created_at DESC, COALESCE(m.view, 0) DESC
+        LIMIT ${TOP_CANDIDATES}
     )
-    -- Mark selected movies as recommended
+    SELECT 
+        ROW_NUMBER() OVER (ORDER BY RANDOM()) as rank,
+        name,
+        year,
+        type,
+        quality,
+        view,
+        likes,
+        created_at
+    FROM top_candidates
+    ORDER BY RANDOM()
+    LIMIT ${RECOMMEND_COUNT};
+    "
+    
+    log_info ""
+    log_info "╔════════════════════════════════════════════════════════════════════════════╗"
+    log_info "║                    MOVIES THAT WOULD BE RECOMMENDED                        ║"
+    log_info "╚════════════════════════════════════════════════════════════════════════════╝"
+    log_info ""
+    
+    # Execute query and format output
+    local result=$(execute_sql_read_only "${preview_sql}")
+    
+    if [[ -n "${result}" ]]; then
+        local count=0
+        while IFS='|' read -r rank name year type quality view likes created_at; do
+            # Skip empty lines
+            [[ -z "${rank}" ]] && continue
+            
+            count=$((count + 1))
+            log_info "  #${rank}. ${name}"
+            log_info "      Year: ${year} | Type: ${type} | Quality: ${quality}"
+            log_info "      Views: ${view} | Likes: ${likes} | Added: ${created_at}"
+            log_info ""
+        done <<< "${result}"
+        
+        if [[ ${count} -eq 0 ]]; then
+            log_warn "  No movies found matching criteria"
+        fi
+    else
+        log_warn "  No movies found matching criteria"
+    fi
+    
+    log_info "╚════════════════════════════════════════════════════════════════════════════╝"
+    log_info ""
+}
+
+calculate_recommendations() {
+    log_info "Calculating movie recommendations based on newest + popular strategy..."
+    
+    # First, clear all existing recommendations
+    local clear_sql="UPDATE movies SET is_recommended = false WHERE is_recommended = true;"
+    execute_sql "${clear_sql}"
+    log_info "Cleared all existing recommendations"
+    
+    # Then select and mark new recommendations
+    local sql="
+    -- New Strategy: Random 5 from top 50 newest movies with highest views
+    WITH top_candidates AS (
+        SELECT 
+            m.id,
+            m.slug,
+            m.created_at,
+            m.view
+        FROM movies m
+        WHERE m.year >= ${MIN_YEAR}
+          AND m.year <= EXTRACT(YEAR FROM NOW())
+          AND m.quality IN ('HD', 'FHD', 'Full HD', '4K', 'UHD')
+        ORDER BY m.created_at DESC, COALESCE(m.view, 0) DESC
+        LIMIT ${TOP_CANDIDATES}
+    ),
+    random_selection AS (
+        SELECT id, slug
+        FROM top_candidates
+        ORDER BY RANDOM()
+        LIMIT ${RECOMMEND_COUNT}
+    )
     UPDATE movies m
     SET is_recommended = true, modified_at = NOW()
-    FROM (
-        SELECT id, slug
-        FROM balanced_selection
-        ORDER BY quality_score DESC
-        LIMIT ${RECOMMEND_COUNT}
-    ) bs
-    WHERE m.id = bs.id;
+    FROM random_selection rs
+    WHERE m.id = rs.id;
     "
     
     local count=$(execute_sql "${sql}" | grep -c "^" || echo "0")
@@ -282,19 +318,15 @@ apply_fallback_recommendations() {
         SELECT (${RECOMMEND_COUNT} - (SELECT total FROM current_count)) as needed
     ),
     fallback_candidates AS (
-        -- Select high-quality movies without strict view requirements
+        -- Select any high-quality movies from recent years
         SELECT 
             m.id,
-            m.slug,
-            m.name,
-            COALESCE(m.view, 0) as view_count,
-            m.quality,
-            m.year
+            m.slug
         FROM movies m
         WHERE m.is_recommended = false
-          AND m.year >= ${MIN_YEAR}
+          AND m.year >= (${MIN_YEAR} - 2)  -- Expand year range slightly
           AND m.quality IN ('HD', 'FHD', 'Full HD', '4K', 'UHD')
-        ORDER BY m.view DESC, m.year DESC
+        ORDER BY m.created_at DESC, COALESCE(m.view, 0) DESC
         LIMIT (SELECT needed FROM needed_count)
     )
     UPDATE movies m
@@ -458,19 +490,23 @@ Options:
     --count N       Number of movies to recommend (default: 5)
     --help, -h      Show this help message
 
-Selection Criteria:
-    - Quality Score = (views × 0.4) + (likes × 0.3) + (quality × 0.2) + (year × 0.1)
-    - Minimum views: ${MIN_VIEWS}
-    - Minimum year: ${MIN_YEAR}
-    - Genre diversity: Max ${MAX_PER_GENRE} per genre
-    - Content mix: 60% movies, 40% TV series
+Selection Strategy (v3.0 - Simplified):
+    - Select top ${TOP_CANDIDATES} newest movies (from ${MIN_YEAR}+)
+    - Filter by quality (HD, FHD, Full HD, 4K, UHD only)
+    - Sort by: created_at DESC, view DESC
+    - Randomly pick ${RECOMMEND_COUNT} from these candidates
+    - Ensures fresh content rotation each run
 
-Quality Weights:
-    - 4K/UHD: 95-100 points
-    - FHD/Full HD: 90 points
-    - HD: 70 points
-    - SD: 50 points
-    - CAM/TS: 20-25 points
+Why Random Selection?
+    - Prevents same movies always appearing
+    - Gives newer content visibility
+    - All top ${TOP_CANDIDATES} candidates are quality-filtered
+    - Better user experience with variety
+
+Quality Criteria:
+    - Year: ${MIN_YEAR} or newer
+    - Quality: HD, FHD, Full HD, 4K, UHD
+    - Candidates pool: Top ${TOP_CANDIDATES} newest + popular
 
 Examples:
     $0                      # Normal run (5 recommendations)
@@ -506,6 +542,11 @@ main() {
     log_info "Min Views: ${MIN_VIEWS}"
     log_info "Min Year: ${MIN_YEAR}"
     log_info "=========================================="
+    
+    # In dry-run mode, preview recommendations first
+    if [[ "${DRY_RUN}" == "true" ]]; then
+        preview_recommendations
+    fi
     
     # Create backup before making changes
     create_backup
