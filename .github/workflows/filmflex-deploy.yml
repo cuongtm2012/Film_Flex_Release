@@ -59,7 +59,7 @@ jobs:
         with:
           name: filmflex-artifacts
           path: |
-            client/dist/
+            dist/
             scripts/deployment/
             scripts/data/
           retention-days: 1
@@ -81,13 +81,12 @@ jobs:
           echo "Current directory: $(pwd)"
           echo "List artifacts directory:"
           ls -la filmflex-artifacts
-          echo "List client directory:"
-          ls -la filmflex-artifacts/client || echo "Client directory not found"
+          echo "List dist directory:"
+          ls -la filmflex-artifacts/dist || echo "Dist directory not found"
           echo "List scripts directory:"
           ls -la filmflex-artifacts/scripts || echo "Scripts directory not found"
           
           mkdir -p filmflex-release
-          mkdir -p filmflex-release/client
           mkdir -p filmflex-release/scripts
           
           # Debug structure after download
@@ -95,7 +94,7 @@ jobs:
           find filmflex-artifacts -type d | sort
           
           # Copy from the artifact directory structure to the release structure
-          cp -r filmflex-artifacts/client/dist filmflex-release/client/ || echo "Failed to copy client/dist"
+          cp -r filmflex-artifacts/dist filmflex-release/ || echo "Failed to copy dist"
           cp -r filmflex-artifacts/scripts/deployment filmflex-release/scripts/ || echo "Failed to copy scripts/deployment"
           cp -r filmflex-artifacts/scripts/data filmflex-release/scripts/ || echo "Failed to copy scripts/data"
           
