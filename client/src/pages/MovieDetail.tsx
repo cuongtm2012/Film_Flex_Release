@@ -64,7 +64,7 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
   const [isEpisodeLoading, setIsEpisodeLoading] = useState(false);
   const [isEpisodeSwitching, setIsEpisodeSwitching] = useState(false);
   const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
-  const [playerType, setPlayerType] = useState<"embed" | "hls">("hls"); // Default to HLS for seekable timeline
+  const [playerType, setPlayerType] = useState<"embed" | "hls">("embed"); // Default to Embed Player
   // State for content expanding (overview section)
   const [isContentExpanded, setIsContentExpanded] = useState(false);
 
@@ -442,7 +442,12 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
                   </Button>
                 </div>
 
-                {playerType === "hls" ? (
+                {playerType === "embed" ? (
+                  <VideoPlayer
+                    embedUrl={getCurrentEmbedUrl()}
+                    isLoading={isMovieLoading || !selectedEpisode}
+                  />
+                ) : (
                   <HLSVideoPlayer
                     m3u8Url={getCurrentM3u8Url()}
                     isLoading={isMovieLoading || !selectedEpisode}
@@ -452,11 +457,6 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
                       // Add Vietnamese subtitles if available
                       // { label: "Tiếng Việt", src: "/path/to/vi.vtt", srclang: "vi" }
                     ]}
-                  />
-                ) : (
-                  <VideoPlayer
-                    embedUrl={getCurrentEmbedUrl()}
-                    isLoading={isMovieLoading || !selectedEpisode}
                   />
                 )}
               </div>
