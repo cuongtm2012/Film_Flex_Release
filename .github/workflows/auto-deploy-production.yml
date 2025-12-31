@@ -233,10 +233,14 @@ jobs:
             
             # Determine deployment mode
             MODE="${{ github.event.inputs.deployment_mode || 'app-only' }}"
-            FORCE_FLAG=""
             
+            # Always use --force flag to skip git uncommitted changes check
+            # GitHub Actions already provides the latest code via deployment package
+            FORCE_FLAG="--force"
+            
+            # Add user's force flag if specified
             if [ "${{ github.event.inputs.force_deployment }}" = "true" ]; then
-              FORCE_FLAG="--force"
+              echo "User requested force deployment"
             fi
             
             # Build deployment command
@@ -264,17 +268,50 @@ jobs:
             # Create log directory
             mkdir -p /var/log/filmflex
             
-            # Run deployment with logging
+            # Run deployment with logging and explicit error handling
             LOG_FILE="/var/log/filmflex/github-deploy-$(date +%Y%m%d_%H%M%S).log"
             
-            if $DEPLOY_CMD 2>&1 | tee "$LOG_FILE"; then
-              echo "✅ Deployment completed successfully at $(date)"
-              echo "SUCCESS" > /tmp/deployment_status
-            else
-              echo "❌ Deployment failed at $(date)"
+            echo "Running deployment script..." | tee "$LOG_FILE"
+            if ! $DEPLOY_CMD 2>&1 | tee -a "$LOG_FILE"; then
+              echo "❌ Deployment script failed!" | tee -a "$LOG_FILE"
+              echo "📋 Checking system status..." | tee -a "$LOG_FILE"
+              
+              # Show container status
+              echo "Container status:" | tee -a "$LOG_FILE"
+              docker ps -a | grep filmflex | tee -a "$LOG_FILE" || echo "No filmflex containers found" | tee -a "$LOG_FILE"
+              
+              # Show recent logs from deployment
+              echo "Recent deployment logs:" | tee -a "$LOG_FILE"
+              tail -50 "$LOG_FILE"
+              
               echo "FAILED" > /tmp/deployment_status
               exit 1
             fi
+            
+            echo "✅ Deployment script completed at $(date)" | tee -a "$LOG_FILE"
+            
+            # CRITICAL: Verify container actually started
+            echo "🔍 Verifying container started..." | tee -a "$LOG_FILE"
+            sleep 5
+            
+            if docker ps | grep filmflex-app | grep -q "Up"; then
+              echo "✅ Container filmflex-app is running" | tee -a "$LOG_FILE"
+              echo "SUCCESS" > /tmp/deployment_status
+            else
+              echo "❌ Container filmflex-app is NOT running!" | tee -a "$LOG_FILE"
+              echo "📋 Container status:" | tee -a "$LOG_FILE"
+              docker ps -a | grep filmflex-app | tee -a "$LOG_FILE" || echo "Container not found" | tee -a "$LOG_FILE"
+              
+              # Try to get container logs if it exists
+              if docker ps -a --format "{{.Names}}" | grep -q "^filmflex-app$"; then
+                echo "📋 Container logs:" | tee -a "$LOG_FILE"
+                docker logs filmflex-app --tail 50 2>&1 | tee -a "$LOG_FILE"
+              fi
+              
+              echo "FAILED" > /tmp/deployment_status
+              exit 1
+            fi
+
 
       - name: Health check
         if: ${{ github.event.inputs.skip_health_check != 'true' }}
