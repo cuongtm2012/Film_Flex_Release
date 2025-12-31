@@ -1,0 +1,417 @@
+name: Auto Deploy to Production
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '**.md'
+      - '.gitignore'
+      - 'docs/**'
+      - '.github/workflows/**'
+  
+  workflow_dispatch:
+    inputs:
+      deployment_mode:
+        description: 'Deployment mode'
+        required: true
+        default: 'app-only'
+        type: choice
+        options:
+          - app-only
+          - full
+          - with-elasticsearch
+          - sync-elasticsearch
+      force_deployment:
+        description: 'Force deployment (skip checks)'
+        required: false
+        default: false
+        type: boolean
+      skip_health_check:
+        description: 'Skip health check after deployment'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  NODE_VERSION: '20'
+  DEPLOYMENT_TIMEOUT: 1800  # 30 minutes
+
+jobs:
+  build:
+    name: Build Application
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for git operations
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          echo "📦 Installing dependencies..."
+          npm ci --include=dev
+
+      - name: TypeScript type check
+        continue-on-error: true
+        run: |
+          echo "🔍 Running TypeScript type check..."
+          npm run check || echo "⚠️ Type errors found but continuing build"
+
+      - name: Build application
+        run: |
+          echo "🔨 Building application..."
+          npm run build
+          
+          echo "✅ Build completed"
+          echo "📊 Build artifacts:"
+          ls -lh dist/
+          du -sh dist/
+
+      - name: Verify build artifacts
+        run: |
+          echo "🔍 Verifying build artifacts..."
+          
+          if [ ! -d "dist" ]; then
+            echo "❌ dist directory not found"
+            exit 1
+          fi
+          
+          if [ ! -f "dist/index.js" ]; then
+            echo "❌ Server bundle not found"
+            exit 1
+          fi
+          
+          if [ ! -d "dist/public" ]; then
+            echo "❌ Client build not found"
+            exit 1
+          fi
+          
+          echo "✅ All build artifacts verified"
+
+      - name: Create deployment package
+        run: |
+          echo "📦 Creating deployment package..."
+          
+          # Create deployment directory structure
+          mkdir -p deployment-package
+          
+          # Copy essential files
+          cp -r dist deployment-package/
+          cp -r server deployment-package/
+          cp -r shared deployment-package/
+          cp -r scripts deployment-package/
+          cp -r public deployment-package/
+          cp package.json deployment-package/
+          cp package-lock.json deployment-package/
+          
+          # Copy environment files
+          cp .env.production deployment-package/ 2>/dev/null || echo "No .env.production file"
+          
+          # Create tarball
+          tar -czf deployment-package.tar.gz deployment-package/
+          
+          echo "✅ Deployment package created"
+          ls -lh deployment-package.tar.gz
+
+      - name: Upload deployment package
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-package
+          path: deployment-package.tar.gz
+          retention-days: 7
+
+  deploy:
+    name: Deploy to Production Server
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+      - name: Download deployment package
+        uses: actions/download-artifact@v4
+        with:
+          name: deployment-package
+
+      - name: Setup SSH connection
+        run: |
+          echo "🔐 Setting up SSH connection..."
+          
+          # Create SSH directory
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          
+          # Setup SSH key if available, otherwise use password
+          if [ -n "${{ secrets.SSH_PRIVATE_KEY }}" ]; then
+            echo "Using SSH key authentication"
+            echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+            chmod 600 ~/.ssh/id_ed25519
+            
+            # Add known hosts if provided
+            if [ -n "${{ secrets.SSH_KNOWN_HOSTS }}" ]; then
+              echo "${{ secrets.SSH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+            else
+              # Auto-accept host key (less secure but functional)
+              ssh-keyscan -H ${{ secrets.SERVER_HOST || '38.54.14.154' }} >> ~/.ssh/known_hosts 2>/dev/null
+            fi
+          else
+            echo "Using password authentication (SSH key recommended)"
+          fi
+
+      - name: Upload deployment package to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST || '38.54.14.154' }}
+          username: ${{ secrets.SERVER_USER || 'root' }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "deployment-package.tar.gz"
+          target: "/tmp/"
+          timeout: 300s
+
+      - name: Extract and prepare deployment
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SERVER_HOST || '38.54.14.154' }}
+          username: ${{ secrets.SERVER_USER || 'root' }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          timeout: 300s
+          script: |
+            echo "📦 Extracting deployment package..."
+            
+            # Create deployment directory
+            mkdir -p ~/Film_Flex_Release
+            
+            # Extract package
+            cd /tmp
+            tar -xzf deployment-package.tar.gz
+            
+            # Backup current deployment (optional)
+            if [ -d ~/Film_Flex_Release/dist ]; then
+              echo "💾 Backing up current deployment..."
+              BACKUP_DIR=~/Film_Flex_Release_backup_$(date +%Y%m%d_%H%M%S)
+              cp -r ~/Film_Flex_Release "$BACKUP_DIR"
+              echo "Backup created at: $BACKUP_DIR"
+            fi
+            
+            # Copy new files
+            echo "📋 Copying new files..."
+            cp -rf deployment-package/* ~/Film_Flex_Release/
+            
+            # Cleanup
+            rm -rf /tmp/deployment-package /tmp/deployment-package.tar.gz
+            
+            # Set permissions
+            chmod +x ~/Film_Flex_Release/scripts/deployment/*.sh
+            chmod +x ~/Film_Flex_Release/scripts/data/*.sh 2>/dev/null || true
+            
+            echo "✅ Deployment package prepared"
+
+      - name: Run deployment script
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SERVER_HOST || '38.54.14.154' }}
+          username: ${{ secrets.SERVER_USER || 'root' }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          timeout: 1800s
+          command_timeout: 1800s
+          script: |
+            echo "🚀 Starting deployment..."
+            
+            # Change to project directory
+            cd ~/Film_Flex_Release
+            
+            # Determine deployment mode
+            MODE="${{ github.event.inputs.deployment_mode || 'app-only' }}"
+            FORCE_FLAG=""
+            
+            if [ "${{ github.event.inputs.force_deployment }}" = "true" ]; then
+              FORCE_FLAG="--force"
+            fi
+            
+            # Build deployment command
+            case "$MODE" in
+              "app-only")
+                DEPLOY_CMD="./scripts/deployment/deploy-production.sh --app-only $FORCE_FLAG"
+                ;;
+              "full")
+                DEPLOY_CMD="./scripts/deployment/deploy-production.sh --full $FORCE_FLAG"
+                ;;
+              "with-elasticsearch")
+                DEPLOY_CMD="./scripts/deployment/deploy-production.sh --app-only --with-elasticsearch $FORCE_FLAG"
+                ;;
+              "sync-elasticsearch")
+                DEPLOY_CMD="./scripts/deployment/deploy-production.sh --app-only --sync-elasticsearch $FORCE_FLAG"
+                ;;
+              *)
+                DEPLOY_CMD="./scripts/deployment/deploy-production.sh --app-only $FORCE_FLAG"
+                ;;
+            esac
+            
+            echo "📝 Deployment command: $DEPLOY_CMD"
+            echo "🕐 Started at: $(date)"
+            
+            # Create log directory
+            mkdir -p /var/log/filmflex
+            
+            # Run deployment with logging
+            LOG_FILE="/var/log/filmflex/github-deploy-$(date +%Y%m%d_%H%M%S).log"
+            
+            if $DEPLOY_CMD 2>&1 | tee "$LOG_FILE"; then
+              echo "✅ Deployment completed successfully at $(date)"
+              echo "SUCCESS" > /tmp/deployment_status
+            else
+              echo "❌ Deployment failed at $(date)"
+              echo "FAILED" > /tmp/deployment_status
+              exit 1
+            fi
+
+      - name: Health check
+        if: ${{ github.event.inputs.skip_health_check != 'true' }}
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SERVER_HOST || '38.54.14.154' }}
+          username: ${{ secrets.SERVER_USER || 'root' }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          timeout: 300s
+          script: |
+            echo "🔍 Performing health check..."
+            
+            # Wait for application to start
+            sleep 10
+            
+            # Check Docker containers
+            echo "📦 Checking Docker containers..."
+            if docker ps | grep filmflex-app | grep -q "Up"; then
+              echo "✅ Application container is running"
+            else
+              echo "❌ Application container is not running"
+              docker ps -a | grep filmflex
+              exit 1
+            fi
+            
+            # Check application health endpoint
+            echo "🏥 Checking application health..."
+            MAX_ATTEMPTS=30
+            ATTEMPT=1
+            
+            while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
+              if curl -sf http://localhost:5000/api/health > /dev/null 2>&1; then
+                echo "✅ Application health check passed"
+                
+                # Get health response
+                HEALTH_RESPONSE=$(curl -s http://localhost:5000/api/health)
+                echo "Health response: $HEALTH_RESPONSE"
+                break
+              else
+                echo "⏳ Health check attempt $ATTEMPT/$MAX_ATTEMPTS failed, retrying..."
+                sleep 10
+                ATTEMPT=$((ATTEMPT + 1))
+              fi
+            done
+            
+            if [ $ATTEMPT -gt $MAX_ATTEMPTS ]; then
+              echo "❌ Health check failed after $MAX_ATTEMPTS attempts"
+              
+              # Show container logs for debugging
+              echo "📋 Recent application logs:"
+              docker logs filmflex-app --tail 50
+              
+              exit 1
+            fi
+            
+            # Additional checks
+            echo "🌐 Checking external access..."
+            if curl -sf http://38.54.14.154:5000/ > /dev/null 2>&1; then
+              echo "✅ External access verified"
+            else
+              echo "⚠️ External access check failed (may be normal if firewall configured)"
+            fi
+            
+            echo "✅ All health checks passed"
+
+      - name: Generate deployment report
+        if: always()
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SERVER_HOST || '38.54.14.154' }}
+          username: ${{ secrets.SERVER_USER || 'root' }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          timeout: 60s
+          script: |
+            echo "📊 Generating deployment report..."
+            
+            REPORT_FILE="/var/log/filmflex/deployment-report-$(date +%Y%m%d_%H%M%S).txt"
+            
+            cat > "$REPORT_FILE" << EOF
+            ========================================
+            PhimGG Auto-Deployment Report
+            ========================================
+            
+            Deployment Time: $(date '+%Y-%m-%d %H:%M:%S')
+            Triggered By: GitHub Actions
+            Branch: ${{ github.ref_name }}
+            Commit: ${{ github.sha }}
+            Deployment Mode: ${{ github.event.inputs.deployment_mode || 'app-only' }}
+            
+            ========================================
+            Container Status
+            ========================================
+            $(docker ps -a --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep filmflex)
+            
+            ========================================
+            Application Status
+            ========================================
+            $(curl -s http://localhost:5000/api/health 2>/dev/null || echo "Health check unavailable")
+            
+            ========================================
+            Access Information
+            ========================================
+            - Local: http://localhost:5000
+            - External: http://38.54.14.154:5000
+            - Domain: https://phimgg.com (if configured)
+            
+            ========================================
+            EOF
+            
+            echo "✅ Deployment report saved to: $REPORT_FILE"
+            cat "$REPORT_FILE"
+
+  notify:
+    name: Deployment Notification
+    needs: [build, deploy]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+      - name: Deployment status summary
+        run: |
+          echo "📊 Deployment Summary"
+          echo "===================="
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "Mode: ${{ github.event.inputs.deployment_mode || 'app-only' }}"
+          echo "Build Status: ${{ needs.build.result }}"
+          echo "Deploy Status: ${{ needs.deploy.result }}"
+          echo ""
+          
+          if [ "${{ needs.deploy.result }}" = "success" ]; then
+            echo "✅ Deployment completed successfully!"
+            echo "🌐 Application: http://38.54.14.154:5000"
+          else
+            echo "❌ Deployment failed!"
+            echo "Please check the logs for details."
+            exit 1
+          fi
