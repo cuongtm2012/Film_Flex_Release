@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { 
-  Film, 
+import {
+  Film,
   Tv,
   Calendar,
   Star,
@@ -23,26 +23,26 @@ import {
 } from "lucide-react";
 
 // Helper component for footer links
-const FooterLink = ({ 
-  href, 
-  icon, 
-  children, 
+const FooterLink = ({
+  href,
+  icon,
+  children,
   isScrollTop = false,
   onScrollTop,
   onCustomClick
-}: { 
-  href: string, 
-  icon: React.ReactNode, 
+}: {
+  href: string,
+  icon: React.ReactNode,
   children: React.ReactNode,
   isScrollTop?: boolean,
   onScrollTop?: () => void,
   onCustomClick?: () => void
 }) => {
-  
+
   if (isScrollTop) {
     return (
       <li>
-        <div 
+        <div
           onClick={onScrollTop}
           className="text-gray-300 hover:text-primary flex items-center cursor-pointer transition-colors duration-200 relative group"
           role="button"
@@ -50,7 +50,7 @@ const FooterLink = ({
         >
           {icon}
           <span className="hidden md:inline">{children}</span>
-          
+
           {/* Tooltip for mobile */}
           <div className="absolute -top-8 left-0 bg-black text-white text-xs py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap md:hidden">
             {children}
@@ -63,7 +63,7 @@ const FooterLink = ({
   if (onCustomClick) {
     return (
       <li>
-        <div 
+        <div
           onClick={onCustomClick}
           className="text-gray-300 hover:text-primary flex items-center cursor-pointer transition-colors duration-200"
           role="button"
@@ -75,7 +75,7 @@ const FooterLink = ({
       </li>
     );
   }
-  
+
   return (
     <li>
       <Link href={href}>
@@ -96,10 +96,10 @@ interface FooterSectionProps {
 
 const FooterSection = ({ title, children }: FooterSectionProps) => {
   const [isOpen, setIsOpen] = useState(false);
-  
+
   return (
     <div className="border-b border-gray-800 md:border-none pb-3 md:pb-0">
-      <div 
+      <div
         className="flex items-center justify-between cursor-pointer md:cursor-default"
         onClick={() => setIsOpen(!isOpen)}
       >
@@ -154,7 +154,7 @@ const Footer = ({ onOpenMobileMenu }: { onOpenMobileMenu?: () => void }) => {
 
     // Add scroll event listener
     window.addEventListener('scroll', handleScroll);
-    
+
     // Check initial scroll position
     handleScroll();
 
@@ -184,7 +184,7 @@ const Footer = ({ onOpenMobileMenu }: { onOpenMobileMenu?: () => void }) => {
             <div className="mb-4 md:mb-0">
               <Link href="/">
                 <div className="flex items-center cursor-pointer">
-                  <span className="text-xl md:text-2xl font-bold text-primary">PhimGG</span>
+                  <img src="/phimgg-logo.png" alt="PhimGG" className="h-10 md:h-12" />
                 </div>
               </Link>
               <p className="text-gray-400 mt-2 text-sm">Your ultimate streaming destination</p>
@@ -196,8 +196,8 @@ const Footer = ({ onOpenMobileMenu }: { onOpenMobileMenu?: () => void }) => {
             {/* Browse section */}
             <FooterSection title="Browse">
               <ul className="space-y-2 mb-4 md:mb-0">
-                <FooterLink 
-                  href="/movies" 
+                <FooterLink
+                  href="/movies"
                   icon={<Film className="h-4 w-4 mr-2" />}
                   onCustomClick={handleMoviesClick}
                 >
@@ -267,7 +267,7 @@ const Footer = ({ onOpenMobileMenu }: { onOpenMobileMenu?: () => void }) => {
           {/* Bottom copyright section */}
           <div className="border-t border-gray-800 mt-4 md:mt-6 pt-3 md:pt-4 text-center text-gray-400">
             <div className="hidden md:flex justify-center mb-3">
-              <button 
+              <button
                 onClick={scrollToTop}
                 className="flex items-center text-gray-300 hover:text-primary transition-colors duration-200"
                 aria-label="Back to top"
