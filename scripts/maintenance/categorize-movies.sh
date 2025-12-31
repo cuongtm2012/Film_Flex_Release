@@ -52,6 +52,10 @@ LATEST_LIMIT=50
 TOP_RATED_LIMIT=50
 POPULAR_TV_LIMIT=50
 
+# Randomization seed (changes daily for content rotation)
+RANDOM_SEED=$(date +%Y%m%d)  # Daily rotation
+# RANDOM_SEED=$(date +%Y%m%d%H)  # Hourly rotation (if needed)
+
 # Flags
 DRY_RUN=false
 VERBOSE=false
@@ -163,25 +167,46 @@ categorize_trending() {
     log_info "Categorizing TRENDING movies..."
     
     local current_year=$(date +%Y)
-    local last_year=$((current_year - 1))
+    local two_years_ago=$((current_year - 2))
     
     local sql="
     -- Clear existing trending section
     UPDATE movies SET section = NULL WHERE section = 'trending_now';
     
-    -- Categorize trending movies (last year, high views)
-    WITH trending_movies AS (
+    -- Categorize trending movies (recent years OR recently updated + high engagement)
+    -- With daily randomization for content rotation
+    WITH trending_candidates AS (
         SELECT DISTINCT ON (m.slug)
             m.id,
             m.slug,
             COALESCE(m.view, 0) as view_count,
             COUNT(DISTINCT mr.id) as reaction_count,
-            (COALESCE(m.view, 0) * 0.7 + COUNT(DISTINCT mr.id) * 10 * 0.3) as trending_score
+            EXTRACT(EPOCH FROM (NOW() - m.modified_at)) / 86400 as days_since_update,
+            (
+                -- Score based on: views (40%) + reactions (30%) + recency (30%)
+                (COALESCE(m.view, 0) / 10.0) * 0.4 + 
+                (COUNT(DISTINCT mr.id) * 10) * 0.3 + 
+                (CASE 
+                    WHEN EXTRACT(EPOCH FROM (NOW() - m.modified_at)) / 86400 < 7 THEN 100
+                    WHEN EXTRACT(EPOCH FROM (NOW() - m.modified_at)) / 86400 < 30 THEN 50
+                    ELSE 10
+                END) * 0.3
+            ) as trending_score
         FROM movies m
         LEFT JOIN movie_reactions mr ON m.slug = mr.movie_slug
-        WHERE m.year >= ${last_year}
+        WHERE (
+            m.year >= ${two_years_ago} OR 
+            m.modified_at >= NOW() - INTERVAL '60 days'
+        )
         GROUP BY m.id, m.slug
         ORDER BY m.slug, trending_score DESC
+        LIMIT 100  -- Get top 100 candidates
+    ),
+    trending_movies AS (
+        -- Randomly select 50 from top 100 for daily rotation
+        SELECT id, slug
+        FROM trending_candidates
+        ORDER BY (trending_score * 0.7 + (RANDOM() * ${RANDOM_SEED}) * 0.3) DESC
         LIMIT ${TRENDING_LIMIT}
     )
     UPDATE movies m
@@ -191,7 +216,7 @@ categorize_trending() {
     "
     
     local count=$(execute_sql "${sql}" | grep -c "^" || echo "0")
-    log_success "Categorized ${count} movies as TRENDING"
+    log_success "Categorized ${count} movies as TRENDING (with daily rotation)"
 }
 
 categorize_latest() {
@@ -203,18 +228,32 @@ categorize_latest() {
     -- Clear existing latest section (except trending)
     UPDATE movies SET section = NULL WHERE section = 'latest_movies';
     
-    -- Categorize latest movies (newest by year + update time)
-    WITH latest_movies AS (
+    -- Categorize latest movies (prioritize recently updated + recent years)
+    -- With daily randomization for content rotation
+    WITH latest_candidates AS (
         SELECT DISTINCT ON (m.slug)
             m.id,
             m.slug,
-            (m.year * 1000 - EXTRACT(EPOCH FROM (NOW() - m.modified_at)) / 86400) as latest_score
+            m.year,
+            m.modified_at,
+            (
+                -- Score: modified_at (70%) + year (30%)
+                (EXTRACT(EPOCH FROM m.modified_at) / 1000000.0) * 0.7 + 
+                (m.year * 0.3)
+            ) as latest_score
         FROM movies m
         WHERE m.year IS NOT NULL 
           AND m.year > 1900 
           AND m.year <= ${current_year}
           AND (m.section IS NULL OR m.section != 'trending_now')
         ORDER BY m.slug, latest_score DESC
+        LIMIT 100  -- Get top 100 candidates
+    ),
+    latest_movies AS (
+        -- Randomly select 50 from top 100 for daily rotation
+        SELECT id, slug
+        FROM latest_candidates
+        ORDER BY (latest_score * 0.7 + (RANDOM() * ${RANDOM_SEED}) * 0.3) DESC
         LIMIT ${LATEST_LIMIT}
     )
     UPDATE movies m
@@ -224,7 +263,7 @@ categorize_latest() {
     "
     
     local count=$(execute_sql "${sql}" | grep -c "^" || echo "0")
-    log_success "Categorized ${count} movies as LATEST"
+    log_success "Categorized ${count} movies as LATEST (with daily rotation)"
 }
 
 categorize_top_rated() {
@@ -234,8 +273,9 @@ categorize_top_rated() {
     -- Clear existing top rated section
     UPDATE movies SET section = NULL WHERE section = 'top_rated';
     
-    -- Categorize top rated movies (high ratings + views)
-    WITH top_rated_movies AS (
+    -- Categorize top rated movies (high ratings + views, lower threshold)
+    -- With daily randomization for content rotation
+    WITH top_rated_candidates AS (
         SELECT DISTINCT ON (m.slug)
             m.id,
             m.slug,
@@ -243,16 +283,25 @@ categorize_top_rated() {
             COALESCE(SUM(CASE WHEN mr.reaction_type = 'dislike' THEN 1 ELSE 0 END), 0) as dislikes,
             COALESCE(m.view, 0) as view_count,
             (
+                -- Score: likes/dislikes ratio (50%) + views (30%) + quality bonus (20%)
                 (COALESCE(SUM(CASE WHEN mr.reaction_type = 'like' THEN 1 ELSE 0 END), 0) - 
-                 COALESCE(SUM(CASE WHEN mr.reaction_type = 'dislike' THEN 1 ELSE 0 END), 0)) * 0.6 + 
-                (COALESCE(m.view, 0) / 100.0) * 0.4
+                 COALESCE(SUM(CASE WHEN mr.reaction_type = 'dislike' THEN 1 ELSE 0 END), 0)) * 0.5 + 
+                (COALESCE(m.view, 0) / 50.0) * 0.3 + 
+                (CASE WHEN m.quality IN ('HD', 'FullHD', 'CAM', 'Trailer') THEN 20 ELSE 0 END) * 0.2
             ) as rating_score
         FROM movies m
         LEFT JOIN movie_reactions mr ON m.slug = mr.movie_slug
-        WHERE COALESCE(m.view, 0) > 100
+        WHERE COALESCE(m.view, 0) > 10  -- Lower threshold from 100 to 10
           AND (m.section IS NULL OR m.section NOT IN ('trending_now', 'latest_movies'))
-        GROUP BY m.id, m.slug
+        GROUP BY m.id, m.slug, m.quality
         ORDER BY m.slug, rating_score DESC
+        LIMIT 100  -- Get top 100 candidates
+    ),
+    top_rated_movies AS (
+        -- Randomly select 50 from top 100 for daily rotation
+        SELECT id, slug
+        FROM top_rated_candidates
+        ORDER BY (rating_score * 0.7 + (RANDOM() * ${RANDOM_SEED}) * 0.3) DESC
         LIMIT ${TOP_RATED_LIMIT}
     )
     UPDATE movies m
@@ -262,7 +311,7 @@ categorize_top_rated() {
     "
     
     local count=$(execute_sql "${sql}" | grep -c "^" || echo "0")
-    log_success "Categorized ${count} movies as TOP RATED"
+    log_success "Categorized ${count} movies as TOP RATED (with daily rotation)"
 }
 
 categorize_popular_tv() {
