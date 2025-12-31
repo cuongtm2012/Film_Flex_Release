@@ -334,28 +334,7 @@ export default function AuthPage() {
                     <div className="grid grid-cols-2 gap-3">
                       <button
                         type="button"
-                        onClick={() => {
-                          // Check if OAuth is configured
-                          fetch('/api/auth/google')
-                            .then(response => {
-                              if (response.ok) {
-                                window.location.href = "/api/auth/google";
-                              } else {
-                                toast({
-                                  title: "Google Sign-In Unavailable",
-                                  description: "Google authentication is not configured. Please use email/password login.",
-                                  variant: "destructive",
-                                });
-                              }
-                            })
-                            .catch(() => {
-                              toast({
-                                title: "Google Sign-In Unavailable",
-                                description: "Google authentication is not configured. Please use email/password login.",
-                                variant: "destructive",
-                              });
-                            });
-                        }}
+                        onClick={() => { window.location.href = "/api/auth/google"; }}
                         className="flex items-center justify-center gap-2 rounded-md border border-gray-600 px-4 py-3 sm:py-3.5 text-sm sm:text-base text-white hover:bg-gray-800 transition-all duration-200 hover:-translate-y-0.5 min-h-[44px]"
                       >
                         <svg className="h-4 w-4" viewBox="0 0 24 24">
