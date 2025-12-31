@@ -22,6 +22,8 @@ import adminRoutes from './routes/admin/index.js';
 import seoRoutes from './routes/seo.js';
 // Import notification routes
 import notificationRoutes from './routes/notification-routes.js';
+// Import user preferences routes
+import userPreferencesRoutes from './routes/user-preferences.js';
 import express from "express";
 import { StreamingUtils } from "./utils/streaming-utils.js";
 
@@ -255,6 +257,9 @@ export function registerRoutes(app: Express): void {
 
   // Register notification routes
   app.use('/api/notifications', notificationRoutes);
+
+  // Register user preferences routes
+  app.use('/api/user', userPreferencesRoutes);
 
   // Health check endpoint for CI/CD and monitoring
   router.get("/health", (_req, res) => {
@@ -603,21 +608,77 @@ export function registerRoutes(app: Express): void {
   router.get("/movies/recommended", async (req, res) => {
     try {
       const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 10;
+      const limit = parseInt(req.query.limit as string) || 20;
+      const userId = (req.user as any)?.id;
 
-      const result = await storage.getRecommendedMovies(page, limit);
+      let movies;
+      let personalized = false;
+      let favoriteGenres: string[] = [];
+
+      // If user is logged in, check for preferences
+      if (userId) {
+        try {
+          const prefsResult = await pool.query(
+            'SELECT favorite_genres FROM user_preferences WHERE user_id = $1',
+            [userId]
+          );
+
+          if (prefsResult.rows.length > 0 && prefsResult.rows[0].favorite_genres) {
+            favoriteGenres = prefsResult.rows[0].favorite_genres;
+
+            // If user has favorite genres, get personalized recommendations
+            if (favoriteGenres.length > 0) {
+              const offset = (page - 1) * limit;
+
+              // Get random movies from favorite genres
+              const moviesResult = await pool.query(
+                `SELECT DISTINCT m.*
+                 FROM movies m
+                 CROSS JOIN LATERAL jsonb_array_elements(m.categories) AS cat
+                 WHERE (cat->>'slug')::text = ANY($1::text[])
+                   AND m.status = 'completed'
+                 ORDER BY RANDOM()
+                 LIMIT $2 OFFSET $3`,
+                [favoriteGenres, limit, offset]
+              );
+
+              movies = moviesResult.rows;
+              personalized = true;
+            }
+          }
+        } catch (error) {
+          console.error('Error getting user preferences:', error);
+          // Fall through to random movies
+        }
+      }
+
+      // If not personalized (guest user or no preferences), get random movies
+      if (!personalized) {
+        const offset = (page - 1) * limit;
+        const moviesResult = await pool.query(
+          `SELECT * FROM movies
+           WHERE status = 'completed'
+           ORDER BY RANDOM()
+           LIMIT $1 OFFSET $2`,
+          [limit, offset]
+        );
+        movies = moviesResult.rows;
+      }
 
       res.json({
         status: true,
-        items: result.data,
+        items: movies,
+        personalized,
+        favoriteGenres: personalized ? favoriteGenres : undefined,
         pagination: {
-          totalItems: result.total,
-          totalPages: Math.ceil(result.total / limit),
+          totalItems: movies.length,
+          totalPages: 1, // Random results don't have meaningful pagination
           currentPage: page,
           totalItemsPerPage: limit
         }
       });
     } catch (error) {
+      console.error('Error loading recommended movies:', error);
       res.status(500).json({ status: false, message: "Unable to load recommended movies at this time" });
     }
   });

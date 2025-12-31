@@ -1,11 +1,14 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import MovieSection from '@/components/MovieSection';
 import HeroCarousel from '@/components/HeroCarousel';
+import GenreSelectionModal from '@/components/GenreSelectionModal';
 import { Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { MovieListResponse, MovieDetailResponse } from '@shared/schema';
 import TvSeriesCard from '@/components/TvSeriesCard';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/hooks/use-auth';
+import { usePreferences } from '@/hooks/use-preferences';
 
 // TV Series Section Component with navigation buttons
 function TvSeriesSection({ title, movies }: { title: string; movies: MovieListResponse['items'] }) {
@@ -19,7 +22,7 @@ function TvSeriesSection({ title, movies }: { title: string; movies: MovieListRe
     return movies.filter(movie => {
       // Skip if movie is null/undefined
       if (!movie) return false;
-      
+
       // Check type field with more flexible matching
       const type = String(movie.type || '').toLowerCase();
       const isTV = type === 'tv' || type === 'series' || type === 'tv series';
@@ -32,7 +35,7 @@ function TvSeriesSection({ title, movies }: { title: string; movies: MovieListRe
       return isTV;
     }).slice(0, 30); // Limit to 30 items
   }, [movies]);
-  
+
   const scroll = (direction: 'left' | 'right') => {
     if (!scrollContainerRef.current) return;
 
@@ -77,10 +80,10 @@ function TvSeriesSection({ title, movies }: { title: string; movies: MovieListRe
           </Button>
 
           <div className="container mx-auto px-4 overflow-hidden">
-            <div 
+            <div
               ref={scrollContainerRef}
               className="flex gap-4 overflow-x-auto overflow-y-hidden scrollbar-hide -mx-4 px-4 scroll-smooth"
-              style={{ 
+              style={{
                 scrollbarWidth: 'none',
                 msOverflowStyle: 'none',
                 WebkitOverflowScrolling: 'touch'
@@ -117,7 +120,7 @@ function AnimeSection({ title, movies }: { title: string; movies: MovieListRespo
       return true;
     }).slice(0, 30); // Limit to 30 items
   }, [movies]);
-  
+
   const scroll = (direction: 'left' | 'right') => {
     if (!scrollContainerRef.current) return;
 
@@ -161,10 +164,10 @@ function AnimeSection({ title, movies }: { title: string; movies: MovieListRespo
 
           <div className="container mx-auto px-4 overflow-hidden">
             {animeContent.length > 0 ? (
-              <div 
+              <div
                 ref={scrollContainerRef}
                 className="flex gap-4 overflow-x-auto overflow-y-hidden scrollbar-hide -mx-4 px-4 scroll-smooth"
-                style={{ 
+                style={{
                   scrollbarWidth: 'none',
                   msOverflowStyle: 'none',
                   WebkitOverflowScrolling: 'touch'
@@ -191,11 +194,35 @@ function AnimeSection({ title, movies }: { title: string; movies: MovieListRespo
 export default function Home() {
   // ALL HOOKS MUST BE AT THE TOP - NEVER CALL HOOKS CONDITIONALLY OR AFTER RETURNS
 
+  // Auth and preferences hooks
+  const { user } = useAuth();
+  const { preferences, isLoading: preferencesLoading, savePreferences } = usePreferences();
+  const [showGenreModal, setShowGenreModal] = useState(false);
+
+  // Check if user needs onboarding
+  useEffect(() => {
+    if (user && preferences && !preferences.onboardingCompleted) {
+      // Show modal after a short delay for better UX
+      const timer = setTimeout(() => {
+        setShowGenreModal(true);
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [user, preferences]);
+
+  // Handle saving genre preferences
+  const handleSaveGenres = async (genres: string[]) => {
+    const success = await savePreferences(genres);
+    if (success) {
+      setShowGenreModal(false);
+    }
+  };
+
   // Fetch movies by sections - limit to 30 items each
   const { data: trendingMovies, isLoading: trendingLoading } = useQuery<MovieListResponse>({
     queryKey: ['/api/movies/sections/trending_now', { page: 1, limit: 30 }],
   });
-  
+
   // Fetch recommended movies for hero carousel
   const { data: recommendedMovies, isLoading: recommendedLoading } = useQuery<MovieListResponse>({
     queryKey: ['/api/movies/recommended', { page: 1, limit: 5 }],
@@ -210,7 +237,7 @@ export default function Home() {
   const { data: topRatedMovies, isLoading: topRatedLoading } = useQuery<MovieListResponse>({
     queryKey: ['/api/movies/sections/top_rated', { page: 1, limit: 30 }],
   });
-  
+
   // Fetch popular TV series with improved error handling
   const { data: popularTvSeries, isLoading: tvSeriesLoading, error: tvSeriesError } = useQuery<MovieListResponse>({
     queryKey: ['/api/movies/sections/popular_tv', { page: 1, limit: 30 }],
@@ -330,8 +357,8 @@ export default function Home() {
         {chinaMovies?.items && chinaMovies.items.length > 0 && (
           <MovieSection
             title="China Movie"
-            movies={chinaMovies.items.filter(movie => 
-              movie.type?.toLowerCase() !== 'tv' && 
+            movies={chinaMovies.items.filter(movie =>
+              movie.type?.toLowerCase() !== 'tv' &&
               movie.type?.toLowerCase() !== 'hoathinh'
             ).slice(0, 30)}
           />
@@ -341,8 +368,8 @@ export default function Home() {
         {koreanMovies?.items && koreanMovies.items.length > 0 && (
           <MovieSection
             title="Korean Movie"
-            movies={koreanMovies.items.filter(movie => 
-              movie.type?.toLowerCase() !== 'tv' && 
+            movies={koreanMovies.items.filter(movie =>
+              movie.type?.toLowerCase() !== 'tv' &&
               movie.type?.toLowerCase() !== 'hoathinh'
             ).slice(0, 30)}
           />
@@ -359,11 +386,18 @@ export default function Home() {
         </div>
 
         {/* Anime Section - Always render with fallback */}
-        <AnimeSection 
-          title="Anime" 
-          movies={animeMovies?.items || []} 
+        <AnimeSection
+          title="Anime"
+          movies={animeMovies?.items || []}
         />
       </div>
+
+      {/* Genre Selection Modal for Onboarding */}
+      <GenreSelectionModal
+        isOpen={showGenreModal}
+        onClose={() => setShowGenreModal(false)}
+        onSave={handleSaveGenres}
+      />
     </div>
   );
 }
