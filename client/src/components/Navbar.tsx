@@ -155,8 +155,8 @@ export default function Navbar({ isMobileMenuOpen: externalMobileMenuOpen, setIs
                 </SheetTrigger>
                 <SheetContent side="left" className="w-80 bg-background border-gray-800">
                   <SheetHeader>
-                    <SheetTitle className="text-left text-primary font-bold text-xl">
-                      PhimGG
+                    <SheetTitle className="text-left">
+                      <img src="/phimgg-logo.png" alt="PhimGG" className="h-8" />
                     </SheetTitle>
                   </SheetHeader>
                   <nav className="mt-8 space-y-4">
@@ -417,8 +417,8 @@ export default function Navbar({ isMobileMenuOpen: externalMobileMenuOpen, setIs
             )}
 
             {/* Logo */}
-            <Link to="/" className="text-primary font-bold text-2xl">
-              PhimGG
+            <Link to="/" className="flex items-center">
+              <img src="/phimgg-logo.png" alt="PhimGG" className="h-8 md:h-10" />
             </Link>
 
             {/* Main Navigation - Hide on Mobile */}

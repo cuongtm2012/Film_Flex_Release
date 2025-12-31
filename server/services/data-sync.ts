@@ -1,6 +1,7 @@
 import { ElasticsearchService } from './elasticsearch.js';
 import { storage } from '../storage.js';
 import cron from 'node-cron';
+import { watchlistNotificationService } from './watchlistNotificationService.js';
 
 export interface SyncOptions {
   batchSize?: number;
@@ -26,7 +27,7 @@ export class DataSyncService {
 
   async initialize(): Promise<void> {
     console.log('Initializing Data Sync Service...');
-    
+
     // Schedule automatic sync if enabled
     if (this.options.enableScheduledSync) {
       this.scheduleSync();
@@ -38,7 +39,7 @@ export class DataSyncService {
 
   private scheduleSync(): void {
     console.log(`Scheduling automatic sync with interval: ${this.options.syncInterval}`);
-    
+
     cron.schedule(this.options.syncInterval!, async () => {
       console.log('Starting scheduled sync...');
       try {
@@ -62,7 +63,7 @@ export class DataSyncService {
 
     try {
       console.log('Starting full sync...');
-      
+
       // Reindex to clear existing data
       await this.elasticsearchService.reindex();
 
@@ -73,7 +74,7 @@ export class DataSyncService {
       while (hasMoreMovies) {
         try {
           const movieBatch = await storage.getMovies(page, this.options.batchSize!);
-          
+
           if (movieBatch.data.length === 0) {
             hasMoreMovies = false;
             break;
@@ -99,11 +100,11 @@ export class DataSyncService {
       // Sync episodes in batches
       console.log('Starting episode sync...');
       const allMovies = await storage.getAllMovieSlugs();
-      
+
       for (const movieSlug of allMovies) {
         try {
           const episodes = await storage.getEpisodesByMovieSlug(movieSlug);
-          
+
           if (episodes.length > 0) {
             await this.elasticsearchService.indexEpisodes(episodes);
             episodeCount += episodes.length;
@@ -141,20 +142,20 @@ export class DataSyncService {
 
     try {
       console.log('Starting incremental sync...');
-      
+
       // Get last sync time or default to 24 hours ago
       const since = this.lastSyncTime || new Date(Date.now() - 24 * 60 * 60 * 1000);
-      
+
       // Sync recently modified movies
       const recentMovies = await storage.getMoviesModifiedSince(since);
-      
+
       if (recentMovies.length > 0) {
         console.log(`Found ${recentMovies.length} movies to sync`);
-        
+
         // Index in batches
         for (let i = 0; i < recentMovies.length; i += this.options.batchSize!) {
           const batch = recentMovies.slice(i, i + this.options.batchSize!);
-          
+
           try {
             await this.elasticsearchService.indexMovies(batch);
             movieCount += batch.length;
@@ -169,11 +170,15 @@ export class DataSyncService {
         for (const movie of recentMovies) {
           try {
             const episodes = await storage.getEpisodesByMovieSlug(movie.slug);
-            
+
             if (episodes.length > 0) {
               await this.elasticsearchService.indexEpisodes(episodes);
               episodeCount += episodes.length;
             }
+
+            // Check for new episodes and notify watchers
+            await watchlistNotificationService.checkAndNotify(movie.slug);
+
           } catch (error) {
             const errorMsg = `Failed to sync episodes for movie ${movie.slug}: ${error}`;
             console.error(errorMsg);
@@ -231,7 +236,7 @@ export class DataSyncService {
     elasticsearchHealth: any;
   }> {
     const health = await this.elasticsearchService.getHealth();
-    
+
     return {
       isFullSyncRunning: this.isFullSyncRunning,
       lastSyncTime: this.lastSyncTime,

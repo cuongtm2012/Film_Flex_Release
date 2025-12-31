@@ -1712,6 +1712,15 @@ export function registerRoutes(app: Express): void {
         userId
       });
 
+      // Initialize episode snapshot for notifications
+      try {
+        const { watchlistNotificationService } = await import('./services/watchlistNotificationService.js');
+        await watchlistNotificationService.initializeSnapshot(watchlistData.movieSlug);
+      } catch (error) {
+        console.error('Failed to initialize snapshot:', error);
+        // Don't fail the request if snapshot init fails
+      }
+
       res.status(201).json({ message: "Added to watchlist successfully" });
     } catch (error) {
       res.status(400).json({ message: "Invalid watchlist data" });
