@@ -30,6 +30,7 @@ import { ChevronDown, LogOut, User, Settings, BookmarkPlus, Clock, Search, Chevr
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useQuery } from "@tanstack/react-query";
+import NotificationPrompt from "@/components/NotificationPrompt";
 
 interface SearchSuggestion {
   _id: string;
@@ -82,10 +83,10 @@ export default function Navbar({ isMobileMenuOpen: externalMobileMenuOpen, setIs
         setShowSuggestions(false);
       }
     };
-    
+
     document.addEventListener('mousedown', handleClickOutside);
     document.addEventListener('touchstart', handleClickOutside);
-    
+
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('touchstart', handleClickOutside);
@@ -102,7 +103,7 @@ export default function Navbar({ isMobileMenuOpen: externalMobileMenuOpen, setIs
     },
     enabled: debouncedSearch.length >= 2,
   });
-  
+
   const handleSubmitSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (search.trim()) {
@@ -114,7 +115,7 @@ export default function Navbar({ isMobileMenuOpen: externalMobileMenuOpen, setIs
       setShowSuggestions(false);
     }
   };
-  
+
   const handleLogout = async () => {
     try {
       await logoutMutation.mutateAsync();
@@ -134,9 +135,8 @@ export default function Navbar({ isMobileMenuOpen: externalMobileMenuOpen, setIs
 
   return (
     <header
-      className={`fixed top-0 w-full z-50 transition-all duration-300 ${
-        isScrolled ? "bg-background shadow-md" : "bg-gradient-to-b from-black to-transparent"
-      }`}
+      className={`fixed top-0 w-full z-50 transition-all duration-300 ${isScrolled ? "bg-background shadow-md" : "bg-gradient-to-b from-black to-transparent"
+        }`}
     >
       <div className="container mx-auto px-4 py-3">
         <div className="flex justify-between items-center">
@@ -160,24 +160,24 @@ export default function Navbar({ isMobileMenuOpen: externalMobileMenuOpen, setIs
                     </SheetTitle>
                   </SheetHeader>
                   <nav className="mt-8 space-y-4">
-                    <Link 
-                      to="/" 
+                    <Link
+                      to="/"
                       className="flex items-center space-x-3 text-white hover:text-primary transition p-3 rounded-lg hover:bg-white/5"
                       onClick={() => setIsMobileMenuOpen(false)}
                     >
                       <Home className="h-5 w-5" />
                       <span className="font-medium">Home</span>
                     </Link>
-                    <Link 
-                      to="/movies" 
+                    <Link
+                      to="/movies"
                       className="flex items-center space-x-3 text-muted-foreground hover:text-white transition p-3 rounded-lg hover:bg-white/5"
                       onClick={() => setIsMobileMenuOpen(false)}
                     >
                       <Film className="h-5 w-5" />
                       <span className="font-medium">Movies</span>
                     </Link>
-                    <Link 
-                      to="/news" 
+                    <Link
+                      to="/news"
                       className="flex items-center space-x-3 text-muted-foreground hover:text-white transition p-3 rounded-lg hover:bg-white/5"
                       onClick={() => setIsMobileMenuOpen(false)}
                     >
@@ -185,8 +185,8 @@ export default function Navbar({ isMobileMenuOpen: externalMobileMenuOpen, setIs
                       <span className="font-medium">News & Popular</span>
                     </Link>
                     {user && (
-                      <Link 
-                        to="/my-list" 
+                      <Link
+                        to="/my-list"
                         className="flex items-center space-x-3 text-muted-foreground hover:text-white transition p-3 rounded-lg hover:bg-white/5"
                         onClick={() => setIsMobileMenuOpen(false)}
                       >
@@ -202,19 +202,19 @@ export default function Navbar({ isMobileMenuOpen: externalMobileMenuOpen, setIs
                     </div>
                     {user ? (
                       <>
-                        <Link 
-                          to="/profile" 
+                        <Link
+                          to="/profile"
                           className="flex items-center space-x-3 text-muted-foreground hover:text-white transition p-3 rounded-lg hover:bg-white/5"
                           onClick={() => setIsMobileMenuOpen(false)}
                         >
                           <UserCircle className="h-5 w-5" />
                           <span className="font-medium">Profile</span>
                         </Link>
-                        
+
                         {/* Only show Settings for non-admin users */}
                         {user.role !== 'admin' && (
-                          <Link 
-                            to="/settings" 
+                          <Link
+                            to="/settings"
                             className="flex items-center space-x-3 text-muted-foreground hover:text-white transition p-3 rounded-lg hover:bg-white/5"
                             onClick={() => setIsMobileMenuOpen(false)}
                           >
@@ -222,11 +222,11 @@ export default function Navbar({ isMobileMenuOpen: externalMobileMenuOpen, setIs
                             <span className="font-medium">Settings</span>
                           </Link>
                         )}
-                        
+
                         {/* Show Admin Panel for admin users */}
                         {user.role === 'admin' && (
-                          <Link 
-                            to="/admin" 
+                          <Link
+                            to="/admin"
                             className="flex items-center space-x-3 text-primary hover:text-primary/80 transition p-3 rounded-lg hover:bg-white/5"
                             onClick={() => setIsMobileMenuOpen(false)}
                           >
@@ -234,8 +234,8 @@ export default function Navbar({ isMobileMenuOpen: externalMobileMenuOpen, setIs
                             <span className="font-medium">Admin Panel</span>
                           </Link>
                         )}
-                        
-                        <button 
+
+                        <button
                           onClick={() => {
                             handleLogout();
                             setIsMobileMenuOpen(false);
@@ -248,16 +248,16 @@ export default function Navbar({ isMobileMenuOpen: externalMobileMenuOpen, setIs
                       </>
                     ) : (
                       <>
-                        <Link 
-                          to="/auth?mode=login" 
+                        <Link
+                          to="/auth?mode=login"
                           className="flex items-center space-x-3 text-muted-foreground hover:text-white transition p-3 rounded-lg hover:bg-white/5"
                           onClick={() => setIsMobileMenuOpen(false)}
                         >
                           <User className="h-5 w-5" />
                           <span className="font-medium">Sign In</span>
                         </Link>
-                        <Link 
-                          to="/auth?mode=register" 
+                        <Link
+                          to="/auth?mode=register"
                           className="flex items-center space-x-3 text-primary hover:text-primary/80 transition p-3 rounded-lg hover:bg-white/5"
                           onClick={() => setIsMobileMenuOpen(false)}
                         >
@@ -281,29 +281,29 @@ export default function Navbar({ isMobileMenuOpen: externalMobileMenuOpen, setIs
                           </div>
                         </AccordionTrigger>
                         <AccordionContent className="pl-11 space-y-2 pb-2">
-                          <Link 
-                            to="/movies" 
+                          <Link
+                            to="/movies"
                             className="block text-muted-foreground hover:text-white transition py-2"
                             onClick={() => setIsMobileMenuOpen(false)}
                           >
                             Movies
                           </Link>
-                          <Link 
-                            to="/movies?type=series" 
+                          <Link
+                            to="/movies?type=series"
                             className="block text-muted-foreground hover:text-white transition py-2"
                             onClick={() => setIsMobileMenuOpen(false)}
                           >
                             TV Shows
                           </Link>
-                          <Link 
-                            to="/movies?type=hoathinh" 
+                          <Link
+                            to="/movies?type=hoathinh"
                             className="block text-muted-foreground hover:text-white transition py-2"
                             onClick={() => setIsMobileMenuOpen(false)}
                           >
                             Anime
                           </Link>
-                          <Link 
-                            to="/news" 
+                          <Link
+                            to="/news"
                             className="block text-muted-foreground hover:text-white transition py-2"
                             onClick={() => setIsMobileMenuOpen(false)}
                           >
@@ -321,22 +321,22 @@ export default function Navbar({ isMobileMenuOpen: externalMobileMenuOpen, setIs
                           </div>
                         </AccordionTrigger>
                         <AccordionContent className="pl-11 space-y-2 pb-2">
-                          <Link 
-                            to="/faq" 
+                          <Link
+                            to="/faq"
                             className="block text-muted-foreground hover:text-white transition py-2"
                             onClick={() => setIsMobileMenuOpen(false)}
                           >
                             FAQ
                           </Link>
-                          <Link 
-                            to="/help-center" 
+                          <Link
+                            to="/help-center"
                             className="block text-muted-foreground hover:text-white transition py-2"
                             onClick={() => setIsMobileMenuOpen(false)}
                           >
                             Help Center
                           </Link>
-                          <Link 
-                            to="/contact" 
+                          <Link
+                            to="/contact"
                             className="block text-muted-foreground hover:text-white transition py-2"
                             onClick={() => setIsMobileMenuOpen(false)}
                           >
@@ -354,22 +354,22 @@ export default function Navbar({ isMobileMenuOpen: externalMobileMenuOpen, setIs
                           </div>
                         </AccordionTrigger>
                         <AccordionContent className="pl-11 space-y-2 pb-2">
-                          <Link 
-                            to="/about" 
+                          <Link
+                            to="/about"
                             className="block text-muted-foreground hover:text-white transition py-2"
                             onClick={() => setIsMobileMenuOpen(false)}
                           >
                             About Us
                           </Link>
-                          <Link 
-                            to="/careers" 
+                          <Link
+                            to="/careers"
                             className="block text-muted-foreground hover:text-white transition py-2"
                             onClick={() => setIsMobileMenuOpen(false)}
                           >
                             Careers
                           </Link>
-                          <Link 
-                            to="/press" 
+                          <Link
+                            to="/press"
                             className="block text-muted-foreground hover:text-white transition py-2"
                             onClick={() => setIsMobileMenuOpen(false)}
                           >
@@ -387,22 +387,22 @@ export default function Navbar({ isMobileMenuOpen: externalMobileMenuOpen, setIs
                           </div>
                         </AccordionTrigger>
                         <AccordionContent className="pl-11 space-y-2 pb-2">
-                          <Link 
-                            to="/terms" 
+                          <Link
+                            to="/terms"
                             className="block text-muted-foreground hover:text-white transition py-2"
                             onClick={() => setIsMobileMenuOpen(false)}
                           >
                             Terms of Service
                           </Link>
-                          <Link 
-                            to="/privacy" 
+                          <Link
+                            to="/privacy"
                             className="block text-muted-foreground hover:text-white transition py-2"
                             onClick={() => setIsMobileMenuOpen(false)}
                           >
                             Privacy Policy
                           </Link>
-                          <Link 
-                            to="/cookies" 
+                          <Link
+                            to="/cookies"
                             className="block text-muted-foreground hover:text-white transition py-2"
                             onClick={() => setIsMobileMenuOpen(false)}
                           >
@@ -464,20 +464,18 @@ export default function Navbar({ isMobileMenuOpen: externalMobileMenuOpen, setIs
                       setShowSuggestions(true);
                     }
                   }}
-                  className={`bg-black/60 border border-muted/30 text-white rounded px-4 py-2 focus:outline-none focus:ring-1 focus:ring-primary transition-all duration-300 ${
-                    isMobile 
-                      ? 'w-32 text-sm placeholder:text-xs' 
-                      : 'w-64'
-                  }`}
+                  className={`bg-black/60 border border-muted/30 text-white rounded px-4 py-2 focus:outline-none focus:ring-1 focus:ring-primary transition-all duration-300 ${isMobile
+                    ? 'w-32 text-sm placeholder:text-xs'
+                    : 'w-64'
+                    }`}
                 />
                 <Button
                   type="submit"
                   data-testid="search-submit"
                   variant="ghost"
                   size={isMobile ? "sm" : "icon"}
-                  className={`absolute right-1 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-white ${
-                    isMobile ? 'h-7 w-7' : 'h-8 w-8'
-                  }`}
+                  className={`absolute right-1 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-white ${isMobile ? 'h-7 w-7' : 'h-8 w-8'
+                    }`}
                 >
                   <Search className={isMobile ? "h-4 w-4" : "h-4 w-4"} />
                 </Button>
@@ -485,8 +483,8 @@ export default function Navbar({ isMobileMenuOpen: externalMobileMenuOpen, setIs
 
               {/* Search Suggestions */}
               {showSuggestions && debouncedSearch.length >= 2 && (
-                <div 
-                  data-testid="search-suggestions" 
+                <div
+                  data-testid="search-suggestions"
                   className="search-suggestions absolute top-full left-0 w-full mt-1 bg-background border border-border rounded-md shadow-lg z-50 max-h-[300px] overflow-y-auto">
                   {suggestions && suggestions.items && suggestions.items.length > 0 ? (
                     <>
@@ -520,7 +518,7 @@ export default function Navbar({ isMobileMenuOpen: externalMobileMenuOpen, setIs
                           </div>
                         </Link>
                       ))}
-                      
+
                       {/* View all results button */}
                       <div className="p-2 border-t border-border">
                         <Button
@@ -545,20 +543,6 @@ export default function Navbar({ isMobileMenuOpen: externalMobileMenuOpen, setIs
                 </div>
               )}
             </div>
-
-            {/* Notification Bell */}
-            <Link to="/notifications">
-              <Button 
-                variant="ghost" 
-                size="icon"
-                className="relative text-white hover:bg-white/10"
-                aria-label="Notifications"
-              >
-                <Bell className="h-5 w-5" />
-                {/* Notification badge - uncomment when you have unread notifications */}
-                {/* <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span> */}
-              </Button>
-            </Link>
 
             {/* User Menu - Desktop Only */}
             {!isMobile && (
@@ -601,7 +585,7 @@ export default function Navbar({ isMobileMenuOpen: externalMobileMenuOpen, setIs
                           Watch History
                         </Link>
                       </DropdownMenuItem>
-                      
+
                       {/* Only show Settings for non-admin users */}
                       {user.role !== 'admin' && (
                         <DropdownMenuItem>
@@ -611,7 +595,7 @@ export default function Navbar({ isMobileMenuOpen: externalMobileMenuOpen, setIs
                           </Link>
                         </DropdownMenuItem>
                       )}
-                      
+
                       {/* Show Admin Panel for admin users */}
                       {user.role === 'admin' && (
                         <DropdownMenuItem>
@@ -621,7 +605,7 @@ export default function Navbar({ isMobileMenuOpen: externalMobileMenuOpen, setIs
                           </Link>
                         </DropdownMenuItem>
                       )}
-                      
+
                       <DropdownMenuSeparator />
                       <DropdownMenuItem data-testid="logout" onClick={handleLogout} className="logout-button text-red-500 cursor-pointer">
                         <LogOut className="mr-2 h-4 w-4" />
@@ -645,6 +629,9 @@ export default function Navbar({ isMobileMenuOpen: externalMobileMenuOpen, setIs
           </div>
         </div>
       </div>
+
+      {/* Notification Prompt Toast */}
+      <NotificationPrompt />
     </header>
   );
 }

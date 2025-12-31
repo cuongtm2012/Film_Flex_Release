@@ -123,8 +123,8 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="flex h-screen">
-      <div className="flex flex-col justify-center w-full lg:w-1/2 p-6 relative">
+    <div className="flex min-h-screen overflow-x-hidden">
+      <div className="flex flex-col justify-center w-full lg:w-1/2 p-4 sm:p-6 relative">
         {/* Back to Home Button */}
         <Button
           variant="ghost"
@@ -137,7 +137,7 @@ export default function AuthPage() {
           <Home className="h-4 w-4 sm:hidden" />
         </Button>
 
-        <div className="mx-auto w-full max-w-md">
+        <div className="mx-auto w-full max-w-[95vw] sm:max-w-md">
           <Tabs
             defaultValue="login"
             onValueChange={setActiveTab}
@@ -183,11 +183,10 @@ export default function AuthPage() {
                           id="username"
                           type="text"
                           data-testid="username"
-                          className={`username-input pl-10 ${
-                            loginForm.formState.errors.username
+                          className={`username-input pl-10 ${loginForm.formState.errors.username
                               ? "border-destructive"
                               : ""
-                          }`}
+                            }`}
                           placeholder="Enter your username"
                           {...loginForm.register("username", { required: true })}
                         />
@@ -225,11 +224,10 @@ export default function AuthPage() {
                         <PasswordInput
                           id="password"
                           data-testid="password"
-                          className={`password-input pl-10 ${
-                            loginForm.formState.errors.password
+                          className={`password-input pl-10 ${loginForm.formState.errors.password
                               ? "border-destructive"
                               : ""
-                          }`}
+                            }`}
                           placeholder="••••••••"
                           {...loginForm.register("password")}
                         />
@@ -396,7 +394,7 @@ export default function AuthPage() {
                         className="flex items-center justify-center gap-2 rounded-md border border-gray-600 px-4 py-2 text-sm text-white hover:bg-gray-800 transition-colors"
                       >
                         <svg className="h-4 w-4" viewBox="0 0 24 24" fill="#1877F2">
-                          <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                          <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
                         </svg>
                         Facebook
                       </button>
@@ -429,11 +427,10 @@ export default function AuthPage() {
                         <Input
                           id="registerUsername"
                           type="text"
-                          className={`pl-10 ${
-                            registerForm.formState.errors.username
+                          className={`pl-10 ${registerForm.formState.errors.username
                               ? "border-destructive"
                               : ""
-                          }`}
+                            }`}
                           placeholder="Choose a username"
                           {...registerForm.register("username")}
                         />
@@ -471,11 +468,10 @@ export default function AuthPage() {
                         <Input
                           id="email"
                           type="email"
-                          className={`pl-10 ${
-                            registerForm.formState.errors.email
+                          className={`pl-10 ${registerForm.formState.errors.email
                               ? "border-destructive"
                               : ""
-                          }`}
+                            }`}
                           placeholder="you@example.com"
                           {...registerForm.register("email")}
                         />
@@ -512,11 +508,10 @@ export default function AuthPage() {
                       <div className="relative">
                         <PasswordInput
                           id="registerPassword"
-                          className={`pl-10 ${
-                            registerForm.formState.errors.password
+                          className={`pl-10 ${registerForm.formState.errors.password
                               ? "border-destructive"
                               : ""
-                          }`}
+                            }`}
                           placeholder="••••••••"
                           {...registerForm.register("password")}
                         />
@@ -557,11 +552,10 @@ export default function AuthPage() {
                       <div className="relative">
                         <PasswordInput
                           id="confirmPassword"
-                          className={`pl-10 ${
-                            registerForm.formState.errors.confirmPassword
+                          className={`pl-10 ${registerForm.formState.errors.confirmPassword
                               ? "border-destructive"
                               : ""
-                          }`}
+                            }`}
                           placeholder="••••••••"
                           {...registerForm.register("confirmPassword")}
                         />
@@ -587,10 +581,10 @@ export default function AuthPage() {
 
                     <div className="space-y-2">
                       <div className="flex items-start space-x-2">
-                        <Checkbox 
-                          id="terms" 
+                        <Checkbox
+                          id="terms"
                           checked={registerForm.watch("agreeToTerms")}
-                          onCheckedChange={(checked) => 
+                          onCheckedChange={(checked) =>
                             registerForm.setValue("agreeToTerms", checked === true)
                           }
                           className={
@@ -755,7 +749,7 @@ export default function AuthPage() {
                         className="flex items-center justify-center gap-2 rounded-md border border-gray-600 px-4 py-2 text-sm text-white hover:bg-gray-800 transition-colors"
                       >
                         <svg className="h-4 w-4" viewBox="0 0 24 24" fill="#1877F2">
-                          <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                          <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
                         </svg>
                         Facebook
                       </button>
@@ -927,6 +921,6 @@ export default function AuthPage() {
           </div>
         </div>
       </div>
-    </div>
+    </div >
   );
 }

@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import Hls from "hls.js";
-import { 
-  Loader2, AlertCircle, Play, Pause, Volume2, VolumeX, 
-  Maximize, Minimize, Settings, PictureInPicture, 
-  Repeat, Subtitles, AudioLines, Gauge, SkipForward, SkipBack 
+import {
+  Loader2, AlertCircle, Play, Pause, Volume2, VolumeX,
+  Maximize, Minimize, Settings, PictureInPicture,
+  Repeat, Subtitles, AudioLines, Gauge, SkipForward, SkipBack
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -32,9 +32,9 @@ interface AudioTrack {
   lang: string;
 }
 
-export default function HLSVideoPlayer({ 
+export default function HLSVideoPlayer({
   m3u8Url,
-  isLoading = false, 
+  isLoading = false,
   onError,
   autoplay = false,
   loop = false,
@@ -45,7 +45,7 @@ export default function HLSVideoPlayer({
   const containerRef = useRef<HTMLDivElement>(null);
   const hlsRef = useRef<Hls | null>(null);
   const progressBarRef = useRef<HTMLDivElement>(null);
-  
+
   const [playerError, setPlayerError] = useState<string>("");
   const [isPlayerReady, setIsPlayerReady] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -72,7 +72,7 @@ export default function HLSVideoPlayer({
   const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
   const [isBuffering, setIsBuffering] = useState(false);
   const [isSeeking, setIsSeeking] = useState(false);
-  
+
   const controlsTimeoutRef = useRef<NodeJS.Timeout>();
 
   // Initialize HLS player
@@ -80,7 +80,7 @@ export default function HLSVideoPlayer({
     if (!m3u8Url || !videoRef.current) return;
 
     const video = videoRef.current;
-    
+
     // CRITICAL: Reset all states for fresh initialization
     logger.info("Initializing HLS player for URL:", m3u8Url);
     setIsPlayerReady(false);
@@ -89,7 +89,7 @@ export default function HLSVideoPlayer({
     setDuration(0);
     setCurrentTime(0);
     setPlayerError("");
-    
+
     // Check if HLS is supported
     if (Hls.isSupported()) {
       const hls = new Hls({
@@ -106,19 +106,19 @@ export default function HLSVideoPlayer({
       hls.attachMedia(video);
 
       hls.on(Hls.Events.MANIFEST_PARSED, (_event, data) => {
-        logger.info("HLS manifest parsed", { 
+        logger.info("HLS manifest parsed", {
           levels: data.levels.length,
-          duration: video.duration 
+          duration: video.duration
         });
         // Don't set isPlayerReady yet - wait for loadedmetadata
-        
+
         // Extract quality levels
         const qualityLevels = data.levels.map((level) =>
           `${level.height}p (${Math.round(level.bitrate / 1000)}kbps)`
         );
         setQualities(qualityLevels);
         setCurrentQuality(hls.currentLevel);
-        
+
         // Don't autoplay yet - wait for video to be ready
       });
 
@@ -126,22 +126,22 @@ export default function HLSVideoPlayer({
       hls.on(Hls.Events.FRAG_LOADED, (_event, _data) => {
         const videoDuration = video.duration;
         const videoReady = video.readyState;
-        
+
         logger.info("Fragment loaded - video state:", {
           duration: videoDuration,
           readyState: videoReady,
           currentPlayerReady: isPlayerReady
         });
-        
+
         if (videoDuration && !isNaN(videoDuration) && isFinite(videoDuration)) {
           setDuration(videoDuration);
-          
+
           // Mark player as ready when we have valid duration and metadata
           if (videoReady >= 1) {
             logger.info("Setting player ready - first fragment loaded with metadata");
             setIsPlayerReady(true);
             setIsBuffering(false);
-            
+
             // Try autoplay now if enabled
             if (autoplay) {
               setTimeout(() => {
@@ -166,12 +166,12 @@ export default function HLSVideoPlayer({
         if (data.level >= 0 && hls.levels[data.level]) {
           setCurrentBitrate(hls.levels[data.level].bitrate);
         }
-        
+
         // Recheck duration after level switch
         if (video.duration && !isNaN(video.duration) && isFinite(video.duration)) {
           setDuration(video.duration);
         }
-      });      hls.on(Hls.Events.ERROR, (_event, data) => {
+      }); hls.on(Hls.Events.ERROR, (_event, data) => {
         if (data.fatal) {
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
@@ -190,7 +190,7 @@ export default function HLSVideoPlayer({
               hls.destroy();
               break;
           }
-          
+
           if (onError) {
             onError(new Error(data.type));
           }
@@ -208,11 +208,11 @@ export default function HLSVideoPlayer({
         setIsPlaying(false);
         setIsBuffering(false);
       };
-    } 
+    }
     // Native HLS support (Safari)
     else if (video.canPlayType('application/vnd.apple.mpegurl')) {
       video.src = m3u8Url;
-      
+
       const handleLoadedMetadata = () => {
         logger.info("Native HLS - metadata loaded");
         setIsPlayerReady(true);
@@ -221,7 +221,7 @@ export default function HLSVideoPlayer({
           video.play().catch(err => logger.warn("Autoplay failed:", err));
         }
       };
-      
+
       const handleError = () => {
         logger.error("Native HLS error");
         setPlayerError("Cannot load video. Please try another server.");
@@ -229,10 +229,10 @@ export default function HLSVideoPlayer({
           onError(new Error("Video load error"));
         }
       };
-      
+
       video.addEventListener('loadedmetadata', handleLoadedMetadata);
       video.addEventListener('error', handleError);
-      
+
       return () => {
         video.removeEventListener('loadedmetadata', handleLoadedMetadata);
         video.removeEventListener('error', handleError);
@@ -256,22 +256,22 @@ export default function HLSVideoPlayer({
 
       const newTime = video.currentTime;
       const newDuration = video.duration;
-      
+
       // Force update even if value seems same (React batching issue)
       setCurrentTime(newTime);
-      
+
       // Update duration if it changed
       if (newDuration && newDuration !== duration && !isNaN(newDuration) && isFinite(newDuration)) {
         setDuration(newDuration);
         logger.info("Duration updated via timeupdate:", newDuration);
       }
-      
+
       // Update buffered
       if (video.buffered.length > 0) {
         const bufferedEnd = video.buffered.end(video.buffered.length - 1);
         setBuffered(bufferedEnd);
       }
-      
+
       // Debug log every 5 seconds to verify timeline is updating
       if (Math.floor(newTime) % 5 === 0 && Math.floor(newTime) !== Math.floor(currentTime)) {
         logger.info("Timeline update:", {
@@ -369,7 +369,7 @@ export default function HLSVideoPlayer({
     const handleLoadedMetadata = () => {
       const metadataDuration = video.duration;
       logger.info("LoadedMetadata event fired - duration:", metadataDuration);
-      
+
       // Set duration immediately when metadata is available
       if (metadataDuration && !isNaN(metadataDuration) && isFinite(metadataDuration)) {
         setDuration(metadataDuration);
@@ -491,11 +491,11 @@ export default function HLSVideoPlayer({
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
       if (!videoRef.current) return;
-      
+
       // Prevent default for space and arrow keys when video is focused
       const activeElement = document.activeElement;
       const isInputFocused = activeElement?.tagName === 'INPUT' || activeElement?.tagName === 'TEXTAREA';
-      
+
       if (isInputFocused) return;
 
       switch (e.key.toLowerCase()) {
@@ -578,11 +578,11 @@ export default function HLSVideoPlayer({
   // Auto-hide controls
   const resetControlsTimeout = () => {
     setShowControls(true);
-    
+
     if (controlsTimeoutRef.current) {
       clearTimeout(controlsTimeoutRef.current);
     }
-    
+
     if (isPlaying) {
       controlsTimeoutRef.current = setTimeout(() => {
         setShowControls(false);
@@ -595,7 +595,7 @@ export default function HLSVideoPlayer({
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
     const s = Math.floor(seconds % 60);
-    
+
     if (h > 0) {
       return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
     }
@@ -605,9 +605,9 @@ export default function HLSVideoPlayer({
   // Player controls
   const togglePlay = async () => {
     if (!videoRef.current) return;
-    
+
     const video = videoRef.current;
-    
+
     try {
       if (video.paused) {
         logger.info("Attempting to play video - current state:", {
@@ -617,19 +617,19 @@ export default function HLSVideoPlayer({
           duration: video.duration,
           currentTime: video.currentTime
         });
-        
+
         // Show buffering indicator if not ready, but don't block play
         if (video.readyState < 2) { // HAVE_CURRENT_DATA
           logger.warn("Video not fully ready, readyState:", video.readyState);
           setIsBuffering(true);
         }
-        
+
         // Force hide play button immediately on user click
         setIsPlaying(true);
         setIsBuffering(false);
-        
+
         const playPromise = video.play();
-        
+
         if (playPromise !== undefined) {
           playPromise
             .then(() => {
@@ -646,7 +646,7 @@ export default function HLSVideoPlayer({
               logger.error("Play promise rejected:", error);
               setIsPlaying(false);
               setIsBuffering(false);
-              
+
               // Common autoplay restriction error
               if (error.name === 'NotAllowedError') {
                 logger.warn("Autoplay blocked by browser - user interaction required");
@@ -682,31 +682,31 @@ export default function HLSVideoPlayer({
 
   const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!progressBarRef.current || !videoRef.current) return;
-    
+
     const video = videoRef.current;
-    
+
     // CRITICAL: Only allow seeking when video has metadata
     if (video.readyState < 1) { // HAVE_METADATA
       logger.warn("Cannot seek - video metadata not loaded yet");
       return;
     }
-    
+
     const rect = progressBarRef.current.getBoundingClientRect();
     const pos = (e.clientX - rect.left) / rect.width;
     const seekTime = pos * duration;
-    
+
     logger.info("Seeking to:", {
       position: (pos * 100).toFixed(1) + '%',
       time: seekTime.toFixed(2),
       duration: duration.toFixed(2)
     });
-    
+
     video.currentTime = seekTime;
   };
 
   const toggleFullscreen = () => {
     if (!containerRef.current) return;
-    
+
     if (!isFullscreen) {
       containerRef.current.requestFullscreen();
     } else {
@@ -716,7 +716,7 @@ export default function HLSVideoPlayer({
 
   const togglePiP = async () => {
     if (!videoRef.current) return;
-    
+
     try {
       if (isPiPActive) {
         await document.exitPictureInPicture();
@@ -762,14 +762,14 @@ export default function HLSVideoPlayer({
 
   const changeSubtitle = (index: number) => {
     if (!videoRef.current) return;
-    
+
     const tracks = videoRef.current.textTracks;
-    
+
     // Disable all tracks
     for (let i = 0; i < tracks.length; i++) {
       tracks[i].mode = 'hidden';
     }
-    
+
     // Enable selected track
     if (index >= 0 && index < tracks.length) {
       tracks[index].mode = 'showing';
@@ -777,7 +777,7 @@ export default function HLSVideoPlayer({
     } else {
       setCurrentSubtitle(-1);
     }
-    
+
     setShowSubtitlesMenu(false);
   };
 
@@ -791,11 +791,11 @@ export default function HLSVideoPlayer({
 
   const handleProgressHover = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!progressBarRef.current) return;
-    
+
     const rect = progressBarRef.current.getBoundingClientRect();
     const pos = (e.clientX - rect.left) / rect.width;
     const time = pos * duration;
-    
+
     setPreviewTime(time);
     setPreviewPosition(e.clientX - rect.left);
   };
@@ -837,7 +837,7 @@ export default function HLSVideoPlayer({
   const bufferedPercentage = duration > 0 ? (buffered / duration) * 100 : 0;
 
   return (
-    <div 
+    <div
       ref={containerRef}
       className="relative aspect-video w-full bg-black rounded-lg overflow-hidden group"
       onMouseMove={resetControlsTimeout}
@@ -876,7 +876,7 @@ export default function HLSVideoPlayer({
 
       {/* Play overlay when paused - CRITICAL: Only show when truly paused and not buffering */}
       {!isPlaying && isPlayerReady && !isBuffering && !isSeeking && (
-        <div 
+        <div
           className="absolute inset-0 flex items-center justify-center bg-black/30 cursor-pointer z-10 animate-fadeIn"
           onClick={(e) => {
             e.stopPropagation();
@@ -912,7 +912,7 @@ export default function HLSVideoPlayer({
                 ✕
               </Button>
             </div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-white">
               <div className="space-y-2">
                 <h4 className="font-semibold text-blue-400 mb-2">Playback</h4>
@@ -971,24 +971,23 @@ export default function HLSVideoPlayer({
       )}
 
       {/* Controls */}
-      <div 
-        className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-4 transition-opacity duration-300 ${
-          showControls || !isPlaying ? 'opacity-100' : 'opacity-0'
-        }`}
+      <div
+        className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-4 transition-opacity duration-300 ${showControls || !isPlaying ? 'opacity-100' : 'opacity-0'
+          }`}
       >
         {/* Progress bar with preview */}
         <div className="relative mb-3">
           {/* Preview tooltip */}
           {previewTime !== null && (
-            <div 
+            <div
               className="absolute bottom-full mb-2 bg-black/90 text-white px-2 py-1 rounded text-sm pointer-events-none"
               style={{ left: `${previewPosition}px`, transform: 'translateX(-50%)' }}
             >
               {formatTime(previewTime)}
             </div>
           )}
-          
-          <div 
+
+          <div
             ref={progressBarRef}
             className="w-full h-1.5 bg-white/20 rounded-full cursor-pointer group/progress hover:h-2 transition-all"
             onClick={handleProgressClick}
@@ -996,12 +995,12 @@ export default function HLSVideoPlayer({
             onMouseLeave={handleProgressLeave}
           >
             {/* Buffered */}
-            <div 
+            <div
               className="absolute h-1.5 group-hover/progress:h-2 bg-white/30 rounded-full transition-all"
               style={{ width: `${bufferedPercentage}%` }}
             />
             {/* Progress */}
-            <div 
+            <div
               className="relative h-1.5 group-hover/progress:h-2 bg-blue-500 rounded-full transition-all"
               style={{ width: `${progressPercentage}%` }}
             >
@@ -1022,20 +1021,22 @@ export default function HLSVideoPlayer({
               {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
             </Button>
 
+            {/* Skip Backward - Hidden on mobile */}
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 text-white hover:bg-white/20"
+              className="hidden sm:flex h-8 w-8 text-white hover:bg-white/20"
               onClick={skipBackward}
               title="Rewind 10s"
             >
               <SkipBack className="h-5 w-5" />
             </Button>
 
+            {/* Skip Forward - Hidden on mobile */}
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 text-white hover:bg-white/20"
+              className="hidden sm:flex h-8 w-8 text-white hover:bg-white/20"
               onClick={skipForward}
               title="Forward 10s"
             >
@@ -1051,7 +1052,7 @@ export default function HLSVideoPlayer({
               >
                 {isMuted || volume === 0 ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
               </Button>
-              
+
               <div className="w-0 group-hover/volume:w-20 overflow-hidden transition-all duration-300">
                 <Slider
                   value={[isMuted ? 0 : volume]}
@@ -1069,8 +1070,8 @@ export default function HLSVideoPlayer({
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Playback speed */}
-            <div className="relative group/speed">
+            {/* Playback speed - Hidden on mobile */}
+            <div className="relative group/speed hidden sm:block">
               <Button
                 variant="ghost"
                 size="sm"
@@ -1078,16 +1079,15 @@ export default function HLSVideoPlayer({
               >
                 {playbackRate}x
               </Button>
-              
+
               <div className="absolute bottom-full right-0 mb-2 bg-black/90 rounded-md p-2 min-w-[100px] opacity-0 invisible group-hover/speed:opacity-100 group-hover/speed:visible transition-all">
                 <div className="text-white text-xs font-semibold mb-2 px-2">Speed</div>
                 <div className="space-y-1">
                   {[0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2].map((rate) => (
                     <button
                       key={rate}
-                      className={`w-full text-left px-2 py-1 text-sm rounded hover:bg-white/20 transition-colors ${
-                        playbackRate === rate ? 'bg-blue-500 text-white' : 'text-white/80'
-                      }`}
+                      className={`w-full text-left px-2 py-1 text-sm rounded hover:bg-white/20 transition-colors ${playbackRate === rate ? 'bg-blue-500 text-white' : 'text-white/80'
+                        }`}
                       onClick={() => changePlaybackRate(rate)}
                     >
                       {rate}x
@@ -1097,9 +1097,9 @@ export default function HLSVideoPlayer({
               </div>
             </div>
 
-            {/* Subtitles */}
+            {/* Subtitles - Hidden on mobile */}
             {subtitles.length > 0 && (
-              <div className="relative group/subtitles">
+              <div className="relative group/subtitles hidden sm:block">
                 <Button
                   variant="ghost"
                   size="icon"
@@ -1108,15 +1108,14 @@ export default function HLSVideoPlayer({
                 >
                   <Subtitles className="h-5 w-5" />
                 </Button>
-                
+
                 {showSubtitlesMenu && (
                   <div className="absolute bottom-full right-0 mb-2 bg-black/90 rounded-md p-2 min-w-[150px]">
                     <div className="text-white text-xs font-semibold mb-2 px-2">Subtitles</div>
                     <div className="space-y-1">
                       <button
-                        className={`w-full text-left px-2 py-1 text-sm rounded hover:bg-white/20 transition-colors ${
-                          currentSubtitle === -1 ? 'bg-blue-500 text-white' : 'text-white/80'
-                        }`}
+                        className={`w-full text-left px-2 py-1 text-sm rounded hover:bg-white/20 transition-colors ${currentSubtitle === -1 ? 'bg-blue-500 text-white' : 'text-white/80'
+                          }`}
                         onClick={() => changeSubtitle(-1)}
                       >
                         Off
@@ -1124,9 +1123,8 @@ export default function HLSVideoPlayer({
                       {subtitles.map((subtitle, index) => (
                         <button
                           key={index}
-                          className={`w-full text-left px-2 py-1 text-sm rounded hover:bg-white/20 transition-colors ${
-                            currentSubtitle === index ? 'bg-blue-500 text-white' : 'text-white/80'
-                          }`}
+                          className={`w-full text-left px-2 py-1 text-sm rounded hover:bg-white/20 transition-colors ${currentSubtitle === index ? 'bg-blue-500 text-white' : 'text-white/80'
+                            }`}
                           onClick={() => changeSubtitle(index)}
                         >
                           {subtitle.label}
@@ -1138,9 +1136,9 @@ export default function HLSVideoPlayer({
               </div>
             )}
 
-            {/* Audio tracks */}
+            {/* Audio tracks - Hidden on mobile */}
             {hlsRef.current?.audioTracks && hlsRef.current.audioTracks.length > 1 && (
-              <div className="relative group/audio">
+              <div className="relative group/audio hidden sm:block">
                 <Button
                   variant="ghost"
                   size="icon"
@@ -1149,7 +1147,7 @@ export default function HLSVideoPlayer({
                 >
                   <AudioLines className="h-5 w-5" />
                 </Button>
-                
+
                 {showAudioMenu && (
                   <div className="absolute bottom-full right-0 mb-2 bg-black/90 rounded-md p-2 min-w-[150px]">
                     <div className="text-white text-xs font-semibold mb-2 px-2">Audio</div>
@@ -1157,9 +1155,8 @@ export default function HLSVideoPlayer({
                       {Array.from(hlsRef.current.audioTracks).map((track, index) => (
                         <button
                           key={index}
-                          className={`w-full text-left px-2 py-1 text-sm rounded hover:bg-white/20 transition-colors ${
-                            currentAudioTrack === index ? 'bg-blue-500 text-white' : 'text-white/80'
-                          }`}
+                          className={`w-full text-left px-2 py-1 text-sm rounded hover:bg-white/20 transition-colors ${currentAudioTrack === index ? 'bg-blue-500 text-white' : 'text-white/80'
+                            }`}
                           onClick={() => changeAudioTrack(index)}
                         >
                           {track.name || `Audio ${index + 1}`}
@@ -1171,9 +1168,9 @@ export default function HLSVideoPlayer({
               </div>
             )}
 
-            {/* Quality */}
+            {/* Quality - Hidden on mobile */}
             {qualities.length > 1 && (
-              <div className="relative group/quality">
+              <div className="relative group/quality hidden sm:block">
                 <Button
                   variant="ghost"
                   size="icon"
@@ -1182,15 +1179,14 @@ export default function HLSVideoPlayer({
                 >
                   <Settings className="h-5 w-5" />
                 </Button>
-                
+
                 {showSettingsMenu && (
                   <div className="absolute bottom-full right-0 mb-2 bg-black/90 rounded-md p-2 min-w-[180px]">
                     <div className="text-white text-xs font-semibold mb-2 px-2">Quality</div>
                     <div className="space-y-1">
                       <button
-                        className={`w-full text-left px-2 py-1 text-sm rounded hover:bg-white/20 transition-colors ${
-                          currentQuality === -1 ? 'bg-blue-500 text-white' : 'text-white/80'
-                        }`}
+                        className={`w-full text-left px-2 py-1 text-sm rounded hover:bg-white/20 transition-colors ${currentQuality === -1 ? 'bg-blue-500 text-white' : 'text-white/80'
+                          }`}
                         onClick={() => changeQuality(-1)}
                       >
                         Auto
@@ -1198,9 +1194,8 @@ export default function HLSVideoPlayer({
                       {qualities.map((quality, index) => (
                         <button
                           key={index}
-                          className={`w-full text-left px-2 py-1 text-sm rounded hover:bg-white/20 transition-colors ${
-                            currentQuality === index ? 'bg-blue-500 text-white' : 'text-white/80'
-                          }`}
+                          className={`w-full text-left px-2 py-1 text-sm rounded hover:bg-white/20 transition-colors ${currentQuality === index ? 'bg-blue-500 text-white' : 'text-white/80'
+                            }`}
                           onClick={() => changeQuality(index)}
                         >
                           {quality}
@@ -1212,23 +1207,23 @@ export default function HLSVideoPlayer({
               </div>
             )}
 
-            {/* Loop */}
+            {/* Loop - Hidden on mobile */}
             <Button
               variant="ghost"
               size="icon"
-              className={`h-8 w-8 text-white hover:bg-white/20 ${isLoopEnabled ? 'bg-white/20' : ''}`}
+              className={`hidden sm:flex h-8 w-8 text-white hover:bg-white/20 ${isLoopEnabled ? 'bg-white/20' : ''}`}
               onClick={toggleLoop}
               title={isLoopEnabled ? "Disable loop" : "Enable loop"}
             >
               <Repeat className="h-5 w-5" />
             </Button>
 
-            {/* PiP */}
+            {/* PiP - Hidden on mobile */}
             {document.pictureInPictureEnabled && (
               <Button
                 variant="ghost"
                 size="icon"
-                className={`h-8 w-8 text-white hover:bg-white/20 ${isPiPActive ? 'bg-white/20' : ''}`}
+                className={`hidden sm:flex h-8 w-8 text-white hover:bg-white/20 ${isPiPActive ? 'bg-white/20' : ''}`}
                 onClick={togglePiP}
                 title="Picture-in-Picture"
               >

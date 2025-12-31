@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { 
-  Play, 
-  Plus, 
-  Share2, 
-  Star, 
+import {
+  Play,
+  Plus,
+  Share2,
+  Star,
   AlertCircle,
   Loader2,
   Search,
@@ -57,7 +57,7 @@ interface WatchlistCheckResponse {
 export default function MovieDetail({ slug }: MovieDetailProps) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  
+
   // State for selected server and episode
   const [selectedServer, setSelectedServer] = useState("");
   const [selectedEpisode, setSelectedEpisode] = useState("");
@@ -67,18 +67,18 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
   const [playerType, setPlayerType] = useState<"embed" | "hls">("hls"); // Default to HLS for seekable timeline
   // State for content expanding (overview section)
   const [isContentExpanded, setIsContentExpanded] = useState(false);
-  
+
   // State for movie details expanding
   const [isMovieDetailsExpanded, setIsMovieDetailsExpanded] = useState(false);
-  
+
   // State for episode search
   const [episodeSearchQuery, setEpisodeSearchQuery] = useState("");
-  
+
   // State for share dialog
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
-  
+
   // Fetch movie details
-  const { 
+  const {
     data: movieDetail,
     isLoading: isMovieLoading,
     isError: isMovieError
@@ -92,13 +92,13 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
     if (movieDetail?.episodes && movieDetail.episodes.length > 0) {
       const firstServer = movieDetail.episodes[0].server_name;
       setSelectedServer(firstServer);
-      
+
       const firstEpisode = movieDetail.episodes[0].server_data[0]?.slug;
       if (firstEpisode) {
         setSelectedEpisode(firstEpisode);
       }
     }
-    
+
     // Set content expanded state when movie content is loaded
     if (movieDetail?.movie) {
       const content = movieDetail.movie.content || '';
@@ -106,13 +106,13 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
       setIsContentExpanded(!isLongContent);
     }
   }, [movieDetail]);
-  
+
   // Auto-focus on video player when navigating to movie detail page on mobile
   useEffect(() => {
     // This will run when the page loads and when currentlyPlaying changes
     const isMobile = window.innerWidth <= 768; // iPhone XR width is 414px
     const videoPlayerElement = document.getElementById('video-player');
-    
+
     if (isMobile && videoPlayerElement && selectedEpisode) {
       // Short delay to ensure the player has rendered
       setTimeout(() => {
@@ -120,7 +120,7 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
       }, 300);
     }
   }, [selectedEpisode, currentlyPlaying]); // Dependency on both episode selection and playing status
-  
+
   // Fetch recommendations
   const {
     data: recommendationsData,
@@ -129,7 +129,7 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
     queryKey: [`/api/movies/${slug}/recommendations?limit=10`],
     enabled: !!slug
   });
-  
+
   // Fetch comments
   const {
     data: commentsData,
@@ -139,23 +139,23 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
     queryKey: [`/api/movies/${slug}/comments`, { page: 1, limit: 5 }],
     enabled: !!slug
   });
-  
+
   // Get user info from auth context
   const { user } = useAuth();
   const userId = user?.id || 1; // Default to 1 for demo if not logged in
-  
+
   // Check if movie is in watchlist
-  const { 
+  const {
     data: watchlistData,
-    isLoading: isWatchlistLoading 
+    isLoading: isWatchlistLoading
   } = useQuery<WatchlistCheckResponse>({
     queryKey: [`/api/users/${userId}/watchlist/check/${slug}`],
     enabled: !!userId
   });
-  
+
   // Initialize with a default value if the data is not loaded yet
   const isInWatchlist = watchlistData ? !!watchlistData.inWatchlist : false;
-  
+
   // Add to watchlist mutation
   const addToWatchlistMutation = useMutation({
     mutationFn: () => {
@@ -168,7 +168,7 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
         title: "Added to My List",
         description: "This title has been added to your watchlist",
       });
-    },    onError: (error) => {
+    }, onError: (error) => {
       toast({
         title: "Error",
         description: "Failed to add to watchlist",
@@ -176,7 +176,7 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
       });
     }
   });
-  
+
   // Remove from watchlist mutation
   const removeFromWatchlistMutation = useMutation({
     mutationFn: () => {
@@ -189,7 +189,7 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
         title: "Removed from My List",
         description: "This title has been removed from your watchlist",
       });
-    },    onError: (error) => {
+    }, onError: (error) => {
       toast({
         title: "Error",
         description: "Failed to remove from watchlist",
@@ -197,24 +197,24 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
       });
     }
   });
-  
+
   // Handle server selection
   const handleServerSelect = (serverName: string) => {
     setSelectedServer(serverName);
-    
+
     // Find first episode in the selected server
     const server = movieDetail?.episodes.find(s => s.server_name === serverName);
     if (server && server.server_data.length > 0) {
       setSelectedEpisode(server.server_data[0].slug);
-      
+
       // Scroll to video player section
-      document.getElementById('video-player')?.scrollIntoView({ 
-        behavior: 'smooth', 
+      document.getElementById('video-player')?.scrollIntoView({
+        behavior: 'smooth',
         block: 'start'
       });
     }
   };
-  
+
   // Handle episode selection with debounce to prevent rapid clicks
   const handleEpisodeSelect = (episodeSlug: string) => {
     // Prevent repeated rapid clicks
@@ -225,12 +225,12 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
     // Set episode switching flags
     setIsEpisodeSwitching(true);
     setIsEpisodeLoading(true);
-    
+
     // Get episode name/number for notification
     const currentEpisodeList = getCurrentEpisodeList();
     const selectedEpisodeObj = currentEpisodeList.find(ep => ep.slug === episodeSlug);
     let episodeLabel = "episode";
-    
+
     if (selectedEpisodeObj) {
       const episodeName = selectedEpisodeObj.name;
       const episodeMatch = episodeName.match(/\d+/);
@@ -238,29 +238,29 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
         episodeLabel = `Episode ${episodeMatch[0]}`;
       }
     }
-    
+
     // Show loading notification
     toast({
       title: `Loading ${episodeLabel}...`,
       description: "Please wait while we prepare your video",
     });
-    
+
     // Scroll to video player section
-    document.getElementById('video-player')?.scrollIntoView({ 
-      behavior: 'smooth', 
+    document.getElementById('video-player')?.scrollIntoView({
+      behavior: 'smooth',
       block: 'start'
     });
-    
+
     // Set the selected episode with a slight delay to simulate loading
     setTimeout(() => {
       setSelectedEpisode(episodeSlug);
-      
+
       // Show now playing notification after a short delay
       setTimeout(() => {
         setIsEpisodeSwitching(false);
         setIsEpisodeLoading(false);
         setCurrentlyPlaying(episodeLabel);
-        
+
         toast({
           title: `Now playing ${episodeLabel}`,
           description: "Video loaded successfully",
@@ -269,14 +269,14 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
       }, 1000);
     }, 800);
   };
-  
+
   // Find current embed URL
   const getCurrentEmbedUrl = () => {
     if (!movieDetail || !selectedServer || !selectedEpisode) return "";
-    
+
     const server = movieDetail.episodes.find(s => s.server_name === selectedServer);
     if (!server) return "";
-    
+
     const episode = server.server_data.find(e => e.slug === selectedEpisode);
     return episode?.link_embed || "";
   };
@@ -284,10 +284,10 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
   // Find current M3U8 URL for direct HLS playback
   const getCurrentM3u8Url = () => {
     if (!movieDetail || !selectedServer || !selectedEpisode) return "";
-    
+
     const server = movieDetail.episodes.find(s => s.server_name === selectedServer);
     if (!server) return "";
-    
+
     const episode = server.server_data.find(e => e.slug === selectedEpisode);
     return episode?.link_m3u8 || "";
   };
@@ -295,7 +295,7 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
   // Find current episode list
   const getCurrentEpisodeList = () => {
     if (!movieDetail || !selectedServer) return [];
-    
+
     const server = movieDetail.episodes.find(s => s.server_name === selectedServer);
     return server?.server_data || [];
   };
@@ -304,14 +304,14 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
   const getFilteredEpisodeList = () => {
     const episodes = getCurrentEpisodeList();
     if (!episodeSearchQuery.trim()) return episodes;
-    
+
     return episodes.filter(episode => {
       const searchLower = episodeSearchQuery.toLowerCase();
       // Search in episode name and extract episode number
       const episodeName = episode.name.toLowerCase();
       const episodeNumberMatch = episode.name.match(/\d+/);
       const episodeNumber = episodeNumberMatch ? episodeNumberMatch[0] : '';
-      
+
       return (
         episodeName.includes(searchLower) ||
         episodeNumber.includes(episodeSearchQuery) ||
@@ -319,18 +319,18 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
       );
     });
   };
-  
+
   // Check if this is a single episode movie
   const isSingleEpisode = () => {
     if (!movieDetail || !movieDetail.episodes) return false;
-    
+
     // If there's only one server with one episode, it's a single episode movie
     return (
-      movieDetail.episodes.length === 1 && 
+      movieDetail.episodes.length === 1 &&
       movieDetail.episodes[0].server_data.length === 1
     );
   };
-  
+
   // Handle toggle watchlist (add or remove)
   const handleToggleWatchlist = () => {
     if (!user) {
@@ -342,14 +342,14 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
       });
       return;
     }
-    
+
     if (isInWatchlist) {
       removeFromWatchlistMutation.mutate();
     } else {
       addToWatchlistMutation.mutate();
     }
   };
-  
+
   // Loading state
   if (isMovieLoading) {
     return (
@@ -360,7 +360,7 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
       </div>
     );
   }
-  
+
   // Error state
   if (isMovieError || !movieDetail) {
     return (
@@ -380,21 +380,21 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
       </div>
     );
   }
-    const { movie, episodes } = movieDetail;
-    return (
+  const { movie, episodes } = movieDetail;
+  return (
     <div className="pt-10">
       {/* SEO Meta Tags */}
       <ErrorBoundary fallback={null}>
         <MovieSEO movie={movie} slug={slug} />
       </ErrorBoundary>
-      
+
       {/* Back to Home link */}
       <div className="container mx-auto px-4 py-4">
         <Link to="/" className="flex items-center text-sm text-muted-foreground hover:text-white">
           <span>Back to Home</span> / <span>{movie.name}</span>
         </Link>
       </div>
-      
+
       {/* Video Player and Episodes Section - Optimized Responsive layout */}
       <div className="container mx-auto px-4 max-w-screen-2xl" id="video-player">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6">
@@ -409,7 +409,7 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
                   {currentlyPlaying}
                 </div>
               )}
-              
+
               {/* Loading Overlay */}
               {isEpisodeLoading && (
                 <div className="absolute inset-0 bg-black/80 z-20 flex flex-col items-center justify-center animate-fadeIn">
@@ -420,10 +420,10 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
                   </div>
                 </div>
               )}
-              
+
               <div className={`transition-opacity duration-500 ${isEpisodeSwitching ? 'opacity-30' : 'opacity-100'}`}>
-                {/* Player Type Toggle */}
-                <div className="absolute top-2 right-2 z-30 flex gap-1 bg-black/60 backdrop-blur-sm rounded-lg p-1">
+                {/* Player Type Toggle - Hidden on mobile */}
+                <div className="absolute top-2 right-2 z-30 hidden sm:flex gap-1 bg-black/60 backdrop-blur-sm rounded-lg p-1">
                   <Button
                     variant={playerType === "hls" ? "default" : "ghost"}
                     size="sm"
@@ -443,7 +443,7 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
                 </div>
 
                 {playerType === "hls" ? (
-                  <HLSVideoPlayer 
+                  <HLSVideoPlayer
                     m3u8Url={getCurrentM3u8Url()}
                     isLoading={isMovieLoading || !selectedEpisode}
                     autoplay={false}
@@ -454,53 +454,53 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
                     ]}
                   />
                 ) : (
-                  <VideoPlayer 
+                  <VideoPlayer
                     embedUrl={getCurrentEmbedUrl()}
                     isLoading={isMovieLoading || !selectedEpisode}
                   />
                 )}
               </div>
             </div>
-            
+
             {/* Action Buttons - Optimized */}
             <div className="flex flex-wrap gap-2 mb-4">
               {/* Replace static rating with interactive reactions */}
               <MovieReactions movieSlug={slug} userId={user?.id} />
-              
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="h-8 px-3 rounded-full flex items-center gap-1"
+
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 px-2 sm:px-3 rounded-full flex items-center gap-1"
                 onClick={() => setIsShareDialogOpen(true)}
               >
                 <Share2 className="h-3.5 w-3.5" />
-                <span className="text-xs">Share</span>
+                <span className="text-xs hidden sm:inline">Share</span>
               </Button>
-              
-              <Button 
+
+              <Button
                 variant={isInWatchlist ? "default" : "outline"}
                 size="sm"
-                className={`h-8 px-3 rounded-full flex items-center gap-1 ${isInWatchlist ? 'bg-primary/90 hover:bg-primary/80' : ''}`}
+                className={`h-8 px-2 sm:px-3 rounded-full flex items-center gap-1 ${isInWatchlist ? 'bg-primary/90 hover:bg-primary/80' : ''}`}
                 onClick={handleToggleWatchlist}
                 disabled={addToWatchlistMutation.isPending || removeFromWatchlistMutation.isPending || isWatchlistLoading}
               >
                 {isInWatchlist ? (
                   <>
                     <CheckCircle className="h-3.5 w-3.5" />
-                    <span className="text-xs">In My List</span>
+                    <span className="text-xs hidden sm:inline">In My List</span>
                   </>
                 ) : (
                   <>
                     <Plus className="h-3.5 w-3.5" />
-                    <span className="text-xs">Add to List</span>
+                    <span className="text-xs hidden sm:inline">Add to List</span>
                   </>
                 )}
               </Button>
-              
-              <Button 
+
+              <Button
                 variant="outline"
                 size="sm"
-                className="h-8 px-3 rounded-full flex items-center gap-1 ml-auto"
+                className="h-8 px-2 sm:px-3 rounded-full flex items-center gap-1 ml-auto"
                 onClick={() => {
                   // Handle report function
                   toast({
@@ -510,10 +510,10 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
                 }}
               >
                 <AlertCircle className="h-3.5 w-3.5" />
-                <span className="text-xs">Report</span>
+                <span className="text-xs hidden sm:inline">Report</span>
               </Button>
             </div>
-            
+
             {/* Server Selection - Only show if there are multiple servers - Optimized */}
             {movieDetail.episodes.length > 1 && (
               <div className="mb-4 bg-black/40 p-3 rounded-md border border-gray-800">
@@ -540,23 +540,23 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
                 </div>
                 {/* Server tabs for desktop only */}
                 <div className="hidden lg:block">
-                  <ServerTabs 
-                    servers={episodes} 
+                  <ServerTabs
+                    servers={episodes}
                     onServerSelect={handleServerSelect}
                     isLoading={isMovieLoading}
                   />
                 </div>
               </div>
             )}
-              {/* Mobile Episodes Horizontal Scroll - Only visible on mobile and tablet */}
+            {/* Mobile Episodes Horizontal Scroll - Only visible on mobile and tablet */}
             {!isSingleEpisode() && (
               <div className="lg:hidden mb-4">                {/* Search Episodes Input for Mobile */}
                 {getCurrentEpisodeList().length > 10 && (
                   <div className="mb-3">
                     <div className="relative">
-                      <input 
-                        type="text" 
-                        placeholder="Search episodes..." 
+                      <input
+                        type="text"
+                        placeholder="Search episodes..."
                         className="w-full bg-black/40 border border-gray-700 rounded-md py-2 px-3 pr-10 text-sm"
                         value={episodeSearchQuery}
                         onChange={(e) => setEpisodeSearchQuery(e.target.value)}
@@ -573,19 +573,19 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
                     </div>
                   </div>
                 )}
-                
+
                 <div className="flex justify-between items-center mb-2">
                   <h4 className="text-sm font-semibold">Episodes:</h4>
                   <span className="text-xs text-muted-foreground">
                     {getFilteredEpisodeList().length} of {getCurrentEpisodeList().length} episodes
                   </span>
                 </div>
-                  <ScrollArea className="w-full">
+                <ScrollArea className="w-full">
                   {getFilteredEpisodeList().length === 0 ? (
                     <div className="text-center py-4 text-muted-foreground">
                       <p className="text-sm">
-                        {episodeSearchQuery.trim() 
-                          ? `No episodes found for "${episodeSearchQuery}"` 
+                        {episodeSearchQuery.trim()
+                          ? `No episodes found for "${episodeSearchQuery}"`
                           : "No episodes available"
                         }
                       </p>
@@ -601,50 +601,49 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
                   ) : (
                     <div className="flex space-x-2 pb-2 snap-x">
                       {getFilteredEpisodeList().map((episode, index) => {
-                      // Extract episode number for display
-                      const episodeName = episode.name;
-                      let episodeNumber = index + 1;
-                      const episodeNumberMatch = episodeName.match(/\d+/);
-                      if (episodeNumberMatch) {
-                        episodeNumber = parseInt(episodeNumberMatch[0]);
-                      }
-                      
-                      // Format episode name for tooltip
-                      const displayName = episode.name.replace(/^Tập|Episode\s*/i, '').trim();
-                      
-                      return (
-                        <div key={episode.slug} className="flex-shrink-0 snap-start">
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant={selectedEpisode === episode.slug ? "default" : "outline"}
-                                  size="sm"
-                                  className={`h-9 w-11 sm:w-12 px-0 text-xs ${
-                                    selectedEpisode === episode.slug 
-                                      ? "bg-primary text-white border-2 border-primary-foreground shadow-[0_0_10px_rgba(var(--primary-rgb),0.5)]" 
+                        // Extract episode number for display
+                        const episodeName = episode.name;
+                        let episodeNumber = index + 1;
+                        const episodeNumberMatch = episodeName.match(/\d+/);
+                        if (episodeNumberMatch) {
+                          episodeNumber = parseInt(episodeNumberMatch[0]);
+                        }
+
+                        // Format episode name for tooltip
+                        const displayName = episode.name.replace(/^Tập|Episode\s*/i, '').trim();
+
+                        return (
+                          <div key={episode.slug} className="flex-shrink-0 snap-start">
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant={selectedEpisode === episode.slug ? "default" : "outline"}
+                                    size="sm"
+                                    className={`h-9 w-11 sm:w-12 px-0 text-xs ${selectedEpisode === episode.slug
+                                      ? "bg-primary text-white border-2 border-primary-foreground shadow-[0_0_10px_rgba(var(--primary-rgb),0.5)]"
                                       : "bg-card/30 hover:bg-card/50"
-                                  }`}
-                                  onClick={() => handleEpisodeSelect(episode.slug)}
-                                  disabled={isEpisodeSwitching || (isEpisodeLoading && selectedEpisode !== episode.slug)}
-                                >
-                                  {isEpisodeSwitching && selectedEpisode === episode.slug ? (
-                                    <Loader2 className="h-4 w-4 animate-spin mx-auto" />
-                                  ) : (
-                                    <span>{episodeNumber}</span>
-                                  )}
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent side="top" className="max-w-[150px]">
-                                <div className="text-xs">
-                                  <div className="font-semibold">Episode {episodeNumber}</div>
-                                  <div className="text-muted-foreground mt-1 truncate">{displayName}</div>
-                                </div>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        </div>                      );
-                    })}
+                                      }`}
+                                    onClick={() => handleEpisodeSelect(episode.slug)}
+                                    disabled={isEpisodeSwitching || (isEpisodeLoading && selectedEpisode !== episode.slug)}
+                                  >
+                                    {isEpisodeSwitching && selectedEpisode === episode.slug ? (
+                                      <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+                                    ) : (
+                                      <span>{episodeNumber}</span>
+                                    )}
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="max-w-[150px]">
+                                  <div className="text-xs">
+                                    <div className="font-semibold">Episode {episodeNumber}</div>
+                                    <div className="text-muted-foreground mt-1 truncate">{displayName}</div>
+                                  </div>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </div>);
+                      })}
                     </div>
                   )}
                   <ScrollBar orientation="horizontal" />
@@ -652,7 +651,7 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
               </div>
             )}
           </div>
-          
+
           {/* Right Column - Episodes List (only visible on desktop) */}
           <div className="hidden lg:block lg:col-span-4 xl:col-span-3">
             <div className="bg-black/20 rounded-md border border-gray-800 h-full">
@@ -666,30 +665,30 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
                       <Badge variant="outline" className="ml-2 bg-primary/10 text-xs">Full Movie</Badge>
                     )}
                   </h3>
-                    {/* Episode count badge */}
+                  {/* Episode count badge */}
                   {!isSingleEpisode() && (
                     <Badge variant="outline" className="bg-card/30">
-                      {episodeSearchQuery.trim() 
-                        ? `${getFilteredEpisodeList().length} of ${getCurrentEpisodeList().length}` 
+                      {episodeSearchQuery.trim()
+                        ? `${getFilteredEpisodeList().length} of ${getCurrentEpisodeList().length}`
                         : `${getCurrentEpisodeList().length} episodes`
                       }
                     </Badge>
                   )}
                 </div>
               </div>
-              
+
               {/* Episodes List with its own scrollbar */}
               {!isSingleEpisode() ? (
                 <div className="p-4">                  {/* Search/Filter Episodes Input */}
                   {getCurrentEpisodeList().length > 10 && (
                     <div className="mb-4">
-                      <div className="relative">                        <input 
-                          type="text" 
-                          placeholder="Search episodes..." 
-                          className="w-full bg-black/40 border border-gray-700 rounded-md py-2 px-3 pr-10 text-sm"
-                          value={episodeSearchQuery}
-                          onChange={(e) => setEpisodeSearchQuery(e.target.value)}
-                        />
+                      <div className="relative">                        <input
+                        type="text"
+                        placeholder="Search episodes..."
+                        className="w-full bg-black/40 border border-gray-700 rounded-md py-2 px-3 pr-10 text-sm"
+                        value={episodeSearchQuery}
+                        onChange={(e) => setEpisodeSearchQuery(e.target.value)}
+                      />
                         {episodeSearchQuery ? (
                           <button
                             onClick={() => setEpisodeSearchQuery("")}
@@ -702,13 +701,13 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
                       </div>
                     </div>
                   )}
-                    {/* Episodes Grid with scroll area */}
+                  {/* Episodes Grid with scroll area */}
                   <div className="max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
                     {getFilteredEpisodeList().length === 0 ? (
                       <div className="text-center py-8 text-muted-foreground">
                         <p className="text-sm">
-                          {episodeSearchQuery.trim() 
-                            ? `No episodes found for "${episodeSearchQuery}"` 
+                          {episodeSearchQuery.trim()
+                            ? `No episodes found for "${episodeSearchQuery}"`
                             : "No episodes available"
                           }
                         </p>
@@ -724,62 +723,61 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
                     ) : (
                       <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
                         {getFilteredEpisodeList().map((episode, index) => {
-                        // Extract episode number for display
-                        const episodeName = episode.name;
-                        let episodeNumber = index + 1;
-                        const episodeNumberMatch = episodeName.match(/\d+/);
-                        if (episodeNumberMatch) {
-                          episodeNumber = parseInt(episodeNumberMatch[0]);
-                        }
-                        
-                        // Format episode name for tooltip
-                        const displayName = episode.name.replace(/^Tập|Episode\s*/i, '').trim();
-                        
-                        return (
-                          <TooltipProvider key={episode.slug}>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant={selectedEpisode === episode.slug ? "default" : "outline"}
-                                  className={`px-2 py-1.5 h-auto rounded text-center transition relative ${
-                                    selectedEpisode === episode.slug 
-                                      ? "bg-primary hover:bg-primary/90 border-2 border-primary-foreground shadow-[0_0_10px_rgba(var(--primary-rgb),0.5)]" 
+                          // Extract episode number for display
+                          const episodeName = episode.name;
+                          let episodeNumber = index + 1;
+                          const episodeNumberMatch = episodeName.match(/\d+/);
+                          if (episodeNumberMatch) {
+                            episodeNumber = parseInt(episodeNumberMatch[0]);
+                          }
+
+                          // Format episode name for tooltip
+                          const displayName = episode.name.replace(/^Tập|Episode\s*/i, '').trim();
+
+                          return (
+                            <TooltipProvider key={episode.slug}>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant={selectedEpisode === episode.slug ? "default" : "outline"}
+                                    className={`px-2 py-1.5 h-auto rounded text-center transition relative ${selectedEpisode === episode.slug
+                                      ? "bg-primary hover:bg-primary/90 border-2 border-primary-foreground shadow-[0_0_10px_rgba(var(--primary-rgb),0.5)]"
                                       : "bg-muted hover:bg-primary/20"
-                                  }`}
-                                  onClick={() => handleEpisodeSelect(episode.slug)}
-                                  disabled={isEpisodeSwitching || (isEpisodeLoading && selectedEpisode !== episode.slug)}
-                                >
-                                  {isEpisodeSwitching && selectedEpisode === episode.slug && (
-                                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded z-10">
-                                      <Loader2 className="h-4 w-4 text-white animate-spin" />
-                                    </div>
-                                  )}
-                                  <span className="text-xs font-medium">Ep {episodeNumber}</span>
-                                  
-                                  {/* Playing indicator */}
-                                  {currentlyPlaying && currentlyPlaying.includes(episodeNumber.toString()) && (
-                                    <div className="absolute -top-1 -right-1 bg-primary h-2.5 w-2.5 rounded-full animate-pulse"></div>
-                                  )}
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent side="top" className="max-w-[200px]">
-                                <div className="text-xs">
-                                  <div className="font-semibold">{displayName}</div>
-                                  <div className="flex items-center mt-1 text-muted-foreground gap-2">
-                                    <div className="flex items-center">
-                                      <Clock className="h-3 w-3 mr-1" />
-                                      <span>{episode.link_embed?.includes('full') ? '90 min' : '45 min'}</span>
-                                    </div>
-                                    <div className="flex items-center">
-                                      <Info className="h-3 w-3 mr-1" />
-                                      <span>{episode.filename || 'Standard quality'}</span>
+                                      }`}
+                                    onClick={() => handleEpisodeSelect(episode.slug)}
+                                    disabled={isEpisodeSwitching || (isEpisodeLoading && selectedEpisode !== episode.slug)}
+                                  >
+                                    {isEpisodeSwitching && selectedEpisode === episode.slug && (
+                                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded z-10">
+                                        <Loader2 className="h-4 w-4 text-white animate-spin" />
+                                      </div>
+                                    )}
+                                    <span className="text-xs font-medium">Ep {episodeNumber}</span>
+
+                                    {/* Playing indicator */}
+                                    {currentlyPlaying && currentlyPlaying.includes(episodeNumber.toString()) && (
+                                      <div className="absolute -top-1 -right-1 bg-primary h-2.5 w-2.5 rounded-full animate-pulse"></div>
+                                    )}
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="max-w-[200px]">
+                                  <div className="text-xs">
+                                    <div className="font-semibold">{displayName}</div>
+                                    <div className="flex items-center mt-1 text-muted-foreground gap-2">
+                                      <div className="flex items-center">
+                                        <Clock className="h-3 w-3 mr-1" />
+                                        <span>{episode.link_embed?.includes('full') ? '90 min' : '45 min'}</span>
+                                      </div>
+                                      <div className="flex items-center">
+                                        <Info className="h-3 w-3 mr-1" />
+                                        <span>{episode.filename || 'Standard quality'}</span>
+                                      </div>
                                     </div>
                                   </div>
-                                </div>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>                        );
-                      })}
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>);
+                        })}
                       </div>
                     )}
                   </div>
@@ -793,7 +791,7 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
           </div>
         </div>
       </div>
-      
+
       <div className="container mx-auto px-4 max-w-screen-2xl">
         {/* Movie Meta - Optimized Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8 mt-8">
@@ -805,37 +803,37 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
                 <h3 className="text-lg font-medium text-muted-foreground mb-4">({movie.origin_name})</h3>
               )}
             </div>
-            
+
             {/* Movie quick stats - more compact layout */}
             <div className="flex flex-wrap gap-x-6 gap-y-2 mb-4 text-sm">
               <div className="flex gap-1">
                 <span className="text-muted-foreground">Release Year:</span>
                 <span>{(movie as any).year || 'Unknown'}</span>
               </div>
-              
+
               <div className="flex gap-1">
                 <span className="text-muted-foreground">Duration:</span>
                 <span>{movie.time || 'Unknown'}</span>
               </div>
-              
+
               <div className="flex gap-1">
                 <span className="text-muted-foreground">Genre:</span>
                 <span>{movie.category?.map(c => c.name).join(", ") || 'Unknown'}</span>
               </div>
-              
+
               {movie.quality && (
                 <div className="flex gap-1">
                   <span className="text-muted-foreground">Quality:</span>
                   <span>{movie.quality}</span>
                 </div>
               )}
-              
+
               <div className="flex gap-1">
                 <span className="text-muted-foreground">Rating:</span>
                 <span>{(movie as any).tmdb?.vote_average || "N/A"}/10</span>
               </div>
             </div>
-            
+
             {/* Quick Info Cards */}
             <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mb-4">
               <div className="bg-card/30 p-2 rounded text-center">
@@ -863,7 +861,7 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
                 </div>
               )}
             </div>
-            
+
             {/* Overview section - Mobile optimized with collapsible content */}
             <div className="mb-5 bg-card/20 rounded-md p-4 border border-gray-800">
               <h3 className="text-lg font-bold mb-2 flex items-center">
@@ -874,12 +872,12 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
                 <p className={`text-base leading-relaxed tracking-wide text-gray-200 ${!isContentExpanded ? 'line-clamp-4' : ''}`}>
                   {movie.content || 'No description available'}
                 </p>
-                
+
                 {(movie.content?.length || 0) > 200 && (
                   <div className={`${!isContentExpanded ? 'absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-background to-transparent' : ''} flex justify-center`}>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       className="mt-2 text-primary rounded-full"
                       onClick={() => setIsContentExpanded(!isContentExpanded)}
                     >
@@ -893,7 +891,7 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
                 )}
               </div>
             </div>
-            
+
             {/* Cast and Crew - Enhanced with toggle functionality */}
             <div className="mb-5">
               <button
@@ -907,22 +905,20 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
                     <Info className="h-5 w-5 mr-2 text-primary" />
                     Movie Details
                   </span>
-                  <ChevronDown 
-                    className={`h-5 w-5 text-primary transition-transform duration-300 ${
-                      isMovieDetailsExpanded ? 'rotate-180' : ''
-                    }`}
+                  <ChevronDown
+                    className={`h-5 w-5 text-primary transition-transform duration-300 ${isMovieDetailsExpanded ? 'rotate-180' : ''
+                      }`}
                   />
                 </h3>
               </button>
-              
+
               {/* Collapsible Content */}
-              <div 
+              <div
                 id="movie-details-content"
-                className={`overflow-hidden transition-all duration-300 ease-in-out ${
-                  isMovieDetailsExpanded 
-                    ? 'max-h-[1000px] opacity-100' 
-                    : 'max-h-0 opacity-0'
-                }`}
+                className={`overflow-hidden transition-all duration-300 ease-in-out ${isMovieDetailsExpanded
+                  ? 'max-h-[1000px] opacity-100'
+                  : 'max-h-0 opacity-0'
+                  }`}
                 aria-hidden={!isMovieDetailsExpanded}
               >
                 <div className="bg-card/20 rounded-md border border-gray-800 divide-y divide-gray-800">
@@ -941,7 +937,7 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
                       </div>
                     </div>
                   )}
-                  
+
                   {movie.actor?.length > 0 && (
                     <div className="p-3 flex items-start">
                       <div className="w-8 flex-shrink-0 flex justify-center mt-0.5">
@@ -958,7 +954,7 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
                       </div>
                     </div>
                   )}
-                  
+
                   {movie.country?.length > 0 && (
                     <div className="p-3 flex items-start">
                       <div className="w-8 flex-shrink-0 flex justify-center mt-0.5">
@@ -974,7 +970,7 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
                       </div>
                     </div>
                   )}
-                  
+
                   {movie.lang && (
                     <div className="p-3 flex items-start">
                       <div className="w-8 flex-shrink-0 flex justify-center mt-0.5">
@@ -989,7 +985,7 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
                       </div>
                     </div>
                   )}
-                  
+
                   {movie.category?.length > 0 && (
                     <div className="p-3 flex items-start">
                       <div className="w-8 flex-shrink-0 flex justify-center mt-0.5">
@@ -1013,7 +1009,7 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
               </div>
             </div>
           </div>
-          
+
           {/* Sidebar content - spans 4 columns on large screens */}
           <div className="lg:col-span-4 xl:col-span-3">
             <div className="bg-card/20 p-4 rounded-md border border-gray-800">
@@ -1022,7 +1018,7 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
                   <Star className="h-5 w-5 mr-2 text-primary" fill="currentColor" />
                   Recommended For You
                 </h3>
-                
+
                 {/* See More Button */}
                 {recommendationsData?.items && recommendationsData.items.length > 3 && (
                   <Link to="/top-rated" className="text-primary text-sm hover:underline flex items-center">
@@ -1031,7 +1027,7 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
                   </Link>
                 )}
               </div>
-              
+
               {isRecommendationsLoading ? (
                 // Loading placeholders for recommendations
                 <div className="grid grid-cols-2 gap-4">
@@ -1059,9 +1055,9 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
             </div>
           </div>
         </div>
-        
+
         <Separator className="my-6" />
-        
+
         {/* Comments Section - Optimized */}
         <div className="mb-10">
           <div className="bg-gray-900 rounded-xl p-4 sm:p-6 border border-gray-800">
@@ -1075,11 +1071,11 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
           </div>
         </div>
       </div>
-      
+
       {/* Share Dialog - Controlled by state */}
-      <ShareDialog 
-        isOpen={isShareDialogOpen} 
-        onClose={() => setIsShareDialogOpen(false)} 
+      <ShareDialog
+        isOpen={isShareDialogOpen}
+        onClose={() => setIsShareDialogOpen(false)}
         url={window.location.href}
         title={movie.name}
       />

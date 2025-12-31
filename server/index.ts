@@ -27,23 +27,23 @@ app.use(cors({
     if (!origin) {
       return callback(null, true);
     }
-    
+
     // PRIORITY: Check for wildcard CORS setting first - ALLOW ALL ORIGINS
     if (process.env.ALLOWED_ORIGINS === '*' || process.env.CLIENT_URL === '*') {
       return callback(null, true);
     }
-    
+
     // Get allowed origins from environment variable or use defaults
-    const envAllowedOrigins = process.env.ALLOWED_ORIGINS ? 
+    const envAllowedOrigins = process.env.ALLOWED_ORIGINS ?
       process.env.ALLOWED_ORIGINS.split(',') : [];
-    
+
     // In development, allow localhost on any port
     if (process.env.NODE_ENV === 'development') {
       if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
         return callback(null, true);
       }
     }
-    
+
     // In production, allow your specific domains and IP addresses
     const allowedOrigins = [
       'https://phimgg.com',
@@ -57,37 +57,37 @@ app.use(cors({
       config.clientUrl,
       ...envAllowedOrigins
     ];
-    
+
     // Check if origin is allowed
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
-    
+
     // More flexible matching for domains and IPs
     if (origin.includes('phimgg.com')) {
       return callback(null, true);
     }
-    
+
     // Allow IP address access for testing
     if (origin.includes('38.54.14.154')) {
       return callback(null, true);
     }
-    
+
     // Allow localhost and 127.0.0.1 for testing
     if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
       return callback(null, true);
     }
-    
+
     // For development, also allow the configured client URL
     if (process.env.NODE_ENV === 'development' && origin === config.clientUrl) {
       return callback(null, true);
     }
-    
+
     // In development, be more permissive
     if (process.env.NODE_ENV === 'development') {
       return callback(null, true);
     }
-    
+
     // Only log actual CORS blocks in development, nothing in production
     if (process.env.NODE_ENV === 'development') {
       console.log('❌ CORS blocked origin:', origin);
@@ -111,7 +111,7 @@ app.use((req, res, next) => {
     res.header('Access-Control-Allow-Headers', 'Range, Accept-Ranges');
     res.header('Accept-Ranges', 'bytes');
   }
-  
+
   next();
 });
 
@@ -124,10 +124,10 @@ app.use(express.static(path.join(process.cwd(), 'public')));
 // Simplified request logging middleware - only log errors and important requests
 app.use((req, res, next) => {
   const start = Date.now();
-  
+
   res.on("finish", () => {
     const duration = Date.now() - start;
-    
+
     // Only log API requests that take longer than 100ms or have errors
     if (req.path.startsWith("/api") && (duration > 100 || res.statusCode >= 400)) {
       log(`${req.method} ${req.path} ${res.statusCode} in ${duration}ms`);
@@ -141,12 +141,20 @@ app.use((req, res, next) => {
   try {
     // Verify database connection before starting server
     await pool.connect();
-    
+
     // Only log important startup info
     if (process.env.NODE_ENV !== 'production') {
       console.log('✅ Database connected successfully');
     }
-    
+
+    // Initialize Firebase Admin SDK for push notifications
+    try {
+      const { initializeFirebaseAdmin } = await import('./firebase-admin.js');
+      initializeFirebaseAdmin();
+    } catch (error) {
+      console.warn('⚠️ Firebase Admin initialization skipped:', error instanceof Error ? error.message : 'Unknown error');
+    }
+
     // Setup auth and routes after DB connection is confirmed
     setupAuth(app);
     registerRoutes(app);
@@ -189,19 +197,19 @@ app.use((req, res, next) => {
 function setupStaticServing() {
   const clientDistPath = path.join(process.cwd(), 'dist', 'public');
   const indexPath = path.join(clientDistPath, 'index.html');
-  
+
   // Check if built client files exist
   if (fs.existsSync(clientDistPath)) {
     log('Serving static files from dist/public');
     app.use(express.static(clientDistPath));
-    
+
     // Catch-all handler for SPA routing - IMPORTANT: This must come AFTER API routes
     app.get('*', (req, res) => {
       // Skip API routes
       if (req.path.startsWith('/api/')) {
         return res.status(404).json({ error: 'API endpoint not found' });
       }
-      
+
       // For all frontend routes (including /forgot-password, /reset-password, etc.)
       // serve the index.html so React Router can handle client-side routing
       if (fs.existsSync(indexPath)) {
@@ -212,13 +220,13 @@ function setupStaticServing() {
     });
   } else {
     log('Warning: Client dist directory not found. Run npm run build to build the client.');
-    
+
     // Even in development, we need to handle client-side routes
     app.get('*', (req, res) => {
       if (req.path.startsWith('/api/')) {
         return res.status(404).json({ error: 'API endpoint not found' });
       }
-      
+
       // In development, if no build exists, serve a helpful message
       res.status(503).send(`
         <html>

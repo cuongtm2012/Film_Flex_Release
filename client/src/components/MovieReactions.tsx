@@ -128,68 +128,63 @@ const MovieReactions: React.FC<MovieReactionsProps> = ({ movieSlug, userId }) =>
   const isLoading = addReactionMutation.isPending || removeReactionMutation.isPending;
 
   return (
-    <div className="flex items-center gap-4">
-      <div className="flex items-center gap-2">
-        <Button
-          variant={userReaction === 'like' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => handleReaction('like')}
-          disabled={isLoading || reactionsLoading}
-          className={`flex items-center gap-2 ${
-            userReaction === 'like' 
-              ? 'bg-green-600 hover:bg-green-700 text-white' 
-              : 'hover:bg-green-50 hover:text-green-600'
+    <div className="flex items-center gap-1.5 sm:gap-2">
+      <Button
+        variant={userReaction === 'like' ? 'default' : 'outline'}
+        size="sm"
+        onClick={() => handleReaction('like')}
+        disabled={isLoading || reactionsLoading}
+        className={`h-8 px-2 sm:px-2.5 flex items-center gap-1 rounded-full ${userReaction === 'like'
+            ? 'bg-green-600 hover:bg-green-700 text-white'
+            : 'hover:bg-green-50 hover:text-green-600'
           }`}
-        >
-          {isLoading && userReaction === 'like' ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <ThumbsUp className="h-4 w-4" />
-          )}
-          <span>{reactions.like}</span>
-        </Button>
+      >
+        {isLoading && userReaction === 'like' ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        ) : (
+          <ThumbsUp className="h-3.5 w-3.5" />
+        )}
+        <span className="text-xs">{reactions.like}</span>
+      </Button>
 
-        <Button
-          variant={userReaction === 'dislike' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => handleReaction('dislike')}
-          disabled={isLoading || reactionsLoading}
-          className={`flex items-center gap-2 ${
-            userReaction === 'dislike' 
-              ? 'bg-red-600 hover:bg-red-700 text-white' 
-              : 'hover:bg-red-50 hover:text-red-600'
+      <Button
+        variant={userReaction === 'dislike' ? 'default' : 'outline'}
+        size="sm"
+        onClick={() => handleReaction('dislike')}
+        disabled={isLoading || reactionsLoading}
+        className={`h-8 px-2 sm:px-2.5 flex items-center gap-1 rounded-full ${userReaction === 'dislike'
+            ? 'bg-red-600 hover:bg-red-700 text-white'
+            : 'hover:bg-red-50 hover:text-red-600'
           }`}
-        >
-          {isLoading && userReaction === 'dislike' ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <ThumbsDown className="h-4 w-4" />
-          )}
-          <span>{reactions.dislike}</span>
-        </Button>
+      >
+        {isLoading && userReaction === 'dislike' ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        ) : (
+          <ThumbsDown className="h-3.5 w-3.5" />
+        )}
+        <span className="text-xs">{reactions.dislike}</span>
+      </Button>
 
-        <Button
-          variant={userReaction === 'heart' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => handleReaction('heart')}
-          disabled={isLoading || reactionsLoading}
-          className={`flex items-center gap-2 ${
-            userReaction === 'heart' 
-              ? 'bg-pink-600 hover:bg-pink-700 text-white' 
-              : 'hover:bg-pink-50 hover:text-pink-600'
+      <Button
+        variant={userReaction === 'heart' ? 'default' : 'outline'}
+        size="sm"
+        onClick={() => handleReaction('heart')}
+        disabled={isLoading || reactionsLoading}
+        className={`h-8 px-2 sm:px-2.5 flex items-center gap-1 rounded-full ${userReaction === 'heart'
+            ? 'bg-pink-600 hover:bg-pink-700 text-white'
+            : 'hover:bg-pink-50 hover:text-pink-600'
           }`}
-        >
-          {isLoading && userReaction === 'heart' ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Heart className={`h-4 w-4 ${userReaction === 'heart' ? 'fill-current' : ''}`} />
-          )}
-          <span>{reactions.heart}</span>
-        </Button>
-      </div>
+      >
+        {isLoading && userReaction === 'heart' ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        ) : (
+          <Heart className={`h-3.5 w-3.5 ${userReaction === 'heart' ? 'fill-current' : ''}`} />
+        )}
+        <span className="text-xs">{reactions.heart}</span>
+      </Button>
 
       {reactionsLoading && (
-        <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+        <Loader2 className="h-3.5 w-3.5 animate-spin text-gray-400" />
       )}
     </div>
   );
