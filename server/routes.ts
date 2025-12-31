@@ -1,5 +1,6 @@
 import type { Express } from 'express';
 import { storage } from "./storage.js";
+import { pool } from "./db.js";
 import { isAuthenticated } from "./auth.js";
 import { z } from "zod";
 import {

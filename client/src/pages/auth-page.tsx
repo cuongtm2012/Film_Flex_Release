@@ -143,9 +143,19 @@ export default function AuthPage() {
             onValueChange={setActiveTab}
             value={activeTab}
           >
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="login">Login</TabsTrigger>
-              <TabsTrigger value="register">Register</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-2 h-12 sm:h-11">
+              <TabsTrigger
+                value="login"
+                className="text-base sm:text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-md transition-all duration-200"
+              >
+                Login
+              </TabsTrigger>
+              <TabsTrigger
+                value="register"
+                className="text-base sm:text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-md transition-all duration-200"
+              >
+                Register
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="login">
@@ -160,7 +170,7 @@ export default function AuthPage() {
                   onSubmit={loginForm.handleSubmit(onLoginSubmit)}
                   className="login-form"
                 >
-                  <CardContent className="space-y-4">
+                  <CardContent className="space-y-4 sm:space-y-5">
                     {authError && (
                       <div
                         className="bg-destructive/15 text-destructive px-4 py-3 rounded-md auth-error"
@@ -184,8 +194,8 @@ export default function AuthPage() {
                           type="text"
                           data-testid="username"
                           className={`username-input pl-10 ${loginForm.formState.errors.username
-                              ? "border-destructive"
-                              : ""
+                            ? "border-destructive"
+                            : ""
                             }`}
                           placeholder="Enter your username"
                           {...loginForm.register("username", { required: true })}
@@ -225,8 +235,8 @@ export default function AuthPage() {
                           id="password"
                           data-testid="password"
                           className={`password-input pl-10 ${loginForm.formState.errors.password
-                              ? "border-destructive"
-                              : ""
+                            ? "border-destructive"
+                            : ""
                             }`}
                           placeholder="••••••••"
                           {...loginForm.register("password")}
@@ -253,11 +263,14 @@ export default function AuthPage() {
                     </div>
 
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <Checkbox id="remember" />
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id="remember"
+                          className="h-5 w-5 sm:h-4 sm:w-4"
+                        />
                         <label
                           htmlFor="remember"
-                          className="text-sm text-muted-foreground"
+                          className="text-sm sm:text-base text-muted-foreground cursor-pointer select-none"
                         >
                           Remember me
                         </label>
@@ -265,7 +278,7 @@ export default function AuthPage() {
 
                       <a
                         href="/forgot-password"
-                        className="text-sm text-primary hover:underline"
+                        className="text-sm sm:text-base text-red-500 hover:text-red-400 hover:underline font-medium transition-colors"
                       >
                         Forgot password?
                       </a>
@@ -276,7 +289,7 @@ export default function AuthPage() {
                     <Button
                       type="submit"
                       data-testid="login-button"
-                      className="login-button w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-semibold text-base shadow-lg shadow-red-600/25 border-none transition-all duration-300 transform hover:scale-[1.02] hover:shadow-xl hover:shadow-red-600/40 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                      className="login-button w-full h-11 sm:h-12 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-semibold text-base sm:text-lg shadow-lg shadow-red-600/25 border-none transition-all duration-300 transform hover:scale-[1.02] hover:shadow-xl hover:shadow-red-600/40 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                       disabled={loginMutation.isPending}
                     >
                       {loginMutation.isPending ? (
@@ -321,29 +334,8 @@ export default function AuthPage() {
                     <div className="grid grid-cols-2 gap-3">
                       <button
                         type="button"
-                        onClick={() => {
-                          // Check if OAuth is configured
-                          fetch('/api/auth/google')
-                            .then(response => {
-                              if (response.ok) {
-                                window.location.href = "/api/auth/google";
-                              } else {
-                                toast({
-                                  title: "Google Sign-In Unavailable",
-                                  description: "Google authentication is not configured. Please use email/password login.",
-                                  variant: "destructive",
-                                });
-                              }
-                            })
-                            .catch(() => {
-                              toast({
-                                title: "Google Sign-In Unavailable",
-                                description: "Google authentication is not configured. Please use email/password login.",
-                                variant: "destructive",
-                              });
-                            });
-                        }}
-                        className="flex items-center justify-center gap-2 rounded-md border border-gray-600 px-4 py-2 text-sm text-white hover:bg-gray-800 transition-colors"
+                        onClick={() => { window.location.href = "/api/auth/google"; }}
+                        className="flex items-center justify-center gap-2 rounded-md border border-gray-600 px-4 py-3 sm:py-3.5 text-sm sm:text-base text-white hover:bg-gray-800 transition-all duration-200 hover:-translate-y-0.5 min-h-[44px]"
                       >
                         <svg className="h-4 w-4" viewBox="0 0 24 24">
                           <path
@@ -413,7 +405,7 @@ export default function AuthPage() {
                   </CardDescription>
                 </CardHeader>
                 <form onSubmit={registerForm.handleSubmit(onRegisterSubmit)}>
-                  <CardContent className="space-y-4">
+                  <CardContent className="space-y-4 sm:space-y-5">
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
                         <Label htmlFor="registerUsername">Username</Label>
@@ -428,8 +420,8 @@ export default function AuthPage() {
                           id="registerUsername"
                           type="text"
                           className={`pl-10 ${registerForm.formState.errors.username
-                              ? "border-destructive"
-                              : ""
+                            ? "border-destructive"
+                            : ""
                             }`}
                           placeholder="Choose a username"
                           {...registerForm.register("username")}
@@ -469,8 +461,8 @@ export default function AuthPage() {
                           id="email"
                           type="email"
                           className={`pl-10 ${registerForm.formState.errors.email
-                              ? "border-destructive"
-                              : ""
+                            ? "border-destructive"
+                            : ""
                             }`}
                           placeholder="you@example.com"
                           {...registerForm.register("email")}
@@ -509,8 +501,8 @@ export default function AuthPage() {
                         <PasswordInput
                           id="registerPassword"
                           className={`pl-10 ${registerForm.formState.errors.password
-                              ? "border-destructive"
-                              : ""
+                            ? "border-destructive"
+                            : ""
                             }`}
                           placeholder="••••••••"
                           {...registerForm.register("password")}
@@ -553,8 +545,8 @@ export default function AuthPage() {
                         <PasswordInput
                           id="confirmPassword"
                           className={`pl-10 ${registerForm.formState.errors.confirmPassword
-                              ? "border-destructive"
-                              : ""
+                            ? "border-destructive"
+                            : ""
                             }`}
                           placeholder="••••••••"
                           {...registerForm.register("confirmPassword")}
@@ -580,28 +572,27 @@ export default function AuthPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <div className="flex items-start space-x-2">
+                      <div className="flex items-start gap-2">
                         <Checkbox
                           id="terms"
                           checked={registerForm.watch("agreeToTerms")}
                           onCheckedChange={(checked) =>
                             registerForm.setValue("agreeToTerms", checked === true)
                           }
-                          className={
-                            registerForm.formState.errors.agreeToTerms
+                          className={`h-5 w-5 sm:h-4 sm:w-4 mt-0.5 ${registerForm.formState.errors.agreeToTerms
                               ? "border-destructive"
                               : ""
-                          }
+                            }`}
                         />
                         <div className="flex-1">
                           <label
                             htmlFor="terms"
-                            className="text-sm text-muted-foreground cursor-pointer"
+                            className="text-sm sm:text-base text-muted-foreground cursor-pointer select-none"
                           >
                             I agree to the{" "}
                             <a
                               href="/terms"
-                              className="text-primary hover:underline"
+                              className="text-red-500 hover:text-red-400 hover:underline font-medium transition-colors"
                               target="_blank"
                               rel="noopener noreferrer"
                             >
@@ -610,7 +601,7 @@ export default function AuthPage() {
                             and{" "}
                             <a
                               href="/privacy"
-                              className="text-primary hover:underline"
+                              className="text-red-500 hover:text-red-400 hover:underline font-medium transition-colors"
                               target="_blank"
                               rel="noopener noreferrer"
                             >
@@ -630,7 +621,7 @@ export default function AuthPage() {
                   <CardFooter className="flex flex-col gap-4">
                     <Button
                       type="submit"
-                      className="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-semibold text-base shadow-lg shadow-red-600/25 border-none transition-all duration-300 transform hover:scale-[1.02] hover:shadow-xl hover:shadow-red-600/40 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                      className="w-full h-11 sm:h-12 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-semibold text-base sm:text-lg shadow-lg shadow-red-600/25 border-none transition-all duration-300 transform hover:scale-[1.02] hover:shadow-xl hover:shadow-red-600/40 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                       data-testid="register-button"
                       disabled={registerMutation.isPending}
                     >

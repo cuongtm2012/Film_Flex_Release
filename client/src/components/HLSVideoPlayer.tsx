@@ -68,6 +68,7 @@ export default function HLSVideoPlayer({
   const [currentAudioTrack, setCurrentAudioTrack] = useState<number>(0);
   const [previewTime, setPreviewTime] = useState<number | null>(null);
   const [previewPosition, setPreviewPosition] = useState<number>(0);
+  const [isDragging, setIsDragging] = useState(false);
   const [currentBitrate, setCurrentBitrate] = useState<number>(0);
   const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
   const [isBuffering, setIsBuffering] = useState(false);
@@ -242,22 +243,47 @@ export default function HLSVideoPlayer({
     }
   }, [m3u8Url, autoplay, onError]);
 
+  // Global mouse event listeners for dragging
+  useEffect(() => {
+    const handleGlobalMouseMove = (e: MouseEvent) => {
+      if (isDragging && progressBarRef.current && videoRef.current) {
+        const rect = progressBarRef.current.getBoundingClientRect();
+        const pos = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+        const seekTime = pos * duration;
+        videoRef.current.currentTime = seekTime;
+      }
+    };
+
+    const handleGlobalMouseUp = () => {
+      if (isDragging) {
+        setIsDragging(false);
+      }
+    };
+
+    if (isDragging) {
+      document.addEventListener('mousemove', handleGlobalMouseMove);
+      document.addEventListener('mouseup', handleGlobalMouseUp);
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleGlobalMouseMove);
+      document.removeEventListener('mouseup', handleGlobalMouseUp);
+    };
+  }, [isDragging, duration]);
+
   // Video event listeners
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
     const handleTimeUpdate = () => {
-      // CRITICAL: Only update timeline when video has enough data to play
-      if (video.readyState < 3) { // HAVE_FUTURE_DATA = 3
-        logger.warn("Timeline update skipped - readyState too low:", video.readyState);
-        return;
-      }
+      const video = videoRef.current;
+      if (!video) return;
 
       const newTime = video.currentTime;
       const newDuration = video.duration;
 
-      // Force update even if value seems same (React batching issue)
+      // Always update currentTime for smooth progress bar
       setCurrentTime(newTime);
 
       // Update duration if it changed
@@ -278,7 +304,8 @@ export default function HLSVideoPlayer({
           currentTime: newTime.toFixed(2),
           duration: newDuration?.toFixed(2),
           progress: ((newTime / newDuration) * 100).toFixed(1) + '%',
-          readyState: video.readyState
+          readyState: video.readyState,
+          isSeeking: video.seeking
         });
       }
     };
@@ -804,6 +831,48 @@ export default function HLSVideoPlayer({
     setPreviewTime(null);
   };
 
+  // Drag handlers for seek bar
+  const handleProgressMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    setIsDragging(true);
+    handleProgressSeek(e);
+  };
+
+  const handleProgressMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (isDragging) {
+      handleProgressSeek(e);
+    }
+    handleProgressHover(e);
+  };
+
+  const handleProgressMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleProgressSeek = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!progressBarRef.current || !videoRef.current) return;
+
+    const video = videoRef.current;
+
+    // Only allow seeking when video has metadata
+    if (video.readyState < 1) {
+      logger.warn("Cannot seek - video metadata not loaded yet");
+      return;
+    }
+
+    const rect = progressBarRef.current.getBoundingClientRect();
+    const pos = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    const seekTime = pos * duration;
+
+    logger.info("Seeking to:", {
+      position: (pos * 100).toFixed(1) + '%',
+      time: seekTime.toFixed(2),
+      duration: duration.toFixed(2),
+      isDragging
+    });
+
+    video.currentTime = seekTime;
+  };
+
   const changeQuality = (level: number) => {
     if (hlsRef.current) {
       hlsRef.current.currentLevel = level;
@@ -989,22 +1058,27 @@ export default function HLSVideoPlayer({
 
           <div
             ref={progressBarRef}
-            className="w-full h-1.5 bg-white/20 rounded-full cursor-pointer group/progress hover:h-2 transition-all"
+            className="relative w-full h-1.5 bg-white/20 rounded-full cursor-pointer group/progress hover:h-2 transition-all"
             onClick={handleProgressClick}
-            onMouseMove={handleProgressHover}
-            onMouseLeave={handleProgressLeave}
+            onMouseDown={handleProgressMouseDown}
+            onMouseMove={handleProgressMouseMove}
+            onMouseUp={handleProgressMouseUp}
+            onMouseLeave={() => {
+              handleProgressLeave();
+              setIsDragging(false);
+            }}
           >
             {/* Buffered */}
             <div
-              className="absolute h-1.5 group-hover/progress:h-2 bg-white/30 rounded-full transition-all"
+              className="absolute top-0 left-0 h-full bg-white/30 rounded-full transition-all pointer-events-none"
               style={{ width: `${bufferedPercentage}%` }}
             />
             {/* Progress */}
             <div
-              className="relative h-1.5 group-hover/progress:h-2 bg-blue-500 rounded-full transition-all"
+              className="absolute top-0 left-0 h-full bg-blue-500 rounded-full transition-all pointer-events-none"
               style={{ width: `${progressPercentage}%` }}
             >
-              <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full opacity-0 group-hover/progress:opacity-100 transition-opacity" />
+              <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full opacity-0 group-hover/progress:opacity-100 transition-opacity shadow-lg" />
             </div>
           </div>
         </div>
