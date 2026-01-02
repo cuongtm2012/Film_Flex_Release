@@ -1,5 +1,6 @@
 import { storage } from '../storage';
 import { db } from '../db';
+import { sql } from 'drizzle-orm';
 
 export class WatchlistNotificationService {
     /**
@@ -18,10 +19,9 @@ export class WatchlistNotificationService {
 
             const latestEpisode = episodes[episodes.length - 1];
 
-            // Get snapshot using raw SQL
+            // Get snapshot using sql template
             const snapshotQuery = await db.execute(
-                `SELECT * FROM watchlist_episode_snapshots WHERE movie_slug = $1 LIMIT 1`,
-                [movieSlug]
+                sql`SELECT * FROM watchlist_episode_snapshots WHERE movie_slug = ${movieSlug} LIMIT 1`
             );
 
             const snapshot = snapshotQuery.rows[0];
@@ -41,8 +41,7 @@ export class WatchlistNotificationService {
 
                 // Get all users watching this movie
                 const watchlistQuery = await db.execute(
-                    `SELECT user_id FROM watchlist WHERE movie_slug = $1`,
-                    [movieSlug]
+                    sql`SELECT user_id FROM watchlist WHERE movie_slug = ${movieSlug}`
                 );
 
                 const watchers = watchlistQuery.rows;
@@ -52,23 +51,18 @@ export class WatchlistNotificationService {
                 } else {
                     // Create notifications for each watcher
                     for (const watcher of watchers) {
+                        const notificationData = JSON.stringify({
+                            movieSlug,
+                            movieName: movie.name,
+                            newEpisodeCount,
+                            totalEpisodes: currentCount
+                        });
+
                         await db.execute(
-                            `INSERT INTO notifications (user_id, type, title, message, data, movie_id, is_read, created_at)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())`,
-                            [
-                                watcher.user_id,
-                                'new_episode',
-                                '🎬 New Episode Available!',
-                                `${newEpisodeCount} new episode${newEpisodeCount > 1 ? 's' : ''} added to "${movie.name}"`,
-                                JSON.stringify({
-                                    movieSlug,
-                                    movieName: movie.name,
-                                    newEpisodeCount,
-                                    totalEpisodes: currentCount
-                                }),
-                                movie.id,
-                                false
-                            ]
+                            sql`INSERT INTO notifications (user_id, type, title, message, data, movie_id, is_read, created_at)
+                  VALUES (${watcher.user_id}, ${'new_episode'}, ${'🎬 New Episode Available!'},
+                          ${`${newEpisodeCount} new episode${newEpisodeCount > 1 ? 's' : ''} added to "${movie.name}"`},
+                          ${notificationData}, ${movie.id}, ${false}, NOW())`
                         );
                     }
 
@@ -78,13 +72,12 @@ export class WatchlistNotificationService {
 
             // Update or insert snapshot
             await db.execute(
-                `INSERT INTO watchlist_episode_snapshots (movie_slug, episode_count, last_episode_slug, updated_at)
-         VALUES ($1, $2, $3, NOW())
-         ON CONFLICT (movie_slug) DO UPDATE
-         SET episode_count = $2,
-             last_episode_slug = $3,
-             updated_at = NOW()`,
-                [movieSlug, currentCount, latestEpisode?.slug || null]
+                sql`INSERT INTO watchlist_episode_snapshots (movie_slug, episode_count, last_episode_slug, updated_at)
+            VALUES (${movieSlug}, ${currentCount}, ${latestEpisode?.slug || null}, NOW())
+            ON CONFLICT (movie_slug) DO UPDATE
+            SET episode_count = ${currentCount},
+                last_episode_slug = ${latestEpisode?.slug || null},
+                updated_at = NOW()`
             );
 
         } catch (error) {
@@ -102,10 +95,9 @@ export class WatchlistNotificationService {
             const latestEpisode = episodes[episodes.length - 1];
 
             await db.execute(
-                `INSERT INTO watchlist_episode_snapshots (movie_slug, episode_count, last_episode_slug, updated_at)
-         VALUES ($1, $2, $3, NOW())
-         ON CONFLICT (movie_slug) DO NOTHING`,
-                [movieSlug, currentCount, latestEpisode?.slug || null]
+                sql`INSERT INTO watchlist_episode_snapshots (movie_slug, episode_count, last_episode_slug, updated_at)
+            VALUES (${movieSlug}, ${currentCount}, ${latestEpisode?.slug || null}, NOW())
+            ON CONFLICT (movie_slug) DO NOTHING`
             );
 
             console.log(`Initialized episode snapshot for ${movieSlug}: ${currentCount} episodes`);

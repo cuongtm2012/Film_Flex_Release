@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useUser } from './use-user';
+import { useAuth } from './use-auth';
 
 interface Notification {
     id: number;
@@ -15,7 +15,7 @@ interface Notification {
 }
 
 export function useNotifications() {
-    const { user } = useUser();
+    const { user } = useAuth();
     const queryClient = useQueryClient();
 
     // Fetch notifications

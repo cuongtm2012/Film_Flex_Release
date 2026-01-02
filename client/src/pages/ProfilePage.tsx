@@ -176,7 +176,7 @@ export default function ProfilePage() {
 
       {/* Desktop Header */}
       <h1 className="hidden md:block text-3xl font-bold mb-8">User Profile</h1>
-      
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-8">
         {/* Profile Summary Card */}
         <Card className="lg:col-span-1 bg-card">
@@ -187,15 +187,15 @@ export default function ProfilePage() {
                   {user.username.substring(0, 2).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
-              
+
               <div className="flex-1 w-full sm:w-auto">
                 {!isEditing && (
                   <>
                     <div className="flex items-center justify-between mb-1">
                       <h2 className="text-lg sm:text-xl font-bold">{displayName}</h2>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
+                      <Button
+                        variant="outline"
+                        size="sm"
                         onClick={() => setIsEditing(true)}
                         className="flex items-center gap-1.5 h-8 sm:h-9"
                       >
@@ -215,7 +215,7 @@ export default function ProfilePage() {
                 )}
               </div>
             </div>
-            
+
             {/* Desktop Inline Edit */}
             {isEditing && !isMobile && (
               <div className="space-y-3 mt-4">
@@ -244,7 +244,7 @@ export default function ProfilePage() {
               </div>
             )}
           </CardHeader>
-          
+
           <CardContent className="pb-3 space-y-4">
             {/* User Details */}
             <div className="space-y-2.5">
@@ -261,9 +261,9 @@ export default function ProfilePage() {
                 <span className="font-medium">{user.role?.charAt(0).toUpperCase() + user.role?.slice(1) || "User"}</span>
               </div>
             </div>
-            
+
             <Separator className="my-3 md:my-4" />
-            
+
             {/* Stats Grid */}
             <div className="grid grid-cols-3 gap-2 sm:gap-3 text-center">
               <div className="p-2 sm:p-3 rounded-lg bg-muted/50">
@@ -289,18 +289,18 @@ export default function ProfilePage() {
               </div>
             </div>
           </CardContent>
-          
+
           <CardFooter className="flex flex-col gap-2 pt-3">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               className="w-full h-11 flex items-center justify-center gap-2 text-base"
-              onClick={() => navigate("/settings")}
+              onClick={() => navigate("/profile-settings?tab=security")}
             >
               <Lock className="h-4 w-4" />
               Change Password
             </Button>
-            <Button 
-              variant="destructive" 
+            <Button
+              variant="destructive"
               className="w-full h-11 flex items-center justify-center gap-2 text-base"
               onClick={handleLogout}
             >
@@ -309,7 +309,7 @@ export default function ProfilePage() {
             </Button>
           </CardFooter>
         </Card>
-        
+
         {/* Activity and Details */}
         <div className="lg:col-span-2">
           <Tabs defaultValue="activity" className="w-full">
@@ -338,7 +338,7 @@ export default function ProfilePage() {
                 )}
               </TabsTrigger>
             </TabsList>
-            
+
             <TabsContent value="activity" className="mt-0">
               <Card>
                 <CardHeader className="pb-3 md:pb-4">
@@ -359,7 +359,7 @@ export default function ProfilePage() {
                             <div className="font-medium text-sm md:text-base truncate">{activity.title}</div>
                             <div className="text-xs text-muted-foreground shrink-0">{activity.date}</div>
                           </div>
-                          
+
                           {activity.type === "watch" && <div className="text-sm text-muted-foreground">Watched this movie</div>}
                           {activity.type === "rating" && (
                             <div className="flex items-center gap-2">
@@ -379,7 +379,7 @@ export default function ProfilePage() {
                 </CardContent>
               </Card>
             </TabsContent>
-            
+
             <TabsContent value="watchlist" className="mt-0">
               <Card>
                 <CardHeader className="pb-3 md:pb-4">
@@ -391,8 +391,8 @@ export default function ProfilePage() {
                       </CardDescription>
                     </div>
                     {!watchlistEmpty && (
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         size="sm"
                         onClick={() => navigate("/my-list")}
                         className="shrink-0 h-8 md:h-9"
@@ -426,7 +426,7 @@ export default function ProfilePage() {
                   )}
                   {watchlistData.length > 6 && (
                     <div className="text-center mt-4 md:mt-6">
-                      <Button 
+                      <Button
                         variant="outline"
                         onClick={() => navigate("/my-list")}
                         className="w-full sm:w-auto h-10 md:h-11"
@@ -438,7 +438,7 @@ export default function ProfilePage() {
                 </CardContent>
               </Card>
             </TabsContent>
-            
+
             <TabsContent value="history" className="mt-0">
               <Card>
                 <CardHeader className="pb-3 md:pb-4">
@@ -450,8 +450,8 @@ export default function ProfilePage() {
                       </CardDescription>
                     </div>
                     {!historyEmpty && (
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         size="sm"
                         onClick={() => navigate("/watch-history")}
                         className="shrink-0 h-8 md:h-9"
@@ -495,7 +495,7 @@ export default function ProfilePage() {
                           <div className="text-[10px] md:text-sm text-muted-foreground mt-0.5">Completed</div>
                         </div>
                       </div>
-                      
+
                       {/* Recent history items */}
                       <WatchHistoryList
                         historyByDate={getHistoryByDate(watchHistory.slice(0, 4))} // Show only recent 4 items
@@ -504,10 +504,10 @@ export default function ProfilePage() {
                         onContinueWatching={handleContinueWatching}
                         removeLoading={removeFromHistory.isPending}
                       />
-                      
+
                       {watchHistory.length > 4 && (
                         <div className="text-center mt-4 md:mt-6">
-                          <Button 
+                          <Button
                             variant="outline"
                             onClick={() => navigate("/watch-history")}
                             className="w-full sm:w-auto h-10 md:h-11"

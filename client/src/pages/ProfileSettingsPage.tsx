@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -16,6 +16,7 @@ import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle, User, KeyRound, Bell, Shield, Save } from "lucide-react";
 import ProfileImageUpload from "@/components/ProfileImageUpload";
+import { useLocation } from "wouter";
 
 // Form schema for profile information
 const profileFormSchema = z.object({
@@ -50,8 +51,18 @@ type PasswordFormValues = z.infer<typeof passwordFormSchema>;
 const ProfileSettingsPage = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [location] = useLocation();
   const [activeTab, setActiveTab] = useState("account");
-  
+
+  // Read tab from URL params
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get('tab');
+    if (tab && ['account', 'security', 'notifications'].includes(tab)) {
+      setActiveTab(tab);
+    }
+  }, [location]);
+
   // Prepare default values for profile form
   const profileForm = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
@@ -61,7 +72,7 @@ const ProfileSettingsPage = () => {
       displayName: user?.displayName || "", // Changed from fullName to displayName
     },
   });
-  
+
   // Prepare default values for password form
   const passwordForm = useForm<PasswordFormValues>({
     resolver: zodResolver(passwordFormSchema),
@@ -71,7 +82,7 @@ const ProfileSettingsPage = () => {
       confirmPassword: "",
     },
   });
-  
+
   // Mutation for updating profile information
   const updateProfileMutation = useMutation({
     mutationFn: async (data: ProfileFormValues) => {
@@ -97,7 +108,7 @@ const ProfileSettingsPage = () => {
       });
     },
   });
-  
+
   // Mutation for updating password
   const updatePasswordMutation = useMutation({
     mutationFn: async (data: PasswordFormValues) => {
@@ -130,17 +141,17 @@ const ProfileSettingsPage = () => {
       });
     },
   });
-  
+
   // Handle profile update
   function onProfileSubmit(data: ProfileFormValues) {
     updateProfileMutation.mutate(data);
   }
-  
+
   // Handle password update
   function onPasswordSubmit(data: PasswordFormValues) {
     updatePasswordMutation.mutate(data);
   }
-  
+
   if (!user) {
     return (
       <div className="container mx-auto py-10 px-4">
@@ -154,7 +165,7 @@ const ProfileSettingsPage = () => {
       </div>
     );
   }
-  
+
   return (
     <div className="container max-w-4xl mx-auto py-10 px-4">
       <div className="mb-10">
@@ -163,7 +174,7 @@ const ProfileSettingsPage = () => {
           Manage your account settings and preferences.
         </p>
       </div>
-      
+
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="mb-8">
           <TabsTrigger value="account" className="flex items-center">
@@ -176,7 +187,7 @@ const ProfileSettingsPage = () => {
             <Bell className="mr-2 h-4 w-4" /> Notifications
           </TabsTrigger>
         </TabsList>
-        
+
         <TabsContent value="account">
           <div className="grid gap-8 grid-cols-1 md:grid-cols-3">
             {/* Profile Image */}
@@ -191,7 +202,7 @@ const ProfileSettingsPage = () => {
                 <ProfileImageUpload />
               </CardContent>
             </Card>
-            
+
             {/* Account Information */}
             <Card className="md:col-span-2">
               <CardHeader>
@@ -219,7 +230,7 @@ const ProfileSettingsPage = () => {
                         </FormItem>
                       )}
                     />
-                    
+
                     <FormField
                       control={profileForm.control}
                       name="displayName" // Changed from fullName to displayName
@@ -236,7 +247,7 @@ const ProfileSettingsPage = () => {
                         </FormItem>
                       )}
                     />
-                    
+
                     <FormField
                       control={profileForm.control}
                       name="email"
@@ -253,10 +264,10 @@ const ProfileSettingsPage = () => {
                         </FormItem>
                       )}
                     />
-                    
-                    <Button 
-                      type="submit" 
-                      className="flex items-center" 
+
+                    <Button
+                      type="submit"
+                      className="flex items-center"
                       disabled={updateProfileMutation.isPending || !profileForm.formState.isDirty}
                     >
                       <Save className="mr-2 h-4 w-4" />
@@ -268,7 +279,7 @@ const ProfileSettingsPage = () => {
             </Card>
           </div>
         </TabsContent>
-        
+
         <TabsContent value="security">
           <Card>
             <CardHeader>
@@ -296,9 +307,9 @@ const ProfileSettingsPage = () => {
                       </FormItem>
                     )}
                   />
-                  
+
                   <Separator />
-                  
+
                   <FormField
                     control={passwordForm.control}
                     name="newPassword"
@@ -318,7 +329,7 @@ const ProfileSettingsPage = () => {
                       </FormItem>
                     )}
                   />
-                  
+
                   <FormField
                     control={passwordForm.control}
                     name="confirmPassword"
@@ -335,9 +346,9 @@ const ProfileSettingsPage = () => {
                       </FormItem>
                     )}
                   />
-                  
-                  <Button 
-                    type="submit" 
+
+                  <Button
+                    type="submit"
                     className="flex items-center"
                     disabled={updatePasswordMutation.isPending || !passwordForm.formState.isDirty}
                   >
@@ -349,7 +360,7 @@ const ProfileSettingsPage = () => {
             </CardContent>
           </Card>
         </TabsContent>
-        
+
         <TabsContent value="notifications">
           <Card>
             <CardHeader>

@@ -1,55 +1,45 @@
 import { useEffect } from "react";
-import { Bell, Check, Clock, Film, Star, User } from "lucide-react";
+import { Bell, Check, Film } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-
-// Mock notifications data
-const notifications = [
-  {
-    id: 1,
-    type: "new_release",
-    title: "New movie released",
-    message: "The Batman (2022) is now available to watch",
-    icon: Film,
-    time: "2 hours ago",
-    read: false,
-  },
-  {
-    id: 2,
-    type: "recommendation",
-    title: "New recommendation",
-    message: "Based on your watch history, you might like Dune: Part Two",
-    icon: Star,
-    time: "5 hours ago",
-    read: false,
-  },
-  {
-    id: 3,
-    type: "comment",
-    title: "New comment",
-    message: "Someone replied to your comment on Oppenheimer",
-    icon: User,
-    time: "1 day ago",
-    read: true,
-  },
-  {
-    id: 4,
-    type: "watchlist",
-    title: "Watchlist reminder",
-    message: "You have 5 unwatched movies in your list",
-    icon: Clock,
-    time: "2 days ago",
-    read: true,
-  },
-];
+import { useNotifications } from "@/hooks/use-notifications";
+import { useLocation } from "wouter";
+import { formatDistanceToNow } from "date-fns";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function NotificationsPage() {
+  const [, setLocation] = useLocation();
+  const { notifications, unreadCount, isLoading, markAsRead, markAllAsRead } = useNotifications();
+
   useEffect(() => {
     document.title = "Notifications - PhimGG";
   }, []);
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const handleNotificationClick = (notification: any) => {
+    // Mark as read
+    markAsRead(notification.id);
+
+    // Navigate to movie if data contains movieSlug
+    if (notification.data?.movieSlug) {
+      setLocation(`/movie/${notification.data.movieSlug}`);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="container mx-auto px-4 py-8 pt-24">
+        <div className="max-w-3xl mx-auto">
+          <Skeleton className="h-10 w-64 mb-6" />
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => (
+              <Skeleton key={i} className="h-24 w-full" />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto px-4 py-8 pt-24">
@@ -68,7 +58,7 @@ export default function NotificationsPage() {
             )}
           </div>
           {unreadCount > 0 && (
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={() => markAllAsRead()}>
               <Check className="h-4 w-4 mr-2" />
               Mark all as read
             </Button>
@@ -80,41 +70,38 @@ export default function NotificationsPage() {
         {/* Notifications List */}
         <div className="space-y-3">
           {notifications.length > 0 ? (
-            notifications.map((notification) => {
-              const IconComponent = notification.icon;
+            notifications.map((notification: any) => {
               return (
-                <Card 
-                  key={notification.id} 
-                  className={`cursor-pointer hover:bg-accent/50 transition-colors ${
-                    !notification.read ? 'border-l-4 border-l-primary bg-accent/20' : ''
-                  }`}
+                <Card
+                  key={notification.id}
+                  className={`cursor-pointer hover:bg-accent/50 transition-colors ${!notification.is_read ? 'border-l-4 border-l-primary bg-accent/20' : ''
+                    }`}
+                  onClick={() => handleNotificationClick(notification)}
                 >
                   <CardContent className="p-4">
                     <div className="flex items-start gap-4">
                       {/* Icon */}
-                      <div className={`p-2 rounded-full ${
-                        !notification.read ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'
-                      }`}>
-                        <IconComponent className="h-5 w-5" />
+                      <div className={`p-2 rounded-full ${!notification.is_read ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'
+                        }`}>
+                        <Film className="h-5 w-5" />
                       </div>
 
                       {/* Content */}
                       <div className="flex-1 min-w-0">
-                        <h3 className={`font-semibold mb-1 ${
-                          !notification.read ? 'text-white' : 'text-muted-foreground'
-                        }`}>
+                        <h3 className={`font-semibold mb-1 ${!notification.is_read ? 'text-white' : 'text-muted-foreground'
+                          }`}>
                           {notification.title}
                         </h3>
                         <p className="text-sm text-muted-foreground">
                           {notification.message}
                         </p>
                         <p className="text-xs text-muted-foreground mt-2">
-                          {notification.time}
+                          {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
                         </p>
                       </div>
 
                       {/* Unread indicator */}
-                      {!notification.read && (
+                      {!notification.is_read && (
                         <div className="w-2 h-2 bg-primary rounded-full flex-shrink-0 mt-2"></div>
                       )}
                     </div>
@@ -135,7 +122,11 @@ export default function NotificationsPage() {
 
         {/* Settings Link */}
         <div className="mt-8 text-center">
-          <Button variant="link" className="text-muted-foreground">
+          <Button
+            variant="link"
+            className="text-muted-foreground"
+            onClick={() => setLocation("/profile-settings")}
+          >
             Notification Settings
           </Button>
         </div>
