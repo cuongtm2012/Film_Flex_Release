@@ -27,12 +27,12 @@ export class DataSyncService {
 
   constructor(elasticsearchService: ElasticsearchService, options: SyncOptions = {}) {
     this.elasticsearchService = elasticsearchService;
-    
+
     // Get config from environment variables with fallbacks
     const syncInterval = process.env.ELASTICSEARCH_SYNC_INTERVAL || '0 */2 * * *'; // Every 2 hours by default
     const autoSync = process.env.ELASTICSEARCH_AUTO_SYNC === 'true';
     const batchSize = parseInt(process.env.ELASTICSEARCH_BATCH_SIZE || '100');
-    
+
     this.options = {
       batchSize: batchSize,
       enableScheduledSync: true,
@@ -147,70 +147,120 @@ export class DataSyncService {
     let episodeCount = 0;
 
     try {
-      console.log('Starting full sync...');
+      console.log('Starting full sync with parallel processing...');
 
       // Reindex to clear existing data
       await this.elasticsearchService.reindex();
 
-      // Sync movies in batches
+      // OPTIMIZATION: Increase batch size for better performance
+      const BATCH_SIZE = 500; // Increased from 100 to 500
+      const PARALLEL_WORKERS = 3; // Process 3 batches concurrently
+
+      // Sync movies in parallel batches
       let page = 1;
       let hasMoreMovies = true;
+      const movieBatches: any[][] = [];
 
+      // First, collect all movie batches
+      console.log('Collecting movie batches...');
       while (hasMoreMovies) {
         try {
-          const movieBatch = await storage.getMovies(page, this.options.batchSize!);
+          const movieBatch = await storage.getMovies(page, BATCH_SIZE);
 
           if (movieBatch.data.length === 0) {
             hasMoreMovies = false;
             break;
           }
 
-          // Index movie batch
-          await this.elasticsearchService.indexMovies(movieBatch.data);
-          movieCount += movieBatch.data.length;
-
-          console.log(`Synced ${movieCount} movies so far...`);
+          movieBatches.push(movieBatch.data);
           page++;
-
-          // Add small delay to prevent overwhelming the system
-          await new Promise(resolve => setTimeout(resolve, 100));
         } catch (error) {
-          const errorMsg = `Failed to sync movie batch ${page}: ${error}`;
+          const errorMsg = `Failed to fetch movie batch ${page}: ${error}`;
           console.error(errorMsg);
           errors.push(errorMsg);
           page++;
         }
       }
 
-      // Sync episodes in batches
-      console.log('Starting episode sync...');
+      console.log(`Collected ${movieBatches.length} movie batches. Starting parallel indexing...`);
+
+      // Process batches in parallel (PARALLEL_WORKERS at a time)
+      for (let i = 0; i < movieBatches.length; i += PARALLEL_WORKERS) {
+        const parallelBatches = movieBatches.slice(i, i + PARALLEL_WORKERS);
+
+        // Process these batches in parallel
+        const results = await Promise.allSettled(
+          parallelBatches.map(async (batch, batchIndex) => {
+            try {
+              await this.elasticsearchService.indexMovies(batch);
+              return batch.length;
+            } catch (error) {
+              const errorMsg = `Failed to index batch ${i + batchIndex}: ${error}`;
+              console.error(errorMsg);
+              errors.push(errorMsg);
+              return 0;
+            }
+          })
+        );
+
+        // Count successful movies
+        results.forEach(result => {
+          if (result.status === 'fulfilled') {
+            movieCount += result.value;
+          }
+        });
+
+        console.log(`Synced ${movieCount} movies so far... (${Math.round(movieCount / (movieBatches.length * BATCH_SIZE) * 100)}%)`);
+      }
+
+      console.log(`Movie sync completed. Total: ${movieCount} movies`);
+
+      // Sync episodes in batches with parallel processing
+      console.log('Starting episode sync with parallel processing...');
       const allMovies = await storage.getAllMovieSlugs();
+      const EPISODE_BATCH_SIZE = 100; // Process 100 movies' episodes at a time
+      const EPISODE_WORKERS = 5; // Process 5 movie episodes concurrently
 
-      for (const movieSlug of allMovies) {
-        try {
-          const episodes = await storage.getEpisodesByMovieSlug(movieSlug);
+      for (let i = 0; i < allMovies.length; i += EPISODE_BATCH_SIZE) {
+        const movieSlugBatch = allMovies.slice(i, i + EPISODE_BATCH_SIZE);
 
-          if (episodes.length > 0) {
-            await this.elasticsearchService.indexEpisodes(episodes);
-            episodeCount += episodes.length;
-          }
+        // Process episodes for multiple movies in parallel
+        for (let j = 0; j < movieSlugBatch.length; j += EPISODE_WORKERS) {
+          const parallelSlugs = movieSlugBatch.slice(j, j + EPISODE_WORKERS);
 
-          if (episodeCount % 1000 === 0) {
-            console.log(`Synced ${episodeCount} episodes so far...`);
-          }
+          const episodeResults = await Promise.allSettled(
+            parallelSlugs.map(async (movieSlug) => {
+              try {
+                const episodes = await storage.getEpisodesByMovieSlug(movieSlug);
+                if (episodes.length > 0) {
+                  await this.elasticsearchService.indexEpisodes(episodes);
+                  return episodes.length;
+                }
+                return 0;
+              } catch (error) {
+                const errorMsg = `Failed to sync episodes for movie ${movieSlug}: ${error}`;
+                errors.push(errorMsg);
+                return 0;
+              }
+            })
+          );
 
-          // Add small delay
-          await new Promise(resolve => setTimeout(resolve, 50));
-        } catch (error) {
-          const errorMsg = `Failed to sync episodes for movie ${movieSlug}: ${error}`;
-          console.error(errorMsg);
-          errors.push(errorMsg);
+          // Count episodes
+          episodeResults.forEach(result => {
+            if (result.status === 'fulfilled') {
+              episodeCount += result.value;
+            }
+          });
+        }
+
+        if ((i + EPISODE_BATCH_SIZE) % 500 === 0 || i + EPISODE_BATCH_SIZE >= allMovies.length) {
+          console.log(`Synced ${episodeCount} episodes so far... (${Math.round((i + EPISODE_BATCH_SIZE) / allMovies.length * 100)}%)`);
         }
       }
 
       this.lastSyncTime = new Date();
       await this.persistLastSyncTime(true);
-      
+
       console.log(`Full sync completed. Movies: ${movieCount}, Episodes: ${episodeCount}, Errors: ${errors.length}`);
 
       return { movies: movieCount, episodes: episodeCount, errors };
@@ -232,7 +282,7 @@ export class DataSyncService {
 
       // If no lastSyncTime, sync all data from last 7 days to be safe
       const since = this.lastSyncTime || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-      
+
       console.log(`Syncing data modified since: ${since.toISOString()}`);
 
       // Sync recently modified movies
@@ -280,7 +330,7 @@ export class DataSyncService {
 
       this.lastSyncTime = new Date();
       await this.persistLastSyncTime(false);
-      
+
       console.log(`Incremental sync completed. Movies: ${movieCount}, Episodes: ${episodeCount}, Errors: ${errors.length}`);
 
       return { movies: movieCount, episodes: episodeCount, errors };

@@ -27,6 +27,8 @@ import notificationRoutes from './routes/notification-routes.js';
 import userPreferencesRoutes from './routes/user-preferences.js';
 import express from "express";
 import { StreamingUtils } from "./utils/streaming-utils.js";
+// Import cache middleware
+import cacheMiddleware from './middleware/cache-middleware.js';
 
 // Remove unused API_CACHE_TTL
 
@@ -270,6 +272,110 @@ export function registerRoutes(app: Express): void {
       uptime: process.uptime(),
       version: process.env.npm_package_version || "unknown"
     });
+  });
+
+  // Aggregated home sections endpoint - reduces 8 API calls to 1
+  // Cache for 5 minutes
+  router.get("/home/sections", cacheMiddleware({ ttl: 300 }), async (req, res) => {
+    try {
+      const limit = 30; // Standard limit for home sections
+
+      // Fetch all sections in parallel for better performance
+      const [
+        trending,
+        recommended,
+        latest,
+        topRated,
+        popularTv,
+        anime,
+        china,
+        korean
+      ] = await Promise.all([
+        // Trending movies
+        storage.getMovies(1, limit, 'latest', { section: 'trending_now' }).catch(() => ({ data: [], total: 0 })),
+
+        // Recommended movies (for carousel)
+        storage.getMovies(1, 5, 'latest', { isRecommended: true }).catch(() => ({ data: [], total: 0 })),
+
+        // Latest movies
+        storage.getMovies(1, limit, 'latest', { section: 'latest_movies' }).catch(() => ({ data: [], total: 0 })),
+
+        // Top rated movies
+        storage.getMovies(1, limit, 'popular', { section: 'top_rated' }).catch(() => ({ data: [], total: 0 })),
+
+        // Popular TV series
+        storage.getMovies(1, limit, 'popular', { type: 'series', section: 'popular_tv' }).catch(() => ({ data: [], total: 0 })),
+
+        // Anime
+        storage.getMovies(1, limit, 'latest', { section: 'anime' }).catch(() => ({ data: [], total: 0 })),
+
+        // China movies
+        pool.query(`
+          SELECT DISTINCT ON (m.slug) m.*
+          FROM movies m
+          CROSS JOIN LATERAL jsonb_array_elements(m.countries) AS country
+          WHERE (country->>'slug')::text = 'trung-quoc'
+          ORDER BY m.slug, m.modified_at DESC
+          LIMIT $1
+        `, [limit]).then(result => ({ data: result.rows, total: result.rowCount || 0 })).catch(() => ({ data: [], total: 0 })),
+
+        // Korean movies
+        pool.query(`
+          SELECT DISTINCT ON (m.slug) m.*
+          FROM movies m
+          CROSS JOIN LATERAL jsonb_array_elements(m.countries) AS country
+          WHERE (country->>'slug')::text = 'han-quoc'
+          ORDER BY m.slug, m.modified_at DESC
+          LIMIT $1
+        `, [limit]).then(result => ({ data: result.rows, total: result.rowCount || 0 })).catch(() => ({ data: [], total: 0 }))
+      ]);
+
+      // Return aggregated response
+      res.json({
+        status: true,
+        sections: {
+          trending: {
+            items: trending.data,
+            total: trending.total
+          },
+          recommended: {
+            items: recommended.data,
+            total: recommended.total
+          },
+          latest: {
+            items: latest.data,
+            total: latest.total
+          },
+          topRated: {
+            items: topRated.data,
+            total: topRated.total
+          },
+          popularTv: {
+            items: popularTv.data,
+            total: popularTv.total
+          },
+          anime: {
+            items: anime.data,
+            total: anime.total
+          },
+          china: {
+            items: china.data,
+            total: china.total
+          },
+          korean: {
+            items: korean.data,
+            total: korean.total
+          }
+        }
+      });
+    } catch (error) {
+      console.error('Failed to fetch home sections:', error);
+      res.status(500).json({
+        status: false,
+        message: 'Failed to fetch home sections',
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
   });
 
   // Elasticsearch sync endpoints
@@ -656,7 +762,8 @@ export function registerRoutes(app: Express): void {
   });
 
   // Get all recommended movies (must come before /movies/:slug route)
-  router.get("/movies/recommended", async (req, res) => {
+  // Cache for 5 minutes
+  router.get("/movies/recommended", cacheMiddleware({ ttl: 300 }), async (req, res) => {
     try {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 20;

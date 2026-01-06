@@ -435,108 +435,78 @@ export class DatabaseStorage implements IStorage {
     }
 
     const baseConditions = conditions.length > 0 ? and(...conditions) : undefined;
+    const whereClause = baseConditions ? sql`WHERE ${baseConditions}` : sql``;
 
-    // Get unique movies by slug using a simpler approach
-    // Use DISTINCT ON (slug) but order by modified_at DESC within each slug group
-    const uniqueMoviesQuery = sql`
+    // Build ORDER BY clause based on sortBy parameter
+    let orderByClause: ReturnType<typeof sql>;
+    const currentYear = new Date().getFullYear();
+
+    switch (sortBy) {
+      case 'latest':
+        orderByClause = sql`ORDER BY modified_at DESC NULLS LAST, id DESC`;
+        break;
+
+      case 'popular':
+      case 'rating':
+        orderByClause = sql`ORDER BY view DESC NULLS LAST, modified_at DESC NULLS LAST, id DESC`;
+        break;
+
+      case 'year':
+        // Sort by year DESC, but put invalid years (NULL, 0, or > currentYear) at the end
+        orderByClause = sql`
+          ORDER BY 
+            CASE 
+              WHEN year IS NULL OR year = 0 OR year < 1900 OR year > ${currentYear} THEN 1
+              ELSE 0
+            END,
+            year DESC NULLS LAST,
+            modified_at DESC NULLS LAST,
+            id DESC
+        `;
+        break;
+
+      default:
+        orderByClause = sql`ORDER BY modified_at DESC NULLS LAST, id DESC`;
+    }
+
+    // Step 1: Get unique movies by slug (most recent version of each)
+    // This subquery gets DISTINCT ON (slug) with the latest modified_at
+    const uniqueMoviesSubquery = sql`
       SELECT DISTINCT ON (slug) 
         id, movie_id, slug, name, origin_name, poster_url, thumb_url, year, type, quality, 
         lang, time, view, description, status, trailer_url, section, is_recommended, 
         categories, countries, actors, directors, episode_current, episode_total, modified_at
       FROM ${movies}
-      ${baseConditions ? sql`WHERE ${baseConditions}` : sql``}
+      ${whereClause}
       ORDER BY slug, modified_at DESC
     `;
 
-    // Execute the query to get unique movies
-    const uniqueMoviesResult = await db.execute(uniqueMoviesQuery);
-    const allUniqueMovies = uniqueMoviesResult.rows as Movie[];
+    // Step 2: Apply final sorting and pagination
+    const finalQuery = sql`
+      SELECT * FROM (${uniqueMoviesSubquery}) AS unique_movies
+      ${orderByClause}
+      LIMIT ${limit} OFFSET ${offset}
+    `;
 
-    // Now sort in memory based on the sortBy parameter
-    // This is where we fix the ordering issue
-    const currentYear = new Date().getFullYear();
+    // Step 3: Get total count efficiently
+    // Count distinct slugs instead of all rows
+    const countQuery = sql`
+      SELECT COUNT(DISTINCT slug) as total
+      FROM ${movies}
+      ${whereClause}
+    `;
 
-    const sortedMovies = allUniqueMovies.sort((a, b) => {
-      switch (sortBy) {
-        case 'latest':
-          // Sort by modifiedAt DESC (most recently added to database first)
-          const modifiedA = new Date(a.modifiedAt || 0).getTime();
-          const modifiedB = new Date(b.modifiedAt || 0).getTime();
+    // Execute queries in parallel
+    const [moviesResult, countResult] = await Promise.all([
+      db.execute(finalQuery),
+      db.execute(countQuery)
+    ]);
 
-          // If modifiedAt is the same, use ID as tiebreaker (higher ID = more recent)
-          if (modifiedA === modifiedB) {
-            return (b.id || 0) - (a.id || 0);
-          }
-
-          return modifiedB - modifiedA;
-
-        case 'popular':
-        case 'rating':
-          // Sort by view count DESC, then by modifiedAt DESC
-          const viewA = a.view || 0;
-          const viewB = b.view || 0;
-
-          if (viewA !== viewB) {
-            return viewB - viewA;
-          }
-
-          const modA = new Date(a.modifiedAt || 0).getTime();
-          const modB = new Date(b.modifiedAt || 0).getTime();
-
-          if (modA === modB) {
-            return (b.id || 0) - (a.id || 0);
-          }
-
-          return modB - modA;
-
-        case 'year':
-          // Sort by release year DESC (newest movies first)
-          const yearA = typeof a.year === 'number' && a.year > 1900 && a.year <= currentYear ? a.year : 0;
-          const yearB = typeof b.year === 'number' && b.year > 1900 && b.year <= currentYear ? b.year : 0;
-
-          // Movies without valid year go to the end
-          if (yearA === 0 && yearB !== 0) return 1;
-          if (yearB === 0 && yearA !== 0) return -1;
-
-          // Both have no year, sort by modifiedAt
-          if (yearA === 0 && yearB === 0) {
-            const mA = new Date(a.modifiedAt || 0).getTime();
-            const mB = new Date(b.modifiedAt || 0).getTime();
-            if (mA === mB) {
-              return (b.id || 0) - (a.id || 0);
-            }
-            return mB - mA;
-          }
-
-          // Sort by year descending
-          if (yearA !== yearB) {
-            return yearB - yearA;
-          }
-
-          // If same year, sort by modifiedAt then ID
-          const myA = new Date(a.modifiedAt || 0).getTime();
-          const myB = new Date(b.modifiedAt || 0).getTime();
-          if (myA === myB) {
-            return (b.id || 0) - (a.id || 0);
-          }
-          return myB - myA;
-
-        default:
-          const defModA = new Date(a.modifiedAt || 0).getTime();
-          const defModB = new Date(b.modifiedAt || 0).getTime();
-          if (defModA === defModB) {
-            return (b.id || 0) - (a.id || 0);
-          }
-          return defModB - defModA;
-      }
-    });
-
-    // Apply pagination to the sorted results
-    const total = sortedMovies.length;
-    const paginatedMovies = sortedMovies.slice(offset, offset + limit);
+    const data = moviesResult.rows as Movie[];
+    const total = Number(countResult.rows[0]?.total || 0);
 
     return {
-      data: paginatedMovies,
+      data,
       total
     };
   }
