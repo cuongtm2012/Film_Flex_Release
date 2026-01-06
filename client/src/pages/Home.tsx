@@ -285,6 +285,9 @@ export default function Home() {
   // Render JSX - AFTER all hooks and logic
   return (
     <div className="min-h-screen bg-background">
+      {/* SEO H1 - visually hidden but accessible to search engines */}
+      <h1 className="sr-only">PhimGG - Watch Free HD Movies and TV Shows Online</h1>
+
       {/* Hero Carousel */}
       {featuredMovies.length > 0 && (
         <div className="mt-8">
