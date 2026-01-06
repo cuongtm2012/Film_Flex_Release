@@ -306,8 +306,8 @@ export function registerRoutes(app: Express): void {
         // Popular TV series
         storage.getMovies(1, limit, 'popular', { type: 'series', section: 'popular_tv' }).catch(() => ({ data: [], total: 0 })),
 
-        // Anime
-        storage.getMovies(1, limit, 'latest', { section: 'anime' }).catch(() => ({ data: [], total: 0 })),
+        // Anime - use getMoviesBySection to trigger fallback logic for type='hoathinh'
+        storage.getMoviesBySection('anime', 1, limit).catch(() => ({ data: [], total: 0 })),
 
         // China movies
         pool.query(`
