@@ -354,6 +354,54 @@ export function registerRoutes(app: Express): void {
     }
   });
 
+  router.post("/elasticsearch/sync/batch", async (req, res) => {
+    try {
+      if (!storage.isElasticsearchEnabled()) {
+        return res.status(503).json({
+          status: false,
+          message: "Elasticsearch is not available"
+        });
+      }
+
+      const dataSyncService = storage.dataSync;
+      if (!dataSyncService) {
+        return res.status(503).json({
+          status: false,
+          message: "Data sync service is not available"
+        });
+      }
+
+      const { movieSlugs } = req.body;
+      if (!Array.isArray(movieSlugs) || movieSlugs.length === 0) {
+        return res.status(400).json({
+          status: false,
+          message: "movieSlugs must be a non-empty array"
+        });
+      }
+
+      console.log(`Starting batch sync for ${movieSlugs.length} movies...`);
+      const result = await dataSyncService.syncBatch(movieSlugs);
+
+      res.json({
+        status: true,
+        message: "Batch sync completed",
+        result: {
+          success: result.success,
+          failed: result.failed,
+          total: movieSlugs.length,
+          errors: result.errors
+        }
+      });
+    } catch (error) {
+      console.error('Batch sync failed:', error);
+      res.status(500).json({
+        status: false,
+        message: "Batch sync failed",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
   router.get("/elasticsearch/status", async (req, res) => {
     try {
       const isEnabled = storage.isElasticsearchEnabled();
@@ -388,8 +436,10 @@ export function registerRoutes(app: Express): void {
         elasticsearch: {
           enabled: true,
           syncService: true,
+          autoSync: dataSyncService.isAutoSyncEnabled(),
           lastSync: syncStatus.lastSyncTime,
           isFullSyncRunning: syncStatus.isFullSyncRunning,
+          metadata: syncStatus.metadata,
           health: syncStatus.elasticsearchHealth,
           validation: {
             dbMovies: validation.dbMovieCount,

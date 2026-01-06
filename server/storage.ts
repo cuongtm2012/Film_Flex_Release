@@ -1,7 +1,7 @@
-import { 
-  Movie, InsertMovie, 
-  Episode, InsertEpisode, 
-  Comment, InsertComment, 
+import {
+  Movie, InsertMovie,
+  Episode, InsertEpisode,
+  Comment, InsertComment,
   InsertWatchlist,
   ViewHistory,
   ContentApproval, InsertContentApproval,
@@ -35,8 +35,8 @@ export interface IStorage {
   updateUser(id: number, userData: Partial<InsertUser>): Promise<User | undefined>;
   deleteUser(id: number): Promise<User | undefined>;
   changeUserStatus(id: number, status: string): Promise<User | undefined>;
-  getAllUsers(page: number, limit: number, filters?: {role?: string, status?: string, search?: string}): Promise<{ data: User[], total: number }>;
-  
+  getAllUsers(page: number, limit: number, filters?: { role?: string, status?: string, search?: string }): Promise<{ data: User[], total: number }>;
+
   // Role methods
   getRole(id: number): Promise<Role | undefined>;
   getRoleByName(name: string): Promise<Role | undefined>;
@@ -44,7 +44,7 @@ export interface IStorage {
   createRole(role: InsertRole): Promise<Role>;
   updateRole(id: number, roleData: Partial<InsertRole>): Promise<Role | undefined>;
   deleteRole(id: number): Promise<void>;
-  
+
   // Permission methods
   getPermission(id: number): Promise<Permission | undefined>;
   getPermissionByName(name: string): Promise<Permission | undefined>;
@@ -52,30 +52,30 @@ export interface IStorage {
   createPermission(permission: InsertPermission): Promise<Permission>;
   updatePermission(id: number, permissionData: Partial<InsertPermission>): Promise<Permission | undefined>;
   deletePermission(id: number): Promise<void>;
-  
+
   // Role-Permission methods
   assignPermissionToRole(roleId: number, permissionId: number): Promise<RolePermission>;
   removePermissionFromRole(roleId: number, permissionId: number): Promise<void>;
   getPermissionsByRole(roleId: number): Promise<Permission[]>;
   getRolesByPermission(permissionId: number): Promise<Role[]>;  // Movie methods
-  getMovies(page: number, limit: number, sortBy?: string, filters?: {isRecommended?: boolean, type?: string, section?: string, year?: number}): Promise<{ data: Movie[], total: number }>;
+  getMovies(page: number, limit: number, sortBy?: string, filters?: { isRecommended?: boolean, type?: string, section?: string, year?: number }): Promise<{ data: Movie[], total: number }>;
   getMovieBySlug(slug: string): Promise<Movie | undefined>;
   getMovieByMovieId(movieId: string): Promise<Movie | undefined>;
   saveMovie(movie: InsertMovie): Promise<Movie>;
   updateMovieSection(movieId: string, section: string): Promise<Movie | undefined>;
-  searchMovies(query: string, normalizedQuery: string, page: number, limit: number, sortBy?: string, filters?: {section?: string, isRecommended?: boolean, type?: string}): Promise<{ data: Movie[], total: number }>;
+  searchMovies(query: string, normalizedQuery: string, page: number, limit: number, sortBy?: string, filters?: { section?: string, isRecommended?: boolean, type?: string }): Promise<{ data: Movie[], total: number }>;
   getMoviesByCategory(categorySlug: string, page: number, limit: number, sortBy?: string): Promise<{ data: Movie[], total: number }>;
   getMoviesByCountry(countrySlug: string, page: number, limit: number, sortBy?: string): Promise<{ data: Movie[], total: number }>;
   getMoviesBySection(section: string, page: number, limit: number): Promise<{ data: Movie[], total: number }>;
   getAvailableYears(): Promise<number[]>;
   updateMovieBySlug(slug: string, updateData: Partial<Movie>): Promise<Movie | undefined>;
   getRecommendedMovies(page: number, limit: number): Promise<{ data: Movie[], total: number }>;
-  
+
   // Episode methods
   getEpisodesByMovieSlug(movieSlug: string): Promise<Episode[]>;
   getEpisodeBySlug(slug: string): Promise<Episode | undefined>;
   saveEpisode(episode: InsertEpisode): Promise<Episode>;
-  
+
   // Comment methods
   getCommentsByMovieSlug(movieSlug: string, page: number, limit: number, userId?: number): Promise<{ data: Comment[], total: number }>;
   addComment(comment: InsertComment): Promise<Comment>;
@@ -83,18 +83,18 @@ export interface IStorage {
   dislikeComment(commentId: number, userId: number): Promise<void>;
   getUserReactionForComment(userId: number, commentId: number): Promise<UserCommentReaction | undefined>;
   removeUserReactionForComment(userId: number, commentId: number): Promise<void>;
-    // Movie Reaction methods
+  // Movie Reaction methods
   getMovieReactions(movieSlug: string): Promise<{ like: number, dislike: number, heart: number }>;
   getUserMovieReaction(userId: number, movieSlug: string): Promise<MovieReaction | undefined>;
-  getUserMovieReactions(userId: number, movieSlug: string): Promise<MovieReaction[]>;  addMovieReaction(userId: number, movieSlug: string, reactionType: 'like' | 'dislike' | 'heart'): Promise<void>;
+  getUserMovieReactions(userId: number, movieSlug: string): Promise<MovieReaction[]>; addMovieReaction(userId: number, movieSlug: string, reactionType: 'like' | 'dislike' | 'heart'): Promise<void>;
   removeMovieReaction(userId: number, movieSlug: string, reactionType?: string): Promise<void>;
-  
+
   // Watchlist methods
   getWatchlist(userId: number): Promise<Movie[]>;
   checkWatchlist(userId: number, movieSlug: string): Promise<boolean>;
   addToWatchlist(watchlistItem: InsertWatchlist): Promise<void>;
   removeFromWatchlist(userId: number, movieSlug: string): Promise<void>;
-  
+
   // View History methods
   getViewHistory(userId: number, limit?: number): Promise<Movie[]>;
   addToViewHistory(userId: number, movieSlug: string, progress?: number): Promise<void>;
@@ -102,18 +102,18 @@ export interface IStorage {
   getViewedMovie(userId: number, movieSlug: string): Promise<ViewHistory | undefined>;
   removeFromViewHistory(userId: number, movieSlug: string): Promise<void>;
   clearViewHistory(userId: number): Promise<void>;
-  
+
   // Content Approval methods
   submitContentForApproval(approval: InsertContentApproval): Promise<ContentApproval>;
   approveContent(contentId: number, reviewerId: number, comments?: string): Promise<ContentApproval | undefined>;
   rejectContent(contentId: number, reviewerId: number, comments: string): Promise<ContentApproval | undefined>;
   getPendingContent(page: number, limit: number): Promise<{ data: ContentApproval[], total: number }>;
   getContentByUser(userId: number, page: number, limit: number, status?: string): Promise<{ data: ContentApproval[], total: number }>;
-  
+
   // Audit Log methods
   addAuditLog(log: InsertAuditLog): Promise<AuditLog>;
-  getAuditLogs(page: number, limit: number, filters?: {activityType?: string, userId?: number}): Promise<{ data: AuditLog[], total: number }>;
-  
+  getAuditLogs(page: number, limit: number, filters?: { activityType?: string, userId?: number }): Promise<{ data: AuditLog[], total: number }>;
+
   // Cache methods
   cacheMovieList(data: MovieListResponse, page: number): Promise<void>;
   cacheMovieDetail(data: MovieDetailResponse): Promise<void>;
@@ -167,7 +167,7 @@ export class DatabaseStorage implements IStorage {
         console.error('Session store error:', error);
       }
     });
-    
+
     // Add periodic cache cleanup
     setInterval(() => {
       this.cleanupExpiredCache();
@@ -180,7 +180,7 @@ export class DatabaseStorage implements IStorage {
   private async initializeElasticsearch(): Promise<void> {
     try {
       this._elasticsearchService = createElasticsearchService();
-      
+
       if (this._elasticsearchService) {
         await this._elasticsearchService.initialize();
         this._dataSyncService = createDataSyncService(this._elasticsearchService);
@@ -268,8 +268,8 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return updatedUser;
   }
-  
-  async getAllUsers(page: number, limit: number, filters?: {role?: string, status?: string, search?: string}): Promise<{ data: User[], total: number }> {
+
+  async getAllUsers(page: number, limit: number, filters?: { role?: string, status?: string, search?: string }): Promise<{ data: User[], total: number }> {
     // Build conditions array
     const conditions = [];
     if (filters?.role) {
@@ -301,7 +301,7 @@ export class DatabaseStorage implements IStorage {
 
     return { data, total };
   }
-  
+
   // Role methods
   async getRole(id: number): Promise<Role | undefined> {
     const [role] = await db.select().from(roles).where(eq(roles.id, id));
@@ -342,7 +342,7 @@ export class DatabaseStorage implements IStorage {
   async deleteRole(id: number): Promise<void> {
     await db.delete(roles).where(eq(roles.id, id));
   }
-  
+
   // Permission methods
   async getPermission(id: number): Promise<Permission | undefined> {
     const [permission] = await db.select().from(permissions).where(eq(permissions.id, id));
@@ -381,7 +381,7 @@ export class DatabaseStorage implements IStorage {
   async deletePermission(id: number): Promise<void> {
     await db.delete(permissions).where(eq(permissions.id, id));
   }
-  
+
   // Role-Permission methods
   async assignPermissionToRole(roleId: number, permissionId: number): Promise<RolePermission> {
     const [rolePermission] = await db.insert(rolePermissions)
@@ -403,7 +403,7 @@ export class DatabaseStorage implements IStorage {
       .from(rolePermissions)
       .innerJoin(permissions, eq(rolePermissions.permissionId, permissions.id))
       .where(eq(rolePermissions.roleId, roleId));
-    
+
     return result.map(r => r.permission);
   }
 
@@ -412,13 +412,13 @@ export class DatabaseStorage implements IStorage {
       .from(rolePermissions)
       .innerJoin(roles, eq(rolePermissions.roleId, roles.id))
       .where(eq(rolePermissions.permissionId, permissionId));
-    
+
     return result.map(r => r.role);
   }
   // Movie methods
-  async getMovies(page: number, limit: number, sortBy: string = 'latest', filters?: {isRecommended?: boolean, type?: string, section?: string, year?: number}): Promise<{ data: Movie[], total: number }> {
+  async getMovies(page: number, limit: number, sortBy: string = 'latest', filters?: { isRecommended?: boolean, type?: string, section?: string, year?: number }): Promise<{ data: Movie[], total: number }> {
     const offset = (page - 1) * limit;
-    
+
     // Build filter conditions
     const conditions = [];
     if (filters?.isRecommended !== undefined) {
@@ -455,49 +455,49 @@ export class DatabaseStorage implements IStorage {
     // Now sort in memory based on the sortBy parameter
     // This is where we fix the ordering issue
     const currentYear = new Date().getFullYear();
-    
+
     const sortedMovies = allUniqueMovies.sort((a, b) => {
       switch (sortBy) {
         case 'latest':
           // Sort by modifiedAt DESC (most recently added to database first)
           const modifiedA = new Date(a.modifiedAt || 0).getTime();
           const modifiedB = new Date(b.modifiedAt || 0).getTime();
-          
+
           // If modifiedAt is the same, use ID as tiebreaker (higher ID = more recent)
           if (modifiedA === modifiedB) {
             return (b.id || 0) - (a.id || 0);
           }
-          
+
           return modifiedB - modifiedA;
-          
+
         case 'popular':
         case 'rating':
           // Sort by view count DESC, then by modifiedAt DESC
           const viewA = a.view || 0;
           const viewB = b.view || 0;
-          
+
           if (viewA !== viewB) {
             return viewB - viewA;
           }
-          
+
           const modA = new Date(a.modifiedAt || 0).getTime();
           const modB = new Date(b.modifiedAt || 0).getTime();
-          
+
           if (modA === modB) {
             return (b.id || 0) - (a.id || 0);
           }
-          
+
           return modB - modA;
-          
+
         case 'year':
           // Sort by release year DESC (newest movies first)
           const yearA = typeof a.year === 'number' && a.year > 1900 && a.year <= currentYear ? a.year : 0;
           const yearB = typeof b.year === 'number' && b.year > 1900 && b.year <= currentYear ? b.year : 0;
-          
+
           // Movies without valid year go to the end
           if (yearA === 0 && yearB !== 0) return 1;
           if (yearB === 0 && yearA !== 0) return -1;
-          
+
           // Both have no year, sort by modifiedAt
           if (yearA === 0 && yearB === 0) {
             const mA = new Date(a.modifiedAt || 0).getTime();
@@ -507,12 +507,12 @@ export class DatabaseStorage implements IStorage {
             }
             return mB - mA;
           }
-          
+
           // Sort by year descending
           if (yearA !== yearB) {
             return yearB - yearA;
           }
-          
+
           // If same year, sort by modifiedAt then ID
           const myA = new Date(a.modifiedAt || 0).getTime();
           const myB = new Date(b.modifiedAt || 0).getTime();
@@ -520,7 +520,7 @@ export class DatabaseStorage implements IStorage {
             return (b.id || 0) - (a.id || 0);
           }
           return myB - myA;
-          
+
         default:
           const defModA = new Date(a.modifiedAt || 0).getTime();
           const defModB = new Date(b.modifiedAt || 0).getTime();
@@ -534,27 +534,27 @@ export class DatabaseStorage implements IStorage {
     // Apply pagination to the sorted results
     const total = sortedMovies.length;
     const paginatedMovies = sortedMovies.slice(offset, offset + limit);
-    
-    return { 
-      data: paginatedMovies, 
-      total 
+
+    return {
+      data: paginatedMovies,
+      total
     };
   }
-  
+
   async getMovieBySlug(slug: string): Promise<Movie | undefined> {
     const [movie] = await db.select()
       .from(movies)
       .where(eq(movies.slug, slug));
     return movie;
   }
-  
+
   async getMovieByMovieId(movieId: string): Promise<Movie | undefined> {
     const [movie] = await db.select()
       .from(movies)
       .where(eq(movies.movieId, movieId));
     return movie;
   }
-  
+
   async saveMovie(movie: InsertMovie): Promise<Movie> {
     const [newMovie] = await db.insert(movies).values({
       movieId: movie.movieId,
@@ -571,7 +571,7 @@ export class DatabaseStorage implements IStorage {
       view: movie.view || 0,
       description: movie.description || null,
       status: movie.status || null,
-      trailerUrl: movie.trailerUrl || null,      
+      trailerUrl: movie.trailerUrl || null,
       section: movie.section || null,
       isRecommended: movie.isRecommended || false,
       categories: movie.categories || [],
@@ -583,9 +583,22 @@ export class DatabaseStorage implements IStorage {
       modifiedAt: new Date() // Explicitly set the current timestamp
     }).returning();
 
+    // Auto-sync to Elasticsearch if enabled
+    if (this._dataSyncService && this._dataSyncService.isAutoSyncEnabled()) {
+      try {
+        // Sync in background without blocking the response
+        this._dataSyncService.syncSingleMovie(newMovie.slug).catch(error => {
+          console.error(`Background sync failed for movie ${newMovie.slug}:`, error);
+        });
+      } catch (error) {
+        // Log but don't throw - sync errors shouldn't block movie creation
+        console.error('Failed to trigger auto-sync:', error);
+      }
+    }
+
     return newMovie;
   }
-  
+
   async updateMovieSection(movieId: string, section: string): Promise<Movie | undefined> {
     const [updatedMovie] = await db.update(movies)
       .set({ section })
@@ -593,14 +606,15 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return updatedMovie;
   }
-  
+
   async updateMovieBySlug(slug: string, updateData: Partial<Movie>): Promise<Movie | undefined> {
     // Create a clean object for database updates
     const dbUpdateData: Partial<typeof movies.$inferInsert> = {};
 
     // Handle section field with validation
-    if ('section' in updateData) {      const validSections = ['trending_now', 'latest_movies', 'top_rated', 'popular_tv', 'anime', null];
-      dbUpdateData.section = validSections.includes(updateData.section as string) 
+    if ('section' in updateData) {
+      const validSections = ['trending_now', 'latest_movies', 'top_rated', 'popular_tv', 'anime', null];
+      dbUpdateData.section = validSections.includes(updateData.section as string)
         ? updateData.section as string
         : null;
     }
@@ -664,10 +678,10 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
-  
+
   async getMoviesBySection(section: string, page: number, limit: number): Promise<{ data: Movie[], total: number }> {
     const offset = (page - 1) * limit;
-    
+
     // Query movies by section field first
     const data = await db.select()
       .from(movies)
@@ -675,12 +689,12 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(movies.modifiedAt))
       .limit(limit)
       .offset(offset);
-    
+
     // Count total movies in this section
     const [{ count }] = await db.select({ count: sql<number>`count(*)` })
       .from(movies)
       .where(eq(movies.section, section));
-    
+
     // If anime section is requested but no movies found, fall back to type/category-based search
     if (section === 'anime' && data.length === 0) {
       // Search for movies with:
@@ -692,27 +706,27 @@ export class DatabaseStorage implements IStorage {
         ${movies.categories}::text ILIKE '%hoạt hình%' OR
         ${movies.categories}::text ILIKE '%hoat hinh%'
       )`;
-      
+
       const animeData = await db.select()
         .from(movies)
         .where(animeConditions)
         .orderBy(desc(movies.year), desc(movies.modifiedAt))
         .limit(limit)
         .offset(offset);
-        
+
       const [{ animeCount }] = await db.select({ animeCount: sql<number>`count(*)` })
         .from(movies)
         .where(animeConditions);
-      
+
       return { data: animeData, total: animeCount || 0 };
     }
-    
+
     return { data, total: count || 0 };
   }
 
   async getRecommendedMovies(page: number, limit: number): Promise<{ data: Movie[], total: number }> {
     const offset = (page - 1) * limit;
-    
+
     // Query movies that are marked as recommended
     const data = await db.select()
       .from(movies)
@@ -720,12 +734,12 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(movies.modifiedAt))
       .limit(limit)
       .offset(offset);
-      
+
     // Count total recommended movies
     const [{ count }] = await db.select({ count: sql<number>`count(*)` })
       .from(movies)
       .where(eq(movies.isRecommended, true));
-    
+
     return { data, total: count || 0 };
   }
 
@@ -734,7 +748,7 @@ export class DatabaseStorage implements IStorage {
     const episodesList = await db.select()
       .from(episodes)
       .where(eq(episodes.movieSlug, movieSlug));
-    
+
     // Sort episodes by extracting episode numbers from the name
     return episodesList.sort((a, b) => {
       // Extract episode numbers from episode names
@@ -744,47 +758,47 @@ export class DatabaseStorage implements IStorage {
         if (match) {
           return parseInt(match[1], 10);
         }
-        
+
         // Look for patterns like "1", "01", etc. at the end
         const numberMatch = name.match(/(\d+)$/);
         if (numberMatch) {
           return parseInt(numberMatch[1], 10);
         }
-        
+
         // Look for patterns like "1" anywhere in the name
         const anyNumberMatch = name.match(/(\d+)/);
         if (anyNumberMatch) {
           return parseInt(anyNumberMatch[1], 10);
         }
-        
+
         // If no number found, use the index as fallback
         return 0;
       };
-      
+
       const episodeA = getEpisodeNumber(a.name);
       const episodeB = getEpisodeNumber(b.name);
-      
+
       // If both have episode numbers, sort by episode number
       if (episodeA !== 0 && episodeB !== 0) {
         return episodeA - episodeB;
       }
-      
+
       // If only one has episode number, prioritize it
       if (episodeA !== 0) return -1;
       if (episodeB !== 0) return 1;
-      
+
       // If neither has episode numbers, sort alphabetically
       return a.name.localeCompare(b.name);
     });
   }
-  
+
   async getEpisodeBySlug(slug: string): Promise<Episode | undefined> {
     const [episode] = await db.select()
       .from(episodes)
       .where(eq(episodes.slug, slug));
     return episode;
   }
-  
+
   async saveEpisode(episode: InsertEpisode): Promise<Episode> {
     const [newEpisode] = await db.insert(episodes).values({
       ...episode,
@@ -792,9 +806,21 @@ export class DatabaseStorage implements IStorage {
       linkM3u8: episode.linkM3u8 || null
     }).returning();
 
+    // Auto-sync to Elasticsearch if enabled
+    if (this._dataSyncService && this._dataSyncService.isAutoSyncEnabled()) {
+      try {
+        // Sync the parent movie (which includes all episodes) in background
+        this._dataSyncService.syncSingleMovie(newEpisode.movieSlug).catch(error => {
+          console.error(`Background sync failed for episode ${newEpisode.slug}:`, error);
+        });
+      } catch (error) {
+        console.error('Failed to trigger auto-sync for episode:', error);
+      }
+    }
+
     return newEpisode;
   }
-  
+
   // Comment methods
   async getCommentsByMovieSlug(movieSlug: string, page: number, limit: number, userId?: number): Promise<{ data: Comment[], total: number }> {
     // Join comments with users table to get username
@@ -827,7 +853,7 @@ export class DatabaseStorage implements IStorage {
 
       // Map reactions to comments
       const reactionsMap = new Map(userReactions.map(r => [r.commentId, r.reactionType]));
-      
+
       // Add user reaction info to comments
       const commentsWithReactions = commentsData.map(comment => ({
         ...comment,
@@ -848,7 +874,7 @@ export class DatabaseStorage implements IStorage {
 
     return { data: commentsData, total: count || 0 };
   }
-  
+
   async addComment(comment: InsertComment): Promise<Comment> {
     const [newComment] = await db.insert(comments)
       .values({
@@ -858,7 +884,7 @@ export class DatabaseStorage implements IStorage {
         createdAt: new Date()
       })
       .returning();
-    
+
     // Get the username by joining with users table
     const [commentWithUsername] = await db.select({
       id: comments.id,
@@ -873,14 +899,14 @@ export class DatabaseStorage implements IStorage {
       .from(comments)
       .innerJoin(users, eq(comments.userId, users.id))
       .where(eq(comments.id, newComment.id));
-    
+
     return commentWithUsername as Comment;
   }
-  
+
   async likeComment(commentId: number, userId: number): Promise<void> {
     // Check if user already has a reaction to this comment
     const existingReaction = await this.getUserReactionForComment(userId, commentId);
-    
+
     if (existingReaction) {
       if (existingReaction.reactionType === 'like') {
         // User already liked, remove the like
@@ -902,7 +928,7 @@ export class DatabaseStorage implements IStorage {
             eq(userCommentReactions.userId, userId),
             eq(userCommentReactions.commentId, commentId)
           ));
-        
+
         // Update comment counts (remove dislike, add like)
         await db.update(comments)
           .set({
@@ -913,7 +939,7 @@ export class DatabaseStorage implements IStorage {
         return;
       }
     }
-    
+
     // No existing reaction, add new like
     await db.insert(userCommentReactions).values({
       userId,
@@ -921,18 +947,18 @@ export class DatabaseStorage implements IStorage {
       reactionType: 'like',
       createdAt: new Date()
     });
-    
+
     await db.update(comments)
       .set({
         likes: sql`${comments.likes} + 1`
       })
       .where(eq(comments.id, commentId));
   }
-  
+
   async dislikeComment(commentId: number, userId: number): Promise<void> {
     // Check if user already has a reaction to this comment
     const existingReaction = await this.getUserReactionForComment(userId, commentId);
-    
+
     if (existingReaction) {
       if (existingReaction.reactionType === 'dislike') {
         // User already disliked, remove the dislike
@@ -954,7 +980,7 @@ export class DatabaseStorage implements IStorage {
             eq(userCommentReactions.userId, userId),
             eq(userCommentReactions.commentId, commentId)
           ));
-        
+
         // Update comment counts (remove like, add dislike)
         await db.update(comments)
           .set({
@@ -965,7 +991,7 @@ export class DatabaseStorage implements IStorage {
         return;
       }
     }
-    
+
     // No existing reaction, add new dislike
     await db.insert(userCommentReactions).values({
       userId,
@@ -973,14 +999,14 @@ export class DatabaseStorage implements IStorage {
       reactionType: 'dislike',
       createdAt: new Date()
     });
-    
+
     await db.update(comments)
       .set({
         dislikes: sql`${comments.dislikes} + 1`
       })
       .where(eq(comments.id, commentId));
   }
-  
+
   async getUserReactionForComment(userId: number, commentId: number): Promise<UserCommentReaction | undefined> {
     const [reaction] = await db.select()
       .from(userCommentReactions)
@@ -998,13 +1024,13 @@ export class DatabaseStorage implements IStorage {
         eq(userCommentReactions.commentId, commentId)
       ));
   }
-  
+
   // Movie Reaction methods
   async getMovieReactions(movieSlug: string): Promise<{ like: number, dislike: number, heart: number }> {
-    const [{ 
-      likes = 0, 
-      dislikes = 0, 
-      hearts = 0 
+    const [{
+      likes = 0,
+      dislikes = 0,
+      hearts = 0
     } = {}] = await db.select({
       likes: sql`COALESCE(SUM(CASE WHEN ${movieReactions.reactionType} = 'like' THEN 1 ELSE 0 END), 0)`,
       dislikes: sql`COALESCE(SUM(CASE WHEN ${movieReactions.reactionType} = 'dislike' THEN 1 ELSE 0 END), 0)`,
@@ -1012,10 +1038,10 @@ export class DatabaseStorage implements IStorage {
     })
       .from(movieReactions)
       .where(eq(movieReactions.movieSlug, movieSlug));
-    
+
     return { like: Number(likes), dislike: Number(dislikes), heart: Number(hearts) };
   }
-    async getUserMovieReaction(userId: number, movieSlug: string): Promise<MovieReaction | undefined> {
+  async getUserMovieReaction(userId: number, movieSlug: string): Promise<MovieReaction | undefined> {
     const [reaction] = await db.select()
       .from(movieReactions)
       .where(and(
@@ -1034,14 +1060,14 @@ export class DatabaseStorage implements IStorage {
       ));
     return reactions;
   }
-    async addMovieReaction(userId: number, movieSlug: string, reactionType: 'like' | 'dislike' | 'heart'): Promise<void> {
+  async addMovieReaction(userId: number, movieSlug: string, reactionType: 'like' | 'dislike' | 'heart'): Promise<void> {
     // Get all existing reactions for this user and movie
     const existingReactions = await this.getUserMovieReactions(userId, movieSlug);
     const existingReactionTypes = existingReactions.map(r => r.reactionType);
-    
+
     // Check if user already has this reaction type
     const hasThisReaction = existingReactionTypes.includes(reactionType);
-    
+
     if (hasThisReaction) {
       // If clicking the same reaction, remove it (toggle behavior)
       await db.delete(movieReactions)
@@ -1052,7 +1078,7 @@ export class DatabaseStorage implements IStorage {
         ));
       return;
     }
-    
+
     // Apply business rules based on reaction type
     if (reactionType === 'like') {
       // If user wants to like but has already disliked, prevent it
@@ -1088,7 +1114,7 @@ export class DatabaseStorage implements IStorage {
       });
     }
   }
-    async removeMovieReaction(userId: number, movieSlug: string, reactionType?: string): Promise<void> {
+  async removeMovieReaction(userId: number, movieSlug: string, reactionType?: string): Promise<void> {
     if (reactionType) {
       // Remove specific reaction type
       await db.delete(movieReactions)
@@ -1106,14 +1132,14 @@ export class DatabaseStorage implements IStorage {
         ));
     }
   }
-  
+
   // Watchlist methods
   async getWatchlist(userId: number): Promise<Movie[]> {
     const result = await db.select({ movie: movies })
       .from(watchlist)
       .innerJoin(movies, eq(watchlist.movieSlug, movies.slug))
       .where(eq(watchlist.userId, userId));
-    
+
     return result.map(r => r.movie);
   }
 
@@ -1141,7 +1167,7 @@ export class DatabaseStorage implements IStorage {
         eq(watchlist.movieSlug, movieSlug)
       ));
   }
-  
+
   // View History methods
   async getViewHistory(userId: number, limit?: number): Promise<Movie[]> {
     const query = db.select({ movie: movies })
@@ -1292,7 +1318,7 @@ export class DatabaseStorage implements IStorage {
 
     return { data, total: count || 0 };
   }
-  
+
   async addAuditLog(log: InsertAuditLog): Promise<AuditLog> {
     const [auditLog] = await db.insert(auditLogs)
       .values({
@@ -1303,9 +1329,9 @@ export class DatabaseStorage implements IStorage {
     return auditLog;
   }
 
-  async getAuditLogs(page: number, limit: number, filters?: {activityType?: string, userId?: number}): Promise<{ data: AuditLog[], total: number }> {
+  async getAuditLogs(page: number, limit: number, filters?: { activityType?: string, userId?: number }): Promise<{ data: AuditLog[], total: number }> {
     const offset = (page - 1) * limit;
-    
+
     // Build filter conditions
     const conditions = [];
     if (filters?.activityType) {
@@ -1324,11 +1350,11 @@ export class DatabaseStorage implements IStorage {
         email: users.email
       }
     })
-    .from(auditLogs)
-    .leftJoin(users, eq(auditLogs.userId, users.id));
+      .from(auditLogs)
+      .leftJoin(users, eq(auditLogs.userId, users.id));
 
     // Apply conditions if they exist
-    const finalQuery = conditions.length > 0 
+    const finalQuery = conditions.length > 0
       ? baseQuery.where(and(...conditions))
       : baseQuery;
 
@@ -1363,7 +1389,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Add search and category methods
-  async searchMovies(query: string, _normalizedQuery: string, page: number, limit: number, sortBy?: string, filters?: {section?: string, isRecommended?: boolean, type?: string}): Promise<{ data: Movie[], total: number }> {
+  async searchMovies(query: string, _normalizedQuery: string, page: number, limit: number, sortBy?: string, filters?: { section?: string, isRecommended?: boolean, type?: string }): Promise<{ data: Movie[], total: number }> {
     // Use Elasticsearch if available
     if (this.elasticsearchEnabled && this._elasticsearchService) {
       try {
@@ -1373,7 +1399,7 @@ export class DatabaseStorage implements IStorage {
           sortBy,
           filters
         });
-        
+
         return {
           data: searchResults.data || [],
           total: searchResults.total
@@ -1384,7 +1410,7 @@ export class DatabaseStorage implements IStorage {
         // Fall through to PostgreSQL search
       }
     }
-    
+
     // PostgreSQL fallback search
     const offset = (page - 1) * limit;
 
@@ -1401,16 +1427,16 @@ export class DatabaseStorage implements IStorage {
     )`;
 
     let conditions = searchConditions;
-      
+
     // Add filters if specified
     if (filters?.section) {
       conditions = sql`${conditions} AND ${movies.section} = ${filters.section}`;
     }
-    
+
     if (filters?.isRecommended !== undefined) {
       conditions = sql`${conditions} AND ${movies.isRecommended} = ${filters.isRecommended}`;
     }
-    
+
     if (filters?.type) {
       conditions = sql`${conditions} AND ${movies.type} = ${filters.type}`;
     }
@@ -1445,8 +1471,8 @@ export class DatabaseStorage implements IStorage {
 
     const total = count || 0;
 
-    return { 
-      data: data, 
+    return {
+      data: data,
       total
     };
   }
@@ -1520,7 +1546,7 @@ export class DatabaseStorage implements IStorage {
   private async getCache<T>(key: string): Promise<T | null> {
     const cached = this.cache.get(key);
     if (!cached) return null;
-    
+
     if (Date.now() > cached.expiry) {
       this.cache.delete(key);
       return null;
@@ -1532,23 +1558,23 @@ export class DatabaseStorage implements IStorage {
   private cleanupExpiredCache(): void {
     const now = Date.now();
     const keysToDelete: string[] = [];
-    
+
     for (const [key, value] of this.cache.entries()) {
       if (now > value.expiry) {
         keysToDelete.push(key);
       }
     }
-    
+
     keysToDelete.forEach(key => this.cache.delete(key));
-    
+
     // If cache is too large, remove oldest entries
     if (this.cache.size > this.MAX_CACHE_SIZE) {
       const entries = Array.from(this.cache.entries());
       const toDelete = entries
-        .sort(([,a], [,b]) => a.expiry - b.expiry)
+        .sort(([, a], [, b]) => a.expiry - b.expiry)
         .slice(0, entries.length - this.MAX_CACHE_SIZE)
         .map(([key]) => key);
-      
+
       toDelete.forEach(key => this.cache.delete(key));
     }
   }
@@ -1567,19 +1593,19 @@ export class DatabaseStorage implements IStorage {
     if (data && data.movie) {
       // Deep clone to avoid reference issues
       const movieClone = JSON.parse(JSON.stringify(data.movie));
-      
+
       // Ensure section property is correctly typed
       if (movieClone.section === undefined || movieClone.section === null) {
         movieClone.section = null;
       }
-        // Ensure isRecommended is a proper boolean
+      // Ensure isRecommended is a proper boolean
       // Use triple equals to ensure we're doing a strict equality check
       movieClone.isRecommended = movieClone.isRecommended === true;
-      
+
       // Replace the movie object with our fixed version
       data.movie = movieClone;
     }
-    
+
     await this.setCache(this.getCacheKey('movieDetail', data.movie.slug), data);
   }
 
@@ -1608,7 +1634,7 @@ export class DatabaseStorage implements IStorage {
       .from(movies)
       .where(sql`${movies.modifiedAt} > ${date}`)
       .orderBy(desc(movies.modifiedAt));
-    
+
     return moviesData;
   }
 
@@ -1616,14 +1642,14 @@ export class DatabaseStorage implements IStorage {
     const result = await db.select({ slug: movies.slug })
       .from(movies)
       .orderBy(movies.slug);
-    
+
     return result.map(row => row.slug);
   }
 
   async getMovieCount(): Promise<number> {
     const [{ count }] = await db.select({ count: sql<number>`count(*)` })
       .from(movies);
-    
+
     return count || 0;
   }
 
@@ -1633,14 +1659,14 @@ export class DatabaseStorage implements IStorage {
       .where(sql`${movies.year} IS NOT NULL AND ${movies.year} > 1900`)
       .groupBy(movies.year)
       .orderBy(desc(movies.year));
-    
+
     return result.map(row => row.year).filter((year): year is number => year !== null);
   }
 
   async getEpisodeCount(): Promise<number> {
     const [{ count }] = await db.select({ count: sql<number>`count(*)` })
       .from(episodes);
-    
+
     return count || 0;
   }
 }

@@ -2,11 +2,20 @@ import { ElasticsearchService } from './elasticsearch.js';
 import { storage } from '../storage.js';
 import cron from 'node-cron';
 import { watchlistNotificationService } from './watchlistNotificationService.js';
+import { pool } from '../db.js';
 
 export interface SyncOptions {
   batchSize?: number;
   enableScheduledSync?: boolean;
   syncInterval?: string; // cron expression
+  autoSync?: boolean; // Auto-sync after save operations
+}
+
+interface SyncMetadata {
+  lastSyncTime: Date | null;
+  lastFullSync: Date | null;
+  syncCount: number;
+  lastError?: string;
 }
 
 export class DataSyncService {
@@ -14,19 +23,32 @@ export class DataSyncService {
   private options: SyncOptions;
   private isFullSyncRunning = false;
   private lastSyncTime: Date | null = null;
+  private syncMetadataKey = 'elasticsearch_last_sync';
 
   constructor(elasticsearchService: ElasticsearchService, options: SyncOptions = {}) {
     this.elasticsearchService = elasticsearchService;
+    
+    // Get config from environment variables with fallbacks
+    const syncInterval = process.env.ELASTICSEARCH_SYNC_INTERVAL || '0 */2 * * *'; // Every 2 hours by default
+    const autoSync = process.env.ELASTICSEARCH_AUTO_SYNC === 'true';
+    const batchSize = parseInt(process.env.ELASTICSEARCH_BATCH_SIZE || '100');
+    
     this.options = {
-      batchSize: 100,
+      batchSize: batchSize,
       enableScheduledSync: true,
-      syncInterval: '0 2 * * *', // Daily at 2 AM
+      syncInterval: syncInterval,
+      autoSync: autoSync,
       ...options
     };
   }
 
   async initialize(): Promise<void> {
     console.log('Initializing Data Sync Service...');
+    console.log(`Auto-sync: ${this.options.autoSync ? 'enabled' : 'disabled'}`);
+    console.log(`Sync interval: ${this.options.syncInterval}`);
+
+    // Load last sync time from database
+    await this.loadLastSyncTime();
 
     // Schedule automatic sync if enabled
     if (this.options.enableScheduledSync) {
@@ -35,6 +57,69 @@ export class DataSyncService {
 
     // Perform initial incremental sync
     await this.incrementalSync();
+  }
+
+  /**
+   * Load last sync time from database
+   */
+  private async loadLastSyncTime(): Promise<void> {
+    try {
+      const result = await pool.query(
+        'SELECT value FROM sync_metadata WHERE key = $1',
+        [this.syncMetadataKey]
+      );
+
+      if (result.rows.length > 0) {
+        const metadata: SyncMetadata = result.rows[0].value;
+        if (metadata.lastSyncTime) {
+          this.lastSyncTime = new Date(metadata.lastSyncTime);
+          console.log(`Loaded last sync time from database: ${this.lastSyncTime.toISOString()}`);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load last sync time from database:', error);
+      // Continue with null lastSyncTime
+    }
+  }
+
+  /**
+   * Persist last sync time to database
+   */
+  private async persistLastSyncTime(isFullSync: boolean = false): Promise<void> {
+    try {
+      const result = await pool.query(
+        'SELECT value FROM sync_metadata WHERE key = $1',
+        [this.syncMetadataKey]
+      );
+
+      let metadata: SyncMetadata;
+      if (result.rows.length > 0) {
+        metadata = result.rows[0].value;
+        metadata.lastSyncTime = this.lastSyncTime;
+        metadata.syncCount = (metadata.syncCount || 0) + 1;
+        if (isFullSync) {
+          metadata.lastFullSync = new Date();
+        }
+      } else {
+        metadata = {
+          lastSyncTime: this.lastSyncTime,
+          lastFullSync: isFullSync ? new Date() : null,
+          syncCount: 1
+        };
+      }
+
+      await pool.query(
+        `INSERT INTO sync_metadata (key, value) 
+         VALUES ($1, $2) 
+         ON CONFLICT (key) 
+         DO UPDATE SET value = $2, updated_at = CURRENT_TIMESTAMP`,
+        [this.syncMetadataKey, JSON.stringify(metadata)]
+      );
+
+      console.log(`Persisted sync metadata to database`);
+    } catch (error) {
+      console.error('Failed to persist sync metadata:', error);
+    }
   }
 
   private scheduleSync(): void {
@@ -124,6 +209,8 @@ export class DataSyncService {
       }
 
       this.lastSyncTime = new Date();
+      await this.persistLastSyncTime(true);
+      
       console.log(`Full sync completed. Movies: ${movieCount}, Episodes: ${episodeCount}, Errors: ${errors.length}`);
 
       return { movies: movieCount, episodes: episodeCount, errors };
@@ -143,8 +230,10 @@ export class DataSyncService {
     try {
       console.log('Starting incremental sync...');
 
-      // Get last sync time or default to 24 hours ago
-      const since = this.lastSyncTime || new Date(Date.now() - 24 * 60 * 60 * 1000);
+      // If no lastSyncTime, sync all data from last 7 days to be safe
+      const since = this.lastSyncTime || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      
+      console.log(`Syncing data modified since: ${since.toISOString()}`);
 
       // Sync recently modified movies
       const recentMovies = await storage.getMoviesModifiedSince(since);
@@ -185,9 +274,13 @@ export class DataSyncService {
             errors.push(errorMsg);
           }
         }
+      } else {
+        console.log('No movies to sync');
       }
 
       this.lastSyncTime = new Date();
+      await this.persistLastSyncTime(false);
+      
       console.log(`Incremental sync completed. Movies: ${movieCount}, Episodes: ${episodeCount}, Errors: ${errors.length}`);
 
       return { movies: movieCount, episodes: episodeCount, errors };
@@ -195,6 +288,32 @@ export class DataSyncService {
       console.error('Incremental sync failed:', error);
       throw error;
     }
+  }
+
+  /**
+   * Sync a batch of movies by their slugs
+   */
+  async syncBatch(movieSlugs: string[]): Promise<{ success: number; failed: number; errors: string[] }> {
+    const errors: string[] = [];
+    let success = 0;
+    let failed = 0;
+
+    console.log(`Starting batch sync for ${movieSlugs.length} movies...`);
+
+    for (const slug of movieSlugs) {
+      try {
+        await this.syncSingleMovie(slug);
+        success++;
+      } catch (error) {
+        failed++;
+        const errorMsg = `Failed to sync movie ${slug}: ${error}`;
+        console.error(errorMsg);
+        errors.push(errorMsg);
+      }
+    }
+
+    console.log(`Batch sync completed. Success: ${success}, Failed: ${failed}`);
+    return { success, failed, errors };
   }
 
   async syncSingleMovie(movieSlug: string): Promise<void> {
@@ -234,13 +353,29 @@ export class DataSyncService {
     isFullSyncRunning: boolean;
     lastSyncTime: Date | null;
     elasticsearchHealth: any;
+    metadata?: SyncMetadata;
   }> {
     const health = await this.elasticsearchService.getHealth();
+
+    // Get metadata from database
+    let metadata: SyncMetadata | undefined;
+    try {
+      const result = await pool.query(
+        'SELECT value FROM sync_metadata WHERE key = $1',
+        [this.syncMetadataKey]
+      );
+      if (result.rows.length > 0) {
+        metadata = result.rows[0].value;
+      }
+    } catch (error) {
+      console.error('Failed to get sync metadata:', error);
+    }
 
     return {
       isFullSyncRunning: this.isFullSyncRunning,
       lastSyncTime: this.lastSyncTime,
-      elasticsearchHealth: health
+      elasticsearchHealth: health,
+      metadata
     };
   }
 
@@ -310,6 +445,13 @@ export class DataSyncService {
       console.error('Failed to validate sync:', error);
       throw error;
     }
+  }
+
+  /**
+   * Check if auto-sync is enabled
+   */
+  isAutoSyncEnabled(): boolean {
+    return this.options.autoSync || false;
   }
 }
 

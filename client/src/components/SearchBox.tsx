@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useDebounce } from '@/hooks/use-debounce';
 import { useQuery } from '@tanstack/react-query';
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 
 interface SearchBoxProps {
   onSearch: (query: string) => void;
@@ -30,6 +30,7 @@ export default function SearchBox({
   const [showSuggestions, setShowSuggestions] = useState(false);
   const debouncedQuery = useDebounce(query, 400);
   const searchBoxRef = useRef<HTMLDivElement>(null);
+  const [, setLocation] = useLocation();
 
   // Close suggestions when clicking outside
   useEffect(() => {
@@ -38,18 +39,19 @@ export default function SearchBox({
         setShowSuggestions(false);
       }
     };
-    
+
     document.addEventListener('mousedown', handleClickOutside);
     document.addEventListener('touchstart', handleClickOutside);
-    
+
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('touchstart', handleClickOutside);
     };
   }, [searchBoxRef]);
 
+
   // Fetch search suggestions
-  const { data: suggestions } = useQuery({
+  const { data: suggestions } = useQuery<{ items: SearchSuggestion[] }>({
     queryKey: ['/api/search/suggestions', debouncedQuery],
     queryFn: async () => {
       if (!debouncedQuery || debouncedQuery.length < 2) return { items: [] };
@@ -62,8 +64,16 @@ export default function SearchBox({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (query.trim()) {
-      onSearch(query);
-      setShowSuggestions(false);
+      // If there's exactly one suggestion, navigate directly to it
+      if (suggestions?.items?.length === 1) {
+        const movie = suggestions.items[0];
+        setLocation(`/movie/${movie.slug}`);
+        setShowSuggestions(false);
+      } else {
+        // Otherwise, show search results page
+        onSearch(query);
+        setShowSuggestions(false);
+      }
     }
   };
 
@@ -134,7 +144,7 @@ export default function SearchBox({
               </div>
             </Link>
           ))}
-          
+
           {/* View all results button */}
           <div className="p-2 border-t border-border">
             <Button
