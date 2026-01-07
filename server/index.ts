@@ -164,8 +164,10 @@ app.use((req, res, next) => {
       console.warn('⚠️ Firebase Admin initialization skipped:', error instanceof Error ? error.message : 'Unknown error');
     }
 
-    // Setup auth and routes after DB connection is confirmed
-    setupAuth(app);
+    // Setup authentication
+    await setupAuth(app);
+
+    // Setup routes
     registerRoutes(app);
 
     // Error handling middleware

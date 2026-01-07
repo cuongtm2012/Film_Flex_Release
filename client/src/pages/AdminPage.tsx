@@ -158,6 +158,15 @@ export default function AdminPage() {
   const handleSaveSettings = async () => {
     setIsSavingSettings(true);
     try {
+      console.log('💾 Saving settings:', systemSettings);
+      console.log('🔑 SSO Settings:', {
+        google_client_id: systemSettings.google_client_id,
+        google_client_secret: systemSettings.google_client_secret ? '***SET***' : 'EMPTY',
+        google_oauth_enabled: systemSettings.google_oauth_enabled,
+        facebook_app_id: systemSettings.facebook_app_id,
+        facebook_app_secret: systemSettings.facebook_app_secret ? '***SET***' : 'EMPTY',
+        facebook_oauth_enabled: systemSettings.facebook_oauth_enabled,
+      });
       const response = await fetch('/api/admin/settings', {
         method: 'PUT',
         headers: {
@@ -974,58 +983,67 @@ export default function AdminPage() {
                       {/* Analytics & API Keys Tab */}
                       {systemSettingsTab === "analytics" && (
                         <div className="space-y-4">
-                          <h3 className="text-lg font-semibold mb-4">Analytics & API Keys</h3>
-                          <div>
-                            <Label htmlFor="analytics-id" className="block text-sm font-medium mb-2">
-                              Google Analytics ID
-                            </Label>
-                            <Input
-                              id="analytics-id"
-                              placeholder="Enter Google Analytics ID"
-                              defaultValue="UA-XXXXXXXXX-X"
-                            />
+                          <h3 className="text-lg font-semibold mb-4">API Keys Configuration</h3>
+                          <p className="text-sm text-muted-foreground mb-4">
+                            Configure API keys for external services. All sensitive keys are encrypted before storage.
+                          </p>
+
+                          {/* Resend API Key */}
+                          <div className="border rounded-lg p-4 space-y-4">
+                            <h4 className="font-semibold flex items-center gap-2">
+                              <span className="text-purple-600">Resend</span> Email Service
+                            </h4>
+                            <div>
+                              <Label htmlFor="resend-api-key" className="block text-sm font-medium mb-2">
+                                Resend API Key
+                              </Label>
+                              <Input
+                                id="resend-api-key"
+                                placeholder="re_xxxxxxxxxxxxxxxxxxxx"
+                                value={systemSettings.resend_api_key || ''}
+                                onChange={(e) => updateSetting('resend_api_key', e.target.value)}
+                                type="password"
+                              />
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Get your API key from <a href="https://resend.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Resend Dashboard</a>
+                              </p>
+                            </div>
                           </div>
-                          <div>
-                            <Label htmlFor="stripe-key" className="block text-sm font-medium mb-2">
-                              Stripe Publishable Key
-                            </Label>
-                            <Input
-                              id="stripe-key"
-                              placeholder="Enter Stripe publishable key"
-                              defaultValue="pk_test_XXXXXXXXXXXXXXXX"
-                            />
+
+                          {/* DeepSeek API Key */}
+                          <div className="border rounded-lg p-4 space-y-4">
+                            <h4 className="font-semibold flex items-center gap-2">
+                              <span className="text-blue-600">DeepSeek</span> AI Service
+                            </h4>
+                            <div>
+                              <Label htmlFor="deepseek-api-key" className="block text-sm font-medium mb-2">
+                                DeepSeek API Key
+                              </Label>
+                              <Input
+                                id="deepseek-api-key"
+                                placeholder="sk-xxxxxxxxxxxxxxxxxxxx"
+                                value={systemSettings.deepseek_api_key || ''}
+                                onChange={(e) => updateSetting('deepseek_api_key', e.target.value)}
+                                type="password"
+                              />
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Get your API key from <a href="https://platform.deepseek.com/api_keys" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">DeepSeek Platform</a>
+                              </p>
+                            </div>
                           </div>
-                          <div>
-                            <Label htmlFor="stripe-secret" className="block text-sm font-medium mb-2">
-                              Stripe Secret Key
-                            </Label>
-                            <Input
-                              id="stripe-secret"
-                              placeholder="Enter Stripe secret key"
-                              defaultValue="sk_test_XXXXXXXXXXXXXXXX"
-                              type="password"
-                            />
-                          </div>
-                          <div>
-                            <Label htmlFor="paypal-client" className="block text-sm font-medium mb-2">
-                              PayPal Client ID
-                            </Label>
-                            <Input
-                              id="paypal-client"
-                              placeholder="Enter PayPal client ID"
-                              defaultValue="AXXXXXXXXXXXXXXXXXX"
-                            />
-                          </div>
-                          <div>
-                            <Label htmlFor="paypal-secret" className="block text-sm font-medium mb-2">
-                              PayPal Secret
-                            </Label>
-                            <Input
-                              id="paypal-secret"
-                              placeholder="Enter PayPal secret"
-                              defaultValue="XXXXXXXXXXXXXXXXX"
-                              type="password"
-                            />
+
+                          {/* Security Notice */}
+                          <div className="border rounded-lg p-4 bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800">
+                            <div className="flex gap-2">
+                              <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-500 flex-shrink-0 mt-0.5" />
+                              <div className="space-y-1">
+                                <h4 className="font-semibold text-amber-900 dark:text-amber-100">Security Notice</h4>
+                                <p className="text-sm text-amber-800 dark:text-amber-200">
+                                  All API keys are encrypted using AES-256-GCM before being stored in the database.
+                                  Never share these keys publicly or commit them to version control.
+                                </p>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       )}
@@ -1114,8 +1132,8 @@ export default function AdminPage() {
                               <Input
                                 id="google-client-id"
                                 placeholder="Enter Google OAuth Client ID"
-                                value={systemSettings.googleClientId || ''}
-                                onChange={(e) => updateSetting('googleClientId', e.target.value)}
+                                value={systemSettings.google_client_id || ''}
+                                onChange={(e) => updateSetting('google_client_id', e.target.value)}
                               />
                               <p className="text-xs text-muted-foreground mt-1">
                                 Get this from Google Cloud Console → APIs & Services → Credentials
@@ -1128,8 +1146,8 @@ export default function AdminPage() {
                               <Input
                                 id="google-client-secret"
                                 placeholder="Enter Google OAuth Client Secret"
-                                value={systemSettings.googleClientSecret || ''}
-                                onChange={(e) => updateSetting('googleClientSecret', e.target.value)}
+                                value={systemSettings.google_client_secret || ''}
+                                onChange={(e) => updateSetting('google_client_secret', e.target.value)}
                                 type="password"
                               />
                               <p className="text-xs text-muted-foreground mt-1">
@@ -1150,8 +1168,8 @@ export default function AdminPage() {
                               <Input
                                 id="facebook-app-id"
                                 placeholder="Enter Facebook App ID"
-                                value={systemSettings.facebookAppId || ''}
-                                onChange={(e) => updateSetting('facebookAppId', e.target.value)}
+                                value={systemSettings.facebook_app_id || ''}
+                                onChange={(e) => updateSetting('facebook_app_id', e.target.value)}
                               />
                               <p className="text-xs text-muted-foreground mt-1">
                                 Get this from Facebook Developers → Your Apps → Settings → Basic
@@ -1164,8 +1182,8 @@ export default function AdminPage() {
                               <Input
                                 id="facebook-app-secret"
                                 placeholder="Enter Facebook App Secret"
-                                value={systemSettings.facebookAppSecret || ''}
-                                onChange={(e) => updateSetting('facebookAppSecret', e.target.value)}
+                                value={systemSettings.facebook_app_secret || ''}
+                                onChange={(e) => updateSetting('facebook_app_secret', e.target.value)}
                                 type="password"
                               />
                               <p className="text-xs text-muted-foreground mt-1">
@@ -1181,15 +1199,15 @@ export default function AdminPage() {
                               <div className="flex items-center justify-between">
                                 <span className="text-sm">Google Login</span>
                                 <Switch
-                                  checked={systemSettings.googleLoginEnabled ?? true}
-                                  onCheckedChange={(checked) => updateSetting('googleLoginEnabled', checked)}
+                                  checked={systemSettings.google_oauth_enabled === 'true' || systemSettings.google_oauth_enabled === true}
+                                  onCheckedChange={(checked) => updateSetting('google_oauth_enabled', checked ? 'true' : 'false')}
                                 />
                               </div>
                               <div className="flex items-center justify-between">
                                 <span className="text-sm">Facebook Login</span>
                                 <Switch
-                                  checked={systemSettings.facebookLoginEnabled ?? true}
-                                  onCheckedChange={(checked) => updateSetting('facebookLoginEnabled', checked)}
+                                  checked={systemSettings.facebook_oauth_enabled === 'true' || systemSettings.facebook_oauth_enabled === true}
+                                  onCheckedChange={(checked) => updateSetting('facebook_oauth_enabled', checked ? 'true' : 'false')}
                                 />
                               </div>
                             </div>
