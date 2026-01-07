@@ -9,6 +9,7 @@ import TvSeriesCard from '@/components/TvSeriesCard';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/use-auth';
 import { usePreferences } from '@/hooks/use-preferences';
+import AIRecommendationsSection from '@/components/AIRecommendationsSection';
 
 // TV Series Section Component with navigation buttons
 function TvSeriesSection({ title, movies }: { title: string; movies: MovieListResponse['items'] }) {
@@ -294,6 +295,9 @@ export default function Home() {
           <HeroCarousel movies={featuredMovies} />
         </div>
       )}
+
+      {/* AI-Powered Recommendations - For You */}
+      {user && <AIRecommendationsSection />}
 
       {/* Movie sections */}
       <div className="space-y-8 py-8">
