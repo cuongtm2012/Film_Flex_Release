@@ -22,8 +22,8 @@ import { useAuth } from "@/hooks/use-auth";
 import { ArrowLeft, Home } from "lucide-react";
 
 const loginSchema = z.object({
-  username: z.string().min(3, "Username must be at least 3 characters"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  email: z.string().email("Email không hợp lệ"),
+  password: z.string().min(6, "Mật khẩu tối thiểu 6 ký tự"),
 });
 
 const registerSchema = z.object({
@@ -49,7 +49,7 @@ export default function AuthPage() {
   const loginForm = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      username: "",
+      email: "",
       password: "",
     },
   });
@@ -215,24 +215,24 @@ export default function AuthPage() {
                     )}
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <Label htmlFor="username">Username</Label>
-                        {loginForm.formState.errors.username && (
+                        <Label htmlFor="email">Email</Label>
+                        {loginForm.formState.errors.email && (
                           <span className="text-xs text-destructive">
-                            {loginForm.formState.errors.username.message}
+                            {loginForm.formState.errors.email.message}
                           </span>
                         )}
                       </div>
                       <div className="relative">
                         <Input
-                          id="username"
-                          type="text"
-                          data-testid="username"
-                          className={`username-input pl-10 ${loginForm.formState.errors.username
+                          id="email"
+                          type="email"
+                          data-testid="email"
+                          className={`email-input pl-10 ${loginForm.formState.errors.email
                             ? "border-destructive"
                             : ""
                             }`}
-                          placeholder="Enter your username"
-                          {...loginForm.register("username", { required: true })}
+                          placeholder="Enter your email"
+                          {...loginForm.register("email", { required: true })}
                         />
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-muted-foreground/70">
                           <svg
@@ -245,8 +245,8 @@ export default function AuthPage() {
                             strokeLinecap="round"
                             strokeLinejoin="round"
                           >
-                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                            <circle cx="12" cy="7" r="4"></circle>
+                            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                            <polyline points="22,6 12,13 2,6"></polyline>
                           </svg>
                         </div>
                         <div className="absolute inset-y-0 pl-3 left-0 flex items-center">

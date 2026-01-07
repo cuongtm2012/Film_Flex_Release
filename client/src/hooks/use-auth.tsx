@@ -22,14 +22,9 @@ type AuthContextType = {
 };
 
 type LoginData = {
-  username: string;
+  email: string;
   password: string;
 };
-
-const loginSchema = z.object({
-  username: z.string().min(3),
-  password: z.string().min(6),
-});
 
 // Define register data type based on insert user schema
 type RegisterData = z.infer<typeof insertUserSchema>;
@@ -50,8 +45,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loginMutation = useMutation({
     mutationFn: async (credentials: LoginData) => {
-      const validCredentials = loginSchema.parse(credentials);
-      const res = await apiRequest("POST", "/api/login", validCredentials);
+      // Form already validates with zod, no need to parse again
+      const res = await apiRequest("POST", "/api/login", credentials);
       if (!res.ok) {
         const error = await res.json();
         throw new Error(error.message || "Login failed");

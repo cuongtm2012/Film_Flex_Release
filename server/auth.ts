@@ -139,48 +139,52 @@ export function setupAuth(app: Express): void {
   app.use(passport.initialize());
   app.use(passport.session());
 
-  // ALWAYS initialize Local Strategy for username/password login
+  // ALWAYS initialize Local Strategy for email/password login
   // This ensures admin and regular users can login with credentials
   // regardless of Cloudflare OAuth configuration
   passport.use(
-    new LocalStrategy(async (username: string, password: string, done) => {
-      try {
-        const user = await storage.getUserByUsername(username);
-        if (!user) {
-          return done(null, false, AuthErrors.USER_NOT_FOUND);
-        }
+    new LocalStrategy(
+      { usernameField: 'email' }, // Use email field instead of username
+      async (email: string, password: string, done) => {
+        try {
+          // Try to find user by email
+          const user = await storage.getUserByEmail(email);
+          if (!user) {
+            return done(null, false, AuthErrors.USER_NOT_FOUND);
+          }
 
-        // Check account status
-        if (user.status === 'suspended') {
-          return done(null, false, AuthErrors.ACCOUNT_SUSPENDED);
-        }
-        if (user.status === 'banned') {
-          return done(null, false, AuthErrors.ACCOUNT_BANNED);
-        }
-        if (user.status === 'inactive') {
-          return done(null, false, AuthErrors.ACCOUNT_INACTIVE);
-        }
+          // Check account status
+          if (user.status === 'suspended') {
+            return done(null, false, AuthErrors.ACCOUNT_SUSPENDED);
+          }
+          if (user.status === 'banned') {
+            return done(null, false, AuthErrors.ACCOUNT_BANNED);
+          }
+          if (user.status === 'inactive') {
+            return done(null, false, AuthErrors.ACCOUNT_INACTIVE);
+          }
 
-        // Check if user has a password (for OAuth users)
-        if (!user.password) {
-          return done(null, false, AuthErrors.OAUTH_ACCOUNT);
+          // Check if user has a password (for OAuth users)
+          if (!user.password) {
+            return done(null, false, AuthErrors.OAUTH_ACCOUNT);
+          }
+
+          const passwordsMatch = await comparePasswords(password, user.password);
+          if (!passwordsMatch) {
+            return done(null, false, AuthErrors.INVALID_PASSWORD);
+          }
+
+          // Log the activity
+          await logUserActivity(user.id, "login", null, null, null);
+
+          // Omit password before passing to done
+          const { password: _, ...userWithoutPassword } = user;
+          return done(null, userWithoutPassword);
+        } catch (error) {
+          return done(error);
         }
-
-        const passwordsMatch = await comparePasswords(password, user.password);
-        if (!passwordsMatch) {
-          return done(null, false, AuthErrors.INVALID_PASSWORD);
-        }
-
-        // Log the activity
-        await logUserActivity(user.id, "login", null, null, null);
-
-        // Omit password before passing to done
-        const { password: _, ...userWithoutPassword } = user;
-        return done(null, userWithoutPassword);
-      } catch (error) {
-        return done(error);
       }
-    })
+    )
   );
 
   console.log('✅ Local authentication strategy initialized');
