@@ -1,7 +1,7 @@
 import type { Express } from 'express';
 import { storage } from "./storage.js";
 import { pool } from "./db.js";
-import { isAuthenticated } from "./auth.js";
+import { isAuthenticated, isAdmin } from "./auth.js";
 import { z } from "zod";
 import {
   MovieListResponse,
@@ -2301,6 +2301,63 @@ export function registerRoutes(app: Express): void {
       res.status(500).json({
         status: false,
         message: "Failed to check stream health"
+      });
+    }
+  });
+
+  // ===== ADMIN SYSTEM SETTINGS ENDPOINTS =====
+
+  // Get all system settings (admin only)
+  app.get("/api/admin/settings", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const category = req.query.category as string | undefined;
+      const settings = await storage.getAllSettings(category);
+
+      res.json({
+        status: true,
+        data: settings
+      });
+    } catch (error) {
+      console.error('Error fetching settings:', error);
+      res.status(500).json({
+        status: false,
+        message: 'Failed to fetch settings'
+      });
+    }
+  });
+
+  // Update system settings (admin only)
+  app.put("/api/admin/settings", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const userId = (req.user as Express.User).id;
+      const settings = req.body;
+
+      if (!settings || typeof settings !== 'object') {
+        return res.status(400).json({
+          status: false,
+          message: 'Invalid settings data'
+        });
+      }
+
+      await storage.updateSettings(settings, userId);
+
+      // Log the activity
+      await storage.addAuditLog({
+        userId,
+        activityType: 'settings_update',
+        details: { updatedKeys: Object.keys(settings) },
+        ipAddress: req.ip || null
+      });
+
+      res.json({
+        status: true,
+        message: 'Settings updated successfully'
+      });
+    } catch (error) {
+      console.error('Error updating settings:', error);
+      res.status(500).json({
+        status: false,
+        message: 'Failed to update settings'
       });
     }
   });

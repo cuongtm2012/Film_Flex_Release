@@ -94,7 +94,7 @@ export const isActive: RequestHandler = (req, res, next) => {
   res.status(403).json({ message: "Your account is not active. Please contact support." });
 };
 
-export function setupAuth(app: Express): void {
+export async function setupAuth(app: Express): Promise<void> {
   // Build cookie configuration based on environment
   const cookieConfig: any = {
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
@@ -139,48 +139,52 @@ export function setupAuth(app: Express): void {
   app.use(passport.initialize());
   app.use(passport.session());
 
-  // ALWAYS initialize Local Strategy for username/password login
+  // ALWAYS initialize Local Strategy for email/password login
   // This ensures admin and regular users can login with credentials
   // regardless of Cloudflare OAuth configuration
   passport.use(
-    new LocalStrategy(async (username: string, password: string, done) => {
-      try {
-        const user = await storage.getUserByUsername(username);
-        if (!user) {
-          return done(null, false, AuthErrors.USER_NOT_FOUND);
-        }
+    new LocalStrategy(
+      { usernameField: 'email' }, // Use email field instead of username
+      async (email: string, password: string, done) => {
+        try {
+          // Try to find user by email
+          const user = await storage.getUserByEmail(email);
+          if (!user) {
+            return done(null, false, AuthErrors.USER_NOT_FOUND);
+          }
 
-        // Check account status
-        if (user.status === 'suspended') {
-          return done(null, false, AuthErrors.ACCOUNT_SUSPENDED);
-        }
-        if (user.status === 'banned') {
-          return done(null, false, AuthErrors.ACCOUNT_BANNED);
-        }
-        if (user.status === 'inactive') {
-          return done(null, false, AuthErrors.ACCOUNT_INACTIVE);
-        }
+          // Check account status
+          if (user.status === 'suspended') {
+            return done(null, false, AuthErrors.ACCOUNT_SUSPENDED);
+          }
+          if (user.status === 'banned') {
+            return done(null, false, AuthErrors.ACCOUNT_BANNED);
+          }
+          if (user.status === 'inactive') {
+            return done(null, false, AuthErrors.ACCOUNT_INACTIVE);
+          }
 
-        // Check if user has a password (for OAuth users)
-        if (!user.password) {
-          return done(null, false, AuthErrors.OAUTH_ACCOUNT);
+          // Check if user has a password (for OAuth users)
+          if (!user.password) {
+            return done(null, false, AuthErrors.OAUTH_ACCOUNT);
+          }
+
+          const passwordsMatch = await comparePasswords(password, user.password);
+          if (!passwordsMatch) {
+            return done(null, false, AuthErrors.INVALID_PASSWORD);
+          }
+
+          // Log the activity
+          await logUserActivity(user.id, "login", null, null, null);
+
+          // Omit password before passing to done
+          const { password: _, ...userWithoutPassword } = user;
+          return done(null, userWithoutPassword);
+        } catch (error) {
+          return done(error);
         }
-
-        const passwordsMatch = await comparePasswords(password, user.password);
-        if (!passwordsMatch) {
-          return done(null, false, AuthErrors.INVALID_PASSWORD);
-        }
-
-        // Log the activity
-        await logUserActivity(user.id, "login", null, null, null);
-
-        // Omit password before passing to done
-        const { password: _, ...userWithoutPassword } = user;
-        return done(null, userWithoutPassword);
-      } catch (error) {
-        return done(error);
       }
-    })
+    )
   );
 
   console.log('✅ Local authentication strategy initialized');
@@ -225,11 +229,39 @@ export function setupAuth(app: Express): void {
     // Use local OAuth strategies (development mode)
     console.log('🔑 Using local OAuth strategies');
 
+    // Load OAuth settings from database with fallback to environment variables
+    const loadOAuthSettings = async () => {
+      try {
+        const settings = await storage.getAllSettings('sso');
+        return {
+          googleClientId: settings.google_client_id || config.googleClientId,
+          googleClientSecret: settings.google_client_secret || config.googleClientSecret,
+          googleEnabled: settings.google_oauth_enabled === 'true' || settings.google_oauth_enabled === true,
+          facebookAppId: settings.facebook_app_id || config.facebookAppId,
+          facebookAppSecret: settings.facebook_app_secret || config.facebookAppSecret,
+          facebookEnabled: settings.facebook_oauth_enabled === 'true' || settings.facebook_oauth_enabled === true
+        };
+      } catch (error) {
+        console.error('Error loading OAuth settings from database, using environment variables:', error);
+        return {
+          googleClientId: config.googleClientId,
+          googleClientSecret: config.googleClientSecret,
+          googleEnabled: true,
+          facebookAppId: config.facebookAppId,
+          facebookAppSecret: config.facebookAppSecret,
+          facebookEnabled: true
+        };
+      }
+    };
+
+    // Initialize OAuth strategies with database settings
+    const oauthSettings = await loadOAuthSettings();
+
     // Google OAuth Strategy
-    if (config.googleClientId && config.googleClientSecret) {
+    if (oauthSettings.googleClientId && oauthSettings.googleClientSecret && oauthSettings.googleEnabled) {
       // Only log Google OAuth setup in development
       if (process.env.NODE_ENV !== 'production') {
-        console.log('Setting up Google OAuth strategy');
+        console.log('✅ Setting up Google OAuth strategy (from database settings)');
       }
 
       // Determine the correct callback URL based on environment
@@ -240,11 +272,11 @@ export function setupAuth(app: Express): void {
       passport.use(
         new GoogleStrategy(
           {
-            clientID: config.googleClientId,
-            clientSecret: config.googleClientSecret,
+            clientID: oauthSettings.googleClientId!,
+            clientSecret: oauthSettings.googleClientSecret!,
             callbackURL: callbackURL,
           },
-          async (_accessToken, _refreshToken, profile, done) => {
+          async (_accessToken: any, _refreshToken: any, profile: any, done: any) => {
             try {
               // Check if user already exists with this Google ID
               let user = await storage.getUserByGoogleId(profile.id);
@@ -291,14 +323,14 @@ export function setupAuth(app: Express): void {
         )
       );
     } else {
-      console.log('ℹ️  Local Google OAuth disabled - using Cloudflare Worker OAuth in production');
+      console.log('ℹ️  Google OAuth disabled in settings');
     }
 
     // Facebook OAuth Strategy  
-    if (config.facebookAppId && config.facebookAppSecret) {
+    if (oauthSettings.facebookAppId && oauthSettings.facebookAppSecret && oauthSettings.facebookEnabled) {
       // Only log Facebook OAuth setup in development
       if (process.env.NODE_ENV !== 'production') {
-        console.log('Setting up Facebook OAuth strategy');
+        console.log('✅ Setting up Facebook OAuth strategy (from database settings)');
       }
 
       // Determine the correct callback URL based on environment
@@ -309,12 +341,12 @@ export function setupAuth(app: Express): void {
       passport.use(
         new FacebookStrategy(
           {
-            clientID: config.facebookAppId,
-            clientSecret: config.facebookAppSecret,
+            clientID: oauthSettings.facebookAppId!,
+            clientSecret: oauthSettings.facebookAppSecret!,
             callbackURL: callbackURL,
             profileFields: ['id', 'displayName', 'photos'] // Removed 'email' as it's no longer available
           },
-          async (_accessToken, _refreshToken, profile, done) => {
+          async (_accessToken: any, _refreshToken: any, profile: any, done: any) => {
             try {
               // Check if user already exists with this Facebook ID
               let user = await storage.getUserByFacebookId(profile.id);
@@ -365,7 +397,7 @@ export function setupAuth(app: Express): void {
         )
       );
     } else {
-      console.log('ℹ️  Local Facebook OAuth disabled - using Cloudflare Worker OAuth in production');
+      console.log('ℹ️  Facebook OAuth disabled in settings');
     }
   }
 

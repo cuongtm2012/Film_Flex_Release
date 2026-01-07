@@ -1,12 +1,13 @@
-import { 
-  Users, 
-  Film, 
-  Settings, 
-  BarChart3, 
-  ShieldCheck, 
-  ClipboardList, 
+import {
+  Users,
+  Film,
+  Settings,
+  BarChart3,
+  ShieldCheck,
+  ClipboardList,
   Bell,
   ChevronLeft,
+  LogOut,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -105,7 +106,7 @@ export default function AdminSidebar({ activeTab, onTabChange, onBackToSite }: A
               </div>
             </div>
           </div>
-          
+
           {/* Back to Site Button */}
           <Button
             variant="ghost"
@@ -140,8 +141,8 @@ export default function AdminSidebar({ activeTab, onTabChange, onBackToSite }: A
                       <Icon className="h-4 w-4" />
                       <span className="flex-1">{item.title}</span>
                       {item.badge && (
-                        <Badge 
-                          variant="destructive" 
+                        <Badge
+                          variant="destructive"
                           className="ml-auto group-data-[collapsible=icon]:hidden text-xs px-1.5"
                         >
                           {item.badge}
@@ -163,9 +164,9 @@ export default function AdminSidebar({ activeTab, onTabChange, onBackToSite }: A
             <div className="flex items-center gap-3 px-3 py-3 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2">
               <Avatar className="w-8 h-8 flex-shrink-0">
                 <AvatarFallback className="bg-primary/10 text-primary text-sm">
-                  {user?.username?.substring(0, 2).toUpperCase() || 
-                   user?.email?.substring(0, 2).toUpperCase() || 
-                   'AD'}
+                  {user?.username?.substring(0, 2).toUpperCase() ||
+                    user?.email?.substring(0, 2).toUpperCase() ||
+                    'AD'}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0 group-data-[collapsible=icon]:hidden">
@@ -177,6 +178,23 @@ export default function AdminSidebar({ activeTab, onTabChange, onBackToSite }: A
                 </p>
               </div>
             </div>
+          </SidebarMenuItem>
+
+          {/* Logout Button */}
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              onClick={() => {
+                if (confirm('Are you sure you want to logout?')) {
+                  fetch('/api/logout', { method: 'POST' })
+                    .then(() => window.location.href = '/auth');
+                }
+              }}
+              tooltip="Logout"
+              className="group-data-[collapsible=icon]:justify-center text-destructive hover:text-destructive hover:bg-destructive/10"
+            >
+              <LogOut className="h-4 w-4" />
+              <span className="flex-1">Logout</span>
+            </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>

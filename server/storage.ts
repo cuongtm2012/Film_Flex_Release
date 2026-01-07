@@ -114,6 +114,12 @@ export interface IStorage {
   addAuditLog(log: InsertAuditLog): Promise<AuditLog>;
   getAuditLogs(page: number, limit: number, filters?: { activityType?: string, userId?: number }): Promise<{ data: AuditLog[], total: number }>;
 
+  // System Settings methods
+  getSystemSetting(key: string): Promise<{ value: string; encrypted: boolean } | undefined>;
+  getAllSettings(category?: string): Promise<Record<string, any>>;
+  setSystemSetting(key: string, value: string, encrypted: boolean, category: string, userId: number): Promise<void>;
+  updateSettings(settings: Record<string, any>, userId: number): Promise<void>;
+
   // Cache methods
   cacheMovieList(data: MovieListResponse, page: number): Promise<void>;
   cacheMovieDetail(data: MovieDetailResponse): Promise<void>;
@@ -1638,6 +1644,135 @@ export class DatabaseStorage implements IStorage {
       .from(episodes);
 
     return count || 0;
+  }
+
+  // System Settings methods
+  async getSystemSetting(key: string): Promise<{ value: string; encrypted: boolean } | undefined> {
+    try {
+      const result = await db.execute(
+        sql`SELECT value, encrypted FROM system_settings WHERE key = ${key} LIMIT 1`
+      );
+
+      if (!result.rows || result.rows.length === 0) return undefined;
+
+      const setting = result.rows[0];
+      return {
+        value: setting.value as string,
+        encrypted: setting.encrypted as boolean
+      };
+    } catch (error) {
+      console.error(`Error getting system setting ${key}:`, error);
+      return undefined;
+    }
+  }
+
+  async getAllSettings(category?: string): Promise<Record<string, any>> {
+    try {
+      const { decrypt } = await import('./services/encryption.js');
+
+      let query = sql`SELECT key, value, encrypted, category FROM system_settings`;
+
+      if (category) {
+        query = sql`SELECT key, value, encrypted, category FROM system_settings WHERE category = ${category}`;
+      }
+
+      const settings = await db.execute(query);
+      const result: Record<string, any> = {};
+
+      for (const setting of settings.rows) {
+        const key = setting.key as string;
+        let value = setting.value as string | null;
+        const encrypted = setting.encrypted as boolean;
+
+        // Decrypt if encrypted
+        if (encrypted && value) {
+          try {
+            value = decrypt(value);
+          } catch (error) {
+            console.error(`Failed to decrypt setting ${key}:`, error);
+            value = null;
+          }
+        }
+
+        result[key] = value;
+      }
+
+      return result;
+    } catch (error) {
+      console.error('Error getting all settings:', error);
+      return {};
+    }
+  }
+
+  async setSystemSetting(
+    key: string,
+    value: string,
+    encrypted: boolean,
+    category: string,
+    userId: number
+  ): Promise<void> {
+    try {
+      const { encrypt } = await import('./services/encryption.js');
+
+      let finalValue = value;
+
+      // Encrypt if needed
+      if (encrypted && value) {
+        finalValue = encrypt(value);
+      }
+
+      await db.execute(sql`
+        INSERT INTO system_settings (key, value, encrypted, category, updated_by, updated_at)
+        VALUES (${key}, ${finalValue}, ${encrypted}, ${category}, ${userId}, NOW())
+        ON CONFLICT (key)
+        DO UPDATE SET 
+          value = ${finalValue},
+          encrypted = ${encrypted},
+          category = ${category},
+          updated_by = ${userId},
+          updated_at = NOW()
+      `);
+    } catch (error) {
+      console.error(`Error setting system setting ${key}:`, error);
+      throw error;
+    }
+  }
+
+  async updateSettings(settings: Record<string, any>, userId: number): Promise<void> {
+    try {
+      // Define which settings should be encrypted
+      const encryptedKeys = [
+        'resend_api_key',
+        'deepseek_api_key',
+        'google_client_secret',
+        'facebook_app_secret'
+      ];
+
+      // Define categories for each setting
+      const categoryMap: Record<string, string> = {
+        'resend_api_key': 'api_keys',
+        'deepseek_api_key': 'api_keys',
+        'google_client_id': 'sso',
+        'google_client_secret': 'sso',
+        'facebook_app_id': 'sso',
+        'facebook_app_secret': 'sso',
+        'google_oauth_enabled': 'sso',
+        'facebook_oauth_enabled': 'sso'
+      };
+
+      // Update each setting
+      for (const [key, value] of Object.entries(settings)) {
+        if (value === null || value === undefined) continue;
+
+        const encrypted = encryptedKeys.includes(key);
+        const category = categoryMap[key] || 'general';
+
+        await this.setSystemSetting(key, String(value), encrypted, category, userId);
+      }
+    } catch (error) {
+      console.error('Error updating settings:', error);
+      throw error;
+    }
   }
 }
 
