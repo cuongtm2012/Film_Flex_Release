@@ -26,22 +26,10 @@ const loginSchema = z.object({
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
-const registerSchema = z
-  .object({
-    username: z.string().min(3, "Username must be at least 3 characters"),
-    email: z.string().email("Invalid email address"),
-    password: z.string().min(6, "Password must be at least 6 characters"),
-    confirmPassword: z
-      .string()
-      .min(6, "Password must be at least 6 characters"),
-    agreeToTerms: z.boolean().refine((val) => val === true, {
-      message: "You must agree to the Terms of Service and Privacy Policy",
-    }),
-  })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: "Passwords don't match",
-    path: ["confirmPassword"],
-  });
+const registerSchema = z.object({
+  email: z.string().email("Email không hợp lệ"),
+  password: z.string().min(6, "Mật khẩu tối thiểu 6 ký tự"),
+});
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 type RegisterFormValues = z.infer<typeof registerSchema>;
@@ -69,11 +57,8 @@ export default function AuthPage() {
   const registerForm = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
-      username: "",
       email: "",
       password: "",
-      confirmPassword: "",
-      agreeToTerms: false,
     },
   });
 
@@ -84,42 +69,91 @@ export default function AuthPage() {
     loginMutation.mutate(data, {
       onSuccess: () => {
         toast({
-          title: "Login successful",
-          description: "Welcome back!",
+          title: "Đăng nhập thành công",
+          description: "Chào mừng bạn trở lại!",
         });
         navigate("/");
       },
-      onError: (error) => {
-        setAuthError(error.message || "We're having trouble signing you in. Please check your credentials and try again.");
-        toast({
-          title: "Login failed",
-          description: error.message || "Please check your credentials and try again",
-          variant: "destructive",
-        });
+      onError: (error: any) => {
+        // Handle new error format from backend
+        const errorData = error.response?.data?.error;
+
+        if (errorData) {
+          // New format with code, message, and suggestion
+          const errorMessage = errorData.message || "Đăng nhập thất bại";
+          const errorSuggestion = errorData.suggestion;
+
+          setAuthError(errorMessage);
+          toast({
+            title: errorMessage,
+            description: errorSuggestion || "Vui lòng thử lại",
+            variant: "destructive",
+          });
+        } else {
+          // Fallback for old format
+          const fallbackMessage = error.message || "Đăng nhập thất bại";
+          setAuthError(fallbackMessage);
+          toast({
+            title: "Đăng nhập thất bại",
+            description: fallbackMessage,
+            variant: "destructive",
+          });
+        }
       },
     });
   };
 
-  const onRegisterSubmit = (data: RegisterFormValues) => {
-    const { confirmPassword, agreeToTerms, ...registerData } = data;
+  const onRegisterSubmit = async (data: RegisterFormValues) => {
+    try {
+      // Call API directly to bypass React Query error transformation
+      const res = await fetch('/api/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
 
-    registerMutation.mutate(registerData, {
-      onSuccess: () => {
+      const responseData = await res.json();
+      console.log('🟢 Registration response:', responseData);
+
+      if (!res.ok) {
+        // Handle error response
+        console.log('🔴 Error response:', responseData);
+        console.log('🔴 responseData.error:', responseData.error);
+
+        const errorInfo = responseData.error || {};
+
+        // Combine message and suggestion into one description
+        const description = errorInfo.suggestion
+          ? `${errorInfo.message}. ${errorInfo.suggestion}`
+          : errorInfo.message || "Vui lòng thử lại";
+
         toast({
-          title: "Registration successful",
-          description: "Your account has been created",
-        });
-        navigate("/");
-      },
-      onError: (error) => {
-        toast({
-          title: "Registration failed",
-          description:
-            error.message || "Please try again with different information",
+          title: "Đăng ký thất bại",
+          description: description,
           variant: "destructive",
+          duration: 5000,
         });
-      },
-    });
+        return;
+      }
+
+      // Success
+      toast({
+        title: "Đăng ký thành công!",
+        description: responseData.message || "Vui lòng kiểm tra email để kích hoạt tài khoản.",
+        duration: 6000,
+      });
+
+      registerForm.reset();
+    } catch (error: any) {
+      console.log('🔵 Caught error in try-catch:', error);
+
+      toast({
+        title: "Lỗi kết nối",
+        description: "Không thể kết nối đến server. Vui lòng thử lại.",
+        variant: "destructive",
+        duration: 5000,
+      });
+    }
   };
 
   return (
@@ -406,46 +440,6 @@ export default function AuthPage() {
                 </CardHeader>
                 <form onSubmit={registerForm.handleSubmit(onRegisterSubmit)}>
                   <CardContent className="space-y-4 sm:space-y-5">
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <Label htmlFor="registerUsername">Username</Label>
-                        {registerForm.formState.errors.username && (
-                          <span className="text-xs text-destructive">
-                            {registerForm.formState.errors.username.message}
-                          </span>
-                        )}
-                      </div>
-                      <div className="relative">
-                        <Input
-                          id="registerUsername"
-                          type="text"
-                          className={`pl-10 ${registerForm.formState.errors.username
-                            ? "border-destructive"
-                            : ""
-                            }`}
-                          placeholder="Choose a username"
-                          {...registerForm.register("username")}
-                        />
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-muted-foreground/70">
-                          <svg
-                            className="w-4 h-4"
-                            xmlns="http://www.w3.org/2000/svg"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          >
-                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                            <circle cx="12" cy="7" r="4"></circle>
-                          </svg>
-                        </div>
-                        <div className="absolute inset-y-0 pl-3 left-0 flex items-center">
-                          <span className="pl-6"></span>
-                        </div>
-                      </div>
-                    </div>
 
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
@@ -526,97 +520,9 @@ export default function AuthPage() {
                           <span className="pl-6"></span>
                         </div>
                       </div>
-                      <p className="text-xs text-muted-foreground">
-                        Password must be at least 8 characters long with at least one
-                        uppercase letter, one lowercase letter, and one number
-                      </p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <Label htmlFor="confirmPassword">Confirm Password</Label>
-                        {registerForm.formState.errors.confirmPassword && (
-                          <span className="text-xs text-destructive">
-                            {registerForm.formState.errors.confirmPassword.message}
-                          </span>
-                        )}
-                      </div>
-                      <div className="relative">
-                        <PasswordInput
-                          id="confirmPassword"
-                          className={`pl-10 ${registerForm.formState.errors.confirmPassword
-                            ? "border-destructive"
-                            : ""
-                            }`}
-                          placeholder="••••••••"
-                          {...registerForm.register("confirmPassword")}
-                        />
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-muted-foreground/70">
-                          <svg
-                            className="w-4 h-4"
-                            xmlns="http://www.w3.org/2000/svg"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          >
-                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-                          </svg>
-                        </div>
-                        <div className="absolute inset-y-0 pl-3 left-0 flex items-center">
-                          <span className="pl-6"></span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <div className="flex items-start gap-2">
-                        <Checkbox
-                          id="terms"
-                          checked={registerForm.watch("agreeToTerms")}
-                          onCheckedChange={(checked) =>
-                            registerForm.setValue("agreeToTerms", checked === true)
-                          }
-                          className={`h-5 w-5 sm:h-4 sm:w-4 mt-0.5 ${registerForm.formState.errors.agreeToTerms
-                              ? "border-destructive"
-                              : ""
-                            }`}
-                        />
-                        <div className="flex-1">
-                          <label
-                            htmlFor="terms"
-                            className="text-sm sm:text-base text-muted-foreground cursor-pointer select-none"
-                          >
-                            I agree to the{" "}
-                            <a
-                              href="/terms"
-                              className="text-red-500 hover:text-red-400 hover:underline font-medium transition-colors"
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              Terms of Service
-                            </a>{" "}
-                            and{" "}
-                            <a
-                              href="/privacy"
-                              className="text-red-500 hover:text-red-400 hover:underline font-medium transition-colors"
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              Privacy Policy
-                            </a>
-                          </label>
-                          {registerForm.formState.errors.agreeToTerms && (
-                            <div className="text-xs text-destructive mt-1">
-                              {registerForm.formState.errors.agreeToTerms.message}
-                            </div>
-                          )}
-                        </div>
-                      </div>
                     </div>
                   </CardContent>
+
 
                   <CardFooter className="flex flex-col gap-4">
                     <Button
