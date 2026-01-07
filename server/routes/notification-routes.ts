@@ -17,14 +17,20 @@ router.post('/register-token', async (req: Request, res: Response) => {
     try {
         const userId = (req.user as any)?.id;
 
-        if (!userId) {
-            return res.status(401).json({ error: 'Unauthorized' });
-        }
-
         const { token, deviceInfo } = req.body;
 
         if (!token) {
             return res.status(400).json({ error: 'Token is required' });
+        }
+
+        // Handle guest users (not logged in)
+        if (!userId) {
+            console.log('📱 FCM token registered for guest user');
+            return res.json({
+                success: true,
+                message: 'Token registered for guest user',
+                guestMode: true
+            });
         }
 
         // Upsert token (insert or update if exists)
