@@ -38,7 +38,7 @@ export const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
-  
+
   const {
     data: user,
     error,
@@ -74,20 +74,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     mutationFn: async (userData: RegisterData) => {
       const res = await apiRequest("POST", "/api/register", userData);
       if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.message || "Registration failed");
+        const errorData = await res.json();
+        console.log('🔴 Raw error from backend:', errorData);
+
+        // Throw object with message and suggestion as direct properties
+        // React Query seems to lose nested objects, so flatten the structure
+        throw {
+          message: errorData.error?.message || errorData.message || "Registration failed",
+          suggestion: errorData.error?.suggestion || "Vui lòng thử lại",
+          code: errorData.error?.code || "REG_000"
+        };
       }
       return await res.json();
     },
     onSuccess: (user: SafeUser) => {
       queryClient.setQueryData(["/api/user"], user);
     },
-    onError: (error: Error) => {
-      toast({
-        title: "Registration failed",
-        description: error.message,
-        variant: "destructive",
-      });
+    onError: (error: any) => {
+      // Don't show toast here - let auth-page handle it
+      console.log('🟡 Registration mutation error in onError:', error);
+      console.log('🟡 error.message:', error.message);
+      console.log('🟡 error.suggestion:', error.suggestion);
     },
   });
 

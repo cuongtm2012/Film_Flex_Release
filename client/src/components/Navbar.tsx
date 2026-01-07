@@ -555,7 +555,7 @@ export default function Navbar({ isMobileMenuOpen: externalMobileMenuOpen, setIs
                   <Button variant="ghost" className="flex items-center text-white">
                     <Avatar data-testid="user-avatar" className="user-avatar h-8 w-8">
                       <AvatarFallback>
-                        {user ? user.username.substring(0, 2).toUpperCase() : "GU"}
+                        {user?.username ? user.username.substring(0, 2).toUpperCase() : "GU"}
                       </AvatarFallback>
                     </Avatar>
                     <ChevronDown className="ml-2 h-4 w-4" />

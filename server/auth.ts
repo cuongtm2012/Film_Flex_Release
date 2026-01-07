@@ -8,6 +8,9 @@ import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { storage } from "./storage.js";
 import { config } from "./config.js";
+import { AuthErrors, type AuthErrorInfo } from "./constants/auth-errors.js";
+import { sendVerificationEmail, sendWelcomeEmail } from "./services/resend-email.js";
+import { storeVerificationToken, getVerificationToken, deleteVerificationToken } from "./services/redis-client.js";
 
 // Extend Express types for better type safety
 declare global {
@@ -39,10 +42,10 @@ async function comparePasswords(supplied: string, stored: string): Promise<boole
 
 // Log user activity with explicit types
 async function logUserActivity(
-  userId: number, 
-  activityType: string, 
-  targetId?: number | null, 
-  details?: Record<string, any> | null, 
+  userId: number,
+  activityType: string,
+  targetId?: number | null,
+  details?: Record<string, any> | null,
   ipAddress?: string | null
 ): Promise<void> {
   try {
@@ -63,7 +66,7 @@ export const isAuthenticated: RequestHandler = (req, res, next) => {
   if (req.isAuthenticated()) {
     return next();
   }
-  
+
   res.status(401).json({ message: "Authentication required" });
 };
 
@@ -135,26 +138,37 @@ export function setupAuth(app: Express): void {
   app.use(session(sessionSettings));
   app.use(passport.initialize());
   app.use(passport.session());
-  
+
   // ALWAYS initialize Local Strategy for username/password login
   // This ensures admin and regular users can login with credentials
   // regardless of Cloudflare OAuth configuration
   passport.use(
     new LocalStrategy(async (username: string, password: string, done) => {
       try {
-        const user = await storage.getUserByUsername(username);        
+        const user = await storage.getUserByUsername(username);
         if (!user) {
-          return done(null, false, { message: "We couldn't find an account with that username. Please check your username or create a new account." });
+          return done(null, false, AuthErrors.USER_NOT_FOUND);
+        }
+
+        // Check account status
+        if (user.status === 'suspended') {
+          return done(null, false, AuthErrors.ACCOUNT_SUSPENDED);
+        }
+        if (user.status === 'banned') {
+          return done(null, false, AuthErrors.ACCOUNT_BANNED);
+        }
+        if (user.status === 'inactive') {
+          return done(null, false, AuthErrors.ACCOUNT_INACTIVE);
         }
 
         // Check if user has a password (for OAuth users)
         if (!user.password) {
-          return done(null, false, { message: "Please sign in with Google" });
+          return done(null, false, AuthErrors.OAUTH_ACCOUNT);
         }
 
         const passwordsMatch = await comparePasswords(password, user.password);
         if (!passwordsMatch) {
-          return done(null, false, { message: "The password you entered is incorrect. Please try again or reset your password." });
+          return done(null, false, AuthErrors.INVALID_PASSWORD);
         }
 
         // Log the activity
@@ -168,13 +182,13 @@ export function setupAuth(app: Express): void {
       }
     })
   );
-  
+
   console.log('✅ Local authentication strategy initialized');
-  
+
   // Check if we should use Cloudflare Worker for OAuth
   if (config.useCloudflareOAuth) {
     console.log('☁️  OAuth handled by Cloudflare Worker - Local OAuth strategies disabled');
-    
+
     // Set up proxy routes to Cloudflare Worker for OAuth
     app.get("/api/auth/google", (req: Request, res: Response) => {
       res.redirect(`${config.cloudflareWorkerUrl}/api/auth/google`);
@@ -206,23 +220,23 @@ export function setupAuth(app: Express): void {
         res.redirect("/auth?error=oauth_failed");
       }
     });
-    
+
   } else {
     // Use local OAuth strategies (development mode)
     console.log('🔑 Using local OAuth strategies');
-    
+
     // Google OAuth Strategy
     if (config.googleClientId && config.googleClientSecret) {
       // Only log Google OAuth setup in development
       if (process.env.NODE_ENV !== 'production') {
         console.log('Setting up Google OAuth strategy');
       }
-      
+
       // Determine the correct callback URL based on environment
-      const callbackURL = process.env.NODE_ENV === 'production' 
+      const callbackURL = process.env.NODE_ENV === 'production'
         ? "https://phimgg.com/api/auth/google/callback"
         : "http://localhost:5000/api/auth/google/callback";
-      
+
       passport.use(
         new GoogleStrategy(
           {
@@ -234,7 +248,7 @@ export function setupAuth(app: Express): void {
             try {
               // Check if user already exists with this Google ID
               let user = await storage.getUserByGoogleId(profile.id);
-              
+
               if (user) {
                 // User exists, log them in
                 await logUserActivity(user.id, "google_login", null, null, null);
@@ -246,9 +260,9 @@ export function setupAuth(app: Express): void {
               const emailUser = await storage.getUserByEmail(profile.emails?.[0]?.value || '');
               if (emailUser) {
                 // Link Google account to existing user
-                await storage.updateUser(emailUser.id, { 
+                await storage.updateUser(emailUser.id, {
                   googleId: profile.id,
-                  avatar: profile.photos?.[0]?.value || emailUser.avatar 
+                  avatar: profile.photos?.[0]?.value || emailUser.avatar
                 });
                 await logUserActivity(emailUser.id, "google_account_linked", null, null, null);
                 const { password: _, ...userWithoutPassword } = emailUser;
@@ -286,12 +300,12 @@ export function setupAuth(app: Express): void {
       if (process.env.NODE_ENV !== 'production') {
         console.log('Setting up Facebook OAuth strategy');
       }
-      
+
       // Determine the correct callback URL based on environment
-      const callbackURL = process.env.NODE_ENV === 'production' 
+      const callbackURL = process.env.NODE_ENV === 'production'
         ? "https://phimgg.com/api/auth/facebook/callback"
         : "http://localhost:5000/api/auth/facebook/callback";
-      
+
       passport.use(
         new FacebookStrategy(
           {
@@ -304,7 +318,7 @@ export function setupAuth(app: Express): void {
             try {
               // Check if user already exists with this Facebook ID
               let user = await storage.getUserByFacebookId(profile.id);
-              
+
               if (user) {
                 // User exists, log them in
                 await logUserActivity(user.id, "facebook_login", null, null, null);
@@ -320,9 +334,9 @@ export function setupAuth(app: Express): void {
               const emailUser = await storage.getUserByEmail(placeholderEmail);
               if (emailUser) {
                 // Link Facebook account to existing user
-                await storage.updateUser(emailUser.id, { 
+                await storage.updateUser(emailUser.id, {
                   facebookId: profile.id,
-                  avatar: profile.photos?.[0]?.value || emailUser.avatar 
+                  avatar: profile.photos?.[0]?.value || emailUser.avatar
                 });
                 await logUserActivity(emailUser.id, "facebook_account_linked", null, null, null);
                 const { password: _, ...userWithoutPassword } = emailUser;
@@ -375,76 +389,149 @@ export function setupAuth(app: Express): void {
 
   app.post("/api/register", async (req: Request, res: Response) => {
     try {
-      // Validate required fields
-      const { username, email, password } = req.body;
-      if (!username || !email || !password) {
-        return res.status(400).json({ message: "Username, email, and password are required" });
+      // Simplified registration - only email and password required
+      const { email, password } = req.body;
+
+      console.log('📝 Registration request:', { email, password: password ? '***' : undefined, body: req.body });
+
+      if (!email || !password) {
+        console.log('❌ Missing email or password');
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'REG_001',
+            message: "Email và mật khẩu là bắt buộc"
+          }
+        });
       }
 
-      // Check if user exists by username
-      const existingUser = await storage.getUserByUsername(username);
-      if (existingUser) {
-        return res.status(400).json({ message: "Username already exists" });
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        console.log('❌ Invalid email format:', email);
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'REG_002',
+            message: "Email không hợp lệ"
+          }
+        });
       }
 
-      // Check if user exists by email
+      console.log('✅ Email format valid');
+
+      // Check if email already exists
       const existingEmailUser = await storage.getUserByEmail(email);
       if (existingEmailUser) {
-        return res.status(400).json({ message: "Email already exists" });
+        console.log('❌ Email already exists:', email);
+        const errorResponse = {
+          success: false,
+          error: AuthErrors.EMAIL_EXISTS
+        };
+        console.log('📤 Sending error response:', JSON.stringify(errorResponse, null, 2));
+        return res.status(400).json(errorResponse);
       }
+
+      console.log('✅ Email available');
 
       // Hash password
       const hashedPassword = await hashPassword(password);
+      console.log('✅ Password hashed');
 
-      // Remove confirmPassword if it exists
-      const { confirmPassword, ...userData } = req.body;
+      // Auto-generate username from email
+      const baseUsername = email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
+      let username = baseUsername;
+      let counter = 1;
 
-      // Create user with default role
+      // Ensure username is unique
+      while (await storage.getUserByUsername(username)) {
+        username = `${baseUsername}${counter}`;
+        counter++;
+      }
+
+      // Create user with inactive status (needs email verification)
       const user = await storage.createUser({
-        ...userData,
+        username,
+        email,
         password: hashedPassword,
-        role: "normal", // Default role
-        status: "active", // Default status
+        role: "normal",
+        status: "inactive" // User must verify email to activate
       });
 
-      // Log the registration
-      await logUserActivity(user.id, "register", null, null, req.ip);
 
-      // Log the user in
-      req.login(user, (err: Error | null) => {
-        if (err) {
-          console.error("Login after registration failed:", err);
-          return res.status(500).json({ message: "Registration successful but login failed. Please try logging in manually." });
-        }
-        
-        // Omit password from response
-        const { password: _, ...userWithoutPassword } = user;
-        res.status(201).json(userWithoutPassword);
+      // Generate verification token (32 bytes = 256 bits)
+      const verificationToken = randomBytes(32).toString('hex');
+
+      // Store token in Redis with 24 hour TTL
+      await storeVerificationToken(verificationToken, user.id, 86400);
+
+      // Send verification email
+      const emailSent = await sendVerificationEmail({
+        to: email,
+        token: verificationToken,
+        username
+      });
+
+      if (!emailSent) {
+        console.error('Failed to send verification email');
+        // Don't fail registration, user can request new verification email
+      }
+
+      // Log the registration
+      await logUserActivity(user.id, "register", null, { emailSent }, req.ip);
+
+      // Return success message (don't log user in yet)
+      res.status(201).json({
+        success: true,
+        message: "Đăng ký thành công! Vui lòng kiểm tra email để kích hoạt tài khoản.",
+        email: email
       });
     } catch (error) {
       console.error("Registration error:", error);
-      
+
       // More specific error handling
       if (error instanceof Error) {
         if (error.message.includes('duplicate') || error.message.includes('unique')) {
-          return res.status(400).json({ message: "Username or email already exists" });
+          return res.status(400).json({
+            success: false,
+            error: AuthErrors.EMAIL_EXISTS
+          });
         }
         if (error.message.includes('validation')) {
-          return res.status(400).json({ message: "Invalid input data" });
+          return res.status(400).json({
+            success: false,
+            error: {
+              code: 'REG_003',
+              message: "Dữ liệu không hợp lệ"
+            }
+          });
         }
       }
-      
-      res.status(500).json({ message: "Registration failed. Please try again." });
+
+      res.status(500).json({
+        success: false,
+        error: {
+          code: 'REG_000',
+          message: "Đăng ký thất bại. Vui lòng thử lại."
+        }
+      });
     }
   });
 
   app.post("/api/login", (req: Request, res: Response, next: NextFunction) => {
-    passport.authenticate("local", (err: Error | null, user: Express.User | false, info: LocalStrategyInfo | undefined) => {
+    passport.authenticate("local", (err: Error | null, user: Express.User | false, info: AuthErrorInfo | undefined) => {
       if (err) {
         return next(err);
       }
       if (!user) {
-        return res.status(401).json({ message: info?.message || "Login failed" });
+        return res.status(401).json({
+          success: false,
+          error: {
+            code: info?.code || AuthErrors.LOGIN_FAILED.code,
+            message: info?.message || AuthErrors.LOGIN_FAILED.message,
+            suggestion: info?.suggestion
+          }
+        });
       }
       req.login(user, (err) => {
         if (err) {
@@ -455,13 +542,99 @@ export function setupAuth(app: Express): void {
     })(req, res, next);
   });
 
+  // Email verification endpoint
+  app.get("/api/verify-email", async (req: Request, res: Response) => {
+    try {
+      const { token } = req.query;
+
+      if (!token || typeof token !== 'string') {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'VER_001',
+            message: "Token không hợp lệ"
+          }
+        });
+      }
+
+      // Get user ID from Redis
+      const userId = await getVerificationToken(token);
+
+      if (!userId) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'VER_002',
+            message: "Link xác thực đã hết hạn hoặc không hợp lệ",
+            suggestion: "Vui lòng yêu cầu gửi lại email xác thực"
+          }
+        });
+      }
+
+      // Get user to check current status
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          error: {
+            code: 'VER_003',
+            message: "Không tìm thấy tài khoản"
+          }
+        });
+      }
+
+      // Check if already verified
+      if (user.status === 'active') {
+        // Delete token from Redis
+        await deleteVerificationToken(token);
+
+        return res.status(200).json({
+          success: true,
+          message: "Tài khoản đã được kích hoạt trước đó",
+          alreadyVerified: true
+        });
+      }
+
+      // Activate user
+      await storage.updateUser(userId, {
+        status: "active"
+      });
+
+      // Delete token from Redis (one-time use)
+      await deleteVerificationToken(token);
+
+      // Send welcome email
+      await sendWelcomeEmail(user.email, user.username);
+
+      // Log the verification
+      await logUserActivity(userId, "email_verified", null, null, req.ip);
+
+      // Return success
+      res.status(200).json({
+        success: true,
+        message: "Tài khoản đã được kích hoạt thành công! Bạn có thể đăng nhập ngay bây giờ.",
+        verified: true
+      });
+    } catch (error) {
+      console.error("Email verification error:", error);
+      res.status(500).json({
+        success: false,
+        error: {
+          code: 'VER_000',
+          message: "Xác thực thất bại. Vui lòng thử lại."
+        }
+      });
+    }
+  });
+
+
   app.post("/api/logout", isAuthenticated, (req: Request, res: Response) => {
     if (req.user) {
       const userId = (req.user as Express.User).id;
       // Log the activity before logging out
       logUserActivity(userId, "logout", null, null, req.ip);
     }
-    
+
     req.logout(() => {
       res.status(200).json({ message: "Logged out successfully" });
     });
@@ -471,7 +644,7 @@ export function setupAuth(app: Express): void {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ message: "Not authenticated" });
     }
-    
+
     res.json(req.user);
   });
 
@@ -532,7 +705,7 @@ export function setupAuth(app: Express): void {
       }
 
       // Get user with password
-      const user = await storage.getUser(userId);      if (!user) {
+      const user = await storage.getUser(userId); if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
 
@@ -573,10 +746,10 @@ export function setupAuth(app: Express): void {
       };
 
       const users = await storage.getAllUsers(page, limit, filters);
-      
+
       // Log the activity
       await logUserActivity(userId, "view_users", undefined, { page, limit, filters }, req.ip);
-      
+
       res.json(users);
     } catch (error) {
       console.error("Admin users error:", error);
@@ -654,7 +827,7 @@ export function setupAuth(app: Express): void {
       const adminId = (req.user as Express.User).id;
       const userId = parseInt(req.params.userId);
       const { role } = req.body;
-      
+
       if (!role || !["admin", "moderator", "user"].includes(role)) {
         return res.status(400).json({ message: "Invalid role" });
       }
@@ -687,7 +860,7 @@ export function setupAuth(app: Express): void {
       const adminId = (req.user as Express.User).id;
       const userId = parseInt(req.params.userId);
       const { status } = req.body;
-      
+
       if (!status || !["active", "suspended", "banned"].includes(status)) {
         return res.status(400).json({ message: "Invalid status" });
       }
@@ -798,7 +971,7 @@ export function setupAuth(app: Express): void {
       }
 
       // Log the activity
-      const activityDetails: any = { 
+      const activityDetails: any = {
         updatedFields: Object.keys(updateData).filter(key => key !== 'password'),
         updatedBy: "admin"
       };
@@ -854,7 +1027,7 @@ export function setupAuth(app: Express): void {
         adminId,
         "delete_user",
         userId,
-        { 
+        {
           deletedUsername: existingUser.username,
           deletedEmail: existingUser.email,
           deletedRole: existingUser.role
@@ -862,8 +1035,8 @@ export function setupAuth(app: Express): void {
         req.ip
       );
 
-      res.json({ 
-        status: true, 
+      res.json({
+        status: true,
         message: "User deleted successfully",
         deletedUser: {
           id: userId,
@@ -882,9 +1055,9 @@ export function setupAuth(app: Express): void {
     app.get("/api/auth/google",
       passport.authenticate("google", { scope: ["profile", "email"] })
     );
-    
+
     app.get("/api/auth/google/callback",
-      passport.authenticate("google", { 
+      passport.authenticate("google", {
         failureRedirect: "/auth?error=google_auth_failed",
         session: true // Ensure session is maintained
       }),
@@ -896,7 +1069,7 @@ export function setupAuth(app: Express): void {
             console.error('[Google OAuth] Session save error:', saveErr);
             return res.redirect("/auth?error=session_save_failed");
           }
-          
+
           res.redirect("/");
         });
       }
@@ -908,9 +1081,9 @@ export function setupAuth(app: Express): void {
     app.get("/api/auth/facebook",
       passport.authenticate("facebook") // Removed scope: ["email"] as it's no longer supported
     );
-    
+
     app.get("/api/auth/facebook/callback",
-      passport.authenticate("facebook", { 
+      passport.authenticate("facebook", {
         failureRedirect: "/auth?error=facebook_auth_failed",
         session: true // Ensure session is maintained
       }),
@@ -920,7 +1093,7 @@ export function setupAuth(app: Express): void {
             console.error('[Facebook OAuth] Session save error:', saveErr);
             return res.redirect("/auth?error=session_save_failed");
           }
-          
+
           res.redirect("/");
         });
       }
@@ -930,7 +1103,7 @@ export function setupAuth(app: Express): void {
   app.post("/api/forgot-password", async (req: Request, res: Response) => {
     try {
       const { email } = req.body;
-      
+
       if (!email) {
         return res.status(400).json({ message: "Email is required" });
       }
@@ -939,8 +1112,8 @@ export function setupAuth(app: Express): void {
       const user = await storage.getUserByEmail(email);
       if (!user) {
         // Don't reveal if email exists for security reasons
-        return res.status(200).json({ 
-          message: "If an account with this email exists, we've sent a password reset link." 
+        return res.status(200).json({
+          message: "If an account with this email exists, we've sent a password reset link."
         });
       }
 
@@ -953,7 +1126,7 @@ export function setupAuth(app: Express): void {
 
       // Create reset link
       const resetLink = `${config.clientUrl}/reset-password?token=${resetToken}`;
-      
+
       // Prepare email data
       const emailData = {
         username: user.displayName || user.username,
@@ -979,8 +1152,8 @@ export function setupAuth(app: Express): void {
       // Log the activity
       await logUserActivity(user.id, "password_reset_requested", null, { email }, req.ip);
 
-      res.status(200).json({ 
-        message: "If an account with this email exists, we've sent a password reset link to your email address." 
+      res.status(200).json({
+        message: "If an account with this email exists, we've sent a password reset link to your email address."
       });
     } catch (error) {
       console.error("Forgot password error:", error);
@@ -991,7 +1164,7 @@ export function setupAuth(app: Express): void {
   app.post("/api/reset-password", async (req: Request, res: Response) => {
     try {
       const { token, newPassword } = req.body;
-      
+
       if (!token || !newPassword) {
         return res.status(400).json({ message: "Token and new password are required" });
       }

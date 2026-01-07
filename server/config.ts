@@ -35,6 +35,10 @@ interface Config {
   sendgridApiKey: string | undefined;
   fromEmail: string;
   fromName: string;
+  // Redis configuration
+  redisHost: string;
+  redisPort: number;
+  redisPassword: string | undefined;
 }
 
 export const config: Config = {
@@ -55,7 +59,11 @@ export const config: Config = {
   useCloudflareEmail: process.env.USE_CLOUDFLARE_EMAIL === 'true',
   sendgridApiKey: process.env.SENDGRID_API_KEY,
   fromEmail: process.env.FROM_EMAIL || 'noreply@filmflex.com',
-  fromName: process.env.FROM_NAME || 'PhimGG'
+  fromName: process.env.FROM_NAME || 'PhimGG',
+  // Redis settings
+  redisHost: process.env.REDIS_HOST || 'localhost',
+  redisPort: parseInt(process.env.REDIS_PORT || '6379', 10),
+  redisPassword: process.env.REDIS_PASSWORD
 };
 
 // Debug OAuth and Email configuration in development
@@ -69,7 +77,7 @@ if (nodeEnv === 'development') {
     console.log(`🔑 Facebook OAuth: ${config.facebookAppId ? '✅ Configured locally' : '❌ Missing local credentials'}`);
     console.log(`💡 Tip: Set USE_CLOUDFLARE_OAUTH=true to use Cloudflare Worker OAuth instead`);
   }
-  
+
   if (config.useCloudflareEmail) {
     console.log(`📧 Email Service: ✅ Configured in Cloudflare Secrets`);
   } else {
