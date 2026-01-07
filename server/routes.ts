@@ -802,10 +802,10 @@ export function registerRoutes(app: Express): void {
     }
   });
 
-  // AI Chatbot endpoint
-  router.post("/ai/chat", isAuthenticated, async (req, res) => {
+  // AI Chatbot endpoint (no auth required for better UX)
+  router.post("/ai/chat", async (req, res) => {
     try {
-      const userId = (req.user as any).id;
+      const userId = (req.user as any)?.id || 0; // Use 0 for anonymous users
       const { message, history } = req.body;
 
       if (!message) {

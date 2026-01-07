@@ -1,4 +1,5 @@
 import { deepseek } from '../config/deepseek.js';
+import { storage } from '../storage.js';
 
 interface ChatMessage {
     role: 'system' | 'user' | 'assistant';
@@ -16,9 +17,11 @@ const SYSTEM_PROMPT = `You are a helpful customer support assistant for PhimGG, 
 Your capabilities:
 - Answer questions about account, billing, and subscriptions
 - Help users troubleshoot playback issues
-- Assist users in finding movies and TV shows
+- Recommend movies from the platform's database
 - Provide information about platform features
 - Guide users through common tasks
+
+IMPORTANT: When recommending movies, ONLY suggest movies from the provided database list. Do NOT make up or suggest movies that are not in the list.
 
 Guidelines:
 - Be friendly, professional, and concise
@@ -35,7 +38,7 @@ When to escalate to human support:
 - Issues outside your knowledge base`;
 
 /**
- * Chat with AI support bot
+ * Chat with AI support bot with database context
  */
 export async function chatWithBot(
     userId: number,
@@ -43,9 +46,42 @@ export async function chatWithBot(
     conversationHistory: ChatMessage[] = []
 ): Promise<ChatResponse> {
     try {
+        // Get context from database for movie-related queries
+        let databaseContext = '';
+
+        // Check if user is asking about movies
+        const movieKeywords = ['phim', 'movie', 'film', 'xem', 'watch', 'gợi ý', 'recommend', 'hay', 'mới', 'hot', 'nổi bật', 'trending'];
+        const isMovieQuery = movieKeywords.some(keyword =>
+            message.toLowerCase().includes(keyword)
+        );
+
+        if (isMovieQuery) {
+            // Get latest and popular movies from database
+            const [latestMovies, popularMovies] = await Promise.all([
+                storage.getMovies(1, 20, 'latest'),
+                storage.getMovies(1, 20, 'popular')
+            ]);
+
+            // Build context with actual movies
+            const movieList = [...latestMovies.data, ...popularMovies.data]
+                .filter((movie, index, self) =>
+                    index === self.findIndex(m => m.slug === movie.slug)
+                )
+                .slice(0, 30)
+                .map(m => {
+                    const genres = Array.isArray(m.categories)
+                        ? m.categories.map((c: any) => c.name || c).join(', ')
+                        : '';
+                    return `- "${m.name}" (${m.year || 'N/A'}) - ${genres} - ${m.quality || ''}`;
+                })
+                .join('\n');
+
+            databaseContext = `\n\nAVAILABLE MOVIES IN DATABASE (ONLY recommend from this list):\n${movieList}\n\nIMPORTANT: Only recommend movies from the above list. Do not suggest movies not in this list.`;
+        }
+
         // Build messages array
         const messages: ChatMessage[] = [
-            { role: 'system', content: SYSTEM_PROMPT },
+            { role: 'system', content: SYSTEM_PROMPT + databaseContext },
             ...conversationHistory.slice(-10), // Keep last 10 messages for context
             { role: 'user', content: message }
         ];

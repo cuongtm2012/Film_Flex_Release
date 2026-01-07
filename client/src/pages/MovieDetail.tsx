@@ -15,7 +15,8 @@ import {
   Clock,
   Info,
   FileText,
-  CheckCircle
+  CheckCircle,
+  ArrowLeft
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -388,10 +389,17 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
         <MovieSEO movie={movie} slug={slug} />
       </ErrorBoundary>
 
-      {/* Back to Home link */}
+      {/* Back to Home Button - Beautiful Style */}
       <div className="container mx-auto px-4 py-4">
-        <Link to="/" className="flex items-center text-sm text-muted-foreground hover:text-white">
-          <span>Back to Home</span> / <span>{movie.name}</span>
+        <Link href="/">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="flex items-center gap-2 text-muted-foreground hover:text-white transition-colors group"
+          >
+            <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
+            <span>Back to Home</span>
+          </Button>
         </Link>
       </div>
 
