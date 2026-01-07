@@ -29,6 +29,14 @@ import express from "express";
 import { StreamingUtils } from "./utils/streaming-utils.js";
 // Import cache middleware
 import cacheMiddleware from './middleware/cache-middleware.js';
+// Import AI search service
+import { cachedSemanticSearch } from './services/ai-search.js';
+// Import AI recommendations service
+import { cachedAIRecommendations } from './services/ai-recommendations.js';
+// Import AI chatbot service
+import { chatWithBot, getCommonTopics } from './services/ai-chatbot.js';
+// Import AI tagging service
+import { autoTagMovie, batchTagMovies } from './services/ai-tagging.js';
 
 // Remove unused API_CACHE_TTL
 
@@ -712,6 +720,130 @@ export function registerRoutes(app: Express): void {
     if (errors.length > 0) {
     }
   }
+
+  // AI-powered personalized recommendations
+  router.get("/ai/recommendations", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const limit = parseInt(req.query.limit as string) || 10;
+
+      const result = await cachedAIRecommendations(userId, limit);
+
+      res.json({
+        status: true,
+        recommendations: result.recommendations,
+        reasons: result.reasons,
+        aiPowered: result.aiPowered,
+        processingTime: result.processingTime
+      });
+    } catch (error) {
+      console.error('[AI RECOMMENDATIONS ERROR]:', error);
+      // Fallback to traditional recommendations
+      const fallback = await storage.getRecommendedMovies(1, 10);
+      res.json({
+        status: true,
+        recommendations: fallback.data,
+        reasons: [],
+        aiPowered: false
+      });
+    }
+  });
+
+  // AI-powered semantic search endpoint
+  router.get("/ai/search", async (req, res) => {
+    try {
+      const query = (req.query.q as string || "").trim();
+      const limit = parseInt(req.query.limit as string) || 20;
+      const useAI = req.query.ai !== 'false'; // Default to AI search
+
+      if (!query) {
+        return res.json({
+          status: true,
+          items: [],
+          total: 0,
+          aiPowered: false
+        });
+      }
+
+      // Use AI search if enabled
+      if (useAI) {
+        const result = await cachedSemanticSearch(query, limit);
+        return res.json({
+          status: true,
+          items: result.movies,
+          total: result.movies.length,
+          aiPowered: result.aiPowered,
+          processingTime: result.processingTime,
+          query: result.query
+        });
+      }
+
+      // Fallback to traditional search
+      const lowercaseKeyword = query.toLowerCase();
+      const normalizedKeyword = normalizeText(lowercaseKeyword);
+      const searchResult = await storage.searchMovies(lowercaseKeyword, normalizedKeyword, 1, limit);
+
+      res.json({
+        status: true,
+        items: searchResult.data || [],
+        total: searchResult.total || 0,
+        aiPowered: false
+      });
+    } catch (error) {
+      console.error('[AI SEARCH ERROR]:', error);
+      // Fallback to empty results
+      res.json({
+        status: true,
+        items: [],
+        total: 0,
+        aiPowered: false,
+        error: 'Search service temporarily unavailable'
+      });
+    }
+  });
+
+  // AI Chatbot endpoint
+  router.post("/ai/chat", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const { message, history } = req.body;
+
+      if (!message) {
+        return res.status(400).json({ error: 'Message is required' });
+      }
+
+      const response = await chatWithBot(userId, message, history || []);
+      res.json(response);
+    } catch (error) {
+      console.error('[AI CHAT ERROR]:', error);
+      res.status(500).json({
+        reply: 'I\'m sorry, I\'m having technical difficulties. Please try again.',
+        shouldEscalate: true
+      });
+    }
+  });
+
+  // Get common support topics
+  router.get("/ai/chat/topics", (req, res) => {
+    res.json({ topics: getCommonTopics() });
+  });
+
+  // AI Tagging endpoints (admin only)
+  router.post("/ai/tag-movie", isAuthenticated, async (req, res) => {
+    try {
+      const { name, description, originName } = req.body;
+
+      if (!name || !description) {
+        return res.status(400).json({ error: 'Name and description are required' });
+      }
+
+      const tags = await autoTagMovie({ name, description, originName });
+      res.json({ tags });
+    } catch (error) {
+      console.error('[AI TAGGING ERROR]:', error);
+      res.status(500).json({ error: 'Tagging service unavailable' });
+    }
+  });
 
   // Add missing movies search endpoint for admin panel
   router.get("/movies/search", async (req, res) => {
