@@ -36,11 +36,11 @@ export async function getAIRecommendations(
         }
 
         // 3. Build user context from watchlist
-        const watchlistMovies = watchlist.data.map((w: any) => w.movie?.name || '').filter(Boolean);
+        const watchlistMovies = (watchlist?.data || []).map((w: any) => w.movie?.name || '').filter(Boolean);
 
         // Get genres from watchlist movies
         const preferredGenres = new Set<string>();
-        watchlist.data.forEach((w: any) => {
+        (watchlist?.data || []).forEach((w: any) => {
             if (w.movie?.categories) {
                 w.movie.categories.forEach((cat: any) => {
                     preferredGenres.add(cat.name || cat);
