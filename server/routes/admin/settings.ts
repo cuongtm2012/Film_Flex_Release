@@ -38,6 +38,8 @@ const systemSettingsSchema = z.object({
   paypalClientId: z.string().optional(),
   paypalSecret: z.string().optional(),
   deepseekApiKey: z.string().optional(),
+  deepseek_api_key: z.string().optional(), // Support snake_case from frontend
+  resend_api_key: z.string().optional(), // Support snake_case from frontend
 
   // Session & Other
   siteStatus: z.string().optional(),
@@ -116,7 +118,13 @@ router.get('/', async (req, res) => {
       } else if (key === 'facebook_oauth_enabled') {
         frontendSettings.facebookLoginEnabled = value === 'true' || value === true;
       } else if (key === 'deepseek_api_key') {
+        // Support both camelCase and snake_case for frontend
         frontendSettings.deepseekApiKey = value ? '********' : '';
+        frontendSettings.deepseek_api_key = value ? '********' : '';
+      } else if (key === 'resend_api_key') {
+        // Support both camelCase and snake_case for frontend
+        frontendSettings.resendApiKey = value ? '********' : '';
+        frontendSettings.resend_api_key = value ? '********' : '';
       } else {
         frontendSettings[key] = value;
       }
@@ -137,6 +145,12 @@ router.get('/', async (req, res) => {
     }
     if (frontendSettings.deepseekApiKey) {
       frontendSettings.deepseekApiKey = '********';
+    }
+    if (frontendSettings.deepseek_api_key) {
+      frontendSettings.deepseek_api_key = '********';
+    }
+    if (frontendSettings.resend_api_key) {
+      frontendSettings.resend_api_key = '********';
     }
 
     res.json({
@@ -179,8 +193,12 @@ router.put('/', async (req, res) => {
         dbSettings['facebook_app_secret'] = value;
       } else if (key === 'facebookLoginEnabled') {
         dbSettings['facebook_oauth_enabled'] = value ? 'true' : 'false';
-      } else if (key === 'deepseekApiKey') {
+      } else if (key === 'deepseekApiKey' || key === 'deepseek_api_key') {
+        // Support both camelCase and snake_case
         dbSettings['deepseek_api_key'] = value;
+      } else if (key === 'resendApiKey' || key === 'resend_api_key') {
+        // Support both camelCase and snake_case
+        dbSettings['resend_api_key'] = value;
       } else {
         dbSettings[key] = value;
       }
