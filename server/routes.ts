@@ -255,6 +255,16 @@ async function fetchRecommendedMovies(slug: string, limit: number = 10): Promise
 }
 
 export function registerRoutes(app: Express): void {
+  // Health check endpoint (must be before any middleware that requires auth)
+  app.get('/api/health', (_req, res) => {
+    res.json({
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      environment: process.env.NODE_ENV || 'development'
+    });
+  });
+
   const router = express.Router();
 
   // Mount all the routes here

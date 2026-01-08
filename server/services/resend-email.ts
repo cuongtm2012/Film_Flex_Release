@@ -5,7 +5,41 @@
 
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Lazy initialization - will be created when needed
+let resendClient: Resend | null = null;
+
+/**
+ * Get or create Resend client with API key from database
+ */
+async function getResendClient(): Promise<Resend | null> {
+  if (resendClient) {
+    return resendClient;
+  }
+
+  try {
+    // Dynamically import storage to avoid circular dependencies
+    const { storage } = await import('../storage.js');
+
+    // Get Resend API key from database
+    const apiKeySetting = await storage.getSystemSetting('resend_api_key');
+
+    if (!apiKeySetting?.value) {
+      console.warn('⚠️  Resend API key not found in database. Email sending will be disabled.');
+      return null;
+    }
+
+    // Decrypt if encrypted
+    const { decrypt } = await import('./encryption.js');
+    const apiKey = apiKeySetting.encrypted ? decrypt(apiKeySetting.value) : apiKeySetting.value;
+
+    resendClient = new Resend(apiKey);
+    console.log('✅ Resend client initialized from database');
+    return resendClient;
+  } catch (error) {
+    console.error('❌ Failed to initialize Resend client:', error);
+    return null;
+  }
+}
 
 export interface VerificationEmailOptions {
   to: string;
@@ -18,6 +52,13 @@ export interface VerificationEmailOptions {
  */
 export async function sendVerificationEmail(options: VerificationEmailOptions): Promise<boolean> {
   try {
+    const resend = await getResendClient();
+
+    if (!resend) {
+      console.warn('⚠️  Resend client not available. Skipping email send.');
+      return false;
+    }
+
     const { to, token, username } = options;
     const verificationUrl = `${process.env.CLIENT_URL}/verify-email?token=${token}`;
 
@@ -101,6 +142,13 @@ export async function sendVerificationEmail(options: VerificationEmailOptions): 
  */
 export async function sendWelcomeEmail(to: string, username: string): Promise<boolean> {
   try {
+    const resend = await getResendClient();
+
+    if (!resend) {
+      console.warn('⚠️  Resend client not available. Skipping welcome email.');
+      return false;
+    }
+
     const { data, error } = await resend.emails.send({
       from: 'PhimGG <onboarding@resend.dev>',
       to,
