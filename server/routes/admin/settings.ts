@@ -37,6 +37,7 @@ const systemSettingsSchema = z.object({
   stripeSecretKey: z.string().optional(),
   paypalClientId: z.string().optional(),
   paypalSecret: z.string().optional(),
+  deepseekApiKey: z.string().optional(),
 
   // Session & Other
   siteStatus: z.string().optional(),
@@ -114,6 +115,8 @@ router.get('/', async (req, res) => {
         frontendSettings.facebookAppSecret = value ? '********' : '';
       } else if (key === 'facebook_oauth_enabled') {
         frontendSettings.facebookLoginEnabled = value === 'true' || value === true;
+      } else if (key === 'deepseek_api_key') {
+        frontendSettings.deepseekApiKey = value ? '********' : '';
       } else {
         frontendSettings[key] = value;
       }
@@ -131,6 +134,9 @@ router.get('/', async (req, res) => {
     }
     if (frontendSettings.paypalSecret) {
       frontendSettings.paypalSecret = frontendSettings.paypalSecret.substring(0, 10) + '...';
+    }
+    if (frontendSettings.deepseekApiKey) {
+      frontendSettings.deepseekApiKey = '********';
     }
 
     res.json({
@@ -173,6 +179,8 @@ router.put('/', async (req, res) => {
         dbSettings['facebook_app_secret'] = value;
       } else if (key === 'facebookLoginEnabled') {
         dbSettings['facebook_oauth_enabled'] = value ? 'true' : 'false';
+      } else if (key === 'deepseekApiKey') {
+        dbSettings['deepseek_api_key'] = value;
       } else {
         dbSettings[key] = value;
       }
@@ -228,7 +236,7 @@ router.get('/:key', async (req, res) => {
 
     // Mask sensitive fields
     const sensitiveFields = ['smtpPassword', 'recaptchaSecretKey', 'stripeSecretKey',
-      'paypalSecret', 'googleClientSecret', 'facebookAppSecret'];
+      'paypalSecret', 'googleClientSecret', 'facebookAppSecret', 'deepseekApiKey'];
 
     if (sensitiveFields.includes(key) && value) {
       value = '********';
