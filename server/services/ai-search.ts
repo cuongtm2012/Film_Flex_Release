@@ -1,4 +1,4 @@
-import { deepseek } from '../config/deepseek.js';
+import { getDeepSeek } from '../config/deepseek.js';
 import { storage } from '../storage.js';
 import type { Movie } from '@shared/schema';
 
@@ -63,12 +63,17 @@ Consider:
 Return ONLY a JSON object with an array of indices (1-based):
 {"indices": [1, 5, 12, ...]}`;
 
-        // 3. Call DeepSeek API
+        // 3. Call DeepSeek for semantic understanding
+        const deepseek = await getDeepSeek();
+        if (!deepseek) {
+            throw new Error('DeepSeek API key not configured');
+        }
+
         const response = await deepseek.chat.completions.create({
             model: 'deepseek-chat',
             messages: [{ role: 'user', content: prompt }],
-            temperature: 0.2, // Low temperature for consistent results
-            max_tokens: 500,
+            temperature: 0.2, // Low for consistent search results
+            max_tokens: 300,
             response_format: { type: 'json_object' }
         });
 

@@ -180,6 +180,12 @@ router.put('/', async (req, res) => {
     for (const [key, value] of Object.entries(validatedData)) {
       if (value === undefined || value === null) continue;
 
+      // Skip masked values - don't update if value is the masked placeholder
+      if (typeof value === 'string' && value === '********') {
+        console.log(`Skipping masked value for key: ${key}`);
+        continue;
+      }
+
       // Convert camelCase to snake_case for SSO keys
       if (key === 'googleClientId') {
         dbSettings['google_client_id'] = value;
