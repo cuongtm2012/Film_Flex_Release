@@ -574,26 +574,7 @@ export default function AuthPage() {
                       <button
                         type="button"
                         onClick={() => {
-                          // Check if OAuth is configured
-                          fetch('/api/auth/google')
-                            .then(response => {
-                              if (response.ok) {
-                                window.location.href = "/api/auth/google";
-                              } else {
-                                toast({
-                                  title: "Google Sign-In Unavailable",
-                                  description: "Google authentication is not configured. Please use email/password login.",
-                                  variant: "destructive",
-                                });
-                              }
-                            })
-                            .catch(() => {
-                              toast({
-                                title: "Google Sign-In Unavailable",
-                                description: "Google authentication is not configured. Please use email/password login.",
-                                variant: "destructive",
-                              });
-                            });
+                          window.location.href = "/api/auth/google";
                         }}
                         className="flex items-center justify-center gap-2 rounded-md border border-gray-600 px-4 py-2 text-sm text-white hover:bg-gray-800 transition-colors"
                       >
@@ -622,26 +603,7 @@ export default function AuthPage() {
                       <button
                         type="button"
                         onClick={() => {
-                          // Check if Facebook OAuth is configured
-                          fetch('/api/auth/facebook')
-                            .then(response => {
-                              if (response.ok) {
-                                window.location.href = "/api/auth/facebook";
-                              } else {
-                                toast({
-                                  title: "Facebook Sign-In Unavailable",
-                                  description: "Facebook authentication is not configured. Please use email/password login.",
-                                  variant: "destructive",
-                                });
-                              }
-                            })
-                            .catch(() => {
-                              toast({
-                                title: "Facebook Sign-In Unavailable",
-                                description: "Facebook authentication is not configured. Please use email/password login.",
-                                variant: "destructive",
-                              });
-                            });
+                          window.location.href = "/api/auth/facebook";
                         }}
                         className="flex items-center justify-center gap-2 rounded-md border border-gray-600 px-4 py-2 text-sm text-white hover:bg-gray-800 transition-colors"
                       >

@@ -1,4 +1,4 @@
-import { deepseek } from '../config/deepseek.js';
+import { getDeepSeek } from '../config/deepseek.js';
 import { storage } from '../storage.js';
 
 interface ChatMessage {
@@ -87,6 +87,11 @@ export async function chatWithBot(
         ];
 
         // Call DeepSeek API
+        const deepseek = await getDeepSeek();
+        if (!deepseek) {
+            throw new Error('DeepSeek API key not configured');
+        }
+
         const response = await deepseek.chat.completions.create({
             model: 'deepseek-chat',
             messages: messages as any,

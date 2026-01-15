@@ -1,4 +1,4 @@
-import { deepseek } from '../config/deepseek.js';
+import { getDeepSeek } from '../config/deepseek.js';
 import { storage } from '../storage.js';
 import type { Movie } from '@shared/schema';
 
@@ -92,7 +92,12 @@ Return a JSON object with:
 
 Return ONLY the JSON object, no other text.`;
 
-        // 7. Call DeepSeek API
+        // 7. Get DeepSeek client and call API
+        const deepseek = await getDeepSeek();
+        if (!deepseek) {
+            throw new Error('DeepSeek API key not configured');
+        }
+
         const response = await deepseek.chat.completions.create({
             model: 'deepseek-chat',
             messages: [{ role: 'user', content: prompt }],

@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Search as SearchIcon, X, Sparkles } from "lucide-react";
+import { Search as SearchIcon, X } from "lucide-react";
 import MovieGrid from "@/components/MovieGrid";
 import { MovieListResponse } from "@shared/schema";
 import Layout from "@/components/Layout";
@@ -14,12 +14,11 @@ export default function SearchPage() {
   const [location] = useLocation();
   const searchParams = new URLSearchParams(location.split("?")[1]);
   const initialQuery = (searchParams.get("q") || "").trim();
-
+  
   const [query, setQuery] = useState(initialQuery);
   const [currentPage, setCurrentPage] = useState(1);
-  const [searchTerm, setSearchTerm] = useState(initialQuery);
-  const [useAI, setUseAI] = useState(true); // AI search enabled by default
-
+  const [searchTerm, setSearchTerm] = useState(initialQuery); // Actual search term to be used for API calls
+  
   // Ensure we refresh the search when URL changes
   useEffect(() => {
     const newQuery = (searchParams.get("q") || "").trim();
@@ -28,12 +27,11 @@ export default function SearchPage() {
       setSearchTerm(newQuery);
     }
   }, [location]);
-
-  // Reset to page 1 when query changes
+    // Reset to page 1 when query changes
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm]);
-
+  
   // Update URL whenever searchTerm changes
   useEffect(() => {
     if (searchTerm !== initialQuery) {
@@ -45,86 +43,47 @@ export default function SearchPage() {
       );
     }
   }, [searchTerm, location, initialQuery]);
-
-  // Search query with AI support
+    // Search query
   const {
     data: searchResults,
     isLoading,
     isError,
   } = useQuery({
-    queryKey: [useAI ? "/api/ai/search" : "/api/search", searchTerm, currentPage],
+    queryKey: ["/api/search", searchTerm, currentPage],
     queryFn: async () => {
-      const endpoint = useAI ? "/api/ai/search" : "/api/search";
-      let url = `${endpoint}?q=${encodeURIComponent(searchTerm)}`;
-      if (!useAI) {
-        url += `&page=${currentPage}`;
-      }
-
+      let url = `/api/search?q=${encodeURIComponent(searchTerm)}&page=${currentPage}`;
+      
       const response = await fetch(url);
       if (!response.ok) {
         throw new Error("Failed to fetch search results");
       }
-      const data = await response.json();
-
-      // Transform AI search response to match MovieListResponse
-      if (useAI && data.items) {
-        return {
-          status: true,
-          items: data.items,
-          pagination: {
-            totalItems: data.total || data.items.length,
-            totalPages: 1,
-            currentPage: 1,
-            totalItemsPerPage: data.items.length
-          }
-        } as MovieListResponse;
-      }
-
-      return data as MovieListResponse;
+      return response.json() as Promise<MovieListResponse>;
     },
     enabled: searchTerm.length > 0,
   });
-
+  
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setSearchTerm(query);
   };
-
+  
   const clearSearch = () => {
     setQuery("");
     setSearchTerm("");
     window.history.pushState({}, "", "/search");
   };
-
-  const aiPowered = useAI && searchResults && (searchResults as any).aiPowered !== false;
-
+  
   return (
     <Layout>
       <div className="container mx-auto px-4 pt-24 pb-12">
         <div className="max-w-4xl mx-auto mb-8">
-          <div className="flex items-center justify-between mb-6">
-            <h1 className="text-3xl font-bold">Search Movies</h1>
-
-            {/* AI Toggle */}
-            <button
-              onClick={() => setUseAI(!useAI)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all duration-300 ${useAI
-                  ? 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30'
-                  : 'bg-muted border border-border'
-                }`}
-            >
-              <Sparkles className={`h-4 w-4 ${useAI ? 'text-purple-400 animate-pulse' : 'text-muted-foreground'}`} />
-              <span className={`text-sm font-medium ${useAI ? 'bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent' : 'text-muted-foreground'}`}>
-                AI Search
-              </span>
-            </button>
-          </div>
-
+          <h1 className="text-3xl font-bold mb-6">Search Movies</h1>
+          
           {/* Search Box */}
           <form onSubmit={handleSearch} className="relative mb-8">
             <Input
               type="text"
-              placeholder={useAI ? "Try: 'movies like Inception' or 'funny dog movies'" : "Search for movies, TV shows, actors..."}
+              placeholder="Search for movies, TV shows, actors..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               data-testid="search-input"
@@ -151,41 +110,30 @@ export default function SearchPage() {
               >
                 <SearchIcon className="h-5 w-5" />
               </Button>
-            </div>
-          </form>
-
+            </div>          </form>
+          
           {/* Results */}
           {searchTerm ? (
             <>
-              <div className="mb-6 flex items-center justify-between">
-                <div>
-                  <h2 className="text-xl font-medium mb-1">
-                    {isLoading ? (
-                      <Skeleton className="h-7 w-48" />
-                    ) : (
-                      `Search results for "${searchTerm}"`
-                    )}
-                  </h2>
-                  <div className="flex items-center gap-3 text-muted-foreground">
-                    {isLoading ? (
-                      <Skeleton className="h-5 w-32" />
-                    ) : searchResults && searchResults.pagination ? (
-                      `Found ${searchResults.pagination.totalItems} results`
-                    ) : (
-                      "Found 0 results"
-                    )}
-
-                    {/* AI Badge */}
-                    {aiPowered && !isLoading && (
-                      <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-purple-500/10 border border-purple-500/20">
-                        <div className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse" />
-                        <span className="text-xs font-medium text-purple-400">AI-powered</span>
-                      </div>
-                    )}
-                  </div>
+              <div className="mb-6">
+                <h2 className="text-xl font-medium mb-1">
+                  {isLoading ? (
+                    <Skeleton className="h-7 w-48" />
+                  ) : (
+                    `Search results for "${searchTerm}"`
+                  )}
+                </h2>
+                <div className="text-muted-foreground">
+                  {isLoading ? (
+                    <Skeleton className="h-5 w-32" />
+                  ) : searchResults && searchResults.pagination ? (
+                    `Found ${searchResults.pagination.totalItems} results`
+                  ) : (
+                    "Found 0 results"
+                  )}
                 </div>
               </div>
-
+              
               {isLoading ? (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                   {Array.from({ length: 10 }).map((_, i) => (
@@ -223,9 +171,7 @@ export default function SearchPage() {
           ) : (
             <div className="text-center py-12">
               <p className="text-muted-foreground">
-                {useAI
-                  ? "Try natural language search like 'sci-fi movies about time travel'"
-                  : "Enter a search term to find movies and TV shows."}
+                Enter a search term to find movies and TV shows.
               </p>
             </div>
           )}

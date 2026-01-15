@@ -9,7 +9,6 @@ import TvSeriesCard from '@/components/TvSeriesCard';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/use-auth';
 import { usePreferences } from '@/hooks/use-preferences';
-import AIRecommendationsSection from '@/components/AIRecommendationsSection';
 
 // TV Series Section Component with navigation buttons
 function TvSeriesSection({ title, movies }: { title: string; movies: MovieListResponse['items'] }) {
@@ -219,26 +218,61 @@ export default function Home() {
     }
   };
 
-  // Fetch all home sections in one API call (aggregated endpoint)
-  const { data: homeSections, isLoading: sectionsLoading } = useQuery({
-    queryKey: ['/api/home/sections'],
-    staleTime: 1000 * 60 * 5, // 5 minutes
-    gcTime: 1000 * 60 * 30, // 30 minutes
-    refetchOnWindowFocus: false,
+  // Fetch movies by sections - limit to 30 items each
+  const { data: trendingMovies, isLoading: trendingLoading } = useQuery<MovieListResponse>({
+    queryKey: ['/api/movies/sections/trending_now', { page: 1, limit: 30 }],
   });
 
-  // Extract individual sections from aggregated response
-  const trendingMovies = homeSections?.sections?.trending;
-  const recommendedMovies = homeSections?.sections?.recommended;
-  const latestMovies = homeSections?.sections?.latest;
-  const topRatedMovies = homeSections?.sections?.topRated;
-  const popularTvSeries = homeSections?.sections?.popularTv;
-  const animeMovies = homeSections?.sections?.anime;
-  const chinaMovies = homeSections?.sections?.china;
-  const koreanMovies = homeSections?.sections?.korean;
+  // Fetch recommended movies for hero carousel
+  const { data: recommendedMovies, isLoading: recommendedLoading } = useQuery<MovieListResponse>({
+    queryKey: ['/api/movies/recommended', { page: 1, limit: 5 }],
+  });
 
-  // Loading state
-  const isLoading = sectionsLoading;
+  // Fetch latest movies section
+  const { data: latestMovies, isLoading: latestLoading } = useQuery<MovieListResponse>({
+    queryKey: ['/api/movies/sections/latest_movies', { page: 1, limit: 30 }],
+  });
+
+  // Fetch top rated movies section
+  const { data: topRatedMovies, isLoading: topRatedLoading } = useQuery<MovieListResponse>({
+    queryKey: ['/api/movies/sections/top_rated', { page: 1, limit: 30 }],
+  });
+
+  // Fetch popular TV series with improved error handling
+  const { data: popularTvSeries, isLoading: tvSeriesLoading, error: tvSeriesError } = useQuery<MovieListResponse>({
+    queryKey: ['/api/movies/sections/popular_tv', { page: 1, limit: 30 }],
+    retry: 2,
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 30,
+    refetchOnWindowFocus: false
+  });
+
+  // Fetch anime section with proper error handling
+  const { data: animeMovies, isLoading: animeLoading, error: animeError } = useQuery<MovieListResponse>({
+    queryKey: ['/api/movies/sections/anime', { page: 1, limit: 30 }],
+    retry: 2,
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 30,
+    refetchOnWindowFocus: false
+  });
+
+  // Fetch China movies section
+  const { data: chinaMovies, isLoading: chinaLoading, error: chinaError } = useQuery<MovieListResponse>({
+    queryKey: ['/api/countries/trung-quoc', { page: 1, limit: 30 }],
+    retry: 2,
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 30,
+    refetchOnWindowFocus: false
+  });
+
+  // Fetch Korean movies section
+  const { data: koreanMovies, isLoading: koreanLoading, error: koreanError } = useQuery<MovieListResponse>({
+    queryKey: ['/api/countries/han-quoc', { page: 1, limit: 30 }],
+    retry: 2,
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 30,
+    refetchOnWindowFocus: false
+  });
 
   // Prepare featured movies for the carousel with PROPER data mapping - MOVE BEFORE useEffect
   const featuredMovies: MovieDetailResponse[] = React.useMemo(() => {
@@ -275,7 +309,7 @@ export default function Home() {
   // Removed debug console logs for production
 
   // Loading state check - AFTER all hooks
-  if (isLoading) {
+  if (trendingLoading || latestLoading || topRatedLoading || tvSeriesLoading || recommendedLoading || animeLoading || chinaLoading || koreanLoading) {
     return (
       <div className="flex items-center justify-center min-h-[70vh]">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -286,18 +320,12 @@ export default function Home() {
   // Render JSX - AFTER all hooks and logic
   return (
     <div className="min-h-screen bg-background">
-      {/* SEO H1 - visually hidden but accessible to search engines */}
-      <h1 className="sr-only">PhimGG - Watch Free HD Movies and TV Shows Online</h1>
-
       {/* Hero Carousel */}
       {featuredMovies.length > 0 && (
         <div className="mt-8">
           <HeroCarousel movies={featuredMovies} />
         </div>
       )}
-
-      {/* AI-Powered Recommendations - For You */}
-      {user && <AIRecommendationsSection />}
 
       {/* Movie sections */}
       <div className="space-y-8 py-8">
