@@ -8,19 +8,10 @@ import { log } from "./utils.js";
 import { config } from './config.js';
 import { pool } from './db.js';
 import { setupAuth } from './auth.js';
-import { securityHeaders, cacheHeaders, securityLogger } from './middleware/security.js';
+import { securityHeaders, corsHeaders, cacheHeaders, securityLogger } from './middleware/security.js';
 
 const app = express();
 const server = http.createServer(app);
-
-// Redirect WWW to non-WWW (SEO best practice)
-app.use((req, res, next) => {
-  if (req.hostname.startsWith('www.')) {
-    const newUrl = `${req.protocol}://${req.hostname.slice(4)}${req.url}`;
-    return res.redirect(301, newUrl);
-  }
-  next();
-});
 
 // Apply security headers FIRST - before any other middleware
 app.use(securityLogger);
@@ -164,10 +155,8 @@ app.use((req, res, next) => {
       console.warn('⚠️ Firebase Admin initialization skipped:', error instanceof Error ? error.message : 'Unknown error');
     }
 
-    // Setup authentication
-    await setupAuth(app);
-
-    // Setup routes
+    // Setup auth and routes after DB connection is confirmed
+    setupAuth(app);
     registerRoutes(app);
 
     // Error handling middleware

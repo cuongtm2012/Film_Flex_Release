@@ -114,12 +114,6 @@ export interface IStorage {
   addAuditLog(log: InsertAuditLog): Promise<AuditLog>;
   getAuditLogs(page: number, limit: number, filters?: { activityType?: string, userId?: number }): Promise<{ data: AuditLog[], total: number }>;
 
-  // System Settings methods
-  getSystemSetting(key: string): Promise<{ value: string; encrypted: boolean } | undefined>;
-  getAllSettings(category?: string): Promise<Record<string, any>>;
-  setSystemSetting(key: string, value: string, encrypted: boolean, category: string, userId: number): Promise<void>;
-  updateSettings(settings: Record<string, any>, userId: number): Promise<void>;
-
   // Cache methods
   cacheMovieList(data: MovieListResponse, page: number): Promise<void>;
   cacheMovieDetail(data: MovieDetailResponse): Promise<void>;
@@ -132,6 +126,11 @@ export interface IStorage {
   createPasswordResetToken(userId: number, token: string, expiresAt: Date): Promise<void>;
   getPasswordResetToken(token: string): Promise<{ userId: number; expiresAt: Date } | null>;
   deletePasswordResetToken(token: string): Promise<void>;
+
+  // Settings methods
+  getAllSettings(category?: string): Promise<Record<string, any>>;
+  getSetting(key: string): Promise<{ key: string; value: any } | null>;
+  updateSettings(settings: Record<string, any>, userId: number): Promise<void>;
 
   // Session store for authentication
   sessionStore: session.Store;
@@ -441,78 +440,108 @@ export class DatabaseStorage implements IStorage {
     }
 
     const baseConditions = conditions.length > 0 ? and(...conditions) : undefined;
-    const whereClause = baseConditions ? sql`WHERE ${baseConditions}` : sql``;
 
-    // Build ORDER BY clause based on sortBy parameter
-    let orderByClause: ReturnType<typeof sql>;
-    const currentYear = new Date().getFullYear();
-
-    switch (sortBy) {
-      case 'latest':
-        orderByClause = sql`ORDER BY modified_at DESC NULLS LAST, id DESC`;
-        break;
-
-      case 'popular':
-      case 'rating':
-        orderByClause = sql`ORDER BY view DESC NULLS LAST, modified_at DESC NULLS LAST, id DESC`;
-        break;
-
-      case 'year':
-        // Sort by year DESC, but put invalid years (NULL, 0, or > currentYear) at the end
-        orderByClause = sql`
-          ORDER BY 
-            CASE 
-              WHEN year IS NULL OR year = 0 OR year < 1900 OR year > ${currentYear} THEN 1
-              ELSE 0
-            END,
-            year DESC NULLS LAST,
-            modified_at DESC NULLS LAST,
-            id DESC
-        `;
-        break;
-
-      default:
-        orderByClause = sql`ORDER BY modified_at DESC NULLS LAST, id DESC`;
-    }
-
-    // Step 1: Get unique movies by slug (most recent version of each)
-    // This subquery gets DISTINCT ON (slug) with the latest modified_at
-    const uniqueMoviesSubquery = sql`
+    // Get unique movies by slug using a simpler approach
+    // Use DISTINCT ON (slug) but order by modified_at DESC within each slug group
+    const uniqueMoviesQuery = sql`
       SELECT DISTINCT ON (slug) 
         id, movie_id, slug, name, origin_name, poster_url, thumb_url, year, type, quality, 
         lang, time, view, description, status, trailer_url, section, is_recommended, 
         categories, countries, actors, directors, episode_current, episode_total, modified_at
       FROM ${movies}
-      ${whereClause}
+      ${baseConditions ? sql`WHERE ${baseConditions}` : sql``}
       ORDER BY slug, modified_at DESC
     `;
 
-    // Step 2: Apply final sorting and pagination
-    const finalQuery = sql`
-      SELECT * FROM (${uniqueMoviesSubquery}) AS unique_movies
-      ${orderByClause}
-      LIMIT ${limit} OFFSET ${offset}
-    `;
+    // Execute the query to get unique movies
+    const uniqueMoviesResult = await db.execute(uniqueMoviesQuery);
+    const allUniqueMovies = uniqueMoviesResult.rows as Movie[];
 
-    // Step 3: Get total count efficiently
-    // Count distinct slugs instead of all rows
-    const countQuery = sql`
-      SELECT COUNT(DISTINCT slug) as total
-      FROM ${movies}
-      ${whereClause}
-    `;
+    // Now sort in memory based on the sortBy parameter
+    // This is where we fix the ordering issue
+    const currentYear = new Date().getFullYear();
 
-    // Execute queries in parallel
-    const [moviesResult, countResult] = await Promise.all([
-      db.execute(finalQuery),
-      db.execute(countQuery)
-    ]);
+    const sortedMovies = allUniqueMovies.sort((a, b) => {
+      switch (sortBy) {
+        case 'latest':
+          // Sort by modifiedAt DESC (most recently added to database first)
+          const modifiedA = new Date(a.modifiedAt || 0).getTime();
+          const modifiedB = new Date(b.modifiedAt || 0).getTime();
 
-    const data = moviesResult.rows as Movie[];
-    const total = Number(countResult.rows[0]?.total || 0);
+          // If modifiedAt is the same, use ID as tiebreaker (higher ID = more recent)
+          if (modifiedA === modifiedB) {
+            return (b.id || 0) - (a.id || 0);
+          }
+
+          return modifiedB - modifiedA;
+
+        case 'popular':
+        case 'rating':
+          // Sort by view count DESC, then by modifiedAt DESC
+          const viewA = a.view || 0;
+          const viewB = b.view || 0;
+
+          if (viewA !== viewB) {
+            return viewB - viewA;
+          }
+
+          const modA = new Date(a.modifiedAt || 0).getTime();
+          const modB = new Date(b.modifiedAt || 0).getTime();
+
+          if (modA === modB) {
+            return (b.id || 0) - (a.id || 0);
+          }
+
+          return modB - modA;
+
+        case 'year':
+          // Sort by release year DESC (newest movies first)
+          const yearA = typeof a.year === 'number' && a.year > 1900 && a.year <= currentYear ? a.year : 0;
+          const yearB = typeof b.year === 'number' && b.year > 1900 && b.year <= currentYear ? b.year : 0;
+
+          // Movies without valid year go to the end
+          if (yearA === 0 && yearB !== 0) return 1;
+          if (yearB === 0 && yearA !== 0) return -1;
+
+          // Both have no year, sort by modifiedAt
+          if (yearA === 0 && yearB === 0) {
+            const mA = new Date(a.modifiedAt || 0).getTime();
+            const mB = new Date(b.modifiedAt || 0).getTime();
+            if (mA === mB) {
+              return (b.id || 0) - (a.id || 0);
+            }
+            return mB - mA;
+          }
+
+          // Sort by year descending
+          if (yearA !== yearB) {
+            return yearB - yearA;
+          }
+
+          // If same year, sort by modifiedAt then ID
+          const myA = new Date(a.modifiedAt || 0).getTime();
+          const myB = new Date(b.modifiedAt || 0).getTime();
+          if (myA === myB) {
+            return (b.id || 0) - (a.id || 0);
+          }
+          return myB - myA;
+
+        default:
+          const defModA = new Date(a.modifiedAt || 0).getTime();
+          const defModB = new Date(b.modifiedAt || 0).getTime();
+          if (defModA === defModB) {
+            return (b.id || 0) - (a.id || 0);
+          }
+          return defModB - defModA;
+      }
+    });
+
+    // Apply pagination to the sorted results
+    const total = sortedMovies.length;
+    const paginatedMovies = sortedMovies.slice(offset, offset + limit);
 
     return {
-      data,
+      data: paginatedMovies,
       total
     };
   }
@@ -558,19 +587,6 @@ export class DatabaseStorage implements IStorage {
       episodeTotal: movie.episodeTotal || null,
       modifiedAt: new Date() // Explicitly set the current timestamp
     }).returning();
-
-    // Auto-sync to Elasticsearch if enabled
-    if (this._dataSyncService && this._dataSyncService.isAutoSyncEnabled()) {
-      try {
-        // Sync in background without blocking the response
-        this._dataSyncService.syncSingleMovie(newMovie.slug).catch(error => {
-          console.error(`Background sync failed for movie ${newMovie.slug}:`, error);
-        });
-      } catch (error) {
-        // Log but don't throw - sync errors shouldn't block movie creation
-        console.error('Failed to trigger auto-sync:', error);
-      }
-    }
 
     return newMovie;
   }
@@ -781,18 +797,6 @@ export class DatabaseStorage implements IStorage {
       filename: episode.filename || null,
       linkM3u8: episode.linkM3u8 || null
     }).returning();
-
-    // Auto-sync to Elasticsearch if enabled
-    if (this._dataSyncService && this._dataSyncService.isAutoSyncEnabled()) {
-      try {
-        // Sync the parent movie (which includes all episodes) in background
-        this._dataSyncService.syncSingleMovie(newEpisode.movieSlug).catch(error => {
-          console.error(`Background sync failed for episode ${newEpisode.slug}:`, error);
-        });
-      } catch (error) {
-        console.error('Failed to trigger auto-sync for episode:', error);
-      }
-    }
 
     return newEpisode;
   }
@@ -1364,6 +1368,118 @@ export class DatabaseStorage implements IStorage {
     this.passwordResetTokens.delete(token);
   }
 
+  // Settings methods
+  async getAllSettings(category?: string): Promise<Record<string, any>> {
+    try {
+      let query;
+
+      if (category) {
+        query = sql`SELECT * FROM system_settings WHERE category = ${category}`;
+      } else {
+        query = sql`SELECT * FROM system_settings`;
+      }
+
+      const result = await db.execute(query);
+      const settings = result.rows;
+      const output: Record<string, any> = {};
+
+      // Import encryption service
+      const { decrypt } = await import('./services/encryption.js');
+
+      for (const setting of settings as any[]) {
+        let value = setting.value;
+
+        // Decrypt if encrypted
+        if (setting.encrypted && value) {
+          try {
+            value = decrypt(value);
+          } catch (error) {
+            console.error(`Failed to decrypt setting: ${setting.key}`, error);
+            value = null;
+          }
+        }
+
+        output[setting.key] = value;
+      }
+
+      return output;
+    } catch (error) {
+      console.error('Error getting all settings:', error);
+      return {};
+    }
+  }
+
+  async getSetting(key: string): Promise<{ key: string; value: any } | null> {
+    try {
+      const [setting] = await db
+        .select()
+        .from(sql`system_settings`)
+        .where(sql`key = ${key}`);
+
+      if (!setting) {
+        return null;
+      }
+
+      let value = (setting as any).value;
+
+      // Decrypt if encrypted
+      if ((setting as any).encrypted && value) {
+        try {
+          const { decrypt } = await import('./services/encryption.js');
+          value = decrypt(value);
+        } catch (error) {
+          console.error(`Failed to decrypt setting: ${key}`, error);
+          value = null;
+        }
+      }
+
+      return { key, value };
+    } catch (error) {
+      console.error(`Error getting setting ${key}:`, error);
+      return null;
+    }
+  }
+
+  async updateSettings(settings: Record<string, any>, userId: number): Promise<void> {
+    try {
+      const { encrypt } = await import('./services/encryption.js');
+
+      // List of sensitive keys that should be encrypted
+      const sensitiveKeys = [
+        'google_client_secret',
+        'facebook_app_secret',
+        'deepseek_api_key',
+        'resend_api_key',
+        'smtpPassword',
+        'recaptchaSecretKey',
+        'stripeSecretKey',
+        'paypalSecret'
+      ];
+
+      for (const [key, value] of Object.entries(settings)) {
+        if (value === undefined || value === null) continue;
+
+        const shouldEncrypt = sensitiveKeys.includes(key);
+        const finalValue = shouldEncrypt && value ? encrypt(value as string) : value;
+
+        // Upsert setting
+        await db.execute(sql`
+          INSERT INTO system_settings (key, value, encrypted, updated_by, updated_at)
+          VALUES (${key}, ${finalValue}, ${shouldEncrypt}, ${userId}, NOW())
+          ON CONFLICT (key) 
+          DO UPDATE SET 
+            value = ${finalValue},
+            encrypted = ${shouldEncrypt},
+            updated_by = ${userId},
+            updated_at = NOW()
+        `);
+      }
+    } catch (error) {
+      console.error('Error updating settings:', error);
+      throw error;
+    }
+  }
+
   // Add search and category methods
   async searchMovies(query: string, _normalizedQuery: string, page: number, limit: number, sortBy?: string, filters?: { section?: string, isRecommended?: boolean, type?: string }): Promise<{ data: Movie[], total: number }> {
     // Use Elasticsearch if available
@@ -1644,135 +1760,6 @@ export class DatabaseStorage implements IStorage {
       .from(episodes);
 
     return count || 0;
-  }
-
-  // System Settings methods
-  async getSystemSetting(key: string): Promise<{ value: string; encrypted: boolean } | undefined> {
-    try {
-      const result = await db.execute(
-        sql`SELECT value, encrypted FROM system_settings WHERE key = ${key} LIMIT 1`
-      );
-
-      if (!result.rows || result.rows.length === 0) return undefined;
-
-      const setting = result.rows[0];
-      return {
-        value: setting.value as string,
-        encrypted: setting.encrypted as boolean
-      };
-    } catch (error) {
-      console.error(`Error getting system setting ${key}:`, error);
-      return undefined;
-    }
-  }
-
-  async getAllSettings(category?: string): Promise<Record<string, any>> {
-    try {
-      const { decrypt } = await import('./services/encryption.js');
-
-      let query = sql`SELECT key, value, encrypted, category FROM system_settings`;
-
-      if (category) {
-        query = sql`SELECT key, value, encrypted, category FROM system_settings WHERE category = ${category}`;
-      }
-
-      const settings = await db.execute(query);
-      const result: Record<string, any> = {};
-
-      for (const setting of settings.rows) {
-        const key = setting.key as string;
-        let value = setting.value as string | null;
-        const encrypted = setting.encrypted as boolean;
-
-        // Decrypt if encrypted
-        if (encrypted && value) {
-          try {
-            value = decrypt(value);
-          } catch (error) {
-            console.error(`Failed to decrypt setting ${key}:`, error);
-            value = null;
-          }
-        }
-
-        result[key] = value;
-      }
-
-      return result;
-    } catch (error) {
-      console.error('Error getting all settings:', error);
-      return {};
-    }
-  }
-
-  async setSystemSetting(
-    key: string,
-    value: string,
-    encrypted: boolean,
-    category: string,
-    userId: number
-  ): Promise<void> {
-    try {
-      const { encrypt } = await import('./services/encryption.js');
-
-      let finalValue = value;
-
-      // Encrypt if needed
-      if (encrypted && value) {
-        finalValue = encrypt(value);
-      }
-
-      await db.execute(sql`
-        INSERT INTO system_settings (key, value, encrypted, category, updated_by, updated_at)
-        VALUES (${key}, ${finalValue}, ${encrypted}, ${category}, ${userId}, NOW())
-        ON CONFLICT (key)
-        DO UPDATE SET 
-          value = ${finalValue},
-          encrypted = ${encrypted},
-          category = ${category},
-          updated_by = ${userId},
-          updated_at = NOW()
-      `);
-    } catch (error) {
-      console.error(`Error setting system setting ${key}:`, error);
-      throw error;
-    }
-  }
-
-  async updateSettings(settings: Record<string, any>, userId: number): Promise<void> {
-    try {
-      // Define which settings should be encrypted
-      const encryptedKeys = [
-        'resend_api_key',
-        'deepseek_api_key',
-        'google_client_secret',
-        'facebook_app_secret'
-      ];
-
-      // Define categories for each setting
-      const categoryMap: Record<string, string> = {
-        'resend_api_key': 'api_keys',
-        'deepseek_api_key': 'api_keys',
-        'google_client_id': 'sso',
-        'google_client_secret': 'sso',
-        'facebook_app_id': 'sso',
-        'facebook_app_secret': 'sso',
-        'google_oauth_enabled': 'sso',
-        'facebook_oauth_enabled': 'sso'
-      };
-
-      // Update each setting
-      for (const [key, value] of Object.entries(settings)) {
-        if (value === null || value === undefined) continue;
-
-        const encrypted = encryptedKeys.includes(key);
-        const category = categoryMap[key] || 'general';
-
-        await this.setSystemSetting(key, String(value), encrypted, category, userId);
-      }
-    } catch (error) {
-      console.error('Error updating settings:', error);
-      throw error;
-    }
   }
 }
 

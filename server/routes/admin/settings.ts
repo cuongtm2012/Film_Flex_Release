@@ -56,100 +56,64 @@ const systemSettingsSchema = z.object({
   facebookLoginEnabled: z.union([z.boolean(), z.string()]).optional(),
 });
 
-// In-memory storage for demo (replace with database in production)
-let systemSettings: Record<string, any> = {
-  siteTitle: 'PhimGG Admin',
-  siteUrl: 'https://admin.filmflex.com',
-  adminEmail: 'admin@filmflex.com',
-  supportEmail: 'support@filmflex.com',
-  siteDescription: 'A premier platform for watching and sharing films and TV shows.',
-  siteKeywords: 'films, movies, tv shows, streaming',
-  timezone: 'UTC',
-  language: 'en',
-  currency: 'USD',
-  paymentGateway: 'stripe',
-  smtpServer: 'smtp.filmflex.com',
-  smtpPort: '587',
-  smtpUsername: 'admin@filmflex.com',
-  smtpPassword: '********',
-  emailFromAddress: 'no-reply@filmflex.com',
-  emailFromName: 'PhimGG Support',
-  recaptchaSiteKey: '6Lc_aCQUAAAAA...',
-  recaptchaSecretKey: '6Lc_aCQUAAAAA...',
-  maintenanceMode: false,
-  googleAnalyticsId: 'UA-XXXXXXXXX-X',
-  stripePublishableKey: 'pk_test_XXXXXXXXXXXXXXXX',
-  stripeSecretKey: 'sk_test_XXXXXXXXXXXXXXXX',
-  paypalClientId: 'AXXXXXXXXXXXXXXXXXX',
-  paypalSecret: 'XXXXXXXXXXXXXXXXX',
-  siteStatus: 'online',
-  adminLockoutDuration: '15',
-  sessionTimeout: '30',
-  passwordRequirements: 'Minimum 8 characters, at least 1 uppercase letter, 1 lowercase letter, 1 number, 1 special character',
-  googleClientId: process.env.GOOGLE_CLIENT_ID || '',
-  googleClientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
-  facebookAppId: process.env.FACEBOOK_APP_ID || '',
-  facebookAppSecret: process.env.FACEBOOK_APP_SECRET || '',
-  googleLoginEnabled: true,
-  facebookLoginEnabled: true,
-};
-
 // GET /api/admin/settings - Get all system settings
 router.get('/', async (req, res) => {
   try {
-    // Load all settings from database
+    // Load all settings from database ONLY - no cache
     const dbSettings = await storage.getAllSettings();
 
-    // Map database keys back to frontend keys (snake_case to camelCase for SSO)
-    const frontendSettings: Record<string, any> = { ...systemSettings }; // Start with defaults
+    // Map database keys to frontend keys (snake_case to camelCase for SSO)
+    const frontendSettings: Record<string, any> = {};
 
-    // Override with database values
+    // Process database values
     for (const [key, value] of Object.entries(dbSettings)) {
       if (key === 'google_client_id') {
-        frontendSettings.googleClientId = value;
+        frontendSettings.googleClientId = value || '';
       } else if (key === 'google_client_secret') {
         frontendSettings.googleClientSecret = value ? '********' : '';
       } else if (key === 'google_oauth_enabled') {
         frontendSettings.googleLoginEnabled = value === 'true' || value === true;
       } else if (key === 'facebook_app_id') {
-        frontendSettings.facebookAppId = value;
+        frontendSettings.facebookAppId = value || '';
       } else if (key === 'facebook_app_secret') {
         frontendSettings.facebookAppSecret = value ? '********' : '';
       } else if (key === 'facebook_oauth_enabled') {
         frontendSettings.facebookLoginEnabled = value === 'true' || value === true;
       } else if (key === 'deepseek_api_key') {
-        // Support both camelCase and snake_case for frontend
         frontendSettings.deepseekApiKey = value ? '********' : '';
         frontendSettings.deepseek_api_key = value ? '********' : '';
       } else if (key === 'resend_api_key') {
-        // Support both camelCase and snake_case for frontend
         frontendSettings.resendApiKey = value ? '********' : '';
         frontendSettings.resend_api_key = value ? '********' : '';
       } else {
-        frontendSettings[key] = value;
+        // For all other settings, use value from DB or empty string
+        frontendSettings[key] = value || '';
       }
     }
 
-    // Mask other sensitive fields
-    if (frontendSettings.smtpPassword) {
+    // Mask other sensitive fields if they exist
+    if (frontendSettings.smtpPassword && frontendSettings.smtpPassword !== '') {
       frontendSettings.smtpPassword = '********';
     }
-    if (frontendSettings.recaptchaSecretKey) {
+    if (frontendSettings.recaptchaSecretKey && frontendSettings.recaptchaSecretKey !== '') {
       frontendSettings.recaptchaSecretKey = frontendSettings.recaptchaSecretKey.substring(0, 10) + '...';
     }
-    if (frontendSettings.stripeSecretKey) {
+    if (frontendSettings.stripeSecretKey && frontendSettings.stripeSecretKey !== '') {
       frontendSettings.stripeSecretKey = frontendSettings.stripeSecretKey.substring(0, 10) + '...';
     }
-    if (frontendSettings.paypalSecret) {
+    if (frontendSettings.paypalSecret && frontendSettings.paypalSecret !== '') {
       frontendSettings.paypalSecret = frontendSettings.paypalSecret.substring(0, 10) + '...';
     }
-    if (frontendSettings.deepseekApiKey) {
+    if (frontendSettings.deepseekApiKey && frontendSettings.deepseekApiKey !== '') {
       frontendSettings.deepseekApiKey = '********';
     }
-    if (frontendSettings.deepseek_api_key) {
+    if (frontendSettings.deepseek_api_key && frontendSettings.deepseek_api_key !== '') {
       frontendSettings.deepseek_api_key = '********';
     }
-    if (frontendSettings.resend_api_key) {
+    if (frontendSettings.resendApiKey && frontendSettings.resendApiKey !== '') {
+      frontendSettings.resendApiKey = '********';
+    }
+    if (frontendSettings.resend_api_key && frontendSettings.resend_api_key !== '') {
       frontendSettings.resend_api_key = '********';
     }
 
@@ -249,18 +213,22 @@ router.get('/:key', async (req, res) => {
   try {
     const { key } = req.params;
 
-    if (!systemSettings.hasOwnProperty(key)) {
+    // Load setting from database
+    const setting = await storage.getSetting(key);
+
+    if (!setting) {
       return res.status(404).json({
         status: false,
         message: 'Setting not found'
       });
     }
 
-    let value = systemSettings[key];
+    let value = setting.value;
 
     // Mask sensitive fields
     const sensitiveFields = ['smtpPassword', 'recaptchaSecretKey', 'stripeSecretKey',
-      'paypalSecret', 'googleClientSecret', 'facebookAppSecret', 'deepseekApiKey'];
+      'paypalSecret', 'googleClientSecret', 'facebookAppSecret', 'deepseekApiKey',
+      'google_client_secret', 'facebook_app_secret', 'deepseek_api_key', 'resend_api_key'];
 
     if (sensitiveFields.includes(key) && value) {
       value = '********';

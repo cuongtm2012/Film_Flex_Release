@@ -1,7 +1,7 @@
 import type { Express } from 'express';
 import { storage } from "./storage.js";
 import { pool } from "./db.js";
-import { isAuthenticated, isAdmin } from "./auth.js";
+import { isAuthenticated } from "./auth.js";
 import { z } from "zod";
 import {
   MovieListResponse,
@@ -27,16 +27,6 @@ import notificationRoutes from './routes/notification-routes.js';
 import userPreferencesRoutes from './routes/user-preferences.js';
 import express from "express";
 import { StreamingUtils } from "./utils/streaming-utils.js";
-// Import cache middleware
-import cacheMiddleware from './middleware/cache-middleware.js';
-// Import AI search service
-import { cachedSemanticSearch } from './services/ai-search.js';
-// Import AI recommendations service
-import { cachedAIRecommendations } from './services/ai-recommendations.js';
-// Import AI chatbot service
-import { chatWithBot, getCommonTopics } from './services/ai-chatbot.js';
-// Import AI tagging service
-import { autoTagMovie, batchTagMovies } from './services/ai-tagging.js';
 
 // Remove unused API_CACHE_TTL
 
@@ -255,16 +245,6 @@ async function fetchRecommendedMovies(slug: string, limit: number = 10): Promise
 }
 
 export function registerRoutes(app: Express): void {
-  // Health check endpoint (must be before any middleware that requires auth)
-  app.get('/api/health', (_req, res) => {
-    res.json({
-      status: 'ok',
-      timestamp: new Date().toISOString(),
-      uptime: process.uptime(),
-      environment: process.env.NODE_ENV || 'development'
-    });
-  });
-
   const router = express.Router();
 
   // Mount all the routes here
@@ -290,110 +270,6 @@ export function registerRoutes(app: Express): void {
       uptime: process.uptime(),
       version: process.env.npm_package_version || "unknown"
     });
-  });
-
-  // Aggregated home sections endpoint - reduces 8 API calls to 1
-  // Cache for 5 minutes
-  router.get("/home/sections", cacheMiddleware({ ttl: 300 }), async (req, res) => {
-    try {
-      const limit = 30; // Standard limit for home sections
-
-      // Fetch all sections in parallel for better performance
-      const [
-        trending,
-        recommended,
-        latest,
-        topRated,
-        popularTv,
-        anime,
-        china,
-        korean
-      ] = await Promise.all([
-        // Trending movies
-        storage.getMovies(1, limit, 'latest', { section: 'trending_now' }).catch(() => ({ data: [], total: 0 })),
-
-        // Recommended movies (for carousel)
-        storage.getMovies(1, 5, 'latest', { isRecommended: true }).catch(() => ({ data: [], total: 0 })),
-
-        // Latest movies
-        storage.getMovies(1, limit, 'latest', { section: 'latest_movies' }).catch(() => ({ data: [], total: 0 })),
-
-        // Top rated movies
-        storage.getMovies(1, limit, 'popular', { section: 'top_rated' }).catch(() => ({ data: [], total: 0 })),
-
-        // Popular TV series
-        storage.getMovies(1, limit, 'popular', { type: 'series', section: 'popular_tv' }).catch(() => ({ data: [], total: 0 })),
-
-        // Anime - use getMoviesBySection to trigger fallback logic for type='hoathinh'
-        storage.getMoviesBySection('anime', 1, limit).catch(() => ({ data: [], total: 0 })),
-
-        // China movies
-        pool.query(`
-          SELECT DISTINCT ON (m.slug) m.*
-          FROM movies m
-          CROSS JOIN LATERAL jsonb_array_elements(m.countries) AS country
-          WHERE (country->>'slug')::text = 'trung-quoc'
-          ORDER BY m.slug, m.modified_at DESC
-          LIMIT $1
-        `, [limit]).then(result => ({ data: result.rows, total: result.rowCount || 0 })).catch(() => ({ data: [], total: 0 })),
-
-        // Korean movies
-        pool.query(`
-          SELECT DISTINCT ON (m.slug) m.*
-          FROM movies m
-          CROSS JOIN LATERAL jsonb_array_elements(m.countries) AS country
-          WHERE (country->>'slug')::text = 'han-quoc'
-          ORDER BY m.slug, m.modified_at DESC
-          LIMIT $1
-        `, [limit]).then(result => ({ data: result.rows, total: result.rowCount || 0 })).catch(() => ({ data: [], total: 0 }))
-      ]);
-
-      // Return aggregated response
-      res.json({
-        status: true,
-        sections: {
-          trending: {
-            items: trending.data,
-            total: trending.total
-          },
-          recommended: {
-            items: recommended.data,
-            total: recommended.total
-          },
-          latest: {
-            items: latest.data,
-            total: latest.total
-          },
-          topRated: {
-            items: topRated.data,
-            total: topRated.total
-          },
-          popularTv: {
-            items: popularTv.data,
-            total: popularTv.total
-          },
-          anime: {
-            items: anime.data,
-            total: anime.total
-          },
-          china: {
-            items: china.data,
-            total: china.total
-          },
-          korean: {
-            items: korean.data,
-            total: korean.total
-          }
-        }
-      });
-    } catch (error) {
-      console.error('Failed to fetch home sections:', error);
-      res.status(500).json({
-        status: false,
-        message: 'Failed to fetch home sections',
-        error: error instanceof Error ? error.message : String(error)
-      });
-    }
   });
 
   // Elasticsearch sync endpoints
@@ -478,54 +354,6 @@ export function registerRoutes(app: Express): void {
     }
   });
 
-  router.post("/elasticsearch/sync/batch", async (req, res) => {
-    try {
-      if (!storage.isElasticsearchEnabled()) {
-        return res.status(503).json({
-          status: false,
-          message: "Elasticsearch is not available"
-        });
-      }
-
-      const dataSyncService = storage.dataSync;
-      if (!dataSyncService) {
-        return res.status(503).json({
-          status: false,
-          message: "Data sync service is not available"
-        });
-      }
-
-      const { movieSlugs } = req.body;
-      if (!Array.isArray(movieSlugs) || movieSlugs.length === 0) {
-        return res.status(400).json({
-          status: false,
-          message: "movieSlugs must be a non-empty array"
-        });
-      }
-
-      console.log(`Starting batch sync for ${movieSlugs.length} movies...`);
-      const result = await dataSyncService.syncBatch(movieSlugs);
-
-      res.json({
-        status: true,
-        message: "Batch sync completed",
-        result: {
-          success: result.success,
-          failed: result.failed,
-          total: movieSlugs.length,
-          errors: result.errors
-        }
-      });
-    } catch (error) {
-      console.error('Batch sync failed:', error);
-      res.status(500).json({
-        status: false,
-        message: "Batch sync failed",
-        error: error instanceof Error ? error.message : String(error)
-      });
-    }
-  });
-
   router.get("/elasticsearch/status", async (req, res) => {
     try {
       const isEnabled = storage.isElasticsearchEnabled();
@@ -560,10 +388,8 @@ export function registerRoutes(app: Express): void {
         elasticsearch: {
           enabled: true,
           syncService: true,
-          autoSync: dataSyncService.isAutoSyncEnabled(),
           lastSync: syncStatus.lastSyncTime,
           isFullSyncRunning: syncStatus.isFullSyncRunning,
-          metadata: syncStatus.metadata,
           health: syncStatus.elasticsearchHealth,
           validation: {
             dbMovies: validation.dbMovieCount,
@@ -731,130 +557,6 @@ export function registerRoutes(app: Express): void {
     }
   }
 
-  // AI-powered personalized recommendations
-  router.get("/ai/recommendations", isAuthenticated, async (req, res) => {
-    try {
-      const userId = (req.user as any).id;
-      const limit = parseInt(req.query.limit as string) || 10;
-
-      const result = await cachedAIRecommendations(userId, limit);
-
-      res.json({
-        status: true,
-        recommendations: result.recommendations,
-        reasons: result.reasons,
-        aiPowered: result.aiPowered,
-        processingTime: result.processingTime
-      });
-    } catch (error) {
-      console.error('[AI RECOMMENDATIONS ERROR]:', error);
-      // Fallback to traditional recommendations
-      const fallback = await storage.getRecommendedMovies(1, 10);
-      res.json({
-        status: true,
-        recommendations: fallback.data,
-        reasons: [],
-        aiPowered: false
-      });
-    }
-  });
-
-  // AI-powered semantic search endpoint
-  router.get("/ai/search", async (req, res) => {
-    try {
-      const query = (req.query.q as string || "").trim();
-      const limit = parseInt(req.query.limit as string) || 20;
-      const useAI = req.query.ai !== 'false'; // Default to AI search
-
-      if (!query) {
-        return res.json({
-          status: true,
-          items: [],
-          total: 0,
-          aiPowered: false
-        });
-      }
-
-      // Use AI search if enabled
-      if (useAI) {
-        const result = await cachedSemanticSearch(query, limit);
-        return res.json({
-          status: true,
-          items: result.movies,
-          total: result.movies.length,
-          aiPowered: result.aiPowered,
-          processingTime: result.processingTime,
-          query: result.query
-        });
-      }
-
-      // Fallback to traditional search
-      const lowercaseKeyword = query.toLowerCase();
-      const normalizedKeyword = normalizeText(lowercaseKeyword);
-      const searchResult = await storage.searchMovies(lowercaseKeyword, normalizedKeyword, 1, limit);
-
-      res.json({
-        status: true,
-        items: searchResult.data || [],
-        total: searchResult.total || 0,
-        aiPowered: false
-      });
-    } catch (error) {
-      console.error('[AI SEARCH ERROR]:', error);
-      // Fallback to empty results
-      res.json({
-        status: true,
-        items: [],
-        total: 0,
-        aiPowered: false,
-        error: 'Search service temporarily unavailable'
-      });
-    }
-  });
-
-  // AI Chatbot endpoint (no auth required for better UX)
-  router.post("/ai/chat", async (req, res) => {
-    try {
-      const userId = (req.user as any)?.id || 0; // Use 0 for anonymous users
-      const { message, history } = req.body;
-
-      if (!message) {
-        return res.status(400).json({ error: 'Message is required' });
-      }
-
-      const response = await chatWithBot(userId, message, history || []);
-      res.json(response);
-    } catch (error) {
-      console.error('[AI CHAT ERROR]:', error);
-      res.status(500).json({
-        reply: 'I\'m sorry, I\'m having technical difficulties. Please try again.',
-        shouldEscalate: true
-      });
-    }
-  });
-
-  // Get common support topics
-  router.get("/ai/chat/topics", (req, res) => {
-    res.json({ topics: getCommonTopics() });
-  });
-
-  // AI Tagging endpoints (admin only)
-  router.post("/ai/tag-movie", isAuthenticated, async (req, res) => {
-    try {
-      const { name, description, originName } = req.body;
-
-      if (!name || !description) {
-        return res.status(400).json({ error: 'Name and description are required' });
-      }
-
-      const tags = await autoTagMovie({ name, description, originName });
-      res.json({ tags });
-    } catch (error) {
-      console.error('[AI TAGGING ERROR]:', error);
-      res.status(500).json({ error: 'Tagging service unavailable' });
-    }
-  });
-
   // Add missing movies search endpoint for admin panel
   router.get("/movies/search", async (req, res) => {
     try {
@@ -904,8 +606,7 @@ export function registerRoutes(app: Express): void {
   });
 
   // Get all recommended movies (must come before /movies/:slug route)
-  // Cache for 5 minutes
-  router.get("/movies/recommended", cacheMiddleware({ ttl: 300 }), async (req, res) => {
+  router.get("/movies/recommended", async (req, res) => {
     try {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 20;
@@ -2311,63 +2012,6 @@ export function registerRoutes(app: Express): void {
       res.status(500).json({
         status: false,
         message: "Failed to check stream health"
-      });
-    }
-  });
-
-  // ===== ADMIN SYSTEM SETTINGS ENDPOINTS =====
-
-  // Get all system settings (admin only)
-  app.get("/api/admin/settings", isAuthenticated, isAdmin, async (req, res) => {
-    try {
-      const category = req.query.category as string | undefined;
-      const settings = await storage.getAllSettings(category);
-
-      res.json({
-        status: true,
-        data: settings
-      });
-    } catch (error) {
-      console.error('Error fetching settings:', error);
-      res.status(500).json({
-        status: false,
-        message: 'Failed to fetch settings'
-      });
-    }
-  });
-
-  // Update system settings (admin only)
-  app.put("/api/admin/settings", isAuthenticated, isAdmin, async (req, res) => {
-    try {
-      const userId = (req.user as Express.User).id;
-      const settings = req.body;
-
-      if (!settings || typeof settings !== 'object') {
-        return res.status(400).json({
-          status: false,
-          message: 'Invalid settings data'
-        });
-      }
-
-      await storage.updateSettings(settings, userId);
-
-      // Log the activity
-      await storage.addAuditLog({
-        userId,
-        activityType: 'settings_update',
-        details: { updatedKeys: Object.keys(settings) },
-        ipAddress: req.ip || null
-      });
-
-      res.json({
-        status: true,
-        message: 'Settings updated successfully'
-      });
-    } catch (error) {
-      console.error('Error updating settings:', error);
-      res.status(500).json({
-        status: false,
-        message: 'Failed to update settings'
       });
     }
   });

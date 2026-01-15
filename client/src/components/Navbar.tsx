@@ -28,7 +28,6 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ChevronDown, LogOut, User, Settings, BookmarkPlus, Clock, Search, ChevronRight, Menu, Home, Film, Newspaper, HelpCircle, Info, Scale, UserCircle, Bell, Shield } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { NotificationBell } from "@/components/NotificationBell";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useQuery } from "@tanstack/react-query";
 import NotificationPrompt from "@/components/NotificationPrompt";
@@ -545,17 +544,14 @@ export default function Navbar({ isMobileMenuOpen: externalMobileMenuOpen, setIs
               )}
             </div>
 
-            {/* Notification Bell - Desktop */}
-            {user && <NotificationBell />}
-
-            {/* User Menu - Desktop */}
+            {/* User Menu - Desktop Only */}
             {!isMobile && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="flex items-center text-white">
                     <Avatar data-testid="user-avatar" className="user-avatar h-8 w-8">
                       <AvatarFallback>
-                        {user?.username ? user.username.substring(0, 2).toUpperCase() : "GU"}
+                        {user ? user.username.substring(0, 2).toUpperCase() : "GU"}
                       </AvatarFallback>
                     </Avatar>
                     <ChevronDown className="ml-2 h-4 w-4" />
