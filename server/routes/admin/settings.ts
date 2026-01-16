@@ -54,6 +54,12 @@ const systemSettingsSchema = z.object({
   facebookAppSecret: z.string().optional(),
   googleLoginEnabled: z.union([z.boolean(), z.string()]).optional(),
   facebookLoginEnabled: z.union([z.boolean(), z.string()]).optional(),
+
+  // Firebase Push Notifications
+  firebaseProjectId: z.string().optional(),
+  firebasePrivateKey: z.string().optional(),
+  firebaseClientEmail: z.string().optional(),
+  firebaseNotificationsEnabled: z.union([z.boolean(), z.string()]).optional(),
 });
 
 // GET /api/admin/settings - Get all system settings
@@ -85,6 +91,14 @@ router.get('/', async (req, res) => {
       } else if (key === 'resend_api_key') {
         frontendSettings.resendApiKey = value ? '********' : '';
         frontendSettings.resend_api_key = value ? '********' : '';
+      } else if (key === 'firebase_admin_project_id') {
+        frontendSettings.firebaseProjectId = value || '';
+      } else if (key === 'firebase_admin_private_key') {
+        frontendSettings.firebasePrivateKey = value ? '********' : '';
+      } else if (key === 'firebase_admin_client_email') {
+        frontendSettings.firebaseClientEmail = value || '';
+      } else if (key === 'firebase_notifications_enabled') {
+        frontendSettings.firebaseNotificationsEnabled = value === 'true' || value === true;
       } else {
         // For all other settings, use value from DB or empty string
         frontendSettings[key] = value || '';
@@ -169,6 +183,14 @@ router.put('/', async (req, res) => {
       } else if (key === 'resendApiKey' || key === 'resend_api_key') {
         // Support both camelCase and snake_case
         dbSettings['resend_api_key'] = value;
+      } else if (key === 'firebaseProjectId') {
+        dbSettings['firebase_admin_project_id'] = value;
+      } else if (key === 'firebasePrivateKey') {
+        dbSettings['firebase_admin_private_key'] = value;
+      } else if (key === 'firebaseClientEmail') {
+        dbSettings['firebase_admin_client_email'] = value;
+      } else if (key === 'firebaseNotificationsEnabled') {
+        dbSettings['firebase_notifications_enabled'] = value ? 'true' : 'false';
       } else {
         dbSettings[key] = value;
       }
@@ -184,6 +206,10 @@ router.put('/', async (req, res) => {
 
     if (dbSettings.facebook_app_id || dbSettings.facebook_app_secret) {
       console.log('Facebook SSO credentials updated');
+    }
+
+    if (dbSettings.firebase_admin_project_id || dbSettings.firebase_admin_private_key || dbSettings.firebase_admin_client_email) {
+      console.log('Firebase Admin SDK credentials updated');
     }
 
     res.json({
@@ -228,7 +254,7 @@ router.get('/:key', async (req, res) => {
     // Mask sensitive fields
     const sensitiveFields = ['smtpPassword', 'recaptchaSecretKey', 'stripeSecretKey',
       'paypalSecret', 'googleClientSecret', 'facebookAppSecret', 'deepseekApiKey',
-      'google_client_secret', 'facebook_app_secret', 'deepseek_api_key', 'resend_api_key'];
+      'google_client_secret', 'facebook_app_secret', 'deepseek_api_key', 'resend_api_key', 'firebase_admin_private_key'];
 
     if (sensitiveFields.includes(key) && value) {
       value = '********';
