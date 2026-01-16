@@ -1028,6 +1028,29 @@ export default function AdminPage() {
                             />
                           </div>
 
+                          {/* DeepSeek AI API Key */}
+                          <div className="border rounded-lg p-4 space-y-4 mt-6">
+                            <h4 className="font-semibold flex items-center gap-2">
+                              <span className="text-blue-600">DeepSeek</span> AI API Key
+                            </h4>
+
+                            <div>
+                              <Label htmlFor="deepseek-api-key" className="block text-sm font-medium mb-2">
+                                DeepSeek API Key
+                              </Label>
+                              <Input
+                                id="deepseek-api-key"
+                                placeholder="Enter DeepSeek API Key"
+                                value={systemSettings.deepseekApiKey || ''}
+                                onChange={(e) => updateSetting('deepseekApiKey', e.target.value)}
+                                type="password"
+                              />
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Used for AI recommendations, search, and chatbot features
+                              </p>
+                            </div>
+                          </div>
+
                           {/* Firebase/FCM Configuration */}
                           <div className="border rounded-lg p-4 space-y-4 mt-6">
                             <h4 className="font-semibold flex items-center gap-2">
