@@ -173,6 +173,10 @@ jobs:
               echo "Database fix completed at $(date)" >> /var/log/filmflex/github-deploy.log
             else
               echo "Running full deployment script"
+              
+              # Export ENCRYPTION_KEY for OAuth credential decryption
+              export ENCRYPTION_KEY="${{ secrets.ENCRYPTION_KEY }}"
+              
               cd ~/Film_Flex_Release/scripts/deployment
               ./final-deploy.sh
               echo "Full deployment completed at $(date)" >> /var/log/filmflex/github-deploy.log
