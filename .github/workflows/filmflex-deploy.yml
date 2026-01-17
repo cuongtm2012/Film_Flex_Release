@@ -98,6 +98,10 @@ jobs:
           cp -r filmflex-artifacts/scripts/deployment filmflex-release/scripts/ || echo "Failed to copy scripts/deployment"
           cp -r filmflex-artifacts/scripts/data filmflex-release/scripts/ || echo "Failed to copy scripts/data"
           
+          # Copy package files for Docker build
+          cp package.json filmflex-release/ || echo "Failed to copy package.json"
+          cp package-lock.json filmflex-release/ || echo "Failed to copy package-lock.json"
+          
           # Create tar file
           tar -czf filmflex-release.tar.gz filmflex-release
           echo "Created tar file: $(ls -la filmflex-release.tar.gz)"
@@ -172,14 +176,22 @@ jobs:
               bash /tmp/db-fix-only.sh
               echo "Database fix completed at $(date)" >> /var/log/filmflex/github-deploy.log
             else
-              echo "Running full deployment script"
+              echo "Running Docker-based deployment"
               
               # Export ENCRYPTION_KEY for OAuth credential decryption
               export ENCRYPTION_KEY="${{ secrets.ENCRYPTION_KEY }}"
               
-              cd ~/Film_Flex_Release/scripts/deployment
-              ./final-deploy.sh
-              echo "Full deployment completed at $(date)" >> /var/log/filmflex/github-deploy.log
+              # Ensure Docker network exists and containers are connected
+              docker network create filmflex-network 2>/dev/null || echo "Network already exists"
+              docker network connect filmflex-network filmflex-postgres 2>/dev/null || echo "Postgres already connected"
+              docker network connect filmflex-network filmflex-elasticsearch 2>/dev/null || echo "Elasticsearch already connected"
+              
+              # Run Docker deployment
+              cd ~/Film_Flex_Release
+              chmod +x scripts/deployment/docker-deploy.sh
+              bash scripts/deployment/docker-deploy.sh
+              
+              echo "Docker deployment completed at $(date)" >> /var/log/filmflex/github-deploy.log
             fi
 
       - name: Verify deployment
