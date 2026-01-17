@@ -12,23 +12,21 @@ import SearchPage from "@/pages/SearchPage";
 import AuthPage from "@/pages/auth-page";
 import ForgotPasswordPage from "@/pages/ForgotPasswordPage";
 import ResetPasswordPage from "@/pages/ResetPasswordPage";
-import ProfilePageComponent from "@/pages/ProfilePage";
 import WatchlistPageComponent from "@/pages/WatchlistPage";
 import WatchHistoryPage from "@/pages/WatchHistoryPage";
 import AdminPage from "@/pages/AdminPage";
+import AccountPage from "@/pages/AccountPage";
 import Layout from "@/components/Layout";
 import { ThemeProvider } from "@/components/ui/theme-provider";
 import { AuthProvider } from "@/hooks/use-auth";
 import { ProtectedRoute } from "@/lib/protected-route";
 import { Redirect } from "wouter";
-import { useAuth } from "@/hooks/use-auth";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import SplashScreen from "@/components/SplashScreen";
 
 import MoviesPage from "@/pages/MoviesPage";
 import NewsPage from "@/pages/NewsPage";
 import MyListPage from "@/pages/MyListPage";
-import ProfileSettingsPage from "@/pages/ProfileSettingsPage";
 import NotificationsPage from "@/pages/NotificationsPage";
 
 // Footer-linked pages
@@ -71,7 +69,7 @@ function MainLayout({ children }: { children: React.ReactNode }) {
 
 function Router() {
   React.useEffect(trackComponentLoad('Router'), []);
-  
+
   return (
     <ErrorBoundary>
       <Switch>
@@ -80,19 +78,19 @@ function Router() {
             <AuthPage />
           </ErrorBoundary>
         </Route>
-        
+
         <Route path="/forgot-password">
           <ErrorBoundary>
             <ForgotPasswordPage />
           </ErrorBoundary>
         </Route>
-        
+
         <Route path="/reset-password">
           <ErrorBoundary>
             <ResetPasswordPage />
           </ErrorBoundary>
         </Route>
-        
+
         <Route path="/">
           <ErrorBoundary>
             <MainLayout>
@@ -100,7 +98,7 @@ function Router() {
             </MainLayout>
           </ErrorBoundary>
         </Route>
-        
+
         {/* Main menu routes */}
         <Route path="/movies">
           <ErrorBoundary>
@@ -109,7 +107,7 @@ function Router() {
             </MainLayout>
           </ErrorBoundary>
         </Route>
-        
+
         <Route path="/news">
           <ErrorBoundary>
             <MainLayout>
@@ -117,7 +115,7 @@ function Router() {
             </MainLayout>
           </ErrorBoundary>
         </Route>
-        
+
         <Route path="/my-list">
           <ErrorBoundary>
             <MainLayout>
@@ -125,7 +123,7 @@ function Router() {
             </MainLayout>
           </ErrorBoundary>
         </Route>
-        
+
         <Route path="/movie/:slug">
           {(params) => (
             <ErrorBoundary>
@@ -135,7 +133,7 @@ function Router() {
             </ErrorBoundary>
           )}
         </Route>
-        
+
         <Route path="/search">
           <ErrorBoundary>
             <MainLayout>
@@ -143,24 +141,29 @@ function Router() {
             </MainLayout>
           </ErrorBoundary>
         </Route>
-        
+
         {/* Protected routes */}
+        <Route path="/account">
+          <ErrorBoundary>
+            <MainLayout>
+              <ProtectedRoute component={AccountPage} path="/account" />
+            </MainLayout>
+          </ErrorBoundary>
+        </Route>
+
+        {/* Redirects from old routes */}
         <Route path="/profile">
-          <ErrorBoundary>
-            <MainLayout>
-              <ProtectedRoute component={ProfilePageComponent} path="/profile" />
-            </MainLayout>
-          </ErrorBoundary>
+          <Redirect to="/account" />
         </Route>
-        
+
         <Route path="/settings">
-          <ErrorBoundary>
-            <MainLayout>
-              <ProtectedRoute component={ProfileSettingsPage} path="/settings" />
-            </MainLayout>
-          </ErrorBoundary>
+          <Redirect to="/account?tab=security" />
         </Route>
-        
+
+        <Route path="/profile-settings">
+          <Redirect to="/account?tab=profile" />
+        </Route>
+
         <Route path="/watchlist">
           <ErrorBoundary>
             <MainLayout>
@@ -168,7 +171,7 @@ function Router() {
             </MainLayout>
           </ErrorBoundary>
         </Route>
-        
+
         <Route path="/history">
           <ErrorBoundary>
             <MainLayout>
@@ -184,14 +187,14 @@ function Router() {
             </MainLayout>
           </ErrorBoundary>
         </Route>
-        
+
         <Route path="/admin">
           <ErrorBoundary>
             {/* Admin page has its own layout with Sidebar - no MainLayout/Navbar */}
             <ProtectedRoute component={AdminPage} path="/admin" />
           </ErrorBoundary>
         </Route>
-        
+
         {/* Footer pages */}
         <Route path="/about">
           <ErrorBoundary>
@@ -200,7 +203,7 @@ function Router() {
             </MainLayout>
           </ErrorBoundary>
         </Route>
-        
+
         <Route path="/faqs">
           <ErrorBoundary>
             <MainLayout>
@@ -208,7 +211,7 @@ function Router() {
             </MainLayout>
           </ErrorBoundary>
         </Route>
-        
+
         <Route path="/terms">
           <ErrorBoundary>
             <MainLayout>
@@ -216,7 +219,7 @@ function Router() {
             </MainLayout>
           </ErrorBoundary>
         </Route>
-        
+
         <Route path="/tv">
           <ErrorBoundary>
             <MainLayout>
@@ -224,7 +227,7 @@ function Router() {
             </MainLayout>
           </ErrorBoundary>
         </Route>
-        
+
         <Route path="/new-releases">
           <ErrorBoundary>
             <MainLayout>
@@ -232,7 +235,7 @@ function Router() {
             </MainLayout>
           </ErrorBoundary>
         </Route>
-        
+
         <Route path="/top-rated">
           <ErrorBoundary>
             <MainLayout>
@@ -240,7 +243,7 @@ function Router() {
             </MainLayout>
           </ErrorBoundary>
         </Route>
-        
+
         <Route path="/genres">
           <ErrorBoundary>
             <MainLayout>
@@ -248,7 +251,7 @@ function Router() {
             </MainLayout>
           </ErrorBoundary>
         </Route>
-        
+
         <Route path="/contact">
           <ErrorBoundary>
             <MainLayout>
@@ -256,7 +259,7 @@ function Router() {
             </MainLayout>
           </ErrorBoundary>
         </Route>
-        
+
         <Route path="/how-to-watch">
           <ErrorBoundary>
             <MainLayout>
@@ -264,7 +267,7 @@ function Router() {
             </MainLayout>
           </ErrorBoundary>
         </Route>
-        
+
         <Route path="/devices">
           <ErrorBoundary>
             <MainLayout>
@@ -280,7 +283,7 @@ function Router() {
             </MainLayout>
           </ErrorBoundary>
         </Route>
-        
+
         <Route path="/press">
           <ErrorBoundary>
             <MainLayout>
@@ -288,7 +291,7 @@ function Router() {
             </MainLayout>
           </ErrorBoundary>
         </Route>
-        
+
         <Route path="/blog">
           <ErrorBoundary>
             <MainLayout>
@@ -296,7 +299,7 @@ function Router() {
             </MainLayout>
           </ErrorBoundary>
         </Route>
-        
+
         <Route path="/partners">
           <ErrorBoundary>
             <MainLayout>
@@ -305,36 +308,8 @@ function Router() {
           </ErrorBoundary>
         </Route>
 
-        {/* Legacy /account route: redirect to auth when logged out or profile when logged in */}
-        <Route path="/account">
-          {() => {
-            const { user, isLoading } = useAuth();
 
-            if (isLoading) {
-              return (
-                <ErrorBoundary>
-                  <MainLayout>
-                    <div className="flex items-center justify-center min-h-screen">
-                      <svg className="animate-spin h-8 w-8 text-primary" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
-                      </svg>
-                    </div>
-                  </MainLayout>
-                </ErrorBoundary>
-              );
-            }
 
-            return (
-              <ErrorBoundary>
-                <MainLayout>
-                  {user ? <Redirect to="/profile" /> : <Redirect to="/auth" />}
-                </MainLayout>
-              </ErrorBoundary>
-            );
-          }}
-        </Route>
-        
         <Route>
           <ErrorBoundary>
             <MainLayout>
@@ -351,23 +326,23 @@ function App() {
   const [showSplash, setShowSplash] = React.useState(() => {
     // Check if splash screen has been seen before
     const splashData = localStorage.getItem('filmflex-splash-seen');
-    
+
     if (!splashData) {
       debugLog('Splash screen: First time visit - showing splash', { splashData: null });
       return true;
     }
-    
+
     try {
       const { timestamp } = JSON.parse(splashData);
       const daysSinceLastSeen = (Date.now() - timestamp) / (1000 * 60 * 60 * 24);
-      
+
       // Show splash again after 30 days
       if (daysSinceLastSeen > 30) {
         debugLog('Splash screen: 30+ days passed - showing splash again', { daysSinceLastSeen });
         localStorage.removeItem('filmflex-splash-seen');
         return true;
       }
-      
+
       debugLog('Splash screen: Already seen recently - hiding', { daysSinceLastSeen });
       return false;
     } catch {
@@ -380,7 +355,7 @@ function App() {
 
   React.useEffect(() => {
     debugLog('App component mounted', { showSplash });
-    
+
     // Add debugging info to window
     if (DEBUG_MODE) {
       (window as any).filmflexDebug = {
@@ -417,7 +392,7 @@ function App() {
           const splashDataRaw = localStorage.getItem('filmflex-splash-seen');
           let splashData = null;
           let daysSinceLastSeen = null;
-          
+
           if (splashDataRaw) {
             try {
               splashData = JSON.parse(splashDataRaw);
@@ -426,7 +401,7 @@ function App() {
               splashData = 'Invalid format';
             }
           }
-          
+
           const status = {
             showSplash,
             splashData,
@@ -445,24 +420,24 @@ function App() {
           timestamp: new Date().toISOString()
         })
       };
-      
+
       logger.log('🔧 Debug utilities available at window.filmflexDebug');
       logger.log('🎬 To test splash screen: window.filmflexDebug.showSplash()');
       logger.log('📊 Check splash status: window.filmflexDebug.checkSplashStatus()');
     }
-    
+
     return () => debugLog('App component unmounted');
   }, [showSplash]);
 
   const handleCloseSplash = () => {
     debugLog('Closing splash screen and saving timestamp');
-    
+
     // Save with timestamp for future reference
     const splashData = {
       timestamp: Date.now(),
       version: '1.0'
     };
-    
+
     localStorage.setItem('filmflex-splash-seen', JSON.stringify(splashData));
     setShowSplash(false);
   };

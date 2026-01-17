@@ -26,7 +26,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { ChevronDown, LogOut, User, Settings, BookmarkPlus, Clock, Search, ChevronRight, Menu, Home, Film, Newspaper, HelpCircle, Info, Scale, UserCircle, Bell, Shield } from "lucide-react";
+import { ChevronDown, LogOut, User, BookmarkPlus, Clock, Search, ChevronRight, Menu, Home, Film, Newspaper, HelpCircle, Info, Scale, UserCircle, Shield } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useQuery } from "@tanstack/react-query";
@@ -203,25 +203,13 @@ export default function Navbar({ isMobileMenuOpen: externalMobileMenuOpen, setIs
                     {user ? (
                       <>
                         <Link
-                          to="/profile"
+                          to="/account"
                           className="flex items-center space-x-3 text-muted-foreground hover:text-white transition p-3 rounded-lg hover:bg-white/5"
                           onClick={() => setIsMobileMenuOpen(false)}
                         >
                           <UserCircle className="h-5 w-5" />
-                          <span className="font-medium">Profile</span>
+                          <span className="font-medium">Account</span>
                         </Link>
-
-                        {/* Only show Settings for non-admin users */}
-                        {user.role !== 'admin' && (
-                          <Link
-                            to="/settings"
-                            className="flex items-center space-x-3 text-muted-foreground hover:text-white transition p-3 rounded-lg hover:bg-white/5"
-                            onClick={() => setIsMobileMenuOpen(false)}
-                          >
-                            <Settings className="h-5 w-5" />
-                            <span className="font-medium">Settings</span>
-                          </Link>
-                        )}
 
                         {/* Show Admin Panel for admin users */}
                         {user.role === 'admin' && (
@@ -568,9 +556,9 @@ export default function Navbar({ isMobileMenuOpen: externalMobileMenuOpen, setIs
                       </DropdownMenuLabel>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem>
-                        <Link to="/profile" className="w-full flex items-center">
+                        <Link to="/account" className="w-full flex items-center">
                           <User className="mr-2 h-4 w-4" />
-                          Profile
+                          Account
                         </Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem>
@@ -585,16 +573,6 @@ export default function Navbar({ isMobileMenuOpen: externalMobileMenuOpen, setIs
                           Watch History
                         </Link>
                       </DropdownMenuItem>
-
-                      {/* Only show Settings for non-admin users */}
-                      {user.role !== 'admin' && (
-                        <DropdownMenuItem>
-                          <Link to="/settings" className="w-full flex items-center">
-                            <Settings className="mr-2 h-4 w-4" />
-                            Settings
-                          </Link>
-                        </DropdownMenuItem>
-                      )}
 
                       {/* Show Admin Panel for admin users */}
                       {user.role === 'admin' && (
