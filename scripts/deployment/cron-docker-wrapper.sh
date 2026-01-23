@@ -141,6 +141,18 @@ execute_import_strategy() {
     log_enhanced "INFO" "Executing import strategy: $strategy"
     log_enhanced "INFO" "Max pages: $max_pages, Timeout: ${timeout_minutes}m"
     
+    # Check if import script exists in container
+    log_enhanced "INFO" "Verifying import scripts in container..."
+    if ! docker exec "$APP_CONTAINER" test -f /app/scripts/data/import-movies-docker.cjs; then
+        log_enhanced "ERROR" "Import script not found in container: /app/scripts/data/import-movies-docker.cjs"
+        log_enhanced "ERROR" "Container may need to be rebuilt with latest code"
+        log_enhanced "INFO" "Checking available scripts in container..."
+        docker exec "$APP_CONTAINER" ls -la /app/scripts/data/ 2>&1 || log_enhanced "WARNING" "Scripts directory not accessible"
+        log_enhanced "ERROR" "Please rebuild the container: docker compose -f docker-compose.server.yml up -d --build"
+        return 1
+    fi
+    log_enhanced "SUCCESS" "Import script verified in container"
+    
     # Get initial database stats
     local initial_stats=$(get_database_stats)
     local initial_movies=$(echo "$initial_stats" | cut -d'|' -f1)
