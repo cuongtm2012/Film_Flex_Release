@@ -9,13 +9,15 @@ const __dirname = dirname(__filename);
 const nodeEnv = process.env.NODE_ENV || 'development';
 
 // Load environment-specific file first, then fallback to .env
-if (nodeEnv === 'development') {
+if (nodeEnv === 'production') {
+  dotenv.config({ path: resolve(__dirname, '../.env.production') });
+} else if (nodeEnv === 'development') {
   dotenv.config({ path: resolve(__dirname, '../.env.development') });
 }
 dotenv.config({ path: resolve(__dirname, '../.env') });
 
 console.log(`🔧 Loading environment: ${nodeEnv}`);
-console.log(`📁 Config file: .env${nodeEnv === 'development' ? '.development' : ''}`);
+console.log(`📁 Config file: .env${nodeEnv === 'production' ? '.production' : nodeEnv === 'development' ? '.development' : ''}`);
 
 interface Config {
   nodeEnv: string;
