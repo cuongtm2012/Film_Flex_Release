@@ -226,76 +226,92 @@ jobs:
           timeout: 1800s
           command_timeout: 1800s
           script: |
-            echo "🚀 Starting deployment..."
+            echo "🚀 Starting automated deployment..."
             
             # Change to project directory
             cd ~/Film_Flex_Release
             
-            # Determine deployment mode
-            MODE="${{ github.event.inputs.deployment_mode || 'app-only' }}"
+            # ✅ CRITICAL: Export secrets to environment
+            # These are required for OAuth and DeepSeek to work
+            export ENCRYPTION_KEY="${{ secrets.ENCRYPTION_KEY }}"
+            export SESSION_SECRET="${{ secrets.SESSION_SECRET }}"
             
-            # Always use --force flag to skip git uncommitted changes check
-            # GitHub Actions already provides the latest code via deployment package
-            FORCE_FLAG="--force"
+            echo "🔑 Environment variables configured"
             
-            # Add user's force flag if specified
-            if [ "${{ github.event.inputs.force_deployment }}" = "true" ]; then
-              echo "User requested force deployment"
+            # Pull latest code from GitHub
+            echo "📥 Pulling latest code from GitHub..."
+            git pull origin main
+            
+            if [ $? -ne 0 ]; then
+              echo "⚠️  Git pull failed, but continuing with existing code..."
             fi
             
-            # Build deployment command
-            case "$MODE" in
-              "app-only")
-                DEPLOY_CMD="./scripts/deployment/deploy-production.sh --app-only $FORCE_FLAG"
-                ;;
-              "full")
-                DEPLOY_CMD="./scripts/deployment/deploy-production.sh --full $FORCE_FLAG"
-                ;;
-              "with-elasticsearch")
-                DEPLOY_CMD="./scripts/deployment/deploy-production.sh --app-only --with-elasticsearch $FORCE_FLAG"
-                ;;
-              "sync-elasticsearch")
-                DEPLOY_CMD="./scripts/deployment/deploy-production.sh --app-only --sync-elasticsearch $FORCE_FLAG"
-                ;;
-              *)
-                DEPLOY_CMD="./scripts/deployment/deploy-production.sh --app-only $FORCE_FLAG"
-                ;;
-            esac
+            # Rebuild Docker image with no cache to ensure latest code
+            echo "🔨 Rebuilding Docker image (this may take a few minutes)..."
+            docker build --no-cache -t cuongtm2012/filmflex-app:latest -f Dockerfile .
             
-            echo "📝 Deployment command: $DEPLOY_CMD"
-            echo "🕐 Started at: $(date)"
-            
-            # Create log directory
-            mkdir -p /var/log/filmflex
-            
-            # Run deployment with logging and explicit error handling
-            LOG_FILE="/var/log/filmflex/github-deploy-$(date +%Y%m%d_%H%M%S).log"
-            
-            echo "Running deployment script..." | tee "$LOG_FILE"
-            if ! $DEPLOY_CMD 2>&1 | tee -a "$LOG_FILE"; then
-              echo "❌ Deployment script failed!" | tee -a "$LOG_FILE"
-              echo "📋 Checking system status..." | tee -a "$LOG_FILE"
-              
-              # Show container status
-              echo "Container status:" | tee -a "$LOG_FILE"
-              docker ps -a | grep filmflex | tee -a "$LOG_FILE" || echo "No filmflex containers found" | tee -a "$LOG_FILE"
-              
-              # Show recent logs from deployment
-              echo "Recent deployment logs:" | tee -a "$LOG_FILE"
-              tail -50 "$LOG_FILE"
-              
-              echo "FAILED" > /tmp/deployment_status
+            if [ $? -ne 0 ]; then
+              echo "❌ Docker build failed!"
               exit 1
             fi
             
-            echo "✅ Deployment script completed at $(date)" | tee -a "$LOG_FILE"
+            echo "✅ Docker image rebuilt successfully"
+            
+            # Make scripts executable
+            chmod +x ~/Film_Flex_Release/scripts/deployment/*.sh
+            chmod +x ~/Film_Flex_Release/scripts/data/*.sh 2>/dev/null || true
+            
+            # Deploy container with environment variables using fix-deployment.sh
+            echo "🚀 Deploying container with ENCRYPTION_KEY..."
+            
+            if [ -f "./scripts/deployment/fix-deployment.sh" ]; then
+              ./scripts/deployment/fix-deployment.sh
+            else
+              echo "⚠️  fix-deployment.sh not found, using fallback deployment..."
+              
+              # Fallback: Stop and recreate container manually
+              docker stop filmflex-app 2>/dev/null || true
+              docker rm filmflex-app 2>/dev/null || true
+              
+              docker run -d \
+                --name filmflex-app \
+                --network film_flex_release_filmflex-network \
+                -p 5000:5000 \
+                -e NODE_ENV=production \
+                -e PORT=5000 \
+                -e DATABASE_URL=postgresql://filmflex:filmflex2024@filmflex-postgres:5432/filmflex \
+                -e SESSION_SECRET="${SESSION_SECRET}" \
+                -e ENCRYPTION_KEY="${ENCRYPTION_KEY}" \
+                -e ALLOWED_ORIGINS="https://phimgg.com,https://www.phimgg.com,http://phimgg.com,http://www.phimgg.com" \
+                -e CLIENT_URL="https://phimgg.com" \
+                -e DOMAIN="phimgg.com" \
+                -e SERVER_IP=38.54.14.154 \
+                -e USE_CLOUDFLARE_OAUTH="false" \
+                -e USE_CLOUDFLARE_EMAIL="false" \
+                -e ELASTICSEARCH_NODE=http://filmflex-elasticsearch:9200 \
+                -e ELASTICSEARCH_ENABLED=true \
+                --restart unless-stopped \
+                cuongtm2012/filmflex-app:latest
+            fi
+            
+            echo "✅ Deployment completed at $(date)"
+            
+            # Create log directory
+            mkdir -p /var/log/filmflex
+            LOG_FILE="/var/log/filmflex/github-deploy-$(date +%Y%m%d_%H%M%S).log"
             
             # CRITICAL: Verify container actually started
-            echo "🔍 Verifying container started..." | tee -a "$LOG_FILE"
-            sleep 5
+            echo "🔍 Verifying container started..." | tee "$LOG_FILE"
+            sleep 10
             
             if docker ps | grep filmflex-app | grep -q "Up"; then
               echo "✅ Container filmflex-app is running" | tee -a "$LOG_FILE"
+              
+              # Verify OAuth initialization
+              echo "🔍 Checking OAuth initialization..." | tee -a "$LOG_FILE"
+              sleep 5
+              docker logs filmflex-app 2>&1 | grep -E "(OAuth|Google|Facebook)" | tail -10 | tee -a "$LOG_FILE"
+              
               echo "SUCCESS" > /tmp/deployment_status
             else
               echo "❌ Container filmflex-app is NOT running!" | tee -a "$LOG_FILE"
