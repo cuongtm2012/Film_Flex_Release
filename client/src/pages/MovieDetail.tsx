@@ -1022,16 +1022,16 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
           <div className="lg:col-span-4 xl:col-span-3">
             <div className="bg-card/20 p-4 rounded-md border border-gray-800">
               <div className="flex justify-between items-center mb-3">
-                <h3 className="text-lg font-bold flex items-center">
-                  <Star className="h-5 w-5 mr-2 text-primary" fill="currentColor" />
-                  Recommended For You
+                <h3 className="text-base sm:text-lg font-bold flex items-center whitespace-nowrap">
+                  <Star className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-primary flex-shrink-0" fill="currentColor" />
+                  <span className="truncate">Recommended For You</span>
                 </h3>
 
-                {/* See More Button */}
+                {/* See More Button - Smaller text */}
                 {recommendationsData?.items && recommendationsData.items.length > 3 && (
-                  <Link to="/top-rated" className="text-primary text-sm hover:underline flex items-center">
+                  <Link to="/top-rated" className="text-primary text-xs sm:text-sm hover:underline flex items-center flex-shrink-0 ml-2">
                     See More
-                    <ChevronRight className="h-4 w-4 ml-1" />
+                    <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4 ml-0.5" />
                   </Link>
                 )}
               </div>
