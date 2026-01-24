@@ -25,6 +25,8 @@ import seoRoutes from './routes/seo.js';
 import notificationRoutes from './routes/notification-routes.js';
 // Import user preferences routes
 import userPreferencesRoutes from './routes/user-preferences.js';
+// Import AI routes
+import aiRoutes from './routes/ai-routes.js';
 import express from "express";
 import { StreamingUtils } from "./utils/streaming-utils.js";
 
@@ -261,6 +263,9 @@ export function registerRoutes(app: Express): void {
 
   // Register user preferences routes
   app.use('/api/user', userPreferencesRoutes);
+
+  // Register AI routes
+  app.use('/api/ai', aiRoutes);
 
   // Health check endpoint for CI/CD and monitoring
   router.get("/health", (_req, res) => {

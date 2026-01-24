@@ -60,6 +60,9 @@ COPY --from=builder --chown=filmflex:nodejs /app/public ./public
 # Copy config files
 COPY --chown=filmflex:nodejs ecosystem.config.cjs ./
 
+# Copy environment file for production
+COPY --chown=filmflex:nodejs .env.production ./.env
+
 # Create logs directory
 RUN mkdir -p logs && chown filmflex:nodejs logs
 
