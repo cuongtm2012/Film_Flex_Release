@@ -1,52 +1,64 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { Switch, Route } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { HelmetProvider } from 'react-helmet-async';
-import NotFound from "@/pages/not-found";
-import Home from "@/pages/Home";
-import MovieDetail from "@/pages/MovieDetail";
-import SearchPage from "@/pages/SearchPage";
-import AuthPage from "@/pages/auth-page";
-import ForgotPasswordPage from "@/pages/ForgotPasswordPage";
-import ResetPasswordPage from "@/pages/ResetPasswordPage";
-import ProfilePageComponent from "@/pages/ProfilePage";
-import WatchlistPageComponent from "@/pages/WatchlistPage";
-import WatchHistoryPage from "@/pages/WatchHistoryPage";
-import AdminPage from "@/pages/AdminPage";
-import Layout from "@/components/Layout";
 import { ThemeProvider } from "@/components/ui/theme-provider";
 import { AuthProvider } from "@/hooks/use-auth";
 import { ProtectedRoute } from "@/lib/protected-route";
 import { Redirect } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
+import { logger } from "@/lib/logger";
+import { preloadCriticalRoutes } from "@/lib/preload-routes";
+
+// Eager load critical components (needed immediately)
+import Layout from "@/components/Layout";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import SplashScreen from "@/components/SplashScreen";
 
-import MoviesPage from "@/pages/MoviesPage";
-import NewsPage from "@/pages/NewsPage";
-import MyListPage from "@/pages/MyListPage";
-import ProfileSettingsPage from "@/pages/ProfileSettingsPage";
-import NotificationsPage from "@/pages/NotificationsPage";
+// Lazy load all pages for better code splitting
+const Home = lazy(() => import("@/pages/Home"));
+const MovieDetail = lazy(() => import("@/pages/MovieDetail"));
+const SearchPage = lazy(() => import("@/pages/SearchPage"));
+const NotFound = lazy(() => import("@/pages/not-found"));
 
-// Footer-linked pages
-import AboutPage from "@/pages/AboutPage";
-import FAQsPage from "@/pages/FAQsPage";
-import TermsPage from "@/pages/TermsPage";
-import TVShowsPage from "@/pages/TVShowsPage";
-import NewReleasesPage from "@/pages/NewReleasesPage";
-import TopRatedPage from "@/pages/TopRatedPage";
-import GenresPage from "@/pages/GenresPage";
-import ContactPage from "@/pages/ContactPage";
-import HowToWatchPage from "@/pages/HowToWatchPage";
-import DevicesPage from "@/pages/DevicesPage";
-import CareersPage from "@/pages/CareersPage";
-import PressPage from "@/pages/PressPage";
-import BlogPage from "@/pages/BlogPage";
-import PartnersPage from "@/pages/PartnersPage";
-import { logger } from "@/lib/logger";
+// Auth pages
+const AuthPage = lazy(() => import("@/pages/auth-page"));
+const ForgotPasswordPage = lazy(() => import("@/pages/ForgotPasswordPage"));
+const ResetPasswordPage = lazy(() => import("@/pages/ResetPasswordPage"));
+
+// User pages
+const ProfilePageComponent = lazy(() => import("@/pages/ProfilePage"));
+const ProfileSettingsPage = lazy(() => import("@/pages/ProfileSettingsPage"));
+const WatchlistPageComponent = lazy(() => import("@/pages/WatchlistPage"));
+const WatchHistoryPage = lazy(() => import("@/pages/WatchHistoryPage"));
+const NotificationsPage = lazy(() => import("@/pages/NotificationsPage"));
+
+// Content pages
+const MoviesPage = lazy(() => import("@/pages/MoviesPage"));
+const TVShowsPage = lazy(() => import("@/pages/TVShowsPage"));
+const NewsPage = lazy(() => import("@/pages/NewsPage"));
+const MyListPage = lazy(() => import("@/pages/MyListPage"));
+const NewReleasesPage = lazy(() => import("@/pages/NewReleasesPage"));
+const TopRatedPage = lazy(() => import("@/pages/TopRatedPage"));
+const GenresPage = lazy(() => import("@/pages/GenresPage"));
+
+// Admin
+const AdminPage = lazy(() => import("@/pages/AdminPage"));
+
+// Footer pages (least priority - rarely visited)
+const AboutPage = lazy(() => import("@/pages/AboutPage"));
+const FAQsPage = lazy(() => import("@/pages/FAQsPage"));
+const TermsPage = lazy(() => import("@/pages/TermsPage"));
+const ContactPage = lazy(() => import("@/pages/ContactPage"));
+const HowToWatchPage = lazy(() => import("@/pages/HowToWatchPage"));
+const DevicesPage = lazy(() => import("@/pages/DevicesPage"));
+const CareersPage = lazy(() => import("@/pages/CareersPage"));
+const PressPage = lazy(() => import("@/pages/PressPage"));
+const BlogPage = lazy(() => import("@/pages/BlogPage"));
+const PartnersPage = lazy(() => import("@/pages/PartnersPage"));
 
 // Enhanced debugging utilities
 const DEBUG_MODE = process.env.NODE_ENV === 'development' || localStorage.getItem('filmflex-debug') === 'true';
@@ -64,6 +76,37 @@ const trackComponentLoad = (componentName: string) => {
   return () => debugLog(`Component Loaded: ${componentName}`);
 };
 
+// Loading fallback component
+function PageLoadingFallback() {
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-background">
+      <div className="flex flex-col items-center gap-4">
+        <svg 
+          className="animate-spin h-12 w-12 text-primary" 
+          viewBox="0 0 24 24"
+          aria-label="Loading"
+        >
+          <circle 
+            className="opacity-25" 
+            cx="12" 
+            cy="12" 
+            r="10" 
+            stroke="currentColor" 
+            strokeWidth="4" 
+            fill="none" 
+          />
+          <path 
+            className="opacity-75" 
+            fill="currentColor" 
+            d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" 
+          />
+        </svg>
+        <p className="text-muted-foreground text-sm">Đang tải...</p>
+      </div>
+    </div>
+  );
+}
+
 function MainLayout({ children }: { children: React.ReactNode }) {
   React.useEffect(trackComponentLoad('MainLayout'), []);
   return <Layout>{children}</Layout>;
@@ -77,26 +120,34 @@ function Router() {
       <Switch>
         <Route path="/auth">
           <ErrorBoundary>
-            <AuthPage />
+            <Suspense fallback={<PageLoadingFallback />}>
+              <AuthPage />
+            </Suspense>
           </ErrorBoundary>
         </Route>
         
         <Route path="/forgot-password">
           <ErrorBoundary>
-            <ForgotPasswordPage />
+            <Suspense fallback={<PageLoadingFallback />}>
+              <ForgotPasswordPage />
+            </Suspense>
           </ErrorBoundary>
         </Route>
         
         <Route path="/reset-password">
           <ErrorBoundary>
-            <ResetPasswordPage />
+            <Suspense fallback={<PageLoadingFallback />}>
+              <ResetPasswordPage />
+            </Suspense>
           </ErrorBoundary>
         </Route>
         
         <Route path="/">
           <ErrorBoundary>
             <MainLayout>
-              <Home />
+              <Suspense fallback={<PageLoadingFallback />}>
+                <Home />
+              </Suspense>
             </MainLayout>
           </ErrorBoundary>
         </Route>
@@ -105,7 +156,9 @@ function Router() {
         <Route path="/movies">
           <ErrorBoundary>
             <MainLayout>
-              <MoviesPage />
+              <Suspense fallback={<PageLoadingFallback />}>
+                <MoviesPage />
+              </Suspense>
             </MainLayout>
           </ErrorBoundary>
         </Route>
@@ -113,7 +166,9 @@ function Router() {
         <Route path="/news">
           <ErrorBoundary>
             <MainLayout>
-              <NewsPage />
+              <Suspense fallback={<PageLoadingFallback />}>
+                <NewsPage />
+              </Suspense>
             </MainLayout>
           </ErrorBoundary>
         </Route>
@@ -121,7 +176,9 @@ function Router() {
         <Route path="/my-list">
           <ErrorBoundary>
             <MainLayout>
-              <ProtectedRoute component={MyListPage} path="/my-list" />
+              <Suspense fallback={<PageLoadingFallback />}>
+                <ProtectedRoute component={MyListPage} path="/my-list" />
+              </Suspense>
             </MainLayout>
           </ErrorBoundary>
         </Route>
@@ -130,7 +187,9 @@ function Router() {
           {(params) => (
             <ErrorBoundary>
               <MainLayout>
-                <MovieDetail slug={params.slug || ""} />
+                <Suspense fallback={<PageLoadingFallback />}>
+                  <MovieDetail slug={params.slug || ""} />
+                </Suspense>
               </MainLayout>
             </ErrorBoundary>
           )}
@@ -139,7 +198,9 @@ function Router() {
         <Route path="/search">
           <ErrorBoundary>
             <MainLayout>
-              <SearchPage />
+              <Suspense fallback={<PageLoadingFallback />}>
+                <SearchPage />
+              </Suspense>
             </MainLayout>
           </ErrorBoundary>
         </Route>
@@ -148,7 +209,9 @@ function Router() {
         <Route path="/profile">
           <ErrorBoundary>
             <MainLayout>
-              <ProtectedRoute component={ProfilePageComponent} path="/profile" />
+              <Suspense fallback={<PageLoadingFallback />}>
+                <ProtectedRoute component={ProfilePageComponent} path="/profile" />
+              </Suspense>
             </MainLayout>
           </ErrorBoundary>
         </Route>
@@ -156,7 +219,9 @@ function Router() {
         <Route path="/settings">
           <ErrorBoundary>
             <MainLayout>
-              <ProtectedRoute component={ProfileSettingsPage} path="/settings" />
+              <Suspense fallback={<PageLoadingFallback />}>
+                <ProtectedRoute component={ProfileSettingsPage} path="/settings" />
+              </Suspense>
             </MainLayout>
           </ErrorBoundary>
         </Route>
@@ -164,7 +229,9 @@ function Router() {
         <Route path="/watchlist">
           <ErrorBoundary>
             <MainLayout>
-              <ProtectedRoute component={WatchlistPageComponent} path="/watchlist" />
+              <Suspense fallback={<PageLoadingFallback />}>
+                <ProtectedRoute component={WatchlistPageComponent} path="/watchlist" />
+              </Suspense>
             </MainLayout>
           </ErrorBoundary>
         </Route>
@@ -172,7 +239,9 @@ function Router() {
         <Route path="/history">
           <ErrorBoundary>
             <MainLayout>
-              <ProtectedRoute component={WatchHistoryPage} path="/history" />
+              <Suspense fallback={<PageLoadingFallback />}>
+                <ProtectedRoute component={WatchHistoryPage} path="/history" />
+              </Suspense>
             </MainLayout>
           </ErrorBoundary>
         </Route>
@@ -180,15 +249,19 @@ function Router() {
         <Route path="/notifications">
           <ErrorBoundary>
             <MainLayout>
-              <NotificationsPage />
+              <Suspense fallback={<PageLoadingFallback />}>
+                <NotificationsPage />
+              </Suspense>
             </MainLayout>
           </ErrorBoundary>
         </Route>
         
         <Route path="/admin">
           <ErrorBoundary>
-            {/* Admin page has its own layout with Sidebar - no MainLayout/Navbar */}
-            <ProtectedRoute component={AdminPage} path="/admin" />
+            <Suspense fallback={<PageLoadingFallback />}>
+              {/* Admin page has its own layout with Sidebar - no MainLayout/Navbar */}
+              <ProtectedRoute component={AdminPage} path="/admin" />
+            </Suspense>
           </ErrorBoundary>
         </Route>
         
@@ -196,7 +269,9 @@ function Router() {
         <Route path="/about">
           <ErrorBoundary>
             <MainLayout>
-              <AboutPage />
+              <Suspense fallback={<PageLoadingFallback />}>
+                <AboutPage />
+              </Suspense>
             </MainLayout>
           </ErrorBoundary>
         </Route>
@@ -204,7 +279,9 @@ function Router() {
         <Route path="/faqs">
           <ErrorBoundary>
             <MainLayout>
-              <FAQsPage />
+              <Suspense fallback={<PageLoadingFallback />}>
+                <FAQsPage />
+              </Suspense>
             </MainLayout>
           </ErrorBoundary>
         </Route>
@@ -212,7 +289,9 @@ function Router() {
         <Route path="/terms">
           <ErrorBoundary>
             <MainLayout>
-              <TermsPage />
+              <Suspense fallback={<PageLoadingFallback />}>
+                <TermsPage />
+              </Suspense>
             </MainLayout>
           </ErrorBoundary>
         </Route>
@@ -220,7 +299,9 @@ function Router() {
         <Route path="/tv">
           <ErrorBoundary>
             <MainLayout>
-              <TVShowsPage />
+              <Suspense fallback={<PageLoadingFallback />}>
+                <TVShowsPage />
+              </Suspense>
             </MainLayout>
           </ErrorBoundary>
         </Route>
@@ -228,7 +309,9 @@ function Router() {
         <Route path="/new-releases">
           <ErrorBoundary>
             <MainLayout>
-              <NewReleasesPage />
+              <Suspense fallback={<PageLoadingFallback />}>
+                <NewReleasesPage />
+              </Suspense>
             </MainLayout>
           </ErrorBoundary>
         </Route>
@@ -236,7 +319,9 @@ function Router() {
         <Route path="/top-rated">
           <ErrorBoundary>
             <MainLayout>
-              <TopRatedPage />
+              <Suspense fallback={<PageLoadingFallback />}>
+                <TopRatedPage />
+              </Suspense>
             </MainLayout>
           </ErrorBoundary>
         </Route>
@@ -244,7 +329,9 @@ function Router() {
         <Route path="/genres">
           <ErrorBoundary>
             <MainLayout>
-              <GenresPage />
+              <Suspense fallback={<PageLoadingFallback />}>
+                <GenresPage />
+              </Suspense>
             </MainLayout>
           </ErrorBoundary>
         </Route>
@@ -252,7 +339,9 @@ function Router() {
         <Route path="/contact">
           <ErrorBoundary>
             <MainLayout>
-              <ContactPage />
+              <Suspense fallback={<PageLoadingFallback />}>
+                <ContactPage />
+              </Suspense>
             </MainLayout>
           </ErrorBoundary>
         </Route>
@@ -260,7 +349,9 @@ function Router() {
         <Route path="/how-to-watch">
           <ErrorBoundary>
             <MainLayout>
-              <HowToWatchPage />
+              <Suspense fallback={<PageLoadingFallback />}>
+                <HowToWatchPage />
+              </Suspense>
             </MainLayout>
           </ErrorBoundary>
         </Route>
@@ -268,7 +359,9 @@ function Router() {
         <Route path="/devices">
           <ErrorBoundary>
             <MainLayout>
-              <DevicesPage />
+              <Suspense fallback={<PageLoadingFallback />}>
+                <DevicesPage />
+              </Suspense>
             </MainLayout>
           </ErrorBoundary>
         </Route>
@@ -276,7 +369,9 @@ function Router() {
         <Route path="/careers">
           <ErrorBoundary>
             <MainLayout>
-              <CareersPage />
+              <Suspense fallback={<PageLoadingFallback />}>
+                <CareersPage />
+              </Suspense>
             </MainLayout>
           </ErrorBoundary>
         </Route>
@@ -284,7 +379,9 @@ function Router() {
         <Route path="/press">
           <ErrorBoundary>
             <MainLayout>
-              <PressPage />
+              <Suspense fallback={<PageLoadingFallback />}>
+                <PressPage />
+              </Suspense>
             </MainLayout>
           </ErrorBoundary>
         </Route>
@@ -292,7 +389,9 @@ function Router() {
         <Route path="/blog">
           <ErrorBoundary>
             <MainLayout>
-              <BlogPage />
+              <Suspense fallback={<PageLoadingFallback />}>
+                <BlogPage />
+              </Suspense>
             </MainLayout>
           </ErrorBoundary>
         </Route>
@@ -300,7 +399,9 @@ function Router() {
         <Route path="/partners">
           <ErrorBoundary>
             <MainLayout>
-              <PartnersPage />
+              <Suspense fallback={<PageLoadingFallback />}>
+                <PartnersPage />
+              </Suspense>
             </MainLayout>
           </ErrorBoundary>
         </Route>
@@ -314,12 +415,7 @@ function Router() {
               return (
                 <ErrorBoundary>
                   <MainLayout>
-                    <div className="flex items-center justify-center min-h-screen">
-                      <svg className="animate-spin h-8 w-8 text-primary" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
-                      </svg>
-                    </div>
+                    <PageLoadingFallback />
                   </MainLayout>
                 </ErrorBoundary>
               );
@@ -338,7 +434,9 @@ function Router() {
         <Route>
           <ErrorBoundary>
             <MainLayout>
-              <NotFound />
+              <Suspense fallback={<PageLoadingFallback />}>
+                <NotFound />
+              </Suspense>
             </MainLayout>
           </ErrorBoundary>
         </Route>
@@ -380,6 +478,12 @@ function App() {
 
   React.useEffect(() => {
     debugLog('App component mounted', { showSplash });
+    
+    // Preload critical routes for faster navigation
+    if (!showSplash) {
+      // Only preload after splash screen is dismissed
+      preloadCriticalRoutes();
+    }
     
     // Add debugging info to window
     if (DEBUG_MODE) {

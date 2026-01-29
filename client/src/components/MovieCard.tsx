@@ -138,7 +138,7 @@ export default function MovieCard({ movie }: MovieCardProps) {
       <div className="movie-card group relative rounded-lg overflow-hidden cursor-pointer">        
         <AspectRatio ratio={2/3}>
           <LazyImage
-            src={movie.posterUrl || movie.thumbUrl || movie.poster_url || movie.thumb_url || "https://via.placeholder.com/300x450?text=No+Image"}
+            src={movie.thumb_url || movie.thumbUrl || movie.poster_url || movie.posterUrl || "https://via.placeholder.com/300x450?text=No+Image"}
             alt={movie.name}
             className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
             rootMargin="75px"

@@ -70,8 +70,8 @@ export default function TvSeriesCard({ movie, className }: TvSeriesCardProps) {
   const rating = movie.tmdb?.vote_average || 0;
   const displayRating = rating > 0 ? rating.toFixed(1) : null;
 
-  // Get the correct image URL
-  const imageUrl = movie.posterUrl || movie.poster_url || movie.thumbUrl || movie.thumb_url || '/placeholder-poster.jpg';
+  // Get the correct image URL (prioritize thumb_url as it's more reliable)
+  const imageUrl = movie.thumb_url || movie.thumbUrl || movie.poster_url || movie.posterUrl || '/placeholder-poster.jpg';
 
   // Get year and categories
   const year = movie.year || new Date().getFullYear();

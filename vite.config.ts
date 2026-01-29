@@ -32,13 +32,55 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    // Increase chunk size warning limit
+    chunkSizeWarningLimit: 1000,
     // Enable proper asset hashing for cache busting
     rollupOptions: {
       output: {
         // Hash all assets except the main HTML file
         entryFileNames: 'assets/[name]-[hash].js',
         chunkFileNames: 'assets/[name]-[hash].js',
-        assetFileNames: 'assets/[name]-[hash].[ext]'
+        assetFileNames: 'assets/[name]-[hash].[ext]',
+        // Manual chunks for better code splitting
+        manualChunks: {
+          // React core libraries
+          'react-vendor': ['react', 'react-dom', 'react/jsx-runtime'],
+          
+          // Router and query
+          'router': ['wouter', '@tanstack/react-query'],
+          
+          // UI Framework - Radix UI components
+          'ui-framework': [
+            '@radix-ui/react-dialog',
+            '@radix-ui/react-dropdown-menu',
+            '@radix-ui/react-popover',
+            '@radix-ui/react-select',
+            '@radix-ui/react-tabs',
+            '@radix-ui/react-toast',
+            '@radix-ui/react-tooltip',
+            '@radix-ui/react-accordion',
+            '@radix-ui/react-alert-dialog',
+            '@radix-ui/react-avatar',
+            '@radix-ui/react-checkbox',
+            '@radix-ui/react-label',
+            '@radix-ui/react-scroll-area',
+            '@radix-ui/react-separator',
+            '@radix-ui/react-slot',
+            '@radix-ui/react-switch',
+          ],
+          
+          // Video player libraries
+          'video-player': ['video.js', 'hls.js', '@videojs/http-streaming'],
+          
+          // Form handling
+          'forms': ['react-hook-form', '@hookform/resolvers', 'zod'],
+          
+          // Icons and animations
+          'icons-animations': ['lucide-react', 'framer-motion', 'react-icons'],
+          
+          // Utilities
+          'utilities': ['axios', 'date-fns', 'clsx', 'tailwind-merge'],
+        }
       }
     },
     // Generate manifest for proper cache invalidation

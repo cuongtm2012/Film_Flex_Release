@@ -113,8 +113,8 @@ export default function RecommendedMovieCard({ movie, size = "medium" }: Recomme
 
   const statusBadgeInfo = getStatusBadgeInfo();
 
-  // Get the correct image URL with proper fallbacks
-  const imageUrl = movie.posterUrl || movie.poster_url || movie.thumbUrl || movie.thumb_url || "https://via.placeholder.com/300x450?text=No+Image";
+  // Get the correct image URL with proper fallbacks (prioritize thumb_url as it's more reliable)
+  const imageUrl = movie.thumb_url || movie.thumbUrl || movie.poster_url || movie.posterUrl || "https://via.placeholder.com/300x450?text=No+Image";
 
   // Get episode information for display
   const getEpisodeDisplay = () => {

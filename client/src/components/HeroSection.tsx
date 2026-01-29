@@ -13,8 +13,8 @@ export default function HeroSection({ movie, isLoading = false }: HeroSectionPro
   // Default hero background image for when no movie is loaded
   const backgroundImageUrl = "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?ixlib=rb-1.2.1&auto=format&fit=crop&w=1920&q=80";
   
-  // If there's a loaded movie, use its poster as the background
-  const movieBackgroundImageUrl = movie?.movie?.poster_url || backgroundImageUrl;
+  // If there's a loaded movie, use its poster as the background (prioritize thumb_url as it's more reliable)
+  const movieBackgroundImageUrl = movie?.movie?.thumb_url || movie?.movie?.poster_url || backgroundImageUrl;
   
   // Parallax effect state
   const [scrollY, setScrollY] = useState(0);
