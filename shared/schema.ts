@@ -628,6 +628,18 @@ export type EpisodeServer = {
   }[];
 };
 
+export type RelatedSeason = {
+  movieId: string;
+  name: string;
+  slug: string;
+  originName?: string;
+  year?: number;
+  episodeCurrent?: string;
+  episodeTotal?: string;
+  thumbUrl?: string;
+  posterUrl?: string;
+};
+
 export type MovieDetailResponse = {
   movie: {
     _id: string;
@@ -651,6 +663,7 @@ export type MovieDetailResponse = {
     director: string[];
     category: Category[];
     country: Country[];
+    related_seasons?: RelatedSeason[];
   };
   episodes: EpisodeServer[];
 };

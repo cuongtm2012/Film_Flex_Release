@@ -50,6 +50,96 @@ async function fetchMovieList(page: number, limit: number): Promise<MovieListRes
   };
 }
 
+/**
+ * Extract base series name by removing season/part indicators
+ * Examples: 
+ * "Sống Chất (Phần 1)" -> "Sống Chất"
+ * "Breaking Bad (Season 2)" -> "Breaking Bad"
+ */
+function extractBaseSeriesName(name: string): string {
+  return name
+    .replace(/\s*\(Phần\s+\d+\)/gi, '')
+    .replace(/\s*\(Season\s+\d+\)/gi, '')
+    .replace(/\s*\(Mùa\s+\d+\)/gi, '')
+    .replace(/\s*-\s*Phần\s+\d+/gi, '')
+    .replace(/\s*-\s*Season\s+\d+/gi, '')
+    .trim();
+}
+
+/**
+ * Find all related seasons/parts of a series
+ */
+async function findRelatedSeasons(baseName: string, originBaseName?: string): Promise<any[]> {
+  try {
+    // Simplified query - just find all movies with the base name
+    const query = `
+      SELECT 
+        movie_id as "movieId",
+        name,
+        slug,
+        origin_name as "originName",
+        year,
+        episode_current as "episodeCurrent",
+        episode_total as "episodeTotal",
+        thumb_url as "thumbUrl",
+        poster_url as "posterUrl"
+      FROM movies 
+      WHERE (
+        name LIKE $1
+        OR origin_name LIKE $2
+      )
+      ORDER BY year ASC, name ASC
+    `;
+    
+    const pattern = `%${baseName}%`;
+    const result = await pool.query(query, [pattern, `%${originBaseName || baseName}%`]);
+    
+    // Filter to only include items with season indicators and sort by season number
+    const seasonsWithNumbers = result.rows
+      .filter(row => {
+        const name = row.name || '';
+        const origin = row.originName || '';
+        return /Phần|Season|Mùa|Part/i.test(name) || /Season|Part/i.test(origin);
+      })
+      .map(row => {
+        // Extract season number
+        const name = row.name || '';
+        const origin = row.originName || '';
+        const match = name.match(/Phần\s*(\d+)|Season\s*(\d+)|Mùa\s*(\d+)/i) || 
+                     origin.match(/Season\s*(\d+)|Part\s*(\d+)/i);
+        const seasonNum = match ? parseInt(match[1] || match[2] || match[3]) : 999;
+        return { ...row, seasonNum };
+      })
+      .sort((a, b) => a.seasonNum - b.seasonNum);
+    
+    return seasonsWithNumbers;
+  } catch (error) {
+    console.error('Error finding related seasons:', error);
+    return [];
+  }
+}
+
+/**
+ * Add related seasons info to a movie object
+ */
+async function addRelatedSeasonsToMovie(movieData: any): Promise<any> {
+  // Find related seasons if this is a TV series
+  if (movieData.type === 'tvshows' || movieData.name?.includes('Phần') || movieData.name?.includes('Season')) {
+    const baseName = extractBaseSeriesName(movieData.name);
+    const originBaseName = movieData.origin_name ? extractBaseSeriesName(movieData.origin_name) : undefined;
+    const relatedSeasons = await findRelatedSeasons(baseName, originBaseName);
+    
+    if (relatedSeasons.length > 0) {
+      return {
+        ...movieData,
+        related_seasons: relatedSeasons
+      };
+    }
+  }
+  
+  return movieData;
+}
+
 async function fetchMovieDetail(slug: string): Promise<MovieDetailResponse> {
   const movie = await storage.getMovieBySlug(slug);
   if (!movie) {
@@ -58,30 +148,35 @@ async function fetchMovieDetail(slug: string): Promise<MovieDetailResponse> {
   const episodes = await storage.getEpisodesByMovieSlug(slug);
 
   // Convert to API response format
-  return {
-    movie: {
-      _id: movie.movieId,
-      name: movie.name,
-      slug: movie.slug,
-      origin_name: movie.originName || "",
-      content: movie.description || "",
-      type: movie.type || "",
-      status: movie.status || "",
-      thumb_url: movie.thumbUrl || "",
-      poster_url: movie.posterUrl || "",
-      trailer_url: movie.trailerUrl || undefined,
-      time: movie.time || "",
-      quality: movie.quality || "",
-      lang: movie.lang || "",
-      year: movie.year || null,
-      episode_current: movie.episodeCurrent || "Full",
-      episode_total: movie.episodeTotal || "1",
-      view: movie.view || 0,
-      actor: movie.actors ? movie.actors.split(", ") : [],
-      director: movie.directors ? movie.directors.split(", ") : [],
-      category: (movie.categories as Category[]) || [],
-      country: (movie.countries as Country[]) || []
-    },
+  let movieData: any = {
+    _id: movie.movieId,
+    name: movie.name,
+    slug: movie.slug,
+    origin_name: movie.originName || "",
+    content: movie.description || "",
+    type: movie.type || "",
+    status: movie.status || "",
+    thumb_url: movie.thumbUrl || "",
+    poster_url: movie.posterUrl || "",
+    trailer_url: movie.trailerUrl || undefined,
+    time: movie.time || "",
+    quality: movie.quality || "",
+    lang: movie.lang || "",
+    year: movie.year || null,
+    episode_current: movie.episodeCurrent || "Full",
+    episode_total: movie.episodeTotal || "1",
+    view: movie.view || 0,
+    actor: movie.actors ? movie.actors.split(", ") : [],
+    director: movie.directors ? movie.directors.split(", ") : [],
+    category: (movie.categories as Category[]) || [],
+    country: (movie.countries as Country[]) || []
+  };
+  
+  // Add related seasons
+  movieData = await addRelatedSeasonsToMovie(movieData);
+
+  const response: MovieDetailResponse = {
+    movie: movieData,
     episodes: episodes.map(ep => ({
       server_name: ep.serverName,
       server_data: [{
@@ -93,6 +188,8 @@ async function fetchMovieDetail(slug: string): Promise<MovieDetailResponse> {
       }]
     }))
   };
+  
+  return response;
 }
 
 async function searchMovies(query: string, normalizedQuery: string, page: number, limit: number, sortBy?: string, filters?: { isRecommended?: boolean, type?: string, section?: string }): Promise<MovieListResponse> {
@@ -856,6 +953,9 @@ export function registerRoutes(app: Express): void {
                 country: (enrichedMovie.countries as Country[]) || []
               }, episodes: formattedEpisodes
             };
+            
+            // Add related seasons info
+            movieDetailData.movie = await addRelatedSeasonsToMovie(movieDetailData.movie);
 
             // Cache this result
             if (movieDetailData) {

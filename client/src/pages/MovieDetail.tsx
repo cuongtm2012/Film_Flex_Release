@@ -16,7 +16,8 @@ import {
   Info,
   FileText,
   CheckCircle,
-  ArrowLeft
+  ArrowLeft,
+  Tv2
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -59,6 +60,14 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
+  // State for selected season (slug of the season to display)
+  const [selectedSeasonSlug, setSelectedSeasonSlug] = useState(slug);
+  
+  // Reset selected season when slug prop changes (navigating to different movie)
+  useEffect(() => {
+    setSelectedSeasonSlug(slug);
+  }, [slug]);
+  
   // State for selected server and episode
   const [selectedServer, setSelectedServer] = useState("");
   const [selectedEpisode, setSelectedEpisode] = useState("");
@@ -78,14 +87,14 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
   // State for share dialog
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
 
-  // Fetch movie details
+  // Fetch movie details (use selectedSeasonSlug instead of slug)
   const {
     data: movieDetail,
     isLoading: isMovieLoading,
     isError: isMovieError
   } = useQuery<MovieDetailResponse>({
-    queryKey: [`/api/movies/${slug}`],
-    enabled: !!slug
+    queryKey: [`/api/movies/${selectedSeasonSlug}`],
+    enabled: !!selectedSeasonSlug
   });
 
   // Handle initial server and episode selection when data loads
@@ -122,35 +131,35 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
     }
   }, [selectedEpisode, currentlyPlaying]); // Dependency on both episode selection and playing status
 
-  // Fetch recommendations
+  // Fetch recommendations (for currently selected season)
   const {
     data: recommendationsData,
     isLoading: isRecommendationsLoading
   } = useQuery<MovieListResponse>({
-    queryKey: [`/api/movies/${slug}/recommendations?limit=10`],
-    enabled: !!slug
+    queryKey: [`/api/movies/${selectedSeasonSlug}/recommendations?limit=10`],
+    enabled: !!selectedSeasonSlug
   });
 
-  // Fetch comments
+  // Fetch comments (for currently selected season)
   const {
     data: commentsData,
     isLoading: isCommentsLoading,
     refetch: refetchComments
   } = useQuery<{ data: Comment[], total: number }>({
-    queryKey: [`/api/movies/${slug}/comments`, { page: 1, limit: 5 }],
-    enabled: !!slug
+    queryKey: [`/api/movies/${selectedSeasonSlug}/comments`, { page: 1, limit: 5 }],
+    enabled: !!selectedSeasonSlug
   });
 
   // Get user info from auth context
   const { user } = useAuth();
   const userId = user?.id || 1; // Default to 1 for demo if not logged in
 
-  // Check if movie is in watchlist
+  // Check if movie is in watchlist (for currently selected season)
   const {
     data: watchlistData,
     isLoading: isWatchlistLoading
   } = useQuery<WatchlistCheckResponse>({
-    queryKey: [`/api/users/${userId}/watchlist/check/${slug}`],
+    queryKey: [`/api/users/${userId}/watchlist/check/${selectedSeasonSlug}`],
     enabled: !!userId
   });
 
@@ -160,11 +169,11 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
   // Add to watchlist mutation
   const addToWatchlistMutation = useMutation({
     mutationFn: () => {
-      return apiRequest("POST", `/api/users/${userId}/watchlist`, { userId, movieSlug: slug });
+      return apiRequest("POST", `/api/users/${userId}/watchlist`, { userId, movieSlug: selectedSeasonSlug });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/watchlist`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/watchlist/check/${slug}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/watchlist/check/${selectedSeasonSlug}`] });
       toast({
         title: "Added to My List",
         description: "This title has been added to your watchlist",
@@ -181,11 +190,11 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
   // Remove from watchlist mutation
   const removeFromWatchlistMutation = useMutation({
     mutationFn: () => {
-      return apiRequest("DELETE", `/api/users/${userId}/watchlist/${slug}`);
+      return apiRequest("DELETE", `/api/users/${userId}/watchlist/${selectedSeasonSlug}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/watchlist`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/watchlist/check/${slug}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/watchlist/check/${selectedSeasonSlug}`] });
       toast({
         title: "Removed from My List",
         description: "This title has been removed from your watchlist",
@@ -473,7 +482,7 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
             {/* Action Buttons - Optimized */}
             <div className="flex flex-wrap gap-2 mb-4">
               {/* Replace static rating with interactive reactions */}
-              <MovieReactions movieSlug={slug} userId={user?.id} />
+              <MovieReactions movieSlug={selectedSeasonSlug} userId={user?.id} />
 
               <Button
                 variant="outline"
@@ -521,6 +530,60 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
                 <span className="text-xs hidden sm:inline">Report</span>
               </Button>
             </div>
+
+            {/* Season Selection - Show if multiple seasons available */}
+            {movieDetail.movie.related_seasons && movieDetail.movie.related_seasons.length > 1 && (
+              <div className="mb-4 bg-gradient-to-r from-primary/10 to-primary/5 p-4 rounded-lg border border-primary/20">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-sm font-semibold flex items-center gap-2">
+                    <Tv2 className="h-4 w-4 text-primary" />
+                    All Seasons ({movieDetail.movie.related_seasons.length} total)
+                  </h4>
+                </div>
+                
+                {/* Season Grid - Responsive */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
+                  {movieDetail.movie.related_seasons.map((season, index) => {
+                    const seasonNumber = season.name.match(/Phần\s*(\d+)|Season\s*(\d+)/i)?.[1] || 
+                                        season.name.match(/Phần\s*(\d+)|Season\s*(\d+)/i)?.[2] || 
+                                        (index + 1);
+                    const isCurrentSeason = season.slug === selectedSeasonSlug;
+                    
+                    return (
+                      <Button
+                        key={season.slug}
+                        variant={isCurrentSeason ? "default" : "outline"}
+                        size="sm"
+                        className={`h-auto py-2 px-3 flex flex-col items-start text-left ${
+                          isCurrentSeason 
+                            ? "bg-primary text-white border-2 border-primary-foreground shadow-lg" 
+                            : "bg-card/30 hover:bg-card/50"
+                        }`}
+                        onClick={() => {
+                          if (!isCurrentSeason) {
+                            setSelectedSeasonSlug(season.slug);
+                            setEpisodeSearchQuery("");
+                            toast({
+                              title: `Switched to ${season.name}`,
+                              description: `${season.episodeCurrent || 'Loading episodes...'}`,
+                            });
+                          }
+                        }}
+                      >
+                        <span className="font-bold text-sm">Season {seasonNumber}</span>
+                        <span className="text-xs opacity-80">{season.year}</span>
+                        {season.episodeCurrent && (
+                          <span className="text-xs opacity-70 mt-0.5">{season.episodeCurrent}</span>
+                        )}
+                        {isCurrentSeason && (
+                          <CheckCircle className="h-3 w-3 absolute top-1 right-1" />
+                        )}
+                      </Button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Server Selection - Only show if there are multiple servers - Optimized */}
             {movieDetail.episodes.length > 1 && (
