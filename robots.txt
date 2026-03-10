@@ -1,0 +1,35 @@
+User-agent: *
+Allow: /
+
+# Allow all search engines to crawl the site
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: Slurp
+Allow: /
+
+# Disallow admin and private areas
+Disallow: /admin/
+Disallow: /api/
+Disallow: /private/
+Disallow: /user/
+Disallow: /profile/settings
+Disallow: /auth/
+
+# Allow important pages for SEO
+Allow: /movies
+Allow: /tv-shows
+Allow: /genres
+Allow: /about
+Allow: /contact
+Allow: /blog
+Allow: /news
+
+# Crawl delay (optional - be respectful to server resources)
+Crawl-delay: 1
+
+# Sitemap location
+Sitemap: https://phimgg.com/sitemap.xml

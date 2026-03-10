@@ -1,0 +1,257 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 0 0% 100%;
+  --foreground: 20 14.3% 4.1%;
+  --muted: 60 4.8% 95.9%;
+  --muted-foreground: 25 5.3% 44.7%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 20 14.3% 4.1%;
+  --card: 0 0% 100%;
+  --card-foreground: 20 14.3% 4.1%;
+  --border: 20 5.9% 90%;
+  --input: 20 5.9% 90%;
+  --primary: 0 72.2% 50.6%;  /* PhimGG red */
+  --primary-foreground: 60 9.1% 97.8%;
+  --secondary: 60 4.8% 95.9%;
+  --secondary-foreground: 24 9.8% 10%;
+  --accent: 60 4.8% 95.9%;
+  --accent-foreground: 24 9.8% 10%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 60 9.1% 97.8%;
+  --ring: 20 14.3% 4.1%;
+  --radius: 0.5rem;
+  
+  /* RGB values for primary color for use in shadows/gradients */
+  --primary-rgb: 235, 70, 85;
+}
+
+.dark {
+  --background: 240 10% 3.9%;  /* PhimGG dark background */
+  --foreground: 0 0% 98%;
+  --muted: 240 3.7% 15.9%;
+  --muted-foreground: 240 5% 64.9%;
+  --popover: 240 10% 3.9%;
+  --popover-foreground: 0 0% 98%;
+  --card: 235 11% 12%;  /* PhimGG card surface */
+  --card-foreground: 0 0% 98%;
+  --border: 240 3.7% 15.9%;
+  --input: 240 3.7% 15.9%;
+  --primary: 0 72.2% 50.6%;  /* PhimGG red */
+  --primary-foreground: 0 0% 98%;
+  --secondary: 240 3.7% 15.9%;
+  --secondary-foreground: 0 0% 98%;
+  --accent: 240 3.7% 15.9%;
+  --accent-foreground: 0 0% 98%;
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 0 0% 98%;
+  --ring: 240 4.9% 83.9%;
+  --radius: 0.5rem;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+}
+
+@layer components {
+  .movie-card {
+    @apply transition-transform duration-300 ease-in-out rounded-md overflow-hidden;
+  }
+  
+  .movie-card:hover {
+    @apply transform scale-105 shadow-lg z-10;
+  }
+  
+  .movie-card:hover .card-overlay {
+    @apply opacity-100;
+  }
+  
+  .card-overlay {
+    @apply opacity-0 transition-opacity duration-300 ease-in-out bg-gradient-to-t from-black/90 via-black/50 to-transparent;
+  }
+  
+  .category-pill {
+    @apply transition-colors duration-300 ease-in-out;
+  }
+  
+  .category-pill:hover {
+    @apply bg-primary;
+  }
+
+  /* Hide scrollbar for webkit browsers */
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Hide scrollbar for Firefox */
+  .hide-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  
+  /* Custom scrollbar */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    @apply bg-muted/10 rounded-full;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-muted/40 rounded-full hover:bg-muted/60 transition-colors;
+  }
+  
+  /* Animations */
+  @keyframes pulseOpacity {
+    0% { opacity: 0.6; }
+    50% { opacity: 1; }
+    100% { opacity: 0.6; }
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes scaleIn {
+    from { transform: scale(0.95); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+
+  .animate-pulseOpacity {
+    animation: pulseOpacity 2s infinite ease-in-out;
+  }
+
+  .animate-fadeIn {
+    animation: fadeIn 0.5s ease-out;
+  }
+
+  .animate-scaleIn {
+    animation: scaleIn 0.35s ease-out;
+  }
+  
+  /* Improved text readability */
+  .improved-text {
+    @apply leading-relaxed tracking-wide text-gray-200;
+  }
+  
+  .line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  
+  /* Scrollbar hide utility for horizontal scrolling elements */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  
+  /* Scroll to top button animation */
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  .animate-fade-in {
+    animation: fadeInUp 0.3s ease-out forwards;
+  }
+  
+  /* Hover animation for scroll to top button */
+  .scroll-to-top-btn {
+    transition: transform 0.2s ease-out, background-color 0.2s ease-out;
+  }
+  
+  .scroll-to-top-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 15px -3px rgba(var(--primary-rgb), 0.3);
+  }
+
+  /* Mobile Bottom Navigation Styles */
+  .safe-area-inset-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* Mobile filter tabs */
+  @media (max-width: 768px) {
+    /* Smooth horizontal scroll for filter tabs */
+    .overflow-x-auto {
+      scroll-behavior: smooth;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* Active filter tab pulse effect */
+    @keyframes tabPulse {
+      0% { box-shadow: 0 0 0 0 rgba(var(--primary-rgb), 0.4); }
+      70% { box-shadow: 0 0 0 6px rgba(var(--primary-rgb), 0); }
+      100% { box-shadow: 0 0 0 0 rgba(var(--primary-rgb), 0); }
+    }
+
+    /* Mobile card improvements */
+    .movie-card {
+      @apply rounded-lg;
+    }
+
+    /* Reduce hover effect on touch devices */
+    .movie-card:active {
+      @apply transform scale-[1.02];
+    }
+
+    /* Better touch targets for mobile */
+    button, a {
+      min-height: 44px;
+      min-width: 44px;
+    }
+  }
+
+  /* Compact badge styles for mobile */
+  @media (max-width: 640px) {
+    .movie-card .badge-compact {
+      @apply text-[10px] px-1.5 py-0.5;
+    }
+  }
+}
+
+@layer utilities {
+  /* Safe area utilities for notched devices */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .mb-safe {
+    margin-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* Touch-friendly spacing */
+  .touch-spacing {
+    @apply p-3 md:p-4;
+  }
+}

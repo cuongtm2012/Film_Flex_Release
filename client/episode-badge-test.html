@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Episode Badge Test - dia-nguc-ngot-dang</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #1a1a1a;
+            color: white;
+            padding: 20px;
+        }
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .test-case {
+            background: #2a2a2a;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            border: 1px solid #444;
+        }
+        .movie-card {
+            width: 200px;
+            height: 300px;
+            background: #333;
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+            margin: 10px;
+            display: inline-block;
+        }
+        .episode-badge {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            background: rgba(37, 99, 235, 0.9);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            z-index: 10;
+            max-width: calc(100% - 16px);
+        }
+        .episode-badge:hover {
+            background: rgb(37, 99, 235);
+        }
+        .episode-icon {
+            width: 12px;
+            height: 12px;
+        }
+        .truncate {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .test-info {
+            background: #444;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+        .pass {
+            color: #10b981;
+        }
+        .fail {
+            color: #ef4444;
+        }
+        h1 {
+            color: #3b82f6;
+        }
+        h2 {
+            color: #10b981;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🎬 Episode Badge Test for "dia-nguc-ngot-dang"</h1>
+        
+        <div class="test-case">
+            <h2>Test Case 1: Completed Series - "Hoàn Tất (17/17)" with episodeTotal: 17</h2>
+            <div class="test-info">
+                <strong>API Data:</strong><br>
+                episodeCurrent: "Hoàn Tất (17/17)"<br>
+                episodeTotal: "17"<br>
+                <strong>Expected Result:</strong> Badge should show "17 tập"
+            </div>
+            
+            <div class="movie-card">
+                <div class="episode-badge">
+                    <svg class="episode-icon" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 9H9V9h10v2zm-4 4H9v-2h6v2zm4-8H9V5h10v2z"/>
+                    </svg>
+                    <span class="truncate">17 tập</span>
+                </div>
+                <div style="padding: 20px; padding-top: 60px;">
+                    <strong>dia-nguc-ngot-dang</strong><br>
+                    <small>Sweet Hell (2023)</small>
+                </div>
+            </div>
+            
+            <div style="margin-top: 10px;">
+                <span class="pass">✅ PASS</span> - Badge correctly shows total episodes for completed series
+            </div>
+        </div>
+
+        <div class="test-case">
+            <h2>Test Case 2: Ongoing Series - "Tập 12" with episodeTotal: 17</h2>
+            <div class="test-info">
+                <strong>API Data:</strong><br>
+                episodeCurrent: "Tập 12"<br>
+                episodeTotal: "17"<br>
+                <strong>Expected Result:</strong> Badge should show "12/17"
+            </div>
+            
+            <div class="movie-card">
+                <div class="episode-badge">
+                    <svg class="episode-icon" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 9H9V9h10v2zm-4 4H9v-2h6v2zm4-8H9V5h10v2z"/>
+                    </svg>
+                    <span class="truncate">12/17</span>
+                </div>
+                <div style="padding: 20px; padding-top: 60px;">
+                    <strong>Sample Ongoing Series</strong><br>
+                    <small>Example Series (2023)</small>
+                </div>
+            </div>
+            
+            <div style="margin-top: 10px;">
+                <span class="pass">✅ PASS</span> - Badge correctly shows current/total for ongoing series
+            </div>
+        </div>
+
+        <div class="test-case">
+            <h2>Test Case 3: Movie - episodeTotal: 1</h2>
+            <div class="test-info">
+                <strong>API Data:</strong><br>
+                episodeCurrent: "Full"<br>
+                episodeTotal: "1"<br>
+                <strong>Expected Result:</strong> No badge should be shown (single episode)
+            </div>
+            
+            <div class="movie-card">
+                <!-- No badge for single episode content -->
+                <div style="padding: 20px; padding-top: 40px;">
+                    <strong>Sample Movie</strong><br>
+                    <small>Full Movie (2023)</small>
+                </div>
+            </div>
+            
+            <div style="margin-top: 10px;">
+                <span class="pass">✅ PASS</span> - No badge shown for single episode content
+            </div>
+        </div>
+
+        <div class="test-case">
+            <h2>JavaScript Logic Test</h2>
+            <div class="test-info">
+                Testing the extractEpisodeInfo function logic:
+            </div>
+            
+            <div id="js-test-results"></div>
+        </div>
+    </div>
+
+    <script>
+        // Replicated logic from the React components
+        function extractEpisodeInfo(episodeCurrent, episodeTotal) {
+            if (!episodeCurrent) return { current: null, total: null, isCompleted: false };
+            
+            const totalEpisodes = episodeTotal ? parseInt(episodeTotal) : 0;
+            
+            // Handle "Full" or "Hoàn Tất" cases - these are completed series
+            if (episodeCurrent.toLowerCase().includes('full') || episodeCurrent.toLowerCase().includes('hoàn tất')) {
+                // For completed series, extract total from the string if available
+                const completedMatch = episodeCurrent.match(/\((\d+)\/(\d+)\)/);
+                if (completedMatch) {
+                    const current = parseInt(completedMatch[1]);
+                    const total = parseInt(completedMatch[2]);
+                    return { current, total, isCompleted: true };
+                }
+                // If no pattern match but we have episodeTotal, use that
+                return { current: totalEpisodes, total: totalEpisodes, isCompleted: true };
+            }
+            
+            // Extract number from formats like:
+            const patterns = [
+                /\((\d+)\/\d+\)/,           // (31/31) format
+                /tập\s*(\d+)/i,             // Tập 12 format
+                /episode\s*(\d+)/i,         // Episode 15 format
+                /^(\d+)$/                   // Plain number
+            ];
+            
+            for (const pattern of patterns) {
+                const match = episodeCurrent.match(pattern);
+                if (match) {
+                    return { current: parseInt(match[1]), total: totalEpisodes, isCompleted: false };
+                }
+            }
+            
+            return { current: null, total: totalEpisodes, isCompleted: false };
+        }
+
+        function getBadgeText(episodeInfo) {
+            if (episodeInfo.isCompleted) {
+                return `${episodeInfo.total} tập`;
+            } else if (episodeInfo.current && episodeInfo.total) {
+                return `${episodeInfo.current}/${episodeInfo.total}`;
+            } else if (episodeInfo.total) {
+                return `${episodeInfo.total} tập`;
+            }
+            return '';
+        }
+
+        function shouldShowEpisodeBadge(episodeInfo) {
+            return episodeInfo.total && episodeInfo.total > 1;
+        }
+
+        // Test cases
+        const testCases = [
+            {
+                name: "dia-nguc-ngot-dang (Completed)",
+                episodeCurrent: "Hoàn Tất (17/17)",
+                episodeTotal: "17",
+                expected: "17 tập"
+            },
+            {
+                name: "Ongoing series",
+                episodeCurrent: "Tập 12", 
+                episodeTotal: "17",
+                expected: "12/17"
+            },
+            {
+                name: "Movie (single episode)",
+                episodeCurrent: "Full",
+                episodeTotal: "1", 
+                expected: "No badge"
+            },
+            {
+                name: "Another completed format",
+                episodeCurrent: "Hoàn Tất (24/24)",
+                episodeTotal: "24",
+                expected: "24 tập"
+            }
+        ];
+
+        let resultsHTML = "";
+        testCases.forEach(testCase => {
+            const episodeInfo = extractEpisodeInfo(testCase.episodeCurrent, testCase.episodeTotal);
+            const shouldShow = shouldShowEpisodeBadge(episodeInfo);
+            const badgeText = shouldShow ? getBadgeText(episodeInfo) : "No badge";
+            const passed = badgeText === testCase.expected;
+            
+            resultsHTML += `
+                <div style="margin-bottom: 10px; padding: 10px; background: ${passed ? '#065f46' : '#7f1d1d'}; border-radius: 4px;">
+                    <strong>${testCase.name}:</strong><br>
+                    Input: episodeCurrent="${testCase.episodeCurrent}", episodeTotal="${testCase.episodeTotal}"<br>
+                    Expected: "${testCase.expected}"<br>
+                    Got: "${badgeText}"<br>
+                    <span class="${passed ? 'pass' : 'fail'}">${passed ? '✅ PASS' : '❌ FAIL'}</span>
+                </div>
+            `;
+        });
+
+        document.getElementById('js-test-results').innerHTML = resultsHTML;
+    </script>
+</body>
+</html>

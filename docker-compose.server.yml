@@ -1,0 +1,114 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database with complete movie database (5,005+ movies)
+  postgres:
+    image: cuongtm2012/filmflex-postgres-data:latest
+    container_name: filmflex-postgres
+    environment:
+      POSTGRES_DB: filmflex
+      POSTGRES_USER: filmflex
+      POSTGRES_PASSWORD: filmflex2024
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - filmflex-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U filmflex -d filmflex"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Multi-platform PhimGG Application (supports ARM64 and AMD64)
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: filmflex-app
+    environment:
+      # Database Configuration
+      DATABASE_URL: postgresql://filmflex:filmflex2024@postgres:5432/filmflex
+      
+      # Elasticsearch Configuration
+      ELASTICSEARCH_NODE: http://filmflex-elasticsearch:9200
+      ELASTICSEARCH_ENABLED: "true"
+      
+      # Application Configuration
+      NODE_ENV: production
+      PORT: 5000
+      
+      # CORS Configuration (Fixed for server deployment)
+      ALLOWED_ORIGINS: "*"
+      CLIENT_URL: "*"
+      CORS_ORIGIN: "*"
+      CORS_METHODS: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS"
+      CORS_ALLOWED_HEADERS: "Origin,X-Requested-With,Content-Type,Accept,Authorization,Cache-Control,Pragma"
+      CORS_CREDENTIALS: "true"
+      
+      # Server Configuration
+      DOMAIN: "38.54.14.154"
+      SERVER_IP: "38.54.14.154"
+      PUBLIC_URL: "http://38.54.14.154:5000"
+      
+      # Security
+      SESSION_SECRET: filmflex_production_secret_2024
+    ports:
+      - "5000:5000"
+    networks:
+      - filmflex-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      filmflex-elasticsearch:
+        condition: service_healthy
+    volumes:
+      - app_logs:/app/logs
+      # Mount the scripts directory so Docker can access import scripts
+      - /root/Film_Flex_Release/scripts:/app/scripts:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Elasticsearch Service
+  filmflex-elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: filmflex-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - xpack.security.enabled=false
+      - xpack.security.enrollment.enabled=false
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - filmflex-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+networks:
+  filmflex-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+  app_logs:
+    driver: local
+  elasticsearch_data:
+    driver: local

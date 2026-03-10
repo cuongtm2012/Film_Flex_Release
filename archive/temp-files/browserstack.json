@@ -1,0 +1,32 @@
+{
+  "auth": {
+    "username": "tranthanh_AndDU7",
+    "access_key": "GJAHV7fs1TXCyAEryBfY"
+  },
+  "browsers": [
+    {
+      "browser": "chrome",
+      "os": "Windows 10",
+      "versions": ["latest", "latest-1"]
+    },
+    {
+      "browser": "firefox",
+      "os": "Windows 10",
+      "versions": ["latest"]
+    },
+    {
+      "browser": "edge",
+      "os": "Windows 10",
+      "versions": ["latest"]
+    }
+  ],
+  "run_settings": {
+    "cypress_config_file": "./cypress.cjs.config.js",
+    "project_name": "PhimGG Automation Testing",
+    "build_name": "PhimGG Build 1.0",
+    "parallels": 2,
+    "npm_dependencies": {
+      "cypress": "^14.3.0"
+    }
+  }
+}

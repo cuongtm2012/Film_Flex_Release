@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Page</title>
+</head>
+<body>
+    <h1>Test Page</h1>
+    <p>This is a test page to see if the server is accessible.</p>
+    <script>
+        fetch('http://localhost:5000/api/movies')
+            .then(response => response.json())
+            .then(data => {
+                const resultDiv = document.createElement('div');
+                resultDiv.textContent = `Found ${data.items.length} movies`;
+                document.body.appendChild(resultDiv);
+                
+                // Display first movie
+                if (data.items.length > 0) {
+                    const movieDiv = document.createElement('div');
+                    movieDiv.textContent = `First movie: ${data.items[0].name}`;
+                    document.body.appendChild(movieDiv);
+                }
+            })
+            .catch(error => {
+                const errorDiv = document.createElement('div');
+                errorDiv.textContent = `Error: ${error.message}`;
+                document.body.appendChild(errorDiv);
+            });
+    </script>
+</body>
+</html>

@@ -1,0 +1,289 @@
+Loaded environment variables from .env file
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] User specified max pages: 50
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Using user-specified MAX_PAGES = 50
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Starting movie data import to Docker PostgreSQL...
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Connecting to Docker PostgreSQL database...
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Host: localhost:5432
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Database: filmflex
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] User: filmflex
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] ✅ Successfully connected to Docker PostgreSQL
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Current movies in database: 196
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Performing deep scan of 50 pages...
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] 📄 Processing page 1/50...
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Fetching movie list for page 1 with limit 50
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Need to fetch 5 pages starting from external API page 1
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Successfully fetched page 1 with 10 items
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Successfully fetched page 2 with 10 items
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Successfully fetched page 3 with 10 items
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Successfully fetched page 4 with 10 items
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Successfully fetched page 5 with 10 items
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Combined 50 items from 5 pages
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Returning 50 items for page 1
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Found resume state with 20 processed movies
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Database error when saving movie mua-he-hikaru-chet: duplicate key value violates unique constraint "movies_movie_id_unique"
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Database error when saving movie hien-ngu: duplicate key value violates unique constraint "movies_movie_id_unique"
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Database error when saving movie queendom: duplicate key value violates unique constraint "movies_movie_id_unique"
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Database error when saving movie long-giam: duplicate key value violates unique constraint "movies_movie_id_unique"
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Database error when saving movie nhung-thien-than-nuoc-my: duplicate key value violates unique constraint "movies_movie_id_unique"
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Database error when saving movie truyen-thuyet-phuong-hoang-phuong-dich: duplicate key value violates unique constraint "movies_movie_id_unique"
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Database error when saving movie tieng-vong-cua-nguoi-song-sot-tham-an-tai-han-quoc: duplicate key value violates unique constraint "movies_movie_id_unique"
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Database error when saving movie quy-duc-vo-hinh: duplicate key value violates unique constraint "movies_movie_id_unique"
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Database error when saving movie ngoi-nha-cua-sayuri: duplicate key value violates unique constraint "movies_movie_id_unique"
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Database error when saving movie cam-nguyet-nhu-ca: duplicate key value violates unique constraint "movies_movie_id_unique"
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Database error when saving movie yaiba-huyen-thoai-samurai: duplicate key value violates unique constraint "movies_movie_id_unique"
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Database error when saving movie duc-tin: duplicate key value violates unique constraint "movies_movie_id_unique"
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Database error when saving movie watarikun-no-xx-ga-houkai-sunzen: duplicate key value violates unique constraint "movies_movie_id_unique"
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Database error when saving movie van-tham-bat-tri-mong: duplicate key value violates unique constraint "movies_movie_id_unique"
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Database error when saving movie them-muon: duplicate key value violates unique constraint "movies_movie_id_unique"
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Database error when saving movie toi-o-dinh-cao-doi-cau: duplicate key value violates unique constraint "movies_movie_id_unique"
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Database error when saving movie sinh-van-vat: duplicate key value violates unique constraint "movies_movie_id_unique"
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Database error when saving movie quai-vat-so-8-phan-2: duplicate key value violates unique constraint "movies_movie_id_unique"
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Database error when saving movie dexter-hoi-sinh: duplicate key value violates unique constraint "movies_movie_id_unique"
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Database error when saving movie cau-ca-tu-te: duplicate key value violates unique constraint "movies_movie_id_unique"
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Pháp Sư Trắng Bị Loại Khỏi Tổ Đội, Được Mạo Hiểm Giả Cấp S Đón Nhận'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 7 episodes for movie 'Pháp Sư Trắng Bị Loại Khỏi Tổ Đội, Được Mạo Hiểm Giả Cấp S Đón Nhận'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Người Đàn Ông Ma Thuật: Sân Khấu Đen'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 4 episodes for movie 'Người Đàn Ông Ma Thuật: Sân Khấu Đen'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Lực Lượng Nền Móng (Phần 3)'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 6 episodes for movie 'Lực Lượng Nền Móng (Phần 3)'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Lần Theo Vết Khói'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 9 episodes for movie 'Lần Theo Vết Khói'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Kén Chồng Quý Tộc (Phần 2)'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 8 episodes for movie 'Kén Chồng Quý Tộc (Phần 2)'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Giấc Mơ Người Luật Sư'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 5 episodes for movie 'Giấc Mơ Người Luật Sư'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Em Đến Cùng Mưa (Ame to Kimi to)'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 7 episodes for movie 'Em Đến Cùng Mưa (Ame to Kimi to)'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Đội Tuyển Kỳ Tích'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 8 episodes for movie 'Đội Tuyển Kỳ Tích'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Chiến Tướng'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 4 episodes for movie 'Chiến Tướng'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Cô Đừng Hòng Thoát Khỏi Tôi'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 12 episodes for movie 'Cô Đừng Hòng Thoát Khỏi Tôi'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Database error when saving movie anh-em-dai-bang: duplicate key value violates unique constraint "movies_movie_id_unique"
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Có Những Ngày Như Thế'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 1 episodes for movie 'Có Những Ngày Như Thế'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Vô Tướng Chi Thành'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 14 episodes for movie 'Vô Tướng Chi Thành'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Ultraman Omega'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 13 episodes for movie 'Ultraman Omega'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Thần Tướng Con Thứ'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 23 episodes for movie 'Thần Tướng Con Thứ'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Thần Quốc Chi Thượng'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 24 episodes for movie 'Thần Quốc Chi Thượng'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Tiếng Gọi Của Màn Đêm (Phần 2)'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 7 episodes for movie 'Tiếng Gọi Của Màn Đêm (Phần 2)'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Ta Là Ngài Khun Xinh Đẹp Nhất'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 3 episodes for movie 'Ta Là Ngài Khun Xinh Đẹp Nhất'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Song Nhẫn'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 11 episodes for movie 'Song Nhẫn'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Phàm Nhân Tu Tiên Truyện'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 58 episodes for movie 'Phàm Nhân Tu Tiên Truyện'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Ớt Nhỏ Thập Niên 80'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 8 episodes for movie 'Ớt Nhỏ Thập Niên 80'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Lời Ước Định Của Linh Hồn'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 9 episodes for movie 'Lời Ước Định Của Linh Hồn'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Kẻ Săn Ong'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 12 episodes for movie 'Kẻ Săn Ong'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Huyết Quỷ Hỗn Chiến'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 6 episodes for movie 'Huyết Quỷ Hỗn Chiến'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Hồi Ký Của Rati'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 9 episodes for movie 'Hồi Ký Của Rati'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Hồ Sơ Bệnh Án Thứ 19'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 3 episodes for movie 'Hồ Sơ Bệnh Án Thứ 19'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Giai Điệu Của Định Mệnh'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 15 episodes for movie 'Giai Điệu Của Định Mệnh'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Chúa Tể Huyền Bí'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 9 episodes for movie 'Chúa Tể Huyền Bí'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Chihayafuru: Vòng Lặp Mới'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 4 episodes for movie 'Chihayafuru: Vòng Lặp Mới'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Chỉ Riêng Mình Bạn'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 5 episodes for movie 'Chỉ Riêng Mình Bạn'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Page 1 results: 29 processed, 0 skipped, 21 failed
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] ⏳ Waiting 2 seconds before next page...
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] 📄 Processing page 2/50...
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Fetching movie list for page 2 with limit 50
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Need to fetch 5 pages starting from external API page 6
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Successfully fetched page 6 with 10 items
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Successfully fetched page 7 with 10 items
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Successfully fetched page 8 with 10 items
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Successfully fetched page 9 with 10 items
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Successfully fetched page 10 with 10 items
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Combined 50 items from 5 pages
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Returning 50 items for page 2
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Found resume state with 49 processed movies
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Chàng Không Phải Người Tốt (Quân Phi Lương Nhân)'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 20 episodes for movie 'Chàng Không Phải Người Tốt (Quân Phi Lương Nhân)'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Cẩm Tú Trạch Tâm'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 17 episodes for movie 'Cẩm Tú Trạch Tâm'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Cạm Bẫy Tình Yêu'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 11 episodes for movie 'Cạm Bẫy Tình Yêu'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Biển Hoa'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 22 episodes for movie 'Biển Hoa'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Bí Mật Của Phù Thủy Tĩnh Lặng'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 7 episodes for movie 'Bí Mật Của Phù Thủy Tĩnh Lặng'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Database error when saving movie luyen-khi-muoi-van-nam: duplicate key value violates unique constraint "movies_movie_id_unique"
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Database error when saving movie trong-tong-mon-tru-ta-ra-tat-ca-deu-la-gian-diep: duplicate key value violates unique constraint "movies_movie_id_unique"
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Database error when saving movie dau-la-dai-luc-2-tuyet-the-duong-mon: duplicate key value violates unique constraint "movies_movie_id_unique"
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Database error when saving movie van-gioi-doc-ton: duplicate key value violates unique constraint "movies_movie_id_unique"
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Lăng Thiên Độc Tôn'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 17 episodes for movie 'Lăng Thiên Độc Tôn'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Siêu Nhân'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 1 episodes for movie 'Siêu Nhân'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Database error when saving movie pham-nhan-tu-tien: duplicate key value violates unique constraint "movies_movie_id_unique"
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Đường Dây (Phần 5)'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 10 episodes for movie 'Đường Dây (Phần 5)'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Đường Dây (Phần 4)'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 13 episodes for movie 'Đường Dây (Phần 4)'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Đường Dây (Phần 3)'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 12 episodes for movie 'Đường Dây (Phần 3)'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Đường Dây (Phần 2)'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 12 episodes for movie 'Đường Dây (Phần 2)'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Đường Dây (Phần 1)'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 13 episodes for movie 'Đường Dây (Phần 1)'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Na Tra Náo Hải'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 1 episodes for movie 'Na Tra Náo Hải'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Mùa Hè Kinh Hãi 3'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 1 episodes for movie 'Mùa Hè Kinh Hãi 3'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Mùa Hè Kinh Hãi'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 1 episodes for movie 'Mùa Hè Kinh Hãi'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Mẹ Chồng Nàng Dâu'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 1 episodes for movie 'Mẹ Chồng Nàng Dâu'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Mất Tích'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 1 episodes for movie 'Mất Tích'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Màn Đêm Luôn Tới'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 1 episodes for movie 'Màn Đêm Luôn Tới'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Cô Lập'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 1 episodes for movie 'Cô Lập'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Sơn Hà Lệnh'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 108 episodes for movie 'Sơn Hà Lệnh'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Cánh Bướm Gián Điệp'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 2 episodes for movie 'Cánh Bướm Gián Điệp'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Cuộc Tuyển Chọn Cuối Cùng'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 8 episodes for movie 'Cuộc Tuyển Chọn Cuối Cùng'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Thương Lan Quyết (Bản Hoạt Hình) (Phần 2)'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 7 episodes for movie 'Thương Lan Quyết (Bản Hoạt Hình) (Phần 2)'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Thôn Phệ Tinh Không'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 184 episodes for movie 'Thôn Phệ Tinh Không'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Tsuyokute New Saga'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 7 episodes for movie 'Tsuyokute New Saga'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Tiên Sủng'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 12 episodes for movie 'Tiên Sủng'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Ma Thiên Ký'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 11 episodes for movie 'Ma Thiên Ký'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Ma Pháp Sư Thuộc Tính Nước'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 6 episodes for movie 'Ma Pháp Sư Thuộc Tính Nước'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Chuyển Sinh Thành Đệ Thất Hoàng Tử, Tôi Quyết Định Trau Dồi Ma Thuật (Phần 2)'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 6 episodes for movie 'Chuyển Sinh Thành Đệ Thất Hoàng Tử, Tôi Quyết Định Trau Dồi Ma Thuật (Phần 2)'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Đi Hát Karaoke Đi!'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 4 episodes for movie 'Đi Hát Karaoke Đi!'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Dư Tẫn Hành Giả'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 12 episodes for movie 'Dư Tẫn Hành Giả'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Dan Da Dan (Phần 2)'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 14 episodes for movie 'Dan Da Dan (Phần 2)'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Dã Ngoại Một Mình Cùng Nhau'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 6 episodes for movie 'Dã Ngoại Một Mình Cùng Nhau'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Database error when saving movie su-huynh-a-su-huynh: duplicate key value violates unique constraint "movies_movie_id_unique"
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Đô Thị Cổ Tiên Y'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 96 episodes for movie 'Đô Thị Cổ Tiên Y'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Database error when saving movie luc-dia-kien-tien: duplicate key value violates unique constraint "movies_movie_id_unique"
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Đại Lục Linh Võ'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 100 episodes for movie 'Đại Lục Linh Võ'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Database error when saving movie thon-thien-ky: duplicate key value violates unique constraint "movies_movie_id_unique"
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Database error when saving movie thai-co-chien-hon: duplicate key value violates unique constraint "movies_movie_id_unique"
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Database error when saving movie the-gioi-hoan-my: duplicate key value violates unique constraint "movies_movie_id_unique"
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Quân Hữu Vân (Phần 2)'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 28 episodes for movie 'Quân Hữu Vân (Phần 2)'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Ta Là Đao Tông'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 16 episodes for movie 'Ta Là Đao Tông'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Song Sinh Võ Hồn'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 32 episodes for movie 'Song Sinh Võ Hồn'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Đế Linh Yêu Mặc Thuỷ Linh Lung'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 14 episodes for movie 'Đế Linh Yêu Mặc Thuỷ Linh Lung'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Tiểu Tiên Chi Dao (Xiao Xian Zhi Yao)'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 37 episodes for movie 'Tiểu Tiên Chi Dao (Xiao Xian Zhi Yao)'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Page 2 results: 40 processed, 0 skipped, 10 failed
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] ⏳ Waiting 2 seconds before next page...
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] 📄 Processing page 3/50...
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Fetching movie list for page 3 with limit 50
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Need to fetch 5 pages starting from external API page 11
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Successfully fetched page 11 with 10 items
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Successfully fetched page 12 with 10 items
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Successfully fetched page 13 with 10 items
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Successfully fetched page 14 with 10 items
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Successfully fetched page 15 with 10 items
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Combined 50 items from 5 pages
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Returning 50 items for page 3
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Found resume state with 89 processed movies
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Phiêu Miểu Kiếm Tiên Truyện'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 14 episodes for movie 'Phiêu Miểu Kiếm Tiên Truyện'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Trái Tim Giam Cầm'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 17 episodes for movie 'Trái Tim Giam Cầm'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Tiến Sĩ Đá: Hồi Sinh Thế Giới (Phần 4)'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 18 episodes for movie 'Tiến Sĩ Đá: Hồi Sinh Thế Giới (Phần 4)'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Cuộc Hôn Nhân Của Họ'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 4 episodes for movie 'Cuộc Hôn Nhân Của Họ'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Cô Nàng Thống Đốc'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 16 episodes for movie 'Cô Nàng Thống Đốc'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Bạn Gái Tôi Trở Thành Con Trai Rồi!'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 8 episodes for movie 'Bạn Gái Tôi Trở Thành Con Trai Rồi!'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Án Mạng Trong Cơn Say'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 14 episodes for movie 'Án Mạng Trong Cơn Say'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie '6 Viên Đá Vàng'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 10 episodes for movie '6 Viên Đá Vàng'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Tiếng Ồn Quỷ Dị'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 1 episodes for movie 'Tiếng Ồn Quỷ Dị'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Những Chàng Trai Nhà Abraham: Chuyện Ma Cà Rồng'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 1 episodes for movie 'Những Chàng Trai Nhà Abraham: Chuyện Ma Cà Rồng'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Cú Đảo Quyền'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 1 episodes for movie 'Cú Đảo Quyền'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Mùa Gặt'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 1 episodes for movie 'Mùa Gặt'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Hãy Hẹn Hò với Bạn Tôi Đi'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 2 episodes for movie 'Hãy Hẹn Hò với Bạn Tôi Đi'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Cái Chết Nhân Đạo'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 4 episodes for movie 'Cái Chết Nhân Đạo'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Vườn Địa Đàng'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 1 episodes for movie 'Vườn Địa Đàng'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Kẻ Ngụ Cư'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 1 episodes for movie 'Kẻ Ngụ Cư'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Jim Jefferies: Chính Sách Hai Chi'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 1 episodes for movie 'Jim Jefferies: Chính Sách Hai Chi'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Hậu Cung'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 1 episodes for movie 'Hậu Cung'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Thị Trấn Trong Cơn Dịch'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 1 episodes for movie 'Thị Trấn Trong Cơn Dịch'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Trăm Năm Hòa Hợp, Ước Định Một Lời'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 56 episodes for movie 'Trăm Năm Hòa Hợp, Ước Định Một Lời'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Family Guy (Phần 1)'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 7 episodes for movie 'Family Guy (Phần 1)'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Em Gái Mất Tích'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 27 episodes for movie 'Em Gái Mất Tích'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Kiếm Sắc: Hoa Hồng'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 32 episodes for movie 'Kiếm Sắc: Hoa Hồng'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Dưới Lớp Bùn'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 8 episodes for movie 'Dưới Lớp Bùn'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Thợ Săn Quỷ Kpop'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 2 episodes for movie 'Thợ Săn Quỷ Kpop'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Một Câu Chuyện Ma'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 1 episodes for movie 'Một Câu Chuyện Ma'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Mononoke: Chương II - Tro Tàn Cuồng Nộ'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 1 episodes for movie 'Mononoke: Chương II - Tro Tàn Cuồng Nộ'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Chuyện Tình Nàng Anna Karenina'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 1 episodes for movie 'Chuyện Tình Nàng Anna Karenina'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Chuộc Lỗi (Chuộc Tội)'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 1 episodes for movie 'Chuộc Lỗi (Chuộc Tội)'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Bản Án Của Lương Tâm (Kẻ Bị Nguyền Rủa)'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 1 episodes for movie 'Bản Án Của Lương Tâm (Kẻ Bị Nguyền Rủa)'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Vua Ma Thú, Đứa Trẻ Định Mệnh Và Anh Hùng Bất Tử'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 7 episodes for movie 'Vua Ma Thú, Đứa Trẻ Định Mệnh Và Anh Hùng Bất Tử'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Định Phong Ba'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 72 episodes for movie 'Định Phong Ba'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Boys II Planet'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 6 episodes for movie 'Boys II Planet'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Đào Thoát (Mùa 5)'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 8 episodes for movie 'Đào Thoát (Mùa 5)'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Âm Dương Luân Hồi'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 7 episodes for movie 'Âm Dương Luân Hồi'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saving episodes for movie 'Tây Du Ký (Phần 1)'
+[2025-08-17T08:39:42.309Z] [DOCKER-IMPORT] Saved 100 episodes for movie 'Tây Du Ký (Phần 1)'

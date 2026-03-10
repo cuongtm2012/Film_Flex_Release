@@ -1,0 +1,18 @@
+User-agent: *
+Allow: /
+
+# Disallow admin and private areas
+Disallow: /admin/
+Disallow: /api/auth/
+Disallow: /api/users/
+Disallow: /_next/
+
+# Allow important SEO pages
+Allow: /api/sitemap.xml
+Allow: /api/robots.txt
+
+# Sitemap location
+Sitemap: https://phimgg.com/api/sitemap.xml
+
+# Crawl delay for better server performance
+Crawl-delay: 1
