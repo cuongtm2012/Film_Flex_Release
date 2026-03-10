@@ -1,56 +1,42 @@
-# PhimGG Deployment Scripts - Optimized v2.0
+# PhimGG Deployment Scripts
 
 ## 📋 Overview
 
-This optimized deployment system eliminates redundancy and provides a comprehensive, well-organized approach to PhimGG deployment and maintenance. All scripts now use shared common functions and follow consistent patterns.
+**Deploy production hiện tại:** Dùng **GitHub Actions** (`.github/workflows/auto-deploy-production.yml`). Trên server, workflow chỉ gọi `fix-deployment.sh` khi không dùng docker-compose. Các script deploy cũ (deploy.sh, deploy-production.sh, quick-deploy.sh, full-deploy.sh, final-deploy.sh) đã chuyển vào **`legacy/`** — xem [LEGACY.md](LEGACY.md).
 
-## 🏗️ Architecture
+## 🏗️ Cấu trúc (current)
 
 ```
 scripts/deployment/
 ├── lib/
-│   └── common-functions.sh      # Shared functions library (eliminates 80% of duplication)
-├── deploy.sh                    # Master deployment orchestrator (replaces 8 scripts)
-├── health-check.sh             # Comprehensive monitoring (optimized)
-├── cron-docker-wrapper.sh      # Data import automation (optimized)
-└── legacy/                     # Original scripts (deprecated)
-    ├── automated-docker-deploy-robust.sh
-    ├── comprehensive-docker-deploy.sh
-    ├── docker-deploy-production.sh
-    └── ... (moved for reference)
+│   └── common-functions.sh      # Thư viện dùng chung
+├── fix-deployment.sh            # ✅ Dùng bởi auto-deploy-production.yml (fallback)
+├── health-check.sh              # Wrapper → ../maintenance/health-check.sh
+├── cron-docker-wrapper.sh       # Data import (cron trên server)
+├── LEGACY.md                    # Danh sách script legacy
+└── legacy/                      # Script deploy cũ (không dùng trong CI)
+    ├── deploy.sh
+    ├── deploy-production.sh
+    ├── quick-deploy.sh
+    ├── full-deploy.sh
+    ├── final-deploy.sh
+    ├── selective-deploy.sh
+    └── ...
 ```
 
 ## 🚀 Quick Start
 
-### Basic Deployment
+### Deploy production (khuyến nghị)
+Push lên nhánh `main` để kích hoạt workflow **auto-deploy-production.yml** (build image trên CI, server pull và chạy). Fallback trên server: `./fix-deployment.sh`.
+
+### Health check (chạy tay)
 ```bash
-# Full production deployment
-./deploy.sh full
-
-# Docker-only deployment
-./deploy.sh docker --force
-
-# Quick update (no database changes)
-./deploy.sh quick
-
-# Health check
-./deploy.sh health
-```
-
-### Health Monitoring
-```bash
-# Basic health check
 ./health-check.sh
-
-# Detailed system analysis
-./health-check.sh --detailed
-
-# Generate JSON report
-./health-check.sh --report
-
-# Critical issues only
 ./health-check.sh --critical
 ```
+
+### Script deploy cũ (legacy)
+Các lệnh kiểu `./deploy.sh full`, `./quick-deploy.sh` nằm trong `legacy/`. Chỉ dùng khi cần chạy tay; CI không gọi. Xem [LEGACY.md](LEGACY.md).
 
 ### Data Import Automation
 ```bash
@@ -64,9 +50,11 @@ scripts/deployment/
 ./cron-docker-wrapper.sh comprehensive
 ```
 
-## 📊 Deployment Modes
+## 📊 Deployment Modes (legacy — script trong `legacy/`)
 
-### 1. Full Deployment (`deploy.sh full`)
+Các mode dưới đây dùng script đã chuyển vào `legacy/` (deploy.sh, …). CI hiện không dùng.
+
+### 1. Full Deployment (`legacy/deploy.sh full`)
 **Replaces**: `comprehensive-docker-deploy.sh`, `docker-deploy-production.sh`, `enhanced-docker-deploy-v2.sh`
 
 - ✅ System prerequisites check
@@ -77,7 +65,7 @@ scripts/deployment/
 - ✅ Comprehensive health checks
 - ✅ Rollback capability
 
-### 2. Docker Deployment (`deploy.sh docker`)
+### 2. Docker Deployment (`legacy/deploy.sh docker`)
 **Replaces**: `automated-docker-deploy-robust.sh`, `docker-deploy-enhanced.sh`
 
 - ✅ Container orchestration
@@ -85,14 +73,14 @@ scripts/deployment/
 - ✅ Service health verification
 - ✅ Resource monitoring
 
-### 3. PM2 Deployment (`deploy.sh pm2`)
+### 3. PM2 Deployment (`legacy/deploy.sh pm2`)
 **Replaces**: `pm2-production-deploy.sh`
 
 - ✅ Process management
 - ✅ Production optimization
 - ✅ Service monitoring
 
-### 4. Quick Deploy (`deploy.sh quick`)
+### 4. Quick Deploy (`legacy/deploy.sh quick`)
 **Replaces**: `quick-deploy-docker.sh`, `quick-server-restart.sh`
 
 - ✅ Fast application updates

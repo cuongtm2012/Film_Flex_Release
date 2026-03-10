@@ -2,6 +2,8 @@
 
 This directory contains various scripts for managing and maintaining the PhimGG application.
 
+**Deploy production:** Dùng **GitHub Actions** (workflow `auto-deploy-production.yml`). Script deploy duy nhất được CI gọi là `deployment/fix-deployment.sh`. Các script deploy cũ đã chuyển vào `deployment/legacy/` — xem [LEGACY.md](LEGACY.md) và [deployment/LEGACY.md](deployment/LEGACY.md).
+
 ## Database Scripts
 
 ### Database Reset (`reset-db.sh` / `reset-db.cmd`)
@@ -34,7 +36,7 @@ npx tsx scripts/reset-film-database.ts
 
 ### Deployment Scripts
 
-The `deployment/` subdirectory contains scripts for deploying the application to various environments.
+The `deployment/` subdirectory contains scripts for deploying the application. **Current:** Chỉ `fix-deployment.sh` và `health-check.sh` được dùng trong CI; script cũ nằm trong `deployment/legacy/` (xem [deployment/LEGACY.md](deployment/LEGACY.md)).
 
 ### Maintenance Scripts
 

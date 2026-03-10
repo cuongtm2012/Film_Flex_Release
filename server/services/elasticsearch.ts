@@ -43,7 +43,13 @@ export class ElasticsearchService {
   private episodeIndex = 'episodes';
 
   constructor(config: ElasticsearchConfig) {
-    this.client = new Client(config);
+    // Disable sniffing so the client only uses the configured node URL (e.g. filmflex-elasticsearch:9200).
+    // With sniffing enabled, the client uses the cluster's publish_address (e.g. 192.168.16.4) which may be unreachable from other containers.
+    this.client = new Client({
+      ...config,
+      sniffOnStart: false,
+      sniffOnConnectionFault: false,
+    });
   }
 
   async initialize(): Promise<void> {

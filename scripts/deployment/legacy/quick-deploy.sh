@@ -61,10 +61,10 @@ else
 fi
 
 print_header "Step 2: Running Production Deployment"
-if [ -f "scripts/deployment/deploy-production.sh" ]; then
-    # Use the new --app-only flag for faster deployment
-    chmod +x scripts/deployment/deploy-production.sh
-    ./scripts/deployment/deploy-production.sh --app-only
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ -f "$SCRIPT_DIR/deploy-production.sh" ]; then
+    chmod +x "$SCRIPT_DIR/deploy-production.sh"
+    "$SCRIPT_DIR/deploy-production.sh" --app-only
     deployment_exit_code=$?
 else
     print_error "❌ Deployment script not found"

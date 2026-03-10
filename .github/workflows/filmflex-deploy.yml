@@ -167,7 +167,7 @@ jobs:
               export PGPASSWORD="filmflex2024"
               export PGPORT="5432"
               
-              cat ~/Film_Flex_Release/scripts/deployment/final-deploy.sh | grep -A200 "cat > /tmp/db-fix.sql" | grep -B200 "EOSQL" > /tmp/extract-sql.sh
+              cat ~/Film_Flex_Release/scripts/deployment/legacy/final-deploy.sh | grep -A200 "cat > /tmp/db-fix.sql" | grep -B200 "EOSQL" > /tmp/extract-sql.sh
               bash /tmp/extract-sql.sh
               psql -f /tmp/db-fix.sql
               EOF
@@ -186,10 +186,10 @@ jobs:
               docker network connect filmflex-network filmflex-postgres 2>/dev/null || echo "Postgres already connected"
               docker network connect filmflex-network filmflex-elasticsearch 2>/dev/null || echo "Elasticsearch already connected"
               
-              # Run Docker deployment
+              # Run deployment (docker-deploy.sh removed; use fix-deployment.sh)
               cd ~/Film_Flex_Release
-              chmod +x scripts/deployment/docker-deploy.sh
-              bash scripts/deployment/docker-deploy.sh
+              chmod +x scripts/deployment/fix-deployment.sh
+              bash scripts/deployment/fix-deployment.sh
               
               echo "Docker deployment completed at $(date)" >> /var/log/filmflex/github-deploy.log
             fi
