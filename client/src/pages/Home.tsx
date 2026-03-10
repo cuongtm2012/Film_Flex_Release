@@ -5,7 +5,7 @@ import HeroCarousel from '@/components/HeroCarousel';
 import GenreSelectionModal from '@/components/GenreSelectionModal';
 import { Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { MovieListResponse, MovieDetailResponse } from '@shared/schema';
-import TvSeriesCard from '@/components/TvSeriesCard';
+import MoviePosterCard from '@/components/MoviePosterCard';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/use-auth';
 import { usePreferences } from '@/hooks/use-preferences';
@@ -52,37 +52,34 @@ function TvSeriesSection({ title, movies }: { title: string; movies: MovieListRe
   if (!movies?.length || !tvSeries.length) return null;
 
   return (
-    <section className="py-8">
-      <div className="container mx-auto px-4 mb-4">
+    <section className="py-8 w-full">
+      <div className="px-4 md:px-6 mb-4">
         <h2 className="text-2xl font-bold">{title}</h2>
       </div>
-      <div className="relative">
-        {/* Navigation controls wrapper - group for showing/hiding arrows */}
-        <div className="group">
-          {/* Left scroll button - More visible */}
+      <div className="relative w-full">
+        <div className="group/arrows">
           <Button
             variant="ghost"
             size="icon"
-            className="absolute left-4 top-1/2 -translate-y-1/2 z-10 h-14 w-14 rounded-full bg-black/70 hover:bg-black/90 opacity-80 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200 border border-white/20"
+            className="absolute left-2 md:left-4 top-1/2 -translate-y-1/2 z-10 h-14 w-14 rounded-full bg-black/70 hover:bg-black/90 opacity-80 md:opacity-0 md:group-hover/arrows:opacity-100 transition-opacity duration-200 border border-white/20"
             onClick={() => scroll('left')}
           >
             <ChevronLeft className="h-8 w-8 text-white" />
           </Button>
 
-          {/* Right scroll button - More visible */}
           <Button
             variant="ghost"
             size="icon"
-            className="absolute right-4 top-1/2 -translate-y-1/2 z-10 h-14 w-14 rounded-full bg-black/70 hover:bg-black/90 opacity-80 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200 border border-white/20"
+            className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 z-10 h-14 w-14 rounded-full bg-black/70 hover:bg-black/90 opacity-80 md:opacity-0 md:group-hover/arrows:opacity-100 transition-opacity duration-200 border border-white/20"
             onClick={() => scroll('right')}
           >
             <ChevronRight className="h-8 w-8 text-white" />
           </Button>
 
-          <div className="container mx-auto px-4 overflow-hidden">
+          <div className="overflow-hidden w-full">
             <div
               ref={scrollContainerRef}
-              className="flex gap-4 overflow-x-auto overflow-y-hidden scrollbar-hide -mx-4 px-4 scroll-smooth"
+              className="flex gap-4 overflow-x-auto overflow-y-hidden scrollbar-hide px-4 md:px-6 scroll-smooth"
               style={{
                 scrollbarWidth: 'none',
                 msOverflowStyle: 'none',
@@ -91,7 +88,7 @@ function TvSeriesSection({ title, movies }: { title: string; movies: MovieListRe
             >
               {tvSeries.map((movie) => (
                 <div key={movie.slug} className="flex-none w-[200px]">
-                  <TvSeriesCard movie={movie} />
+                  <MoviePosterCard movie={movie} />
                 </div>
               ))}
             </div>
@@ -135,38 +132,35 @@ function AnimeSection({ title, movies }: { title: string; movies: MovieListRespo
 
   // Always render the section with proper fallback
   return (
-    <section className="py-8">
-      <div className="container mx-auto px-4 mb-4">
+    <section className="py-8 w-full">
+      <div className="px-4 md:px-6 mb-4">
         <h2 className="text-2xl font-bold">{title}</h2>
       </div>
-      <div className="relative">
-        {/* Navigation controls wrapper - group for showing/hiding arrows */}
-        <div className="group">
-          {/* Left scroll button - More visible */}
+      <div className="relative w-full">
+        <div className="group/arrows">
           <Button
             variant="ghost"
             size="icon"
-            className="absolute left-4 top-1/2 -translate-y-1/2 z-10 h-14 w-14 rounded-full bg-black/70 hover:bg-black/90 opacity-80 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200 border border-white/20"
+            className="absolute left-2 md:left-4 top-1/2 -translate-y-1/2 z-10 h-14 w-14 rounded-full bg-black/70 hover:bg-black/90 opacity-80 md:opacity-0 md:group-hover/arrows:opacity-100 transition-opacity duration-200 border border-white/20"
             onClick={() => scroll('left')}
           >
             <ChevronLeft className="h-8 w-8 text-white" />
           </Button>
 
-          {/* Right scroll button - More visible */}
           <Button
             variant="ghost"
             size="icon"
-            className="absolute right-4 top-1/2 -translate-y-1/2 z-10 h-14 w-14 rounded-full bg-black/70 hover:bg-black/90 opacity-80 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200 border border-white/20"
+            className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 z-10 h-14 w-14 rounded-full bg-black/70 hover:bg-black/90 opacity-80 md:opacity-0 md:group-hover/arrows:opacity-100 transition-opacity duration-200 border border-white/20"
             onClick={() => scroll('right')}
           >
             <ChevronRight className="h-8 w-8 text-white" />
           </Button>
 
-          <div className="container mx-auto px-4 overflow-hidden">
+          <div className="overflow-hidden w-full">
             {animeContent.length > 0 ? (
               <div
                 ref={scrollContainerRef}
-                className="flex gap-4 overflow-x-auto overflow-y-hidden scrollbar-hide -mx-4 px-4 scroll-smooth"
+                className="flex gap-4 overflow-x-auto overflow-y-hidden scrollbar-hide px-4 md:px-6 scroll-smooth"
                 style={{
                   scrollbarWidth: 'none',
                   msOverflowStyle: 'none',
@@ -175,12 +169,12 @@ function AnimeSection({ title, movies }: { title: string; movies: MovieListRespo
               >
                 {animeContent.map((movie) => (
                   <div key={movie.slug} className="flex-none w-[200px]">
-                    <TvSeriesCard movie={movie} />
+                    <MoviePosterCard movie={movie} />
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="text-center text-muted-foreground py-8">
+              <div className="text-center text-muted-foreground py-8 px-4 md:px-6">
                 <p>No anime content available at the moment.</p>
               </div>
             )}

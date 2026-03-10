@@ -124,7 +124,6 @@ export default function FloatingAIChatbot() {
                 const parsed = JSON.parse(savedPosition);
                 setPosition(parsed);
             } catch (e) {
-                // Use default position (bottom-right)
                 setDefaultPosition();
             }
         } else {
@@ -137,13 +136,12 @@ export default function FloatingAIChatbot() {
         const isMobile = window.innerWidth < 768;
         const buttonSize = 56;
 
-        // Mobile: Account for bottom navigation (typically 64-80px height)
-        // Desktop: Standard bottom-right position
+        // Bottom-left: same vertical as before, horizontal from left
         const bottomOffset = isMobile ? 96 : 16; // 80px nav + 16px margin for mobile
-        const rightOffset = 16;
+        const leftOffset = 16;
 
         setPosition({
-            x: window.innerWidth - buttonSize - rightOffset,
+            x: leftOffset,
             y: window.innerHeight - buttonSize - bottomOffset
         });
     };

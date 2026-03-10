@@ -114,20 +114,23 @@ export default function MoviePosterCard({ movie, className }: MoviePosterCardPro
 
   return (
     <Link href={`/movie/${movie.slug}`}>
-      <div 
+      <div
         className={cn(
-          "group relative w-full overflow-hidden cursor-pointer",
+          "group/card relative w-full overflow-hidden cursor-pointer rounded-lg",
+          "transition-[transform,box-shadow] duration-300 ease-out will-change-transform",
+          "hover:scale-[1.03] hover:shadow-xl hover:shadow-black/25 active:scale-[0.99]",
           className
         )}
       >
-        {/* Movie Poster Container */}
-        <div className="rounded-lg overflow-hidden hover:ring-2 hover:ring-primary/50">
-          <AspectRatio ratio={2/3}>            {/* Movie Poster Image */}
-            <div className="w-full h-full bg-black/20">
+        {/* Movie Poster Container - không dùng ring hover để tránh viền đỏ lạ mắt */}
+        <div className="rounded-lg overflow-hidden transition-all duration-300 ease-out">
+          <AspectRatio ratio={2/3}>
+            {/* Movie Poster Image */}
+            <div className="w-full h-full bg-black/20 overflow-hidden">
               <LazyImage
                 src={imageUrl}
                 alt={`${movie.name} Poster`}
-                className="w-full h-full object-cover transition-transform duration-300 ease-out hover:scale-105"
+                className="w-full h-full object-cover transition-transform duration-300 ease-out group-hover/card:scale-110"
                 rootMargin="75px"
                 threshold={0.1}
                 showSpinner={true}
@@ -174,23 +177,22 @@ export default function MoviePosterCard({ movie, className }: MoviePosterCardPro
               {year}
             </Badge>
 
-            {/* Hover Overlay */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent opacity-0 hover:opacity-100 transition-all duration-300 ease-in-out">
+            {/* Hover Overlay - chỉ hiện khi hover đúng card này (group/card) */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity duration-300 ease-out pointer-events-none">
               {/* Content in bottom area */}
-              <div className="absolute bottom-0 left-0 right-0 p-4 text-white">
+              <div className="absolute bottom-0 left-0 right-0 p-4 text-white flex flex-col items-center justify-end">
                 {/* Rating and Categories */}
-                <div className="flex items-center justify-between text-xs mb-3">
+                <div className="flex items-center justify-between text-xs mb-3 w-full">
                   {displayRating && (
                     <div className="flex items-center gap-1">
-                      <Star className="w-3 h-3 text-yellow-400" fill="currentColor" />
+                      <Star className="w-3.5 h-3.5 text-yellow-400 shrink-0" fill="currentColor" />
                       <span className="font-medium">{displayRating}</span>
                     </div>
                   )}
-                  
                   {categories.length > 0 && (
-                    <div className="flex gap-1">
+                    <div className="flex gap-1 flex-wrap justify-end">
                       {categories.map((category, index) => (
-                        <span key={index} className="text-xs bg-white/20 px-2 py-1 rounded">
+                        <span key={index} className="text-xs bg-white/25 px-2 py-0.5 rounded">
                           {category.name}
                         </span>
                       ))}
@@ -198,10 +200,10 @@ export default function MoviePosterCard({ movie, className }: MoviePosterCardPro
                   )}
                 </div>
 
-                {/* Play Button */}
-                <div className="flex justify-center">
-                  <div className="flex items-center gap-2 bg-primary/90 hover:bg-primary text-white px-4 py-2 rounded-full text-sm font-medium transition-colors">
-                    <Play className="w-4 h-4" fill="white" />
+                {/* Watch button - chỉ hiện khi hover đúng card này, màu đỏ nổi bật */}
+                <div className="flex justify-center w-full">
+                  <div className="flex items-center gap-2 bg-red-600 text-white px-5 py-2.5 rounded-full text-sm font-medium shadow-lg transition-all duration-200 group-hover/card:scale-105 group-hover/card:shadow-xl group-hover/card:bg-red-500">
+                    <Play className="w-4 h-4 shrink-0" fill="white" />
                     <span>{isTvSeries ? 'Watch Series' : 'Watch Movie'}</span>
                   </div>
                 </div>

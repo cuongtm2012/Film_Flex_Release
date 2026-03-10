@@ -65,7 +65,8 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
   const [isEpisodeLoading, setIsEpisodeLoading] = useState(false);
   const [isEpisodeSwitching, setIsEpisodeSwitching] = useState(false);
   const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
-  const [playerType, setPlayerType] = useState<"embed" | "hls">("embed"); // Default to Embed Player
+  // Default to direct player (HLS) when opening detail page
+  const [playerType, setPlayerType] = useState<"embed" | "hls">("hls");
   // State for content expanding (overview section)
   const [isContentExpanded, setIsContentExpanded] = useState(false);
 
@@ -275,10 +276,10 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
   const getCurrentEmbedUrl = () => {
     if (!movieDetail || !selectedServer || !selectedEpisode) return "";
 
-    const server = movieDetail.episodes.find(s => s.server_name === selectedServer);
+    const server = movieDetail.episodes.find((s) => s.server_name === selectedServer);
     if (!server) return "";
 
-    const episode = server.server_data.find(e => e.slug === selectedEpisode);
+    const episode = server.server_data.find((e) => e.slug === selectedEpisode);
     return episode?.link_embed || "";
   };
 
@@ -451,10 +452,24 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
                 </div>
 
                 {playerType === "embed" ? (
-                  <VideoPlayer
-                    embedUrl={getCurrentEmbedUrl()}
-                    isLoading={isMovieLoading || !selectedEpisode}
-                  />
+                  getCurrentEmbedUrl() ? (
+                    <VideoPlayer
+                      embedUrl={getCurrentEmbedUrl()}
+                      isLoading={isMovieLoading || !selectedEpisode}
+                    />
+                  ) : (
+                    <div className="relative aspect-video w-full bg-zinc-900 rounded-lg overflow-hidden flex items-center justify-center">
+                      <div className="text-center space-y-2 px-4">
+                        <div className="flex items-center justify-center gap-2 text-zinc-200 text-sm">
+                          <AlertCircle className="h-4 w-4 text-yellow-400" />
+                          <span>Embed player is not available for this episode.</span>
+                        </div>
+                        <p className="text-xs text-zinc-400">
+                          Please switch to <span className="font-semibold text-white">Direct Player</span> (HLS) above to continue watching.
+                        </p>
+                      </div>
+                    </div>
+                  )
                 ) : (
                   <HLSVideoPlayer
                     m3u8Url={getCurrentM3u8Url()}

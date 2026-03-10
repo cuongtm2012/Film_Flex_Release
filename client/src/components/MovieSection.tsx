@@ -28,44 +28,41 @@ export default function MovieSection({ title, movies }: MovieSectionProps) {
   };
 
   return (
-    <section className="py-8">
-      <div className="container mx-auto px-4 mb-4">
+    <section className="py-8 w-full">
+      <div className="px-4 md:px-6 mb-4">
         <h2 className="text-2xl font-bold">{title}</h2>
       </div>
-      
-      <div className="relative">
-        {/* Navigation controls wrapper - group for showing/hiding arrows */}
-        <div className="group">
-          {/* Left scroll button - More visible on mobile */}
+
+      <div className="relative w-full">
+        <div className="group/arrows">
           <Button
             variant="ghost"
             size="icon"
-            className="absolute left-4 top-1/2 -translate-y-1/2 z-10 h-14 w-14 rounded-full bg-black/70 hover:bg-black/90 opacity-80 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200 border border-white/20"
+            className="absolute left-2 md:left-4 top-1/2 -translate-y-1/2 z-10 h-14 w-14 rounded-full bg-black/70 hover:bg-black/90 opacity-80 md:opacity-0 md:group-hover/arrows:opacity-100 transition-opacity duration-200 border border-white/20"
             onClick={() => scroll('left')}
           >
             <ChevronLeft className="h-8 w-8 text-white" />
           </Button>
 
-          {/* Right scroll button - More visible on mobile */}
           <Button
             variant="ghost"
             size="icon"
-            className="absolute right-4 top-1/2 -translate-y-1/2 z-10 h-14 w-14 rounded-full bg-black/70 hover:bg-black/90 opacity-80 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200 border border-white/20"
+            className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 z-10 h-14 w-14 rounded-full bg-black/70 hover:bg-black/90 opacity-80 md:opacity-0 md:group-hover/arrows:opacity-100 transition-opacity duration-200 border border-white/20"
             onClick={() => scroll('right')}
           >
             <ChevronRight className="h-8 w-8 text-white" />
           </Button>
 
-          {/* Movie list container */}
-          <div className="container mx-auto px-4 overflow-hidden">
-            <div 
+          {/* Full-width scroll: no container, only horizontal padding so cards use full width */}
+          <div className="overflow-hidden w-full">
+            <div
               ref={scrollContainerRef}
-              className="flex gap-4 overflow-x-auto scrollbar-hide -mx-4 px-4"
+              className="flex gap-4 overflow-x-auto scrollbar-hide px-4 md:px-6"
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
             >
               {limitedMovies.map((movie) => (
-                <div 
-                  key={movie.slug} 
+                <div
+                  key={movie.slug}
                   className="flex-none w-[200px]"
                 >
                   <MoviePosterCard movie={movie} />
