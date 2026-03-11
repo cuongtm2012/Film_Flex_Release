@@ -239,6 +239,14 @@ jobs:
             echo "📋 Copying new files..."
             cp -rf deployment-package/* ~/Film_Flex_Release/
             
+            # Sync frontend to Nginx root (nginx/phimgg.com.conf uses root /var/www/filmflex/dist/public)
+            if [ -d ~/Film_Flex_Release/dist ]; then
+              echo "📂 Syncing frontend to Nginx root /var/www/filmflex..."
+              mkdir -p /var/www/filmflex
+              cp -rf ~/Film_Flex_Release/dist /var/www/filmflex/
+              echo "✅ Nginx will serve new frontend from /var/www/filmflex/dist/public"
+            fi
+            
             # Cleanup
             rm -rf /tmp/deployment-package /tmp/deployment-package.tar.gz
             
