@@ -155,8 +155,7 @@
     "@rollup/rollup-linux-arm64-gnu": "^4.50.0",
     "@rollup/rollup-linux-arm64-musl": "^4.50.0",
     "@rollup/rollup-linux-x64-gnu": "^4.50.0",
-    "@rollup/rollup-linux-x64-musl": "^4.50.0",
-    "bufferutil": "4.1.0"
+    "@rollup/rollup-linux-x64-musl": "^4.50.0"
   },
   "overrides": {
     "vite": {
