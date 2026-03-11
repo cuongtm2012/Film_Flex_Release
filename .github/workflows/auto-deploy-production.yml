@@ -115,6 +115,12 @@ jobs:
           docker push cuongtm2012/filmflex-app:latest
           echo "✅ Image pushed: cuongtm2012/filmflex-app:latest"
 
+      - name: Export Docker image to tar
+        run: |
+          echo "📦 Exporting Docker image to tar..."
+          docker save cuongtm2012/filmflex-app:latest -o filmflex-app.tar
+          ls -lh filmflex-app.tar
+
       - name: Create deployment package
         run: |
           echo "📦 Creating deployment package..."
@@ -128,6 +134,7 @@ jobs:
           cp -r shared deployment-package/
           cp -r scripts deployment-package/
           cp -r public deployment-package/
+          cp filmflex-app.tar deployment-package/
           cp package.json deployment-package/
           cp package-lock.json deployment-package/
           cp docker-compose.production.yml deployment-package/ 2>/dev/null || true
@@ -213,6 +220,12 @@ jobs:
             # Extract package
             cd /tmp
             tar -xzf deployment-package.tar.gz
+
+            # Load Docker image from tar so server doesn't need Docker Hub network access
+            if [ -f deployment-package/filmflex-app.tar ]; then
+              echo "🐳 Loading Docker image from tar..."
+              docker load -i deployment-package/filmflex-app.tar
+            fi
             
             # Backup current deployment (optional)
             if [ -d ~/Film_Flex_Release/dist ]; then
@@ -256,17 +269,6 @@ jobs:
             export SESSION_SECRET="${{ secrets.SESSION_SECRET }}"
             
             echo "🔑 Environment variables configured"
-            
-            # Pull latest image from Docker Hub (built in GitHub Actions)
-            echo "📥 Pulling latest image from Docker Hub..."
-            docker pull cuongtm2012/filmflex-app:latest
-            
-            if [ $? -ne 0 ]; then
-              echo "❌ Docker pull failed!"
-              exit 1
-            fi
-            
-            echo "✅ Docker image pulled successfully"
             
             # Make scripts executable
             chmod +x ~/Film_Flex_Release/scripts/deployment/*.sh
