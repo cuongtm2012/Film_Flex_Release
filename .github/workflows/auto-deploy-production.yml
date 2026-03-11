@@ -276,8 +276,8 @@ jobs:
             echo "🚀 Deploying app container (image from Docker Hub)..."
             
             if [ -f "./docker-compose.production.yml" ]; then
-              # Force recreate so new image (with updated frontend) is used; otherwise old container may keep running
-              docker-compose -f docker-compose.production.yml up -d --force-recreate app
+              # Use Docker Compose v2 CLI and only recreate app service (no postgres pull due to network limits)
+              docker compose -f docker-compose.production.yml up -d --no-deps --force-recreate app
             elif [ -f "./scripts/deployment/fix-deployment.sh" ]; then
               ./scripts/deployment/fix-deployment.sh
             else
