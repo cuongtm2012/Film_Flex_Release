@@ -85,6 +85,7 @@ make_scripts_executable() {
         "scripts/maintenance/rotate-logs.sh"
         "scripts/maintenance/log-db-stats.sh"
         "scripts/maintenance/track-import-success.sh"
+        "scripts/maintenance/disk-cleanup.sh"
     )
     
     local made_executable=0
@@ -147,6 +148,9 @@ HOME=/root
 
 # 10. Log cleanup - Remove old logs daily
 30 0 * * * root find /var/log/filmflex -name "*.log" -type f -mtime +30 -delete >/dev/null 2>&1
+
+# 11. Weekly disk cleanup - Sundays at 4 AM (Docker, journal, apt)
+0 4 * * 0 root /root/Film_Flex_Release/scripts/maintenance/disk-cleanup.sh >> /var/log/filmflex/disk-cleanup.log 2>&1
 EOF
 
     success "Enhanced cron configuration created: $ENHANCED_CRON_CONFIG"
