@@ -1,3 +1,4 @@
+# Optimized for 4GB RAM VPS - see docs/MEMORY_OPTIMIZATION_4GB.md
 services:
   # PostgreSQL Database - Use standard image for compatibility
   postgres:
@@ -21,6 +22,10 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 768M
 
   # PhimGG Application - Updated to use Ubuntu 22.04 optimized image
   app:
@@ -30,6 +35,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: 5000
+      NODE_OPTIONS: "--max-old-space-size=384"
       DATABASE_URL: postgresql://filmflex:filmflex2024@postgres:5432/filmflex
       SESSION_SECRET: ${SESSION_SECRET:-filmflex_production_secret_2024}
       ALLOWED_ORIGINS: "*"
@@ -52,6 +58,10 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
   # Nginx Reverse Proxy
   nginx:
@@ -69,15 +79,19 @@ services:
     depends_on:
       - app
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 64M
 
-  # Elasticsearch Service
+  # Elasticsearch Service - 512MB heap for 4GB VPS
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
     container_name: filmflex-elasticsearch
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=false
-      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
     volumes:
       - elasticsearch_data:/usr/share/elasticsearch/data
     networks:
@@ -88,6 +102,10 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 768M
 
 networks:
   filmflex-network:

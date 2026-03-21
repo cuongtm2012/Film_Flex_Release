@@ -50,9 +50,11 @@ echo -e "${GREEN}✓${NC} Container stopped and removed"
 echo -e "${YELLOW}[3/5]${NC} Creating new container with ENCRYPTION_KEY..."
 CONTAINER_ID=$(docker run -d \
   --name filmflex-app \
+  --memory=512m \
   --network film_flex_release_filmflex-network \
   -p 5000:5000 \
   -e NODE_ENV=production \
+  -e NODE_OPTIONS="--max-old-space-size=384" \
   -e PORT=5000 \
   -e DATABASE_URL=postgresql://filmflex:filmflex2024@filmflex-postgres:5432/filmflex \
   -e SESSION_SECRET="$SESSION_SECRET" \
