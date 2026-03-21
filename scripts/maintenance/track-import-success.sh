@@ -3,7 +3,8 @@
 # Import Success Tracking Script
 # Monitors import effectiveness and adjusts strategies
 
-set -e
+# Don't use set -e - script has fallbacks (|| echo "0") that would still exit
+set +e
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PROJECT_ROOT="$( cd "$SCRIPT_DIR/../.." && pwd )"
@@ -99,7 +100,7 @@ update_success_stats() {
     # Create or update JSON stats
     cat > "$SUCCESS_STATS_FILE" << EOF
 {
-  "last_updated": "$(date -Iseconds)",
+  "last_updated": "$(date -Iseconds 2>/dev/null || date '+%Y-%m-%dT%H:%M:%S%z')",
   "recent_analysis": {
     "successful_imports": $successful,
     "failed_imports": $failed,
@@ -109,7 +110,7 @@ update_success_stats() {
   "database_state": {
     "total_movies": $total_movies,
     "total_episodes": $total_episodes,
-    "last_check": "$(date -Iseconds)"
+    "last_check": "$(date -Iseconds 2>/dev/null || date '+%Y-%m-%dT%H:%M:%S%z')"
   },
   "recommendations": {
     "strategy_effective": $([ "$new_items" -gt 0 ] && echo "true" || echo "false"),
@@ -176,8 +177,12 @@ main() {
         "analyze"|"")
             log_with_timestamp "=== Starting Import Success Analysis ==="
             
-            # Analyze recent imports
-            local analysis_result=$(analyze_recent_imports)
+            # Analyze recent imports - only capture last line (stats: a|b|c)
+            local analysis_result=$(analyze_recent_imports | tail -1)
+            # Fallback if analysis failed (e.g. docker unavailable)
+            if [[ ! "$analysis_result" =~ ^[0-9]+\|[0-9]+\|[0-9]+$ ]]; then
+                analysis_result="0|0|0"
+            fi
             
             # Update statistics
             update_success_stats "$analysis_result"

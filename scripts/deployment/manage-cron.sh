@@ -305,7 +305,7 @@ show_enhanced_status() {
     echo ""
     if [ -f "$PROJECT_ROOT/scripts/maintenance/track-import-success.sh" ]; then
         log "Import effectiveness analysis:"
-        bash "$PROJECT_ROOT/scripts/maintenance/track-import-success.sh" analyze 2>/dev/null || warning "Import analysis failed"
+        bash "$PROJECT_ROOT/scripts/maintenance/track-import-success.sh" analyze 2>/dev/null || warning "Import analysis failed (run: bash scripts/maintenance/track-import-success.sh analyze)"
     fi
 }
 
