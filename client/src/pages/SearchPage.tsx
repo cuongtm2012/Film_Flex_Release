@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Search as SearchIcon, X } from "lucide-react";
 import MovieGrid from "@/components/MovieGrid";
+import { PageSEO } from "@/components/PageSEO";
 import { MovieListResponse } from "@shared/schema";
 import Layout from "@/components/Layout";
 
@@ -75,6 +76,14 @@ export default function SearchPage() {
   
   return (
     <Layout>
+      <PageSEO
+        title={searchTerm ? `Tìm kiếm: ${searchTerm}` : "Tìm kiếm phim"}
+        description={searchTerm
+          ? `Kết quả tìm kiếm "${searchTerm}" - Xem phim online HD miễn phí trên PhimGG.`
+          : "Tìm kiếm phim, phim bộ, anime theo tên, thể loại. Xem phim online miễn phí."}
+        canonical={searchTerm ? `/search?q=${encodeURIComponent(searchTerm)}` : "/search"}
+        noIndex={!searchTerm}
+      />
       <div className="container mx-auto px-4 pt-24 pb-12">
         <div className="max-w-4xl mx-auto mb-8">
           <h1 className="text-3xl font-bold mb-6">Search Movies</h1>

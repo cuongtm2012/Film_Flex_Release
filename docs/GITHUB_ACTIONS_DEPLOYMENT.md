@@ -205,6 +205,51 @@ filmflex-app        Up X minutes    0.0.0.0:5000->5000/tcp
 {"status":"ok","timestamp":"..."}
 ```
 
+## 🌐 Production với Nginx – Frontend & Backend
+
+Khi production dùng **Nginx** làm reverse proxy (SSL, rate limit, static files), cấu hình như sau.
+
+### Luồng request
+
+| Thành phần | Vai trò |
+|------------|--------|
+| **Nginx** | Listen 80/443, serve static frontend, proxy `/api` và auth về Node |
+| **Node (filmflex-app)** | Chạy trong Docker, listen `5000`, chỉ xử lý API và fallback SPA |
+| **Frontend static** | Nginx đọc từ **host path** `/var/www/filmflex/dist/public` |
+
+### Vị trí source frontend (trên server)
+
+- **Đường dẫn Nginx dùng:** `root /var/www/filmflex/dist/public` (trong `nginx/phimgg.com.conf`).
+- **Nội dung:** Build frontend (Vite) → `dist/public/` (index.html, assets/, v.v.).
+- **Cập nhật:** Mỗi lần deploy, GitHub Actions:
+  1. Giải nén deployment package vào `~/Film_Flex_Release/` (có `dist/`, `nginx/`).
+  2. **Sync frontend** vào thư mục Nginx: `cp -rf ~/Film_Flex_Release/dist /var/www/filmflex/`.
+  3. **Sync Nginx config:** `00-limit_req_zones.conf` và `default.conf` → `/etc/nginx/conf.d/`, sau đó `nginx -t && systemctl reload nginx`.
+  4. Nginx sẽ serve bản mới từ `/var/www/filmflex/dist/public`.
+
+**Tóm tắt:** Frontend **không** nằm trong container; Nginx trên host đọc từ **`/var/www/filmflex/dist/public`**. Container `filmflex-app` chỉ chạy backend (API). Workflow đã có bước sync `dist` và Nginx config sau mỗi deploy.
+
+**Redis:** Container `filmflex-redis` chạy trong Docker stack, app kết nối qua `REDIS_HOST=redis` để cache movies/categories.
+
+### Cấu hình Nginx liên quan
+
+- **Static (HTML/JS/CSS/assets):** `try_files $uri $uri/ /index.html @backend` → ưu tiên file trong `root`, không có thì trả `index.html` (SPA), cuối cùng fallback `@backend`.
+- **API:** `location /api/` → `proxy_pass http://127.0.0.1:5000` (Node trong Docker map port `5000:5000`).
+- **Auth routes:** `location ~ ^/(login|register|auth)/` → cũng proxy về `127.0.0.1:5000`.
+
+### Kiểm tra sau deploy
+
+```bash
+# Frontend đã sync chưa
+ls -la /var/www/filmflex/dist/public/
+
+# Nginx đọc đúng root
+nginx -t
+
+# API qua Nginx
+curl -sI https://phimgg.com/api/health
+```
+
 ## 🚨 Troubleshooting
 
 ### 1. SSH Connection Failed

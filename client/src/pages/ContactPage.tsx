@@ -1,5 +1,6 @@
 import React from "react";
 import { useForm } from "react-hook-form";
+import { PageSEO } from "@/components/PageSEO";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { 
@@ -66,6 +67,12 @@ const ContactPage = () => {
 
   return (
     <div className="container mx-auto px-4 py-10">
+      <PageSEO
+        title="Liên hệ"
+        description="Liên hệ PhimGG - Hỗ trợ, góp ý, hợp tác. Chúng tôi luôn sẵn sàng lắng nghe bạn."
+        canonical="/contact"
+        keywords="liên hệ phimgg, hỗ trợ, góp ý"
+      />
       <div className="mb-12">
         <h1 className="text-4xl font-bold mb-2 flex items-center">
           <Mail className="mr-3 h-8 w-8 text-primary" />

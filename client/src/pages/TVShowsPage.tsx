@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
+import { PageSEO } from "@/components/PageSEO";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -152,6 +153,12 @@ const TVShowsPage = () => {
 
   return (
     <div className="container mx-auto px-4 py-10">
+      <PageSEO
+        title="Phim Bộ - TV Series"
+        description="Xem phim bộ, series TV đa tập mới nhất. Phim bộ Hàn, Trung, Việt, anime. Cập nhật tập mới mỗi ngày."
+        canonical="/tv"
+        keywords="phim bộ, tv series, phim nhiều tập, phim hàn, phim trung"
+      />
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8">        <div>
           <h1 className="text-4xl font-bold mb-2 flex items-center">
             <Tv className="mr-3 h-8 w-8 text-primary" />

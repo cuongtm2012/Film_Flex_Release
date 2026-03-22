@@ -1,6 +1,7 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
+import { PageSEO } from "@/components/PageSEO";
 import { 
   Film, 
   Trophy, 
@@ -16,6 +17,12 @@ import {
 const AboutPage = () => {
   return (
     <div className="container mx-auto px-4 py-10">
+      <PageSEO
+        title="Giới thiệu PhimGG"
+        description="PhimGG - Nền tảng streaming phim chất lượng cao. Hơn 1000 phim, phim bộ, anime. Trải nghiệm xem phim miễn phí."
+        canonical="/about"
+        keywords="giới thiệu phimgg, về chúng tôi, streaming phim"
+      />
       {/* Hero section */}
       <div className="mb-16 text-center max-w-3xl mx-auto">
         <h1 className="text-4xl md:text-5xl font-bold mb-6">About PhimGG</h1>

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
+import { PageSEO } from "@/components/PageSEO";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -87,6 +88,12 @@ const NewReleasesPage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-background/80">
+      <PageSEO
+        title="Phim mới cập nhật"
+        description="Phim mới nhất, phim vừa cập nhật. Xem phim mới ra rạp, phim bộ mới. Cập nhật hàng ngày."
+        canonical="/new-releases"
+        keywords="phim mới, phim mới cập nhật, new releases, phim mới ra"
+      />
       <div className="container mx-auto px-4 py-8 lg:py-12">
         {/* Enhanced Header Section */}
         <div className="mb-8 lg:mb-12">

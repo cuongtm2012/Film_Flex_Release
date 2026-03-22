@@ -134,6 +134,7 @@ jobs:
           cp -r shared deployment-package/
           cp -r scripts deployment-package/
           cp -r public deployment-package/
+          cp -r nginx deployment-package/ 2>/dev/null || true
           cp filmflex-app.tar deployment-package/
           cp package.json deployment-package/
           cp package-lock.json deployment-package/
@@ -247,6 +248,25 @@ jobs:
               echo "✅ Nginx will serve new frontend from /var/www/filmflex/dist/public"
             fi
             
+            # Deploy Nginx config (rate limit zones + site config)
+            if [ -d ~/Film_Flex_Release/nginx ]; then
+              echo "🔧 Updating Nginx config..."
+              if [ -f ~/Film_Flex_Release/nginx/00-limit_req_zones.conf ]; then
+                cp ~/Film_Flex_Release/nginx/00-limit_req_zones.conf /etc/nginx/conf.d/00-limit_req_zones.conf
+                echo "  ✓ 00-limit_req_zones.conf"
+              fi
+              if [ -f ~/Film_Flex_Release/nginx/default.conf ]; then
+                cp ~/Film_Flex_Release/nginx/default.conf /etc/nginx/conf.d/default.conf
+                echo "  ✓ default.conf"
+              fi
+              if nginx -t 2>/dev/null; then
+                systemctl reload nginx 2>/dev/null || true
+                echo "✅ Nginx config updated and reloaded"
+              else
+                echo "⚠️ nginx -t failed, config not reloaded"
+              fi
+            fi
+            
             # Cleanup
             rm -rf /tmp/deployment-package /tmp/deployment-package.tar.gz
             
@@ -286,7 +306,8 @@ jobs:
             echo "🚀 Deploying app container (image from Docker Hub)..."
             
             if [ -f "./docker-compose.production.yml" ]; then
-              # Use Docker Compose v2 CLI and only recreate app service (no postgres pull due to network limits)
+              # Start Redis first, then app (app depends on postgres + redis)
+              docker compose -f docker-compose.production.yml up -d redis
               docker compose -f docker-compose.production.yml up -d --no-deps --force-recreate app
             elif [ -f "./scripts/deployment/fix-deployment.sh" ]; then
               ./scripts/deployment/fix-deployment.sh

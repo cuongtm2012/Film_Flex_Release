@@ -37,6 +37,10 @@ interface Config {
   sendgridApiKey: string | undefined;
   fromEmail: string;
   fromName: string;
+  // Redis configuration (cache, sessions)
+  redisHost: string | undefined;
+  redisPort: number;
+  redisPassword: string | undefined;
 }
 
 export const config: Config = {
@@ -57,7 +61,10 @@ export const config: Config = {
   useCloudflareEmail: process.env.USE_CLOUDFLARE_EMAIL === 'true',
   sendgridApiKey: process.env.SENDGRID_API_KEY,
   fromEmail: process.env.FROM_EMAIL || 'noreply@filmflex.com',
-  fromName: process.env.FROM_NAME || 'PhimGG'
+  fromName: process.env.FROM_NAME || 'PhimGG',
+  redisHost: process.env.REDIS_HOST,
+  redisPort: parseInt(process.env.REDIS_PORT || '6379', 10),
+  redisPassword: process.env.REDIS_PASSWORD,
 };
 
 // Debug OAuth and Email configuration in development

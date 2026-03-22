@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { PageSEO } from "@/components/PageSEO";
 import { 
   BookOpen, 
   Calendar, 
@@ -160,6 +161,12 @@ const BlogPage = () => {
 
   return (
     <div className="container mx-auto px-4 py-10">
+      <PageSEO
+        title="Blog - Tin tức & Mẹo xem phim"
+        description="Tin tức streaming, mẹo xem phim, hướng dẫn sử dụng PhimGG. Cập nhật xu hướng giải trí và nội dung mới."
+        canonical="/blog"
+        keywords="blog phim, tin tức phim, mẹo xem phim, streaming"
+      />
       {/* Header section */}
       <div className="text-center mb-12">
         <BookOpen className="h-12 w-12 text-primary mx-auto mb-4" />

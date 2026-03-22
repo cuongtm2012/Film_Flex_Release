@@ -23,6 +23,7 @@ import session from "express-session";
 import { pool } from "./db.js";
 import { createElasticsearchService, ElasticsearchService } from './services/elasticsearch.js';
 import { createDataSyncService, DataSyncService } from './services/data-sync.js';
+import { cacheGet, cacheSet, cacheDel } from './services/movie-cache.js';
 
 export interface IStorage {
   // User methods
@@ -70,6 +71,7 @@ export interface IStorage {
   getAvailableYears(): Promise<number[]>;
   updateMovieBySlug(slug: string, updateData: Partial<Movie>): Promise<Movie | undefined>;
   getRecommendedMovies(page: number, limit: number): Promise<{ data: Movie[], total: number }>;
+  getMoviesForSitemap(offset: number, limit: number): Promise<{ slug: string; modifiedAt: string | null }[]>;
 
   // Episode methods
   getEpisodesByMovieSlug(movieSlug: string): Promise<Episode[]>;
@@ -115,12 +117,14 @@ export interface IStorage {
   getAuditLogs(page: number, limit: number, filters?: { activityType?: string, userId?: number }): Promise<{ data: AuditLog[], total: number }>;
 
   // Cache methods
-  cacheMovieList(data: MovieListResponse, page: number): Promise<void>;
+  cacheMovieList(data: MovieListResponse, page: number, limit?: number, sortBy?: string, filters?: Record<string, unknown>): Promise<void>;
   cacheMovieDetail(data: MovieDetailResponse): Promise<void>;
-  cacheMovieCategory(data: MovieListResponse, categorySlug: string, page: number): Promise<void>;
-  getMovieListCache(page: number): Promise<MovieListResponse | null>;
+  cacheMovieCategory(data: MovieListResponse, categorySlug: string, page: number, limit?: number): Promise<void>;
+  cacheMovieSection(data: MovieListResponse, section: string, page: number, limit?: number): Promise<void>;
+  getMovieListCache(page: number, limit?: number, sortBy?: string, filters?: Record<string, unknown>): Promise<MovieListResponse | null>;
   getMovieDetailCache(slug: string): Promise<MovieDetailResponse | null>;
-  getMovieCategoryCache(categorySlug: string, page: number): Promise<MovieListResponse | null>;
+  getMovieCategoryCache(categorySlug: string, page: number, limit?: number): Promise<MovieListResponse | null>;
+  getMovieSectionCache(section: string, page: number, limit?: number): Promise<MovieListResponse | null>;
 
   // Password reset token methods
   createPasswordResetToken(userId: number, token: string, expiresAt: Date): Promise<void>;
@@ -138,10 +142,8 @@ export interface IStorage {
 
 export class DatabaseStorage implements IStorage {
   sessionStore: session.Store;
-  // Reduce cache TTL to prevent memory bloat
-  private readonly CACHE_TTL = 2 * 60 * 1000; // 2 minutes instead of 5
-  // Add cache size limit
-  private readonly MAX_CACHE_SIZE = 1000;
+  // Cache TTL (Redis/in-memory fallback via movie-cache)
+  private readonly CACHE_TTL_SECONDS = 5 * 60; // 5 minutes
 
   // In-memory storage for password reset tokens
   private passwordResetTokens: Map<string, { userId: number; expiresAt: Date }> = new Map();
@@ -172,11 +174,6 @@ export class DatabaseStorage implements IStorage {
         console.error('Session store error:', error);
       }
     });
-
-    // Add periodic cache cleanup
-    setInterval(() => {
-      this.cleanupExpiredCache();
-    }, 60 * 1000); // Cleanup every minute
 
     // Initialize Elasticsearch
     this.initializeElasticsearch();
@@ -1617,67 +1614,33 @@ export class DatabaseStorage implements IStorage {
     return { data, total: count || 0 };
   }
 
-  // Cache implementation - using Redis-like API
-  private cache = new Map<string, any>();
-
+  // Cache implementation - Redis with in-memory fallback (movie-cache.js)
   private getCacheKey(type: string, ...params: any[]): string {
     return `${type}:${params.join(':')}`;
   }
 
-  private async setCache<T>(key: string, data: T): Promise<void> {
-    this.cache.set(key, {
-      data,
-      expiry: Date.now() + this.CACHE_TTL
-    });
-  }
-
-  private async clearCache(key: string): Promise<void> {
-    this.cache.delete(key);
-  }
-
-  private async getCache<T>(key: string): Promise<T | null> {
-    const cached = this.cache.get(key);
-    if (!cached) return null;
-
-    if (Date.now() > cached.expiry) {
-      this.cache.delete(key);
-      return null;
-    }
-
-    return cached.data;
-  }
-
-  private cleanupExpiredCache(): void {
-    const now = Date.now();
-    const keysToDelete: string[] = [];
-
-    for (const [key, value] of this.cache.entries()) {
-      if (now > value.expiry) {
-        keysToDelete.push(key);
-      }
-    }
-
-    keysToDelete.forEach(key => this.cache.delete(key));
-
-    // If cache is too large, remove oldest entries
-    if (this.cache.size > this.MAX_CACHE_SIZE) {
-      const entries = Array.from(this.cache.entries());
-      const toDelete = entries
-        .sort(([, a], [, b]) => a.expiry - b.expiry)
-        .slice(0, entries.length - this.MAX_CACHE_SIZE)
-        .map(([key]) => key);
-
-      toDelete.forEach(key => this.cache.delete(key));
-    }
+  private filtersToKey(filters?: Record<string, unknown>): string {
+    if (!filters || Object.keys(filters).length === 0) return '';
+    const sorted = Object.keys(filters).sort().reduce((acc, k) => {
+      acc[k] = filters[k];
+      return acc;
+    }, {} as Record<string, unknown>);
+    return JSON.stringify(sorted);
   }
 
   async clearMovieDetailCache(slug: string): Promise<void> {
-    const key = this.getCacheKey('movieDetail', slug);
-    await this.clearCache(key);
+    await cacheDel(this.getCacheKey('movieDetail', slug));
   }
 
-  async cacheMovieList(data: MovieListResponse, page: number): Promise<void> {
-    await this.setCache(this.getCacheKey('movieList', page), data);
+  async cacheMovieList(
+    data: MovieListResponse,
+    page: number,
+    limit: number = 20,
+    sortBy: string = 'latest',
+    filters?: Record<string, unknown>
+  ): Promise<void> {
+    const key = this.getCacheKey('movieList', page, limit, sortBy, this.filtersToKey(filters));
+    await cacheSet(key, data, this.CACHE_TTL_SECONDS);
   }
 
   async cacheMovieDetail(data: MovieDetailResponse): Promise<void> {
@@ -1698,23 +1661,55 @@ export class DatabaseStorage implements IStorage {
       data.movie = movieClone;
     }
 
-    await this.setCache(this.getCacheKey('movieDetail', data.movie.slug), data);
+    await cacheSet(this.getCacheKey('movieDetail', data.movie.slug), data, this.CACHE_TTL_SECONDS);
   }
 
-  async cacheMovieCategory(data: MovieListResponse, categorySlug: string, page: number): Promise<void> {
-    await this.setCache(this.getCacheKey('movieCategory', categorySlug, page), data);
+  async cacheMovieCategory(
+    data: MovieListResponse,
+    categorySlug: string,
+    page: number,
+    limit: number = 48
+  ): Promise<void> {
+    await cacheSet(this.getCacheKey('movieCategory', categorySlug, page, limit), data, this.CACHE_TTL_SECONDS);
   }
 
-  async getMovieListCache(page: number): Promise<MovieListResponse | null> {
-    return this.getCache(this.getCacheKey('movieList', page));
+  async cacheMovieSection(
+    data: MovieListResponse,
+    section: string,
+    page: number,
+    limit: number = 10
+  ): Promise<void> {
+    await cacheSet(this.getCacheKey('movieSection', section, page, limit), data, this.CACHE_TTL_SECONDS);
+  }
+
+  async getMovieListCache(
+    page: number,
+    limit: number = 20,
+    sortBy: string = 'latest',
+    filters?: Record<string, unknown>
+  ): Promise<MovieListResponse | null> {
+    const key = this.getCacheKey('movieList', page, limit, sortBy, this.filtersToKey(filters));
+    return cacheGet<MovieListResponse>(key);
   }
 
   async getMovieDetailCache(slug: string): Promise<MovieDetailResponse | null> {
-    return this.getCache(this.getCacheKey('movieDetail', slug));
+    return cacheGet<MovieDetailResponse>(this.getCacheKey('movieDetail', slug));
   }
 
-  async getMovieCategoryCache(categorySlug: string, page: number): Promise<MovieListResponse | null> {
-    return this.getCache(this.getCacheKey('movieCategory', categorySlug, page));
+  async getMovieCategoryCache(
+    categorySlug: string,
+    page: number,
+    limit: number = 48
+  ): Promise<MovieListResponse | null> {
+    return cacheGet<MovieListResponse>(this.getCacheKey('movieCategory', categorySlug, page, limit));
+  }
+
+  async getMovieSectionCache(
+    section: string,
+    page: number,
+    limit: number = 10
+  ): Promise<MovieListResponse | null> {
+    return cacheGet<MovieListResponse>(this.getCacheKey('movieSection', section, page, limit));
   }
 
   isElasticsearchEnabled(): boolean {
@@ -1743,6 +1738,25 @@ export class DatabaseStorage implements IStorage {
       .from(movies);
 
     return count || 0;
+  }
+
+  /** Lightweight query for sitemap - slug + modifiedAt, unique by slug, ordered by modified_at DESC */
+  async getMoviesForSitemap(offset: number, limit: number): Promise<{ slug: string; modifiedAt: string | null }[]> {
+    const result = await db.execute(sql`
+      SELECT slug, modified_at
+      FROM (
+        SELECT DISTINCT ON (slug) slug, modified_at
+        FROM ${movies}
+        ORDER BY slug, modified_at DESC
+      ) AS unique_movies
+      ORDER BY modified_at DESC NULLS LAST
+      LIMIT ${limit}
+      OFFSET ${offset}
+    `);
+    return (result.rows as { slug: string; modified_at: Date | null }[]).map(row => ({
+      slug: row.slug,
+      modifiedAt: row.modified_at ? new Date(row.modified_at).toISOString().split('T')[0] : null
+    }));
   }
 
   async getAvailableYears(): Promise<number[]> {

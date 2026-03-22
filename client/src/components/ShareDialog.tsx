@@ -56,10 +56,10 @@ export default function ShareDialog({ isOpen, onClose, title, url }: ShareDialog
       url: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}&quote=${encodeURIComponent(`Check out "${title}" on PhimGG!`)}`
     },
     {
-      name: "Reddit",
+      name: "Zalo",
       icon: MessageCircle,
-      color: "bg-orange-600 hover:bg-orange-700",
-      url: `https://www.reddit.com/submit?url=${encodeURIComponent(url)}&title=${encodeURIComponent(`Check out "${title}" on PhimGG!`)}`
+      color: "bg-[#0068FF] hover:bg-[#0052CC]",
+      url: `https://button-share.zalo.me/share_external?d=${btoa(JSON.stringify({ url }))}`
     },
     {
       name: "Telegram",

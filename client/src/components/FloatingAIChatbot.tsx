@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { MessageCircle, X, Sparkles, Send, Loader2 } from 'lucide-react';
+import { X, Sparkles, Send, Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 
 interface Message {
@@ -116,46 +116,23 @@ export default function FloatingAIChatbot() {
         return () => window.removeEventListener('resize', handleResize);
     }, [isOpen, position]);
 
-    // Load saved position from localStorage
+    // Default position: bottom-left corner
     useEffect(() => {
-        const savedPosition = localStorage.getItem('ai-chat-button-position');
-        if (savedPosition) {
-            try {
-                const parsed = JSON.parse(savedPosition);
-                setPosition(parsed);
-            } catch (e) {
-                setDefaultPosition();
-            }
-        } else {
-            setDefaultPosition();
-        }
+        setDefaultPosition();
     }, []);
 
     const setDefaultPosition = () => {
-        // Mobile detection
-        const isMobile = window.innerWidth < 768;
         const buttonSize = 56;
-
-        // Bottom-left: same vertical as before, horizontal from left
-        const bottomOffset = isMobile ? 96 : 16; // 80px nav + 16px margin for mobile
-        const leftOffset = 16;
-
+        const margin = 16;
         setPosition({
-            x: leftOffset,
-            y: window.innerHeight - buttonSize - bottomOffset
+            x: margin,
+            y: window.innerHeight - buttonSize - margin
         });
     };
 
     // Adjust position on orientation change (mobile)
     useEffect(() => {
-        const handleOrientationChange = () => {
-            // Recalculate default position on orientation change
-            const savedPosition = localStorage.getItem('ai-chat-button-position');
-            if (!savedPosition) {
-                setDefaultPosition();
-            }
-        };
-
+        const handleOrientationChange = () => setDefaultPosition();
         window.addEventListener('orientationchange', handleOrientationChange);
         return () => window.removeEventListener('orientationchange', handleOrientationChange);
     }, []);
@@ -257,19 +234,14 @@ export default function FloatingAIChatbot() {
             if (isDragging) {
                 setIsDragging(false);
 
-                // Snap to nearest edge (left or right)
+                // Snap to bottom-left when drag ends
                 if (hasMoved) {
                     const buttonSize = 56;
-                    const centerX = position.x + buttonSize / 2;
-                    const snapToRight = centerX > window.innerWidth / 2;
-
-                    const newPosition = {
-                        x: snapToRight ? window.innerWidth - buttonSize - 16 : 16,
-                        y: Math.max(16, Math.min(position.y, window.innerHeight - buttonSize - 16))
-                    };
-
-                    setPosition(newPosition);
-                    localStorage.setItem('ai-chat-button-position', JSON.stringify(newPosition));
+                    const margin = 16;
+                    setPosition({
+                        x: margin,
+                        y: Math.max(margin, Math.min(position.y, window.innerHeight - buttonSize - margin))
+                    });
                 }
             }
         };
@@ -407,13 +379,17 @@ export default function FloatingAIChatbot() {
                     transition: isDragging ? 'none' : 'left 0.3s ease-out, top 0.3s ease-out, transform 0.2s',
                     WebkitTapHighlightColor: 'transparent', // Remove tap highlight on mobile
                 }}
-                className="fixed z-[10000] w-14 h-14 sm:w-14 sm:h-14 rounded-full bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg hover:shadow-xl active:scale-95 sm:hover:scale-110 flex items-center justify-center touch-none select-none"
+                className="fixed z-[10000] w-14 h-14 sm:w-14 sm:h-14 rounded-full bg-transparent shadow-lg hover:shadow-xl active:scale-95 sm:hover:scale-110 flex items-center justify-center touch-none select-none border-0"
                 title="AI Assistant - Kéo để di chuyển"
                 aria-label="Open AI Chat Assistant"
             >
-                <div className="relative pointer-events-none">
-                    <MessageCircle className="h-6 w-6" />
-                    <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-green-400 rounded-full animate-pulse" />
+                <div className="relative pointer-events-none flex items-center justify-center">
+                    <img
+                        src="/ai-chatbot-icon.png"
+                        alt="AI Assistant"
+                        className="h-8 w-8 object-contain"
+                    />
+                    <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-green-400 rounded-full animate-pulse ring-2 ring-white" />
                 </div>
             </button>
         );

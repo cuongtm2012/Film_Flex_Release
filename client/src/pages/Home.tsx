@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import MovieSection from '@/components/MovieSection';
 import HeroCarousel from '@/components/HeroCarousel';
 import GenreSelectionModal from '@/components/GenreSelectionModal';
+import { PageSEO } from '@/components/PageSEO';
 import { Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { MovieListResponse, MovieDetailResponse } from '@shared/schema';
 import MoviePosterCard from '@/components/MoviePosterCard';
@@ -314,6 +315,12 @@ export default function Home() {
   // Render JSX - AFTER all hooks and logic
   return (
     <div className="min-h-screen bg-background">
+      <PageSEO
+        title="PhimGG - Xem Phim Online HD, Phim Bộ Mới Nhất"
+        description="Xem phim online miễn phí chất lượng HD. Phim bộ mới nhất, phim lẻ hay, anime đặc sắc. Cập nhật nhanh, phụ đề tiếng Việt."
+        canonical="/"
+        keywords="xem phim, phim online, phim hd, phim bộ, phim lẻ, anime, phim hay"
+      />
       {/* Hero Carousel */}
       {featuredMovies.length > 0 && (
         <div className="mt-8">

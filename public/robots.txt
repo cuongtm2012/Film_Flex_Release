@@ -11,8 +11,5 @@ Disallow: /_next/
 Allow: /api/sitemap.xml
 Allow: /api/robots.txt
 
-# Sitemap location
-Sitemap: https://phimgg.com/api/sitemap.xml
-
-# Crawl delay for better server performance
-Crawl-delay: 1
+# Sitemap location (root /sitemap.xml redirects via nginx)
+Sitemap: https://phimgg.com/sitemap.xml

@@ -171,7 +171,7 @@ const Footer = ({ onOpenMobileMenu }: { onOpenMobileMenu?: () => void }) => {
         {showScrollTop && (
           <button
             onClick={scrollToTop}
-            className="scroll-to-top-btn hidden lg:flex fixed bottom-20 right-6 bg-primary text-white p-3 rounded-full shadow-lg hover:bg-primary-dark transition-all duration-300 z-50 animate-fade-in"
+            className="scroll-to-top-btn hidden lg:flex fixed bottom-6 right-6 bg-primary text-white p-3 rounded-full shadow-lg hover:bg-primary-dark transition-all duration-300 z-50 animate-fade-in"
             aria-label="Scroll to top"
           >
             <ChevronUp className="h-6 w-6" />

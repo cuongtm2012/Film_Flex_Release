@@ -10,8 +10,6 @@ import {
   Loader2,
   Search,
   ChevronRight,
-  ChevronDown,
-  ChevronUp,
   Clock,
   Info,
   FileText,
@@ -32,6 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ServerTabs from "@/components/ServerTabs";
 import VideoPlayer from "@/components/VideoPlayer";
 import HLSVideoPlayer from "@/components/HLSVideoPlayer";
@@ -65,13 +64,8 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
   const [isEpisodeLoading, setIsEpisodeLoading] = useState(false);
   const [isEpisodeSwitching, setIsEpisodeSwitching] = useState(false);
   const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
-  // Default to direct player (HLS) when opening detail page
-  const [playerType, setPlayerType] = useState<"embed" | "hls">("hls");
-  // State for content expanding (overview section)
-  const [isContentExpanded, setIsContentExpanded] = useState(false);
-
-  // State for movie details expanding
-  const [isMovieDetailsExpanded, setIsMovieDetailsExpanded] = useState(false);
+  // Default to embed player (faster load) when opening detail page
+  const [playerType, setPlayerType] = useState<"embed" | "hls">("embed");
 
   // State for episode search
   const [episodeSearchQuery, setEpisodeSearchQuery] = useState("");
@@ -101,12 +95,6 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
       }
     }
 
-    // Set content expanded state when movie content is loaded
-    if (movieDetail?.movie) {
-      const content = movieDetail.movie.content || '';
-      const isLongContent = content.length > 300;
-      setIsContentExpanded(!isLongContent);
-    }
   }, [movieDetail]);
 
   // Auto-focus on video player when navigating to movie detail page on mobile
@@ -885,65 +873,26 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
               )}
             </div>
 
-            {/* Overview section - Mobile optimized with collapsible content */}
-            <div className="mb-5 bg-card/20 rounded-md p-4 border border-gray-800">
-              <h3 className="text-lg font-bold mb-2 flex items-center">
-                <FileText className="h-5 w-5 mr-2 text-primary" />
-                Overview
-              </h3>
-              <div className="relative">
-                <p className={`text-base leading-relaxed tracking-wide text-gray-200 ${!isContentExpanded ? 'line-clamp-4' : ''}`}>
-                  {movie.content || 'No description available'}
-                </p>
-
-                {(movie.content?.length || 0) > 200 && (
-                  <div className={`${!isContentExpanded ? 'absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-background to-transparent' : ''} flex justify-center`}>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="mt-2 text-primary rounded-full"
-                      onClick={() => setIsContentExpanded(!isContentExpanded)}
-                    >
-                      {isContentExpanded ? (
-                        <span className="flex items-center">Show less <ChevronUp className="ml-1 h-4 w-4" /></span>
-                      ) : (
-                        <span className="flex items-center">Read more <ChevronDown className="ml-1 h-4 w-4" /></span>
-                      )}
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Cast and Crew - Enhanced with toggle functionality */}
-            <div className="mb-5">
-              <button
-                onClick={() => setIsMovieDetailsExpanded(!isMovieDetailsExpanded)}
-                className="w-full text-left focus:outline-none focus:ring-2 focus:ring-primary/50 rounded-md"
-                aria-expanded={isMovieDetailsExpanded}
-                aria-controls="movie-details-content"
-              >
-                <h3 className="text-lg font-bold mb-3 flex items-center justify-between hover:text-primary transition-colors">
-                  <span className="flex items-center">
-                    <Info className="h-5 w-5 mr-2 text-primary" />
-                    Movie Details
-                  </span>
-                  <ChevronDown
-                    className={`h-5 w-5 text-primary transition-transform duration-300 ${isMovieDetailsExpanded ? 'rotate-180' : ''
-                      }`}
-                  />
-                </h3>
-              </button>
-
-              {/* Collapsible Content */}
-              <div
-                id="movie-details-content"
-                className={`overflow-hidden transition-all duration-300 ease-in-out ${isMovieDetailsExpanded
-                  ? 'max-h-[1000px] opacity-100'
-                  : 'max-h-0 opacity-0'
-                  }`}
-                aria-hidden={!isMovieDetailsExpanded}
-              >
+            {/* Overview & Movie Details - Tabs */}
+            <Tabs defaultValue="overview" className="mb-5">
+              <TabsList className="w-full grid grid-cols-2 bg-card/20 border border-gray-800">
+                <TabsTrigger value="overview" className="flex items-center gap-2 data-[state=active]:text-primary">
+                  <FileText className="h-4 w-4 text-red-500 shrink-0" />
+                  Overview
+                </TabsTrigger>
+                <TabsTrigger value="details" className="flex items-center gap-2 data-[state=active]:text-primary">
+                  <Info className="h-4 w-4 text-red-500 shrink-0" />
+                  Movie Details
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="overview" className="mt-3">
+                <div className="bg-card/20 rounded-md p-4 border border-gray-800">
+                  <p className="text-base leading-relaxed tracking-wide text-gray-200 whitespace-pre-wrap">
+                    {movie.content || 'No description available'}
+                  </p>
+                </div>
+              </TabsContent>
+              <TabsContent value="details" className="mt-3">
                 <div className="bg-card/20 rounded-md border border-gray-800 divide-y divide-gray-800">
                   {movie.director?.length > 0 && (
                     <div className="p-3 flex items-start">
@@ -1029,8 +978,8 @@ export default function MovieDetail({ slug }: MovieDetailProps) {
                     </div>
                   )}
                 </div>
-              </div>
-            </div>
+              </TabsContent>
+            </Tabs>
           </div>
 
           {/* Sidebar content - spans 4 columns on large screens */}

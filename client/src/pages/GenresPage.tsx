@@ -1,5 +1,6 @@
 import React from "react";
 import { Link } from "wouter";
+import { PageSEO } from "@/components/PageSEO";
 import { Card } from "@/components/ui/card";
 import { 
   Swords, 
@@ -156,6 +157,12 @@ const GenresPage = () => {
 
   return (
     <div className="container mx-auto px-4 py-10">
+      <PageSEO
+        title="Thể loại phim"
+        description="Khám phá phim theo thể loại: Hành động, Tình cảm, Hài, Kinh dị, Hoạt hình... Xem phim online miễn phí HD."
+        canonical="/genres"
+        keywords="thể loại phim, hành động, tình cảm, hài, kinh dị, anime"
+      />
       <div className="mb-12">
         <h1 className="text-4xl font-bold mb-2">Movie & TV Genres</h1>
         <p className="text-muted-foreground text-lg">

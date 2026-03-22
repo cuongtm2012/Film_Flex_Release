@@ -28,6 +28,25 @@ services:
         limits:
           memory: 768M
 
+  # Redis for caching (movie-cache, sessions)
+  redis:
+    image: redis:7-alpine
+    container_name: filmflex-redis
+    networks:
+      - filmflex-network
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
   # PhimGG Application from Docker Hub
   app:
     image: cuongtm2012/filmflex-app:latest
@@ -45,12 +64,16 @@ services:
       SERVER_IP: ${SERVER_IP:-38.54.14.154}
       USE_CLOUDFLARE_OAUTH: "false"
       USE_CLOUDFLARE_EMAIL: "false"
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
     ports:
       - "5000:5000"
     networks:
       - filmflex-network
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     volumes:
       - app_logs:/app/logs
@@ -72,6 +95,8 @@ networks:
 
 volumes:
   postgres_data:
+    driver: local
+  redis_data:
     driver: local
   app_logs:
     driver: local

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { MovieListResponse } from "@/types/api";
 import MovieGrid from "@/components/MovieGrid";
+import { PageSEO } from "@/components/PageSEO";
 import { Separator } from "@/components/ui/separator";
 import { Loader2 } from "lucide-react";
 
@@ -99,6 +100,12 @@ export default function MoviesPage() {
 
   return (
     <div className="container mx-auto px-4 py-4 md:py-8 pb-24 md:pb-8">
+      <PageSEO
+        title="Phim Lẻ & Phim Bộ"
+        description="Khám phá bộ sưu tập phim lẻ và phim bộ đa dạng. Phim mới nhất, phim hay, sắp xếp theo năm và độ phổ biến."
+        canonical="/movies"
+        keywords="phim lẻ, phim bộ, movies, tv shows, phim mới"
+      />
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4 md:mb-6">
         <h1 className="text-2xl md:text-3xl font-bold mb-4 md:mb-0">Movies & TV Shows</h1>
       </div>

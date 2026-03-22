@@ -69,10 +69,14 @@ router.get("/movies", async (req: Request, res: Response) => {
       }
     }
 
-    // Pass sortBy parameter to storage.getMovies
-    const result = await storage.getMovies(page, limit, sortBy, filters);
+    // Try cache first
+    const cached = await storage.getMovieListCache(page, limit, sortBy, filters);
+    if (cached?.items) {
+      return res.json(cached);
+    }
 
-    res.json({
+    const result = await storage.getMovies(page, limit, sortBy, filters);
+    const response = {
       status: true,
       items: result.data,
       pagination: {
@@ -81,7 +85,9 @@ router.get("/movies", async (req: Request, res: Response) => {
         currentPage: page,
         totalItemsPerPage: limit,
       },
-    });
+    };
+    await storage.cacheMovieList(response, page, limit, sortBy, filters);
+    res.json(response);
   } catch (error) {
     console.error("[API ERROR] Failed to fetch movies:", error);
     res.status(500).json({
@@ -175,7 +181,7 @@ router.get("/movies/recommended", async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || 20;
     const userId = (req.user as any)?.id;
 
-    let movies;
+    let movies: any[] = [];
     let personalized = false;
     let favoriteGenres: string[] = [];
 
@@ -313,6 +319,12 @@ router.get("/categories/:slug", async (req: Request, res: Response) => {
       return;
     }
 
+    // Try cache first
+    const cached = await storage.getMovieCategoryCache(slug, page, limit);
+    if (cached?.items) {
+      return res.json(cached);
+    }
+
     // First, check if we have enough movies in our database for this category
     // and can just use the database sort directly
     const dbCategoryMovies = await storage.getMoviesByCategory(slug, page, limit);
@@ -328,9 +340,8 @@ router.get("/categories/:slug", async (req: Request, res: Response) => {
           totalItemsPerPage: limit,
         },
       };
-
-      res.json(categoryResponse);
-      return;
+      await storage.cacheMovieCategory(categoryResponse, slug, page, limit);
+      return res.json(categoryResponse);
     }
 
     // Otherwise, use our client-side filtering approach
@@ -843,9 +854,13 @@ router.get("/movies/sections/:section", async (req: Request, res: Response) => {
       return;
     }
 
-    const result = await storage.getMoviesBySection(section, page, limit);
+    const cached = await storage.getMovieSectionCache(section, page, limit);
+    if (cached?.items) {
+      return res.json(cached);
+    }
 
-    res.json({
+    const result = await storage.getMoviesBySection(section, page, limit);
+    const response = {
       status: true,
       items: result.data,
       pagination: {
@@ -854,7 +869,9 @@ router.get("/movies/sections/:section", async (req: Request, res: Response) => {
         currentPage: page,
         totalItemsPerPage: limit,
       },
-    });
+    };
+    await storage.cacheMovieSection(response, section, page, limit);
+    res.json(response);
   } catch (error) {
     res
       .status(500)
@@ -875,9 +892,13 @@ router.get("/movies/section/:section", async (req: Request, res: Response) => {
       return;
     }
 
-    const result = await storage.getMoviesBySection(section, page, limit);
+    const cached = await storage.getMovieSectionCache(section, page, limit);
+    if (cached?.items) {
+      return res.json(cached);
+    }
 
-    res.json({
+    const result = await storage.getMoviesBySection(section, page, limit);
+    const response = {
       status: true,
       items: result.data,
       pagination: {
@@ -886,7 +907,9 @@ router.get("/movies/section/:section", async (req: Request, res: Response) => {
         currentPage: page,
         totalItemsPerPage: limit,
       },
-    });
+    };
+    await storage.cacheMovieSection(response, section, page, limit);
+    res.json(response);
   } catch (error) {
     res
       .status(500)

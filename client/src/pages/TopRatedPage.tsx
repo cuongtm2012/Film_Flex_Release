@@ -1,6 +1,7 @@
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
+import { PageSEO } from "@/components/PageSEO";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Star, Play, Loader2, Trophy, Award } from "lucide-react";
@@ -58,6 +59,12 @@ const TopRatedPage = () => {
 
   return (
     <div className="container mx-auto px-4 py-10">
+      <PageSEO
+        title="Top phim hay - Đánh giá cao"
+        description="Top phim được đánh giá cao nhất trên PhimGG. Phim hay, phim chất lượng, được khán giả yêu thích."
+        canonical="/top-rated"
+        keywords="top phim, phim hay, đánh giá cao, phim chất lượng"
+      />
       <div className="mb-12">
         <h1 className="text-4xl font-bold mb-2 flex items-center">
           <Trophy className="mr-3 h-8 w-8 text-primary" />
