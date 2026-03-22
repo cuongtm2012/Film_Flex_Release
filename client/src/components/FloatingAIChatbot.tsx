@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { X, Sparkles, Send, Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
+import aiChatbotIcon from '@/assets/ai-chatbot-icon.png';
 
 interface Message {
     role: 'user' | 'assistant';
@@ -385,7 +386,7 @@ export default function FloatingAIChatbot() {
             >
                 <div className="relative pointer-events-none flex items-center justify-center">
                     <img
-                        src="/ai-chatbot-icon.png"
+                        src={aiChatbotIcon}
                         alt="AI Assistant"
                         className="h-8 w-8 object-contain"
                     />
