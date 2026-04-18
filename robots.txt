@@ -13,7 +13,8 @@ Allow: /
 
 # Disallow admin and private areas
 Disallow: /admin/
-Disallow: /api/
+Disallow: /api/auth/
+Disallow: /api/users/
 Disallow: /private/
 Disallow: /user/
 Disallow: /profile/settings
@@ -21,7 +22,7 @@ Disallow: /auth/
 
 # Allow important pages for SEO
 Allow: /movies
-Allow: /tv-shows
+Allow: /tv
 Allow: /genres
 Allow: /about
 Allow: /contact

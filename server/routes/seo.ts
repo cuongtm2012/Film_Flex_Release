@@ -78,16 +78,34 @@ router.get('/sitemap-pages.xml', async (_req: Request, res: Response) => {
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>${BASE_URL}/series</loc>
+    <loc>${BASE_URL}/tv</loc>
     <lastmod>${currentDate}</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>${BASE_URL}/anime</loc>
+    <loc>${BASE_URL}/new-releases</loc>
     <lastmod>${currentDate}</lastmod>
     <changefreq>daily</changefreq>
-    <priority>0.9</priority>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>${BASE_URL}/top-rated</loc>
+    <lastmod>${currentDate}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>${BASE_URL}/news</loc>
+    <lastmod>${currentDate}</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>${BASE_URL}/search</loc>
+    <lastmod>${currentDate}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
   </url>
   <url>
     <loc>${BASE_URL}/genres</loc>

@@ -13,7 +13,7 @@ interface PageSEOProps {
 
 export function PageSEO({
   title,
-  description = 'Stream thousands of HD movies and TV shows free on PhimGG.com. Latest releases, classics, and exclusive content.',
+  description = 'Xem phim lẻ, phim bộ HD miễn phí tại PhimGG với Vietsub và thuyết minh. Cập nhật phim mới mỗi ngày, tốc độ cao, xem mượt trên mọi thiết bị.',
   canonical,
   keywords,
   noIndex = false,
@@ -26,6 +26,7 @@ export function PageSEO({
     <Helmet>
       <title>{fullTitle}</title>
       {description && <meta name="description" content={description} />}
+      <meta name="language" content="vi" />
       {keywords && <meta name="keywords" content={keywords} />}
       {canonicalUrl && <link rel="canonical" href={canonicalUrl} />}
       {noIndex && <meta name="robots" content="noindex, follow" />}
@@ -34,6 +35,7 @@ export function PageSEO({
       <meta property="og:title" content={fullTitle} />
       <meta property="og:description" content={description} />
       <meta property="og:type" content="website" />
+      <meta property="og:locale" content="vi_VN" />
       {canonicalUrl && <meta property="og:url" content={canonicalUrl} />}
       <meta property="og:image" content={ogImage} />
       <meta property="og:site_name" content="PhimGG" />

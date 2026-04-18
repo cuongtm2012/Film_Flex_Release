@@ -44,17 +44,17 @@ export function MovieSEO({ movie, slug }: MovieSEOProps) {
   if (!movie || !movie.name) return null;
 
   try {
-    const movieTitle = `Watch ${movie.name} Online - HD Full ${movie.type === 'series' ? 'Series' : 'Movie'} | PhimGG`;
-    const movieDescription = `Stream ${movie.name} in HD quality on PhimGG.com. Watch full episodes and enjoy the latest updates for free on your favorite movie platform.`;
+    const movieTitle = `Xem ${movie.name} HD Vietsub, thuyết minh | PhimGG`;
+    const movieDescription = `Xem ${movie.name} chất lượng HD tại PhimGG. Cập nhật tập mới nhanh, hỗ trợ Vietsub và thuyết minh, xem miễn phí trên mọi thiết bị.`;
     const movieUrl = `${BASE_URL}/movie/${slug}/`;
     const imageUrl = toAbsoluteUrl(movie.poster_url || movie.thumb_url);
 
     const keywords = [
-      'watch online',
+      'xem phim online',
       movie.name,
-      movie.type === 'series' ? 'TV series' : 'movie',
-      'HD quality',
-      'free streaming',
+      movie.type === 'series' ? 'phim bộ' : 'phim lẻ',
+      'phim HD',
+      'xem phim miễn phí',
       'PhimGG',
       ...(movie.category?.map(cat => cat.name) ?? []),
       ...(movie.country?.map(country => country.name) ?? []),
@@ -76,7 +76,7 @@ export function MovieSEO({ movie, slug }: MovieSEOProps) {
       "productionCompany": { "@type": "Organization", "name": "PhimGG" },
       "provider": { "@type": "Organization", "name": "PhimGG", "url": BASE_URL },
       "contentRating": movie.quality || "HD",
-      "inLanguage": movie.lang || "en",
+      "inLanguage": movie.lang || "vi",
       "countryOfOrigin": movie.country?.map(c => c.name) ?? []
     };
     const duration = parseDuration(movie.time);
@@ -86,8 +86,8 @@ export function MovieSEO({ movie, slug }: MovieSEOProps) {
       "@context": "https://schema.org",
       "@type": "BreadcrumbList",
       "itemListElement": [
-        { "@type": "ListItem", "position": 1, "name": "Home", "item": BASE_URL },
-        { "@type": "ListItem", "position": 2, "name": movie.type === 'series' ? "TV Series" : "Movies", "item": `${BASE_URL}/${movie.type === 'series' ? 'series' : 'movies'}` },
+        { "@type": "ListItem", "position": 1, "name": "Trang chủ", "item": BASE_URL },
+        { "@type": "ListItem", "position": 2, "name": movie.type === 'series' ? "Phim bộ" : "Phim lẻ", "item": `${BASE_URL}/${movie.type === 'series' ? 'tv' : 'movies'}` },
         { "@type": "ListItem", "position": 3, "name": movie.name, "item": movieUrl }
       ]
     };
@@ -107,7 +107,7 @@ export function MovieSEO({ movie, slug }: MovieSEOProps) {
         <meta property="og:url" content={movieUrl} />
         <meta property="og:image" content={imageUrl} />
         <meta property="og:site_name" content="PhimGG" />
-        <meta property="og:locale" content="en_US" />
+        <meta property="og:locale" content="vi_VN" />
         
         {/* Twitter Card Meta Tags */}
         <meta name="twitter:card" content="summary_large_image" />

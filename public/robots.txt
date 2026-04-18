@@ -8,7 +8,9 @@ Disallow: /api/users/
 Disallow: /_next/
 
 # Allow important SEO pages
-Allow: /api/sitemap.xml
+Allow: /api/sitemap-index.xml
+Allow: /api/sitemap-pages.xml
+Allow: /api/sitemap-movies-
 Allow: /api/robots.txt
 
 # Sitemap location (root /sitemap.xml redirects via nginx)
