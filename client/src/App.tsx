@@ -45,7 +45,10 @@ import DevicesPage from "@/pages/DevicesPage";
 import CareersPage from "@/pages/CareersPage";
 import PressPage from "@/pages/PressPage";
 import BlogPage from "@/pages/BlogPage";
+import BlogPostPage from "@/pages/BlogPostPage";
 import PartnersPage from "@/pages/PartnersPage";
+import CategoryBrowsePage from "@/pages/CategoryBrowsePage";
+import NewsArticlePage from "@/pages/NewsArticlePage";
 import { logger } from "@/lib/logger";
 
 // Enhanced debugging utilities
@@ -110,10 +113,26 @@ function Router() {
           </ErrorBoundary>
         </Route>
         
+        <Route path="/news/:slug">
+          <ErrorBoundary>
+            <MainLayout>
+              <NewsArticlePage />
+            </MainLayout>
+          </ErrorBoundary>
+        </Route>
+
         <Route path="/news">
           <ErrorBoundary>
             <MainLayout>
               <NewsPage />
+            </MainLayout>
+          </ErrorBoundary>
+        </Route>
+
+        <Route path="/categories/:slug">
+          <ErrorBoundary>
+            <MainLayout>
+              <CategoryBrowsePage />
             </MainLayout>
           </ErrorBoundary>
         </Route>
@@ -289,6 +308,14 @@ function Router() {
           </ErrorBoundary>
         </Route>
         
+        <Route path="/blog/posts/:postId">
+          <ErrorBoundary>
+            <MainLayout>
+              <BlogPostPage />
+            </MainLayout>
+          </ErrorBoundary>
+        </Route>
+
         <Route path="/blog">
           <ErrorBoundary>
             <MainLayout>

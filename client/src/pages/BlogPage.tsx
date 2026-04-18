@@ -1,5 +1,7 @@
-import React, { useState } from "react";
+import { useState } from "react";
+import { Link } from "wouter";
 import { PageSEO } from "@/components/PageSEO";
+import { BLOG_POSTS } from "@shared/blog-posts";
 import { 
   BookOpen, 
   Calendar, 
@@ -15,134 +17,26 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Card, 
   CardContent, 
-  CardDescription, 
   CardFooter, 
   CardHeader, 
   CardTitle 
 } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
-
-interface BlogPost {
-  id: number;
-  title: string;
-  excerpt: string;
-  author: string;
-  date: string;
-  readTime: string;
-  category: "Entertainment" | "Technology" | "Company" | "Guides";
-  tags: string[];
-  image: string;
-  featured?: boolean;
-}
 
 const BlogPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
 
-  const blogPosts: BlogPost[] = [
-    {
-      id: 1,
-      title: "The Evolution of Streaming: From DVD Rentals to AI-Powered Recommendations",
-      excerpt: "Explore the fascinating journey of how streaming technology has transformed from its humble beginnings to the sophisticated, personalized experience we enjoy today.",
-      author: "Alex Johnson",
-      date: "April 28, 2025",
-      readTime: "8 min",
-      category: "Technology",
-      tags: ["streaming", "technology", "AI", "history"],
-      image: "https://images.unsplash.com/photo-1594909122845-11baa439b7bf?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1470&q=80",
-      featured: true
-    },
-    {
-      id: 2,
-      title: "Behind the Scenes: How PhimGG Curates Content for Global Audiences",
-      excerpt: "Get an exclusive look at our content curation process and how we ensure diverse, quality entertainment for viewers worldwide.",
-      author: "Samantha Lee",
-      date: "April 22, 2025",
-      readTime: "6 min",
-      category: "Company",
-      tags: ["curation", "global", "content"],
-      image: "https://images.unsplash.com/photo-1540224871915-bc8ffb782bdf?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1374&q=80",
-      featured: true
-    },
-    {
-      id: 3,
-      title: "10 Hidden Gems You Need to Stream This Weekend",
-      excerpt: "Discover critically acclaimed but lesser-known films and shows that deserve a spot on your watchlist.",
-      author: "Marcus Chen",
-      date: "April 15, 2025",
-      readTime: "5 min",
-      category: "Entertainment",
-      tags: ["recommendations", "movies", "tv shows"],
-      image: "https://images.unsplash.com/photo-1536440136628-849c177e76a1?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1425&q=80"
-    },
-    {
-      id: 4,
-      title: "Maximize Your Streaming Experience: Tips for the Perfect Movie Night",
-      excerpt: "From audio setup to lighting and snacks, here's everything you need to create the ultimate home theater experience.",
-      author: "Olivia Rodriguez",
-      date: "April 10, 2025",
-      readTime: "7 min",
-      category: "Guides",
-      tags: ["home theater", "tips", "streaming quality"],
-      image: "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1470&q=80"
-    },
-    {
-      id: 5,
-      title: "The Rise of International Content and Why It Matters",
-      excerpt: "How global storytelling is breaking language barriers and bringing diverse perspectives to mainstream entertainment.",
-      author: "Jamal Washington",
-      date: "April 5, 2025",
-      readTime: "9 min",
-      category: "Entertainment",
-      tags: ["international", "diversity", "global"],
-      image: "https://images.unsplash.com/photo-1516280440614-37939bbacd81?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1470&q=80"
-    },
-    {
-      id: 6,
-      title: "How We're Using 4K HDR to Enhance Your Viewing Experience",
-      excerpt: "A technical exploration of how high-definition video formats are revolutionizing the way we experience film and television.",
-      author: "Priya Patel",
-      date: "March 28, 2025",
-      readTime: "10 min",
-      category: "Technology",
-      tags: ["4K", "HDR", "video quality"],
-      image: "https://images.unsplash.com/photo-1577375729152-4c8b5fcda381?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1470&q=80"
-    },
-    {
-      id: 7,
-      title: "Accessibility in Streaming: How PhimGG is Making Content Available to Everyone",
-      excerpt: "Learn about our initiatives to make streaming more accessible through subtitles, audio descriptions, interface design, and more.",
-      author: "Sam Taylor",
-      date: "March 20, 2025",
-      readTime: "8 min",
-      category: "Company",
-      tags: ["accessibility", "inclusion", "features"],
-      image: "https://images.unsplash.com/photo-1515378791036-0648a3ef77b2?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1470&q=80"
-    },
-    {
-      id: 8,
-      title: "PhimGG Mobile: Tips and Tricks for Streaming On-the-Go",
-      excerpt: "Get the most out of our mobile app with these expert tips for offline downloads, data usage, and mobile-specific features.",
-      author: "Lin Wei",
-      date: "March 15, 2025",
-      readTime: "6 min",
-      category: "Guides",
-      tags: ["mobile", "app", "downloads"],
-      image: "https://images.unsplash.com/photo-1585399000684-d2f72660f092?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1471&q=80"
-    }
-  ];
-
-  const filteredPosts = blogPosts.filter(post => 
+  const filteredPosts = BLOG_POSTS.filter(post => 
     post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     post.excerpt.toLowerCase().includes(searchQuery.toLowerCase()) ||
     post.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
-  const featuredPosts = blogPosts.filter(post => post.featured);
+  const featuredPosts = BLOG_POSTS.filter(post => post.featured);
   
   const getCategoryIcon = (category: string) => {
     switch(category) {
@@ -216,9 +110,9 @@ const BlogPage = () => {
                     <span className="text-sm text-muted-foreground">{post.author}</span>
                   </div>
                   <Button asChild variant="ghost" size="sm" className="text-primary">
-                    <a href={`/blog/posts/${post.id}`} className="flex items-center">
+                    <Link href={`/blog/posts/${post.id}`} className="flex items-center">
                       Read More <ArrowRight className="ml-1 h-3.5 w-3.5" />
-                    </a>
+                    </Link>
                   </Button>
                 </CardFooter>
               </Card>
@@ -310,9 +204,9 @@ const BlogPage = () => {
                     <span className="text-sm text-muted-foreground">{post.author}</span>
                   </div>
                   <Button asChild variant="ghost" size="sm" className="text-primary">
-                    <a href={`/blog/posts/${post.id}`} className="flex items-center">
+                    <Link href={`/blog/posts/${post.id}`} className="flex items-center">
                       Read <ArrowRight className="ml-1 h-3.5 w-3.5" />
-                    </a>
+                    </Link>
                   </Button>
                 </CardFooter>
               </Card>
@@ -336,7 +230,7 @@ const BlogPage = () => {
                 Reviews, recommendations, and trends in movies and TV shows
               </p>
               <Button asChild variant="outline" size="sm">
-                <a href="/blog/category/entertainment">View Articles</a>
+                <Link href="/blog">View Articles</Link>
               </Button>
             </CardContent>
           </Card>
@@ -351,7 +245,7 @@ const BlogPage = () => {
                 Innovations and insights into streaming technology
               </p>
               <Button asChild variant="outline" size="sm">
-                <a href="/blog/category/technology">View Articles</a>
+                <Link href="/blog">View Articles</Link>
               </Button>
             </CardContent>
           </Card>
@@ -366,7 +260,7 @@ const BlogPage = () => {
                 Updates and stories from behind the scenes at PhimGG
               </p>
               <Button asChild variant="outline" size="sm">
-                <a href="/blog/category/company">View Articles</a>
+                <Link href="/blog">View Articles</Link>
               </Button>
             </CardContent>
           </Card>
@@ -381,7 +275,7 @@ const BlogPage = () => {
                 Tips and tutorials to enhance your streaming experience
               </p>
               <Button asChild variant="outline" size="sm">
-                <a href="/blog/category/guides">View Articles</a>
+                <Link href="/blog">View Articles</Link>
               </Button>
             </CardContent>
           </Card>
@@ -442,12 +336,12 @@ const BlogPage = () => {
         <div className="flex items-center justify-between mb-8">
           <h2 className="text-2xl font-bold">Recent Articles</h2>
           <Button asChild variant="outline">
-            <a href="/blog/archive">View All</a>
+            <Link href="/blog">View All</Link>
           </Button>
         </div>
         
         <div className="space-y-5">
-          {blogPosts.slice(0, 5).map(post => (
+          {BLOG_POSTS.slice(0, 5).map(post => (
             <div key={post.id} className="border-b border-gray-800 pb-5">              <div className="flex flex-col md:flex-row gap-4">
                 <div className="md:w-1/4 h-32 md:h-auto">
                   <img 
@@ -478,9 +372,9 @@ const BlogPage = () => {
                       {post.author}
                     </span>
                     <Button asChild variant="ghost" size="sm" className="text-primary">
-                      <a href={`/blog/posts/${post.id}`} className="flex items-center">
+                      <Link href={`/blog/posts/${post.id}`} className="flex items-center">
                         Read Article <ArrowRight className="ml-1 h-3.5 w-3.5" />
-                      </a>
+                      </Link>
                     </Button>
                   </div>
                 </div>

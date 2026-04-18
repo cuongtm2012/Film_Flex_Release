@@ -37,11 +37,8 @@
     <link rel="manifest" href="/site.webmanifest" />
     <meta name="theme-color" content="#3b82f6" />
     
-    <!-- Open Graph Meta Tags -->
-    <meta property="og:title" content="PhimGG - Xem phim HD miễn phí Vietsub, thuyết minh" />
-    <meta property="og:description" content="Xem phim lẻ, phim bộ HD miễn phí tại PhimGG với Vietsub và thuyết minh. Cập nhật phim mới mỗi ngày, tốc độ nhanh, xem mượt trên mọi thiết bị." />
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://phimgg.com" />
+    <!-- Open Graph Meta Tags - Managed dynamically by React Helmet (PageSEO, MovieSEO, etc.) -->
+    <!-- See PageSEO component and MovieSEO component for dynamic OG tags per page -->
     <meta property="og:site_name" content="PhimGG" />
     <meta property="og:locale" content="vi_VN" />
     <meta property="og:image" content="https://phimgg.com/og-image.jpg" />
@@ -49,15 +46,11 @@
     <meta property="og:image:height" content="630" />
     <meta property="og:image:type" content="image/jpeg" />
     
-    <!-- Twitter Card Meta Tags -->
+    <!-- Twitter Card Meta Tags - Managed dynamically by React Helmet -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="PhimGG - Xem phim HD miễn phí Vietsub, thuyết minh" />
-    <meta name="twitter:description" content="Xem phim lẻ, phim bộ HD miễn phí tại PhimGG với Vietsub và thuyết minh. Cập nhật phim mới mỗi ngày, tốc độ nhanh, xem mượt trên mọi thiết bị." />
     <meta name="twitter:site" content="@PhimGG" />
-    <meta name="twitter:creator" content="@PhimGG" />
-    <meta name="twitter:image" content="https://phimgg.com/twitter-image.jpg" />
     
-    <!-- Additional Schema.org Structured Data -->
+    <!-- Default Schema.org Structured Data - WebSite schema (Movie/News schemas added dynamically per page) -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
@@ -80,12 +73,6 @@
           "url": "https://phimgg.com/logo.png",
           "width": 512,
           "height": 512
-        },
-        "contactPoint": {
-          "@type": "ContactPoint",
-          "telephone": "+1-555-PHIMGG",
-          "contactType": "customer service",
-          "availableLanguage": ["English"]
         }
       },
       "sameAs": [
@@ -93,42 +80,6 @@
         "https://facebook.com/PhimGG",
         "https://instagram.com/PhimGG"
       ]
-    }
-    </script>
-    
-    <!-- Organization Schema -->
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "Organization",
-      "name": "PhimGG",
-      "url": "https://phimgg.com",
-      "logo": "https://phimgg.com/logo.png",
-      "description": "Leading free streaming platform for movies and TV shows",
-      "foundingDate": "2024",
-      "contactPoint": {
-        "@type": "ContactPoint",
-        "telephone": "+1-555-PHIMGG",
-        "contactType": "customer service"
-      },
-      "address": {
-        "@type": "PostalAddress",
-        "addressCountry": "US"
-      }
-    }
-    </script>
-    
-    <!-- Breadcrumb Schema for Homepage -->
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "BreadcrumbList",
-      "itemListElement": [{
-        "@type": "ListItem",
-        "position": 1,
-        "name": "Home",
-        "item": "https://phimgg.com"
-      }]
     }
     </script>
     

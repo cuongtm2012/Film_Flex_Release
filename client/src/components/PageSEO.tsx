@@ -1,4 +1,5 @@
 import { Helmet } from 'react-helmet-async';
+import { useLocation } from 'wouter';
 
 const BASE_URL = 'https://phimgg.com';
 
@@ -9,6 +10,7 @@ interface PageSEOProps {
   keywords?: string;
   noIndex?: boolean;
   ogImage?: string;
+  breadcrumbItems?: Array<{ name: string; path: string }>;
 }
 
 export function PageSEO({
@@ -17,10 +19,33 @@ export function PageSEO({
   canonical,
   keywords,
   noIndex = false,
-  ogImage = 'https://phimgg.com/og-image.jpg'
+  ogImage = 'https://phimgg.com/og-image.jpg',
+  breadcrumbItems
 }: PageSEOProps) {
+  const [locationPath] = useLocation();
   const fullTitle = title.includes('PhimGG') ? title : `${title} | PhimGG`;
-  const canonicalUrl = canonical ? (canonical.startsWith('http') ? canonical : `${BASE_URL}${canonical.startsWith('/') ? '' : '/'}${canonical}`) : undefined;
+  const pathForCanonical = (() => {
+    const pathOnly = locationPath.split('?')[0] || '/';
+    return pathOnly === '' ? '/' : pathOnly;
+  })();
+  const resolvedCanonical = canonical ?? pathForCanonical;
+  const canonicalUrl = (() => {
+    const c = resolvedCanonical;
+    if (!c) return undefined;
+    return c.startsWith('http') ? c : `${BASE_URL}${c.startsWith('/') ? '' : '/'}${c}`;
+  })();
+
+  // Generate BreadcrumbList schema if breadcrumbItems provided
+  const breadcrumbSchema = breadcrumbItems ? {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": breadcrumbItems.map((item, index) => ({
+      "@type": "ListItem",
+      "position": index + 1,
+      "name": item.name,
+      "item": `${BASE_URL}${item.path.startsWith('/') ? '' : '/'}${item.path}`
+    }))
+  } : null;
 
   return (
     <Helmet>
@@ -45,6 +70,13 @@ export function PageSEO({
       <meta name="twitter:title" content={fullTitle} />
       <meta name="twitter:description" content={description} />
       <meta name="twitter:image" content={ogImage} />
+
+      {/* Breadcrumb schema */}
+      {breadcrumbSchema && (
+        <script type="application/ld+json">
+          {JSON.stringify(breadcrumbSchema)}
+        </script>
+      )}
     </Helmet>
   );
 }

@@ -1,5 +1,7 @@
 import { Router, type Request, type Response } from 'express';
 import { storage } from '../storage.js';
+import { CATEGORY_SLUGS, NEWS_ARTICLES } from '../../shared/seo-static.js';
+import { BLOG_POSTS } from '../../shared/blog-posts.js';
 
 const router = Router();
 const BASE_URL = 'https://phimgg.com';
@@ -29,6 +31,14 @@ router.get('/sitemap-index.xml', async (_req: Request, res: Response) => {
     }
 
     xml += `
+  <sitemap>
+    <loc>${BASE_URL}/api/sitemap-news.xml</loc>
+    <lastmod>${currentDate}</lastmod>
+  </sitemap>
+  <sitemap>
+    <loc>${BASE_URL}/api/sitemap-blog.xml</loc>
+    <lastmod>${currentDate}</lastmod>
+  </sitemap>
 </sitemapindex>`;
 
     res.send(xml);
@@ -43,25 +53,29 @@ router.get('/sitemap-pages.xml', async (_req: Request, res: Response) => {
   try {
     res.set('Content-Type', 'application/xml');
     const currentDate = new Date().toISOString().split('T')[0];
-    const years = await storage.getAvailableYears();
-    const yearUrls = years.slice(0, 10).map(y =>
-      `  <url>
-    <loc>${BASE_URL}/year/${y}</loc>
+
+    const categoryUrls = CATEGORY_SLUGS.map(
+      (slug) =>
+        `  <url>
+    <loc>${BASE_URL}/categories/${slug}</loc>
     <lastmod>${currentDate}</lastmod>
     <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
+    <priority>0.75</priority>
   </url>`
     ).join('\n');
 
-    const genreSlugs = ['action', 'comedy', 'drama', 'horror', 'thriller', 'romance', 'sci-fi', 'fantasy', 'adventure', 'animation'];
-    const genreUrls = genreSlugs.map(slug =>
-      `  <url>
-    <loc>${BASE_URL}/genre/${slug}</loc>
+    const newsListUrls = `  <url>
+    <loc>${BASE_URL}/news</loc>
+    <lastmod>${currentDate}</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>${BASE_URL}/blog</loc>
     <lastmod>${currentDate}</lastmod>
     <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-  </url>`
-    ).join('\n');
+    <priority>0.75</priority>
+  </url>`;
 
     const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
@@ -96,12 +110,6 @@ router.get('/sitemap-pages.xml', async (_req: Request, res: Response) => {
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>${BASE_URL}/news</loc>
-    <lastmod>${currentDate}</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
     <loc>${BASE_URL}/search</loc>
     <lastmod>${currentDate}</lastmod>
     <changefreq>weekly</changefreq>
@@ -113,8 +121,8 @@ router.get('/sitemap-pages.xml', async (_req: Request, res: Response) => {
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
-${genreUrls}
-${yearUrls}
+${newsListUrls}
+${categoryUrls}
 </urlset>`;
 
     res.send(sitemap);
@@ -139,7 +147,7 @@ router.get('/sitemap-movies-:index.xml', async (req: Request, res: Response) => 
 
     const urls = movies.map(m =>
       `  <url>
-    <loc>${BASE_URL}/movie/${m.slug}/</loc>
+    <loc>${BASE_URL}/movie/${m.slug}</loc>
     <lastmod>${m.modifiedAt || currentDate}</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
@@ -156,6 +164,41 @@ ${urls}
     console.error('Error generating movie sitemap:', error);
     res.status(500).send('Error generating sitemap');
   }
+});
+
+router.get('/sitemap-news.xml', (_req: Request, res: Response) => {
+  res.set('Content-Type', 'application/xml');
+  const urls = NEWS_ARTICLES.map(
+    (a) =>
+      `  <url>
+    <loc>${BASE_URL}/news/${a.slug}</loc>
+    <lastmod>${a.date}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.65</priority>
+  </url>`
+  ).join('\n');
+  res.send(`<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${urls}
+</urlset>`);
+});
+
+router.get('/sitemap-blog.xml', (_req: Request, res: Response) => {
+  res.set('Content-Type', 'application/xml');
+  const currentDate = new Date().toISOString().split('T')[0];
+  const urls = BLOG_POSTS.map(
+    (p) =>
+      `  <url>
+    <loc>${BASE_URL}/blog/posts/${p.id}</loc>
+    <lastmod>${currentDate}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.55</priority>
+  </url>`
+  ).join('\n');
+  res.send(`<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${urls}
+</urlset>`);
 });
 
 // Legacy single sitemap - redirect to index for backward compatibility
@@ -175,11 +218,14 @@ Disallow: /api/auth/
 Disallow: /api/users/
 Disallow: /_next/
 
-# Allow important SEO pages
+# Crawlers: block API except sitemaps and this file
 Allow: /api/sitemap-index.xml
 Allow: /api/sitemap-pages.xml
 Allow: /api/sitemap-movies-
+Allow: /api/sitemap-news.xml
+Allow: /api/sitemap-blog.xml
 Allow: /api/robots.txt
+Disallow: /api/
 
 # Sitemap location (index lists all sitemaps)
 Sitemap: ${BASE_URL}/api/sitemap-index.xml

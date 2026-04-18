@@ -11,6 +11,20 @@ function toAbsoluteUrl(url: string | null | undefined): string | undefined {
   return `${BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`;
 }
 
+/** Extract YouTube video ID from various YouTube URL formats */
+function extractYouTubeId(url: string | null | undefined): string | null {
+  if (!url) return null;
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
+    /^[a-zA-Z0-9_-]{11}$/, // Already a video ID
+  ];
+  for (const pattern of patterns) {
+    const match = String(url).match(pattern);
+    if (match) return match[1];
+  }
+  return null;
+}
+
 /** Parse movie duration to ISO 8601 (e.g. "120" → "PT120M", "1h 30m" → "PT1H30M") */
 function parseDuration(time: string | null | undefined): string | undefined {
   if (!time) return undefined;
@@ -46,7 +60,7 @@ export function MovieSEO({ movie, slug }: MovieSEOProps) {
   try {
     const movieTitle = `Xem ${movie.name} HD Vietsub, thuyết minh | PhimGG`;
     const movieDescription = `Xem ${movie.name} chất lượng HD tại PhimGG. Cập nhật tập mới nhanh, hỗ trợ Vietsub và thuyết minh, xem miễn phí trên mọi thiết bị.`;
-    const movieUrl = `${BASE_URL}/movie/${slug}/`;
+    const movieUrl = `${BASE_URL}/movie/${slug}`;
     const imageUrl = toAbsoluteUrl(movie.poster_url || movie.thumb_url);
 
     const keywords = [
@@ -92,6 +106,26 @@ export function MovieSEO({ movie, slug }: MovieSEOProps) {
       ]
     };
 
+    // VideoObject schema for YouTube trailers (helps Google display video in search)
+    const trailerUrl = (movie as any).trailer_url || (movie as any).trailerUrl;
+    const youtubeVideoId = extractYouTubeId(trailerUrl);
+    const videoSchema = youtubeVideoId ? {
+      "@context": "https://schema.org",
+      "@type": "VideoObject",
+      "name": `${movie.name} - Trailer`,
+      "description": movieDescription,
+      "thumbnailUrl": imageUrl,
+      "uploadDate": movie.year ? `${movie.year}-01-01` : undefined,
+      "duration": duration,
+      "contentUrl": `${BASE_URL}/movie/${slug}`,
+      "embedUrl": `https://www.youtube.com/embed/${youtubeVideoId}`,
+      "publisher": {
+        "@type": "Organization",
+        "name": "PhimGG",
+        "url": BASE_URL
+      }
+    } : null;
+
     return (
       <Helmet>
         {/* Basic Meta Tags */}
@@ -128,6 +162,11 @@ export function MovieSEO({ movie, slug }: MovieSEOProps) {
         <script type="application/ld+json">
           {JSON.stringify(breadcrumbSchema)}
         </script>
+        {videoSchema && (
+          <script type="application/ld+json">
+            {JSON.stringify(videoSchema)}
+          </script>
+        )}
       </Helmet>
     );
   } catch (error) {

@@ -52,6 +52,9 @@ const VALID_ROUTES = [
 // Define valid route patterns (for dynamic routes like /movie/:slug)
 const VALID_ROUTE_PATTERNS = [
   /^\/movie\/[a-zA-Z0-9-_]+$/, // /movie/:slug
+  /^\/categories\/[a-zA-Z0-9-_]+$/,
+  /^\/news\/[a-zA-Z0-9-_]+$/,
+  /^\/blog\/posts\/[0-9]+$/,
 ];
 
 // Check if a route is valid

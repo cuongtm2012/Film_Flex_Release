@@ -8,6 +8,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { FileQuestion, Mail, Search, HelpCircle } from "lucide-react";
+import { Helmet } from "react-helmet-async";
+import { PageSEO } from "@/components/PageSEO";
 
 const FAQsPage = () => {
   // FAQ categories with their questions and answers
@@ -134,8 +136,31 @@ const FAQsPage = () => {
     },
   ];
 
+  // FAQ structured data for Google rich results
+  const faqSchema = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": faqCategories.flatMap(cat =>
+      cat.items.map(item => ({
+        "@type": "Question",
+        "name": item.question,
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": item.answer
+        }
+      }))
+    )
+  };
+
   return (
     <div className="container mx-auto px-4 py-10">
+      {/* SEO - FAQ Schema for Google rich results */}
+      <Helmet>
+        <title>Frequently Asked Questions | PhimGG</title>
+        <link rel="canonical" href="https://phimgg.com/faqs" />
+        <script type="application/ld+json">{JSON.stringify(faqSchema)}</script>
+      </Helmet>
+
       {/* Header section */}
       <div className="text-center mb-12">
         <FileQuestion className="h-12 w-12 text-primary mx-auto mb-4" />
