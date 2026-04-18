@@ -1,6 +1,6 @@
 /**
  * Movie/Category cache - Redis with in-memory fallback
- * Uses Redis when REDIS_HOST is set; falls back to in-memory Map when Redis unavailable.
+ * Uses Redis when REDIS_URL/REDIS_HOST is set; falls back to in-memory Map when Redis unavailable.
  * Reduces Node.js RAM usage and persists cache across restarts.
  */
 
@@ -21,7 +21,7 @@ const REDIS_PING_TIMEOUT_MS = 2000;
 
 async function checkRedisAvailable(): Promise<boolean> {
   if (redisCheckDone) return redisAvailable;
-  if (!config.redisHost) {
+  if (!config.redisUrl && !config.redisHost) {
     redisCheckDone = true;
     redisAvailable = false;
     return false;

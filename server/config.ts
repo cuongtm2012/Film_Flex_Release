@@ -38,6 +38,7 @@ interface Config {
   fromEmail: string;
   fromName: string;
   // Redis configuration (cache, sessions)
+  redisUrl: string | undefined;
   redisHost: string | undefined;
   redisPort: number;
   redisPassword: string | undefined;
@@ -62,6 +63,7 @@ export const config: Config = {
   sendgridApiKey: process.env.SENDGRID_API_KEY,
   fromEmail: process.env.FROM_EMAIL || 'noreply@filmflex.com',
   fromName: process.env.FROM_NAME || 'PhimGG',
+  redisUrl: process.env.REDIS_URL,
   redisHost: process.env.REDIS_HOST,
   redisPort: parseInt(process.env.REDIS_PORT || '6379', 10),
   redisPassword: process.env.REDIS_PASSWORD,

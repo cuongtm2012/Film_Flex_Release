@@ -6,17 +6,23 @@
 import Redis from 'ioredis';
 import { config } from '../config.js';
 
-// Create Redis client
-export const redisClient = new Redis({
-    host: config.redisHost || 'localhost',
-    port: config.redisPort || 6379,
-    password: config.redisPassword || undefined,
-    retryStrategy: (times) => {
+const redisOptions = {
+    retryStrategy: (times: number) => {
         const delay = Math.min(times * 50, 2000);
         return delay;
     },
     maxRetriesPerRequest: 3,
-});
+};
+
+// Create Redis client (prefer REDIS_URL in production/cloud environments)
+export const redisClient = config.redisUrl
+    ? new Redis(config.redisUrl, redisOptions)
+    : new Redis({
+        host: config.redisHost,
+        port: config.redisPort || 6379,
+        password: config.redisPassword || undefined,
+        ...redisOptions,
+    });
 
 // Handle connection events
 redisClient.on('connect', () => {
