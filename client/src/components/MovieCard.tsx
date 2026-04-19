@@ -138,7 +138,7 @@ export default function MovieCard({ movie }: MovieCardProps) {
       <div className="movie-card group relative rounded-lg overflow-hidden cursor-pointer">        
         <AspectRatio ratio={2/3}>
           <LazyImage
-            src={movie.posterUrl || movie.thumbUrl || movie.poster_url || movie.thumb_url || "https://via.placeholder.com/300x450?text=No+Image"}
+            src={movie.posterUrl || movie.thumbUrl || movie.poster_url || movie.thumb_url || ""}
             alt={movie.name}
             className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
             rootMargin="75px"
@@ -147,7 +147,7 @@ export default function MovieCard({ movie }: MovieCardProps) {
             onError={() => {
               logger.error(`Failed to load image for movie: ${movie.name}`);
             }}
-            errorFallback="https://via.placeholder.com/300x450?text=No+Image"
+            errorFallback={`data:image/svg+xml,%3Csvg width='300' height='450' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3ClinearGradient id='movieGrad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color=%23374151;stop-opacity=1' /%3E%3Cstop offset='100%25' style='stop-color=%23111827;stop-opacity=1' /%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='100%25' height='100%25' fill='url(%23movieGrad)'/%3E%3Ctext x='50%25' y='45%25' text-anchor='middle' fill='%23ffffff' font-size='14' font-family='Arial' opacity='0.6'%3E🎭%3C/text%3E%3Ctext x='50%25' y='55%25' text-anchor='middle' fill='%23ffffff' font-size='10' font-family='Arial' opacity='0.5'%3ENo Image%3C/text%3E%3C/svg%3E`}
           />
 
           {/* Ultra Compact Year Badge - Top Right */}

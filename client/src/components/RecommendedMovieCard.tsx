@@ -114,7 +114,7 @@ export default function RecommendedMovieCard({ movie, size = "medium" }: Recomme
   const statusBadgeInfo = getStatusBadgeInfo();
 
   // Get the correct image URL with proper fallbacks
-  const imageUrl = movie.posterUrl || movie.poster_url || movie.thumbUrl || movie.thumb_url || "https://via.placeholder.com/300x450?text=No+Image";
+  const imageUrl = movie.posterUrl || movie.poster_url || movie.thumbUrl || movie.thumb_url || "";
 
   // Get episode information for display
   const getEpisodeDisplay = () => {
@@ -143,7 +143,7 @@ export default function RecommendedMovieCard({ movie, size = "medium" }: Recomme
               rootMargin="50px"
               threshold={0.1}
               showSpinner={true}
-              errorFallback="https://via.placeholder.com/300x450?text=No+Image"
+              errorFallback={`data:image/svg+xml,%3Csvg width='300' height='450' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3ClinearGradient id='movieGrad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color=%23374151;stop-opacity=1' /%3E%3Cstop offset='100%25' style='stop-color=%23111827;stop-opacity=1' /%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='100%25' height='100%25' fill='url(%23movieGrad)'/%3E%3Ctext x='50%25' y='45%25' text-anchor='middle' fill='%23ffffff' font-size='14' font-family='Arial' opacity='0.6'%3E🎭%3C/text%3E%3Ctext x='50%25' y='55%25' text-anchor='middle' fill='%23ffffff' font-size='10' font-family='Arial' opacity='0.5'%3ENo Image%3C/text%3E%3C/svg%3E`}
               onError={() => {
                 logger.error(`Failed to load image for recommended movie: ${movie.name}`);
               }}

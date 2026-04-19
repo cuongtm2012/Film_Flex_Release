@@ -50,7 +50,7 @@ const LazyImage: React.FC<LazyImageProps> = ({
   onStartLoad,
   onLoad,
   onError,
-  errorFallback = 'https://via.placeholder.com/300x450?text=Image+Not+Found',
+  errorFallback = `data:image/svg+xml,%3Csvg width='300' height='450' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='100%25' height='100%25' fill='%23374151'/%3E%3Ctext x='50%25' y='45%25' text-anchor='middle' fill='%23ffffff' font-size='14' font-family='Arial'%3E🎭%3C/text%3E%3Ctext x='50%25' y='55%25' text-anchor='middle' fill='%23ffffff' font-size='10' font-family='Arial'%3EImage Error%3C/text%3E%3C/svg%3E`,
   showSpinner = true,
   style,
   ...props

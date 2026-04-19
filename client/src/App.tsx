@@ -83,6 +83,23 @@ function Router() {
             <AuthPage />
           </ErrorBoundary>
         </Route>
+
+        {/* Legacy auth routes - redirect to /auth */}
+        <Route path="/login">
+          <Redirect to="/auth" />
+        </Route>
+
+        <Route path="/auth/login">
+          <Redirect to="/auth" />
+        </Route>
+
+        <Route path="/register">
+          <Redirect to="/auth" />
+        </Route>
+
+        <Route path="/auth/register">
+          <Redirect to="/auth" />
+        </Route>
         
         <Route path="/forgot-password">
           <ErrorBoundary>
