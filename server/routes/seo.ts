@@ -201,9 +201,45 @@ ${urls}
 </urlset>`);
 });
 
-// Legacy single sitemap - redirect to index for backward compatibility
+// Legacy single sitemap - serve same content as index for backward compatibility
 router.get('/sitemap.xml', async (_req: Request, res: Response) => {
-  res.redirect(302, '/api/sitemap-index.xml');
+  try {
+    res.set('Content-Type', 'application/xml');
+    const currentDate = new Date().toISOString().split('T')[0];
+    const totalMovies = await storage.getMovieCount();
+    const movieSitemapCount = Math.ceil(totalMovies / MOVIES_PER_SITEMAP);
+
+    let xml = `<?xml version="1.0" encoding="UTF-8"?>
+<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <sitemap>
+    <loc>${BASE_URL}/api/sitemap-pages.xml</loc>
+    <lastmod>${currentDate}</lastmod>
+  </sitemap>`;
+
+    for (let i = 0; i < movieSitemapCount; i++) {
+      xml += `
+  <sitemap>
+    <loc>${BASE_URL}/api/sitemap-movies-${i + 1}.xml</loc>
+    <lastmod>${currentDate}</lastmod>
+  </sitemap>`;
+    }
+
+    xml += `
+  <sitemap>
+    <loc>${BASE_URL}/api/sitemap-news.xml</loc>
+    <lastmod>${currentDate}</lastmod>
+  </sitemap>
+  <sitemap>
+    <loc>${BASE_URL}/api/sitemap-blog.xml</loc>
+    <lastmod>${currentDate}</lastmod>
+  </sitemap>
+</sitemapindex>`;
+
+    res.send(xml);
+  } catch (error) {
+    console.error('Error generating sitemap index:', error);
+    res.status(500).send('Error generating sitemap');
+  }
 });
 
 // Serve robots.txt dynamically
